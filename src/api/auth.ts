@@ -2,13 +2,25 @@ import { apiClient, extractData } from './client';
 
 import type { AuthUser, LoginPayload, LoginResponse } from '@/types/auth';
 
-/** Acepta tanto `usuario` como `user` en la respuesta de login/me. */
+function normalizeUser(payload: AuthUser | undefined): AuthUser | undefined {
+  if (!payload) return undefined;
+
+  return {
+    ...payload,
+    nombre: payload.nombre ?? (typeof payload.name === 'string' ? payload.name : undefined),
+    email: payload.email ?? payload.correo,
+    correo: payload.correo ?? payload.email,
+  };
+}
+
 function normalizeLoginResponse(payload: unknown): LoginResponse {
   const data = extractData<LoginResponse>(payload);
+  const normalizedUser = normalizeUser(data.usuario ?? data.user);
+
   return {
     token: data.token,
-    usuario: data.usuario ?? data.user,
-    user: data.user ?? data.usuario,
+    usuario: normalizedUser,
+    user: normalizedUser,
   };
 }
 
@@ -24,6 +36,8 @@ export const authApi = {
 
   async me(): Promise<AuthUser> {
     const response = await apiClient.get('/me');
-    return extractData<AuthUser>(response.data);
+    const user = normalizeUser(extractData<AuthUser>(response.data));
+    if (!user) throw new Error('La API no devolvió el usuario autenticado.');
+    return user;
   },
 };
