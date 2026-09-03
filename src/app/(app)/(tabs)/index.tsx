@@ -1,11 +1,11 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Ionicons } from '@expo/vector-icons';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { colaboradorApi } from '@/api/colaborador';
-import { Avatar } from '@/components/Avatar';
 import { AppHeader } from '@/components/AppHeader';
+import { Avatar } from '@/components/Avatar';
 import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
 import { NotificationBellButton } from '@/components/NotificationBellButton';
@@ -14,7 +14,6 @@ import { SkeletonBlock, SkeletonCardList } from '@/components/SkeletonBlock';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 import { useAuthStore } from '@/store/authStore';
 import type { DashboardData } from '@/types/collaborator';
-import type { Solicitud } from '@/types/request';
 import { formatDateLong } from '@/utils/dates';
 import { getErrorMessage, logError } from '@/utils/errors';
 import { pickNumber, pickString } from '@/utils/formatters';
@@ -48,27 +47,20 @@ export default function DashboardScreen() {
   }, []);
 
   useEffect(() => {
-    (async () => {
-      await load();
-    })();
+    void load();
   }, [load]);
 
-  // El backend podría anidar los datos del colaborador o devolverlos aplanados; se
-  // combinan ambas formas para leer campos de forma defensiva (ver utils/formatters.ts).
-  const source: Record<string, unknown> = { ...(data ?? {}), ...(data?.colaborador ?? {}) };
-
-  const nombre = pickString(source, ['nombre_completo', 'nombre', 'name']) ?? pickString(user, ['nombre', 'name']);
-  const puesto = pickString(source, ['puesto']);
-  const sucursal = pickString(source, ['sucursal']);
-  const empresa = pickString(source, ['empresa']);
-  const fechaIngreso = pickString(source, ['fecha_ingreso']);
-  const antiguedad = pickString(source, ['antiguedad']);
-  const fotoUrl = pickString(source, ['foto_url_api', 'foto_url']);
-  const diasDisponibles = pickNumber(source, ['vacaciones_disponibles', 'dias_disponibles']);
-  const notificacionesNoLeidas = pickNumber(source, ['notificaciones_no_leidas']) ?? 0;
-  const solicitudesRecientes = Array.isArray(data?.solicitudes_recientes)
-    ? (data?.solicitudes_recientes as Solicitud[])
-    : [];
+  const perfil = data?.perfil;
+  const nombre = pickString(perfil, ['nombre_completo', 'nombre']) ?? pickString(user, ['nombre', 'name']);
+  const puesto = pickString(perfil, ['puesto']);
+  const sucursal = pickString(perfil, ['sucursal']);
+  const empresa = pickString(perfil, ['empresa']);
+  const fechaIngreso = pickString(perfil, ['fecha_ingreso']);
+  const antiguedadAnios = pickNumber(perfil, ['antiguedad_anios']);
+  const fotoUrl = pickString(perfil, ['foto_url_api', 'foto_url']);
+  const diasDisponibles = pickNumber(data?.vacaciones, ['dias_disponibles']);
+  const notificacionesNoLeidas = pickNumber(data?.notificaciones, ['no_leidas']) ?? 0;
+  const solicitudesRecientes = data?.solicitudes_recientes ?? [];
 
   return (
     <View style={styles.container}>
@@ -93,14 +85,12 @@ export default function DashboardScreen() {
             <Card style={styles.profileCard}>
               <Avatar name={nombre} uri={fotoUrl} size={64} />
               <View style={styles.profileInfo}>
-                <Text style={styles.profileName} numberOfLines={1}>
-                  {nombre ?? 'Colaborador'}
-                </Text>
+                <Text style={styles.profileName} numberOfLines={1}>{nombre ?? 'Colaborador'}</Text>
                 {empresa ? <Text style={styles.profileMeta}>{empresa}</Text> : null}
-                {fechaIngreso ? (
-                  <Text style={styles.profileMeta}>Ingreso: {formatDateLong(fechaIngreso)}</Text>
+                {fechaIngreso ? <Text style={styles.profileMeta}>Ingreso: {formatDateLong(fechaIngreso)}</Text> : null}
+                {typeof antiguedadAnios === 'number' ? (
+                  <Text style={styles.profileMeta}>Antigüedad: {antiguedadAnios} {antiguedadAnios === 1 ? 'año' : 'años'}</Text>
                 ) : null}
-                {antiguedad ? <Text style={styles.profileMeta}>Antigüedad: {antiguedad}</Text> : null}
               </View>
             </Card>
 
@@ -116,26 +106,10 @@ export default function DashboardScreen() {
 
             <Text style={styles.sectionTitle}>Accesos rápidos</Text>
             <View style={styles.quickGrid}>
-              <QuickAction
-                icon="airplane-outline"
-                label="Mis vacaciones"
-                onPress={() => router.push('/(app)/(tabs)/vacaciones')}
-              />
-              <QuickAction
-                icon="document-text-outline"
-                label="Mis solicitudes"
-                onPress={() => router.push('/(app)/(tabs)/solicitudes')}
-              />
-              <QuickAction
-                icon="add-circle-outline"
-                label="Nueva solicitud"
-                onPress={() => router.push('/solicitud/nueva')}
-              />
-              <QuickAction
-                icon="notifications-outline"
-                label="Notificaciones"
-                onPress={() => router.push('/notificaciones')}
-              />
+              <QuickAction icon="airplane-outline" label="Mis vacaciones" onPress={() => router.push('/(app)/(tabs)/vacaciones')} />
+              <QuickAction icon="document-text-outline" label="Mis solicitudes" onPress={() => router.push('/(app)/(tabs)/solicitudes')} />
+              <QuickAction icon="add-circle-outline" label="Nueva solicitud" onPress={() => router.push('/solicitud/nueva')} />
+              <QuickAction icon="notifications-outline" label="Notificaciones" onPress={() => router.push('/notificaciones')} />
             </View>
 
             <Text style={styles.sectionTitle}>Solicitudes recientes</Text>
@@ -161,20 +135,13 @@ export default function DashboardScreen() {
   );
 }
 
-function QuickAction({
-  icon,
-  label,
-  onPress,
-}: {
+function QuickAction({ icon, label, onPress }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   onPress: () => void;
 }) {
   return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [styles.quickAction, pressed && styles.quickActionPressed]}>
+    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.quickAction, pressed && styles.quickActionPressed]}>
       <View style={styles.quickIcon}>
         <Ionicons name={icon} size={22} color={Colors.primaryDark} />
       </View>
@@ -184,36 +151,13 @@ function QuickAction({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  content: {
-    padding: Spacing.lg,
-    gap: Spacing.lg,
-    paddingBottom: Spacing.xxxl,
-  },
-  skeletonWrapper: {
-    gap: Spacing.lg,
-  },
-  profileCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  profileInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  profileName: {
-    fontSize: FontSize.lg,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  profileMeta: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
-  },
+  container: { flex: 1, backgroundColor: Colors.background },
+  content: { padding: Spacing.lg, gap: Spacing.lg, paddingBottom: Spacing.xxxl },
+  skeletonWrapper: { gap: Spacing.lg },
+  profileCard: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  profileInfo: { flex: 1, gap: 2 },
+  profileName: { fontSize: FontSize.lg, fontWeight: '800', color: Colors.text },
+  profileMeta: { fontSize: FontSize.sm, color: Colors.textMuted },
   vacationCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -221,28 +165,10 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primarySoft,
     borderColor: Colors.primarySoft,
   },
-  vacationLabel: {
-    fontSize: FontSize.sm,
-    color: Colors.primaryDark,
-    fontWeight: '700',
-  },
-  vacationValue: {
-    fontSize: FontSize.xxxl,
-    color: Colors.primaryDark,
-    fontWeight: '800',
-    marginTop: 2,
-  },
-  sectionTitle: {
-    fontSize: FontSize.md,
-    fontWeight: '800',
-    color: Colors.text,
-    marginTop: Spacing.xs,
-  },
-  quickGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.md,
-  },
+  vacationLabel: { fontSize: FontSize.sm, color: Colors.primaryDark, fontWeight: '700' },
+  vacationValue: { fontSize: FontSize.xxxl, color: Colors.primaryDark, fontWeight: '800', marginTop: 2 },
+  sectionTitle: { fontSize: FontSize.md, fontWeight: '800', color: Colors.text, marginTop: Spacing.xs },
+  quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
   quickAction: {
     width: '47%',
     backgroundColor: Colors.surface,
@@ -254,9 +180,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     minHeight: 96,
   },
-  quickActionPressed: {
-    opacity: 0.85,
-  },
+  quickActionPressed: { opacity: 0.85 },
   quickIcon: {
     width: 40,
     height: 40,
@@ -265,17 +189,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  quickLabel: {
-    fontSize: FontSize.sm,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  list: {
-    gap: Spacing.md,
-  },
-  emptyText: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
-    textAlign: 'center',
-  },
+  quickLabel: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.text },
+  list: { gap: Spacing.md },
+  emptyText: { fontSize: FontSize.sm, color: Colors.textMuted, textAlign: 'center' },
 });
