@@ -15,15 +15,16 @@ export interface RequestCardProps {
 }
 
 export function RequestCard({ solicitud, onPress }: RequestCardProps) {
-  const fecha = pickString(solicitud, ['fecha', 'created_at']);
-  const resumen = pickString(solicitud, ['comentario', 'observaciones']);
+  const fecha = pickString(solicitud, ['creada_en']);
+  const resumen = pickString(solicitud, ['motivo', 'observaciones']);
+  const tipo = solicitud.tipo_etiqueta ?? humanizeRequestType(solicitud.tipo);
 
   return (
     <Card onPress={onPress} style={styles.card}>
       <View style={styles.headerRow}>
         <View style={styles.typeRow}>
           <Ionicons name="document-text-outline" size={16} color={Colors.textMuted} />
-          <Text style={styles.type}>{humanizeRequestType(solicitud.tipo)}</Text>
+          <Text style={styles.type}>{tipo}</Text>
         </View>
         <StatusBadge status={solicitud.estado} />
       </View>
