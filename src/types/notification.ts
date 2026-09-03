@@ -1,10 +1,11 @@
 export interface NotificationItem {
   id: number | string;
+  tipo?: string | null;
   titulo?: string;
   mensaje?: string;
-  leido?: boolean;
+  url?: string | null;
   leida?: boolean;
-  fecha?: string;
-  created_at?: string;
+  creada_en?: string;
+  creada_en_iso?: string;
   [key: string]: unknown;
 }
