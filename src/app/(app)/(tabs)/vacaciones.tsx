@@ -3,7 +3,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { z } from 'zod';
 
 import { vacacionesApi } from '@/api/vacaciones';
@@ -27,11 +27,16 @@ const vacationFormSchema = z
   .object({
     fechaInicio: z.date({ error: 'Selecciona la fecha de inicio' }),
     fechaFin: z.date({ error: 'Selecciona la fecha de fin' }),
-    comentario: z.string().optional(),
+    diasSolicitados: z.string().trim().regex(/^\d+$/, 'Ingresa un número válido de días'),
+    comentario: z.string().max(1000, 'Máximo 1000 caracteres').optional(),
   })
   .refine((data) => !isDateBefore(data.fechaFin, data.fechaInicio), {
     message: 'La fecha de fin no puede ser anterior a la fecha de inicio',
     path: ['fechaFin'],
+  })
+  .refine((data) => Number(data.diasSolicitados) >= 1 && Number(data.diasSolicitados) <= 60, {
+    message: 'Los días solicitados deben estar entre 1 y 60',
+    path: ['diasSolicitados'],
   });
 
 type VacationFormValues = z.infer<typeof vacationFormSchema>;
@@ -66,13 +71,11 @@ export default function VacacionesScreen() {
   }, []);
 
   useEffect(() => {
-    (async () => {
-      await load();
-    })();
+    void load();
   }, [load]);
 
   const generados = pickNumber(saldo, ['dias_generados']);
-  const utilizados = pickNumber(saldo, ['dias_utilizados']);
+  const utilizados = pickNumber(saldo, ['dias_usados']);
   const disponibles = pickNumber(saldo, ['dias_disponibles']);
   const enSolicitud = pickNumber(saldo, ['dias_en_solicitud']);
 
@@ -127,12 +130,7 @@ export default function VacacionesScreen() {
   );
 }
 
-function BalanceTile({
-  label,
-  value,
-  icon,
-  highlight = false,
-}: {
+function BalanceTile({ label, value, icon, highlight = false }: {
   label: string;
   value?: number;
   icon: keyof typeof Ionicons.glyphMap;
@@ -149,11 +147,7 @@ function BalanceTile({
   );
 }
 
-function VacationRequestModal({
-  visible,
-  onClose,
-  onCreated,
-}: {
+function VacationRequestModal({ visible, onClose, onCreated }: {
   visible: boolean;
   onClose: () => void;
   onCreated: () => void;
@@ -169,13 +163,11 @@ function VacationRequestModal({
     formState: { errors },
   } = useForm<VacationFormValues>({
     resolver: zodResolver(vacationFormSchema),
-    defaultValues: { fechaInicio: undefined, fechaFin: undefined, comentario: '' },
+    defaultValues: { fechaInicio: undefined, fechaFin: undefined, diasSolicitados: '', comentario: '' },
   });
 
-  // El formulario se reinicia al cerrar (por acción del usuario, no en un
-  // efecto) para no disparar setState de forma síncrona durante el render.
   const resetForm = () => {
-    reset({ fechaInicio: undefined, fechaFin: undefined, comentario: '' });
+    reset({ fechaInicio: undefined, fechaFin: undefined, diasSolicitados: '', comentario: '' });
     setFormError(null);
     setActivePicker(null);
   };
@@ -185,13 +177,14 @@ function VacationRequestModal({
     onClose();
   };
 
-  const onSubmit = async (values: VacationFormValues) => {
+  const submitRequest = async (values: VacationFormValues) => {
     setFormError(null);
     setSubmitting(true);
     try {
       await vacacionesApi.createSolicitud({
         fecha_inicio: toApiDateString(values.fechaInicio),
         fecha_fin: toApiDateString(values.fechaFin),
+        dias_solicitados: Number(values.diasSolicitados),
         comentario: values.comentario?.trim() || undefined,
       });
       resetForm();
@@ -206,6 +199,13 @@ function VacationRequestModal({
     }
   };
 
+  const onSubmit = (values: VacationFormValues) => {
+    Alert.alert('Confirmar solicitud', `¿Deseas solicitar ${values.diasSolicitados} día(s) de vacaciones?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Enviar', onPress: () => void submitRequest(values) },
+    ]);
+  };
+
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={handleClose}>
       <View style={styles.modalContainer}>
@@ -216,17 +216,12 @@ function VacationRequestModal({
           </Pressable>
         </View>
 
-        <ScrollView contentContainerStyle={styles.modalContent}>
+        <ScrollView contentContainerStyle={styles.modalContent} keyboardShouldPersistTaps="handled">
           <Controller
             control={control}
             name="fechaInicio"
             render={({ field: { value } }) => (
-              <DateField
-                label="Fecha de inicio"
-                value={value}
-                onPress={() => setActivePicker('inicio')}
-                error={errors.fechaInicio?.message}
-              />
+              <DateField label="Fecha de inicio" value={value} onPress={() => setActivePicker('inicio')} error={errors.fechaInicio?.message} />
             )}
           />
 
@@ -234,11 +229,22 @@ function VacationRequestModal({
             control={control}
             name="fechaFin"
             render={({ field: { value } }) => (
-              <DateField
-                label="Fecha de fin"
+              <DateField label="Fecha de fin" value={value} onPress={() => setActivePicker('fin')} error={errors.fechaFin?.message} />
+            )}
+          />
+
+          <Controller
+            control={control}
+            name="diasSolicitados"
+            render={({ field: { value, onChange, onBlur } }) => (
+              <Input
+                label="Días solicitados"
+                placeholder="Ej. 3"
                 value={value}
-                onPress={() => setActivePicker('fin')}
-                error={errors.fechaFin?.message}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                error={errors.diasSolicitados?.message}
+                keyboardType="number-pad"
               />
             )}
           />
@@ -253,6 +259,7 @@ function VacationRequestModal({
                 value={value}
                 onChangeText={onChange}
                 onBlur={onBlur}
+                error={errors.comentario?.message}
                 multiline
                 style={styles.multilineInput}
               />
@@ -271,6 +278,7 @@ function VacationRequestModal({
             render={({ field: { value, onChange } }) => (
               <DateTimePicker
                 value={value ?? new Date()}
+                minimumDate={new Date()}
                 mode="date"
                 display={Platform.OS === 'ios' ? 'inline' : 'default'}
                 onChange={(event, selectedDate) => {
@@ -290,12 +298,7 @@ function VacationRequestModal({
   );
 }
 
-function DateField({
-  label,
-  value,
-  onPress,
-  error,
-}: {
+function DateField({ label, value, onPress, error }: {
   label: string;
   value?: Date;
   onPress: () => void;
@@ -314,54 +317,17 @@ function DateField({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  content: {
-    padding: Spacing.lg,
-    gap: Spacing.lg,
-    paddingBottom: Spacing.xxxl,
-  },
-  balanceGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.md,
-  },
-  tile: {
-    width: '47%',
-    alignItems: 'flex-start',
-    gap: Spacing.xs,
-  },
-  tileHighlight: {
-    backgroundColor: Colors.primarySoft,
-    borderColor: Colors.primarySoft,
-  },
-  tileValue: {
-    fontSize: FontSize.xxl,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  tileValueHighlight: {
-    color: Colors.primaryDark,
-  },
-  tileLabel: {
-    fontSize: FontSize.xs,
-    color: Colors.textMuted,
-    fontWeight: '600',
-  },
-  sectionTitle: {
-    fontSize: FontSize.md,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  list: {
-    gap: Spacing.md,
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
+  container: { flex: 1, backgroundColor: Colors.background },
+  content: { padding: Spacing.lg, gap: Spacing.lg, paddingBottom: Spacing.xxxl },
+  balanceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
+  tile: { width: '47%', alignItems: 'flex-start', gap: Spacing.xs },
+  tileHighlight: { backgroundColor: Colors.primarySoft, borderColor: Colors.primarySoft },
+  tileValue: { fontSize: FontSize.xxl, fontWeight: '800', color: Colors.text },
+  tileValueHighlight: { color: Colors.primaryDark },
+  tileLabel: { fontSize: FontSize.xs, color: Colors.textMuted, fontWeight: '600' },
+  sectionTitle: { fontSize: FontSize.md, fontWeight: '800', color: Colors.text },
+  list: { gap: Spacing.md },
+  modalContainer: { flex: 1, backgroundColor: Colors.background },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -370,20 +336,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  modalTitle: {
-    fontSize: FontSize.lg,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  modalContent: {
-    padding: Spacing.lg,
-    gap: Spacing.lg,
-  },
-  dateLabel: {
-    fontSize: FontSize.sm,
-    fontWeight: '700',
-    color: Colors.text,
-  },
+  modalTitle: { fontSize: FontSize.lg, fontWeight: '800', color: Colors.text },
+  modalContent: { padding: Spacing.lg, gap: Spacing.lg },
+  dateLabel: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.text },
   dateInput: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -395,24 +350,9 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     backgroundColor: Colors.surface,
   },
-  dateInputError: {
-    borderColor: Colors.danger,
-  },
-  dateValue: {
-    fontSize: FontSize.md,
-    color: Colors.text,
-  },
-  multilineInput: {
-    minHeight: 80,
-    textAlignVertical: 'top',
-    paddingTop: Spacing.sm,
-  },
-  formError: {
-    fontSize: FontSize.xs,
-    color: Colors.danger,
-    fontWeight: '600',
-  },
-  doneButton: {
-    margin: Spacing.lg,
-  },
+  dateInputError: { borderColor: Colors.danger },
+  dateValue: { fontSize: FontSize.md, color: Colors.text },
+  multilineInput: { minHeight: 80, textAlignVertical: 'top', paddingTop: Spacing.sm },
+  formError: { fontSize: FontSize.xs, color: Colors.danger, fontWeight: '600' },
+  doneButton: { margin: Spacing.lg },
 });
