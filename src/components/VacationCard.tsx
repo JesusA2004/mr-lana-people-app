@@ -25,46 +25,24 @@ export function VacationCard({ request }: VacationCardProps) {
         <StatusBadge status={request.estado} />
       </View>
 
-      {typeof request.dias === 'number' ? (
+      {typeof request.dias_solicitados === 'number' ? (
         <Text style={styles.days}>
-          {request.dias} {request.dias === 1 ? 'día' : 'días'}
+          {request.dias_solicitados} {request.dias_solicitados === 1 ? 'día' : 'días'}
         </Text>
       ) : null}
 
       {request.comentario ? <Text style={styles.comment}>{request.comentario}</Text> : null}
+      {request.motivo_rechazo ? <Text style={styles.rejection}>Motivo: {request.motivo_rechazo}</Text> : null}
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    gap: Spacing.xs,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.sm,
-  },
-  dateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    flexShrink: 1,
-  },
-  dates: {
-    fontSize: FontSize.sm,
-    fontWeight: '700',
-    color: Colors.text,
-    flexShrink: 1,
-  },
-  days: {
-    fontSize: FontSize.sm,
-    color: Colors.primaryDark,
-    fontWeight: '700',
-  },
-  comment: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
-  },
+  card: { gap: Spacing.xs },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.sm },
+  dateRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, flexShrink: 1 },
+  dates: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.text, flexShrink: 1 },
+  days: { fontSize: FontSize.sm, color: Colors.primaryDark, fontWeight: '700' },
+  comment: { fontSize: FontSize.sm, color: Colors.textMuted },
+  rejection: { fontSize: FontSize.sm, color: Colors.danger, fontWeight: '600' },
 });
