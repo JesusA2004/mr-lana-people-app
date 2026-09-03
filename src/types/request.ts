@@ -1,11 +1,4 @@
-/**
- * `RequestType` y `RequestStatus` incluyen los valores documentados por el
- * backend, pero permanecen abiertos (`string & {}`) porque el catálogo real
- * debe respetarse tal cual lo devuelva la API — no se debe inventar lógica
- * administrativa en el cliente.
- */
 export type RequestType =
-  | 'vacaciones'
   | 'permiso_con_goce'
   | 'permiso_sin_goce'
   | 'incapacidad'
@@ -13,7 +6,8 @@ export type RequestType =
   | 'actualizacion_datos'
   | 'actualizacion_bancaria'
   | 'reposicion_documental'
-  | 'solicitud_general'
+  | 'prestamo_interno'
+  | 'general'
   | (string & {});
 
 export type RequestStatus =
@@ -31,17 +25,23 @@ export interface Solicitud {
   id: number | string;
   folio?: string;
   tipo?: RequestType;
+  tipo_etiqueta?: string;
   estado?: RequestStatus;
-  fecha?: string;
-  created_at?: string;
-  comentario?: string;
+  estado_etiqueta?: string;
+  fecha_inicio?: string;
+  fecha_fin?: string;
+  motivo?: string;
   observaciones?: string;
-  respuesta?: string;
+  motivo_rechazo?: string;
+  revisado_en?: string;
+  creada_en?: string;
   [key: string]: unknown;
 }
 
 export interface CreateSolicitudPayload {
   tipo: RequestType;
-  comentario?: string;
-  [key: string]: unknown;
+  motivo: string;
+  observaciones?: string;
+  fecha_inicio?: string;
+  fecha_fin?: string;
 }

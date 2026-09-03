@@ -6,25 +6,16 @@ export interface NormalizedError {
   message: string;
   status?: number;
   validationErrors?: Record<string, string[]>;
-  /** true cuando la petición nunca llegó a obtener respuesta del servidor (sin conexión, IP incorrecta, timeout, servidor caído). */
+  /** true cuando la petición no obtuvo respuesta del servidor. */
   isNetworkError?: boolean;
 }
 
-const FRIENDLY_NETWORK_MESSAGE = 'Tenemos problemas para conectar con el servidor. Inténtalo más tarde.';
+const FRIENDLY_NETWORK_MESSAGE = 'No fue posible conectar con el servidor. Verifica tu conexión e inténtalo de nuevo.';
 
 function isAxiosError(error: unknown): error is AxiosError<ApiErrorPayload> {
   return typeof error === 'object' && error !== null && (error as { isAxiosError?: unknown }).isAxiosError === true;
 }
 
-/**
- * Convierte cualquier error (Axios/Laravel u otro) en un mensaje entendible
- * para el usuario final. Nunca expone stack traces, HTML de Laravel ni JSON
- * crudo — esos detalles solo se registran vía `logError` en desarrollo.
- *
- * Cualquier falla de red (servidor apagado, IP incorrecta, sin internet,
- * timeout) cae siempre en el mismo mensaje amistoso: nunca debe "tronar" la
- * app ni mostrar detalles técnicos.
- */
 export function normalizeError(error: unknown): NormalizedError {
   if (isAxiosError(error)) {
     if (!error.response) {
@@ -64,9 +55,26 @@ export function getValidationErrors(error: unknown): Record<string, string[]> | 
   return normalizeError(error).validationErrors;
 }
 
-/** Log técnico para desarrollo. Nunca debe recibir tokens ni contraseñas. */
+/**
+ * Log técnico de errores ya controlados por la interfaz.
+ * Se usa console.warn para no disparar el overlay rojo de Expo/React Native
+ * por errores esperados como credenciales inválidas, 422 o servidor local apagado.
+ */
 export function logError(context: string, error: unknown): void {
-  if (__DEV__) {
-    console.error(`[${context}]`, normalizeError(error), error);
+  if (!__DEV__) return;
+
+  const normalized = normalizeError(error);
+  if (isAxiosError(error)) {
+    console.warn(`[${context}]`, {
+      message: normalized.message,
+      status: normalized.status,
+      isNetworkError: normalized.isNetworkError,
+      method: error.config?.method?.toUpperCase(),
+      url: error.config?.url,
+      code: error.code,
+    });
+    return;
   }
+
+  console.warn(`[${context}]`, normalized);
 }

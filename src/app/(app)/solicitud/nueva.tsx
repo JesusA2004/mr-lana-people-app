@@ -14,13 +14,7 @@ import type { RequestType } from '@/types/request';
 import { getErrorMessage, getValidationErrors, logError } from '@/utils/errors';
 import { humanizeRequestType } from '@/utils/formatters';
 
-/**
- * Catálogo documentado en la especificación. Si el backend maneja un
- * catálogo distinto, este listado debe actualizarse para reflejarlo — no se
- * inventa lógica administrativa adicional en el cliente.
- */
 const REQUEST_TYPES: RequestType[] = [
-  'vacaciones',
   'permiso_con_goce',
   'permiso_sin_goce',
   'incapacidad',
@@ -28,12 +22,13 @@ const REQUEST_TYPES: RequestType[] = [
   'actualizacion_datos',
   'actualizacion_bancaria',
   'reposicion_documental',
-  'solicitud_general',
+  'prestamo_interno',
+  'general',
 ];
 
 const schema = z.object({
   tipo: z.string().min(1, 'Selecciona un tipo de solicitud'),
-  comentario: z.string().min(1, 'Describe brevemente tu solicitud'),
+  motivo: z.string().trim().min(1, 'Describe brevemente tu solicitud').max(2000, 'Máximo 2000 caracteres'),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -50,7 +45,7 @@ export default function NuevaSolicitudScreen() {
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { tipo: '', comentario: '' },
+    defaultValues: { tipo: '', motivo: '' },
   });
 
   const selectedTipo = useWatch({ control, name: 'tipo' });
@@ -60,8 +55,8 @@ export default function NuevaSolicitudScreen() {
     setSubmitting(true);
     try {
       const solicitud = await solicitudesApi.create({
-        tipo: values.tipo,
-        comentario: values.comentario.trim(),
+        tipo: values.tipo as RequestType,
+        motivo: values.motivo.trim(),
       });
       router.replace({ pathname: '/solicitud/[id]', params: { id: String(solicitud.id) } });
     } catch (error) {
@@ -106,15 +101,15 @@ export default function NuevaSolicitudScreen() {
 
         <Controller
           control={control}
-          name="comentario"
+          name="motivo"
           render={({ field: { value, onChange, onBlur } }) => (
             <Input
-              label="Descripción"
+              label="Motivo"
               placeholder="Cuéntanos el detalle de tu solicitud"
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
-              error={errors.comentario?.message}
+              error={errors.motivo?.message}
               multiline
               style={styles.multilineInput}
             />

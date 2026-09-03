@@ -1,14 +1,6 @@
-/**
- * Humanización de catálogos y helpers de lectura defensiva de campos.
- *
- * `pickString` / `pickNumber` existen porque el contrato exacto de campos del
- * backend no está 100% confirmado (ver comentarios en src/types). En vez de
- * poner distintos "hacks" por pantalla para leer variantes de un mismo campo,
- * se centraliza aquí.
- */
+/** Humanización de catálogos y helpers de lectura defensiva de campos. */
 
 const REQUEST_TYPE_LABELS: Record<string, string> = {
-  vacaciones: 'Vacaciones',
   permiso_con_goce: 'Permiso con goce',
   permiso_sin_goce: 'Permiso sin goce',
   incapacidad: 'Incapacidad',
@@ -16,7 +8,8 @@ const REQUEST_TYPE_LABELS: Record<string, string> = {
   actualizacion_datos: 'Actualización de datos',
   actualizacion_bancaria: 'Actualización bancaria',
   reposicion_documental: 'Reposición documental',
-  solicitud_general: 'Solicitud general',
+  prestamo_interno: 'Préstamo interno',
+  general: 'Solicitud general',
 };
 
 const REQUEST_STATUS_LABELS: Record<string, string> = {
@@ -55,7 +48,6 @@ export function getInitials(name?: string | null): string {
   return `${first}${last}`.toUpperCase() || '?';
 }
 
-/** Lee la primera clave de `keys` presente en `obj` cuyo valor sea un string no vacío. */
 export function pickString(obj: Record<string, unknown> | undefined | null, keys: string[]): string | undefined {
   if (!obj) return undefined;
   for (const key of keys) {
@@ -65,20 +57,16 @@ export function pickString(obj: Record<string, unknown> | undefined | null, keys
   return undefined;
 }
 
-/** Lee la primera clave de `keys` presente en `obj` cuyo valor sea numérico (o string numérico). */
 export function pickNumber(obj: Record<string, unknown> | undefined | null, keys: string[]): number | undefined {
   if (!obj) return undefined;
   for (const key of keys) {
     const value = obj[key];
     if (typeof value === 'number' && !Number.isNaN(value)) return value;
-    if (typeof value === 'string' && value.trim() !== '' && !Number.isNaN(Number(value))) {
-      return Number(value);
-    }
+    if (typeof value === 'string' && value.trim() !== '' && !Number.isNaN(Number(value))) return Number(value);
   }
   return undefined;
 }
 
-/** Lee la primera clave de `keys` presente en `obj` cuyo valor sea booleano. */
 export function pickBoolean(obj: Record<string, unknown> | undefined | null, keys: string[]): boolean | undefined {
   if (!obj) return undefined;
   for (const key of keys) {

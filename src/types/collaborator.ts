@@ -1,34 +1,36 @@
-/**
- * Los nombres de campo exactos que devuelve el backend para perfil/dashboard
- * no están confirmados contra una respuesta real todavía. Se modelan los
- * nombres más probables (snake_case, español, estilo Laravel) como opcionales
- * y se conserva un índice `[key: string]: unknown` para tolerar variaciones
- * sin romper tipos. Ver utils/formatters.ts `pickString` / `pickNumber` para
- * leer estos campos de forma defensiva en las pantallas.
- */
+import type { Solicitud } from '@/types/request';
+import type { VacationBalance } from '@/types/vacation';
+
 export interface CollaboratorProfile {
+  id?: number | string;
+  nombre?: string;
+  apellidos?: string;
   nombre_completo?: string;
+  correo?: string;
   numero_empleado?: string;
-  puesto?: string;
-  sucursal?: string;
-  departamento?: string;
-  empresa?: string;
-  fecha_ingreso?: string;
-  antiguedad?: string;
-  estatus_laboral?: string;
-  imss?: string;
-  periodo_prueba?: string | boolean;
-  /** Ruta protegida por sesión web del NAS; puede no ser accesible con Bearer token. */
-  foto_url?: string;
-  /** URL firmada temporal pensada para consumo desde apps (aún no confirmada en backend). */
-  foto_url_api?: string;
+  puesto?: string | null;
+  departamento?: string | null;
+  sucursal?: string | null;
+  empresa?: string | null;
+  jefe_directo?: string | null;
+  fecha_ingreso?: string | null;
+  antiguedad_anios?: number;
+  /** Ruta protegida por sesión web; puede no ser accesible desde Expo Go. */
+  foto_url?: string | null;
+  /** Preparado para una futura URL firmada por API. */
+  foto_url_api?: string | null;
   [key: string]: unknown;
 }
 
+export interface DashboardNotificationSummary {
+  no_leidas?: number;
+  recientes?: unknown[];
+}
+
 export interface DashboardData {
-  colaborador?: CollaboratorProfile;
-  vacaciones_disponibles?: number;
-  solicitudes_recientes?: unknown[];
-  notificaciones_no_leidas?: number;
+  perfil?: CollaboratorProfile;
+  vacaciones?: VacationBalance;
+  solicitudes_recientes?: Solicitud[];
+  notificaciones?: DashboardNotificationSummary;
   [key: string]: unknown;
 }
