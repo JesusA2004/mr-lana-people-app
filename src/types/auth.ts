@@ -1,13 +1,12 @@
-/**
- * El nombre exacto del campo de usuario en la respuesta de /login o /me
- * (`usuario` vs `user`) no está confirmado; se soportan ambos y se
- * normaliza en `src/api/auth.ts`.
- */
+/** Usuario autenticado normalizado para la app móvil. */
 export interface AuthUser {
   id: number | string;
-  email: string;
   nombre?: string;
-  name?: string;
+  apellidos?: string;
+  email?: string;
+  correo?: string;
+  roles?: string[];
+  permisos?: string[];
   [key: string]: unknown;
 }
 
