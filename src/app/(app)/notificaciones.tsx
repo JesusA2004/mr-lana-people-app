@@ -17,7 +17,7 @@ import { pickBoolean, pickString } from '@/utils/formatters';
 type ViewState = 'loading' | 'success' | 'error';
 
 function isRead(item: NotificationItem): boolean {
-  return pickBoolean(item, ['leido', 'leida']) ?? false;
+  return pickBoolean(item, ['leida']) ?? false;
 }
 
 export default function NotificacionesScreen() {
@@ -46,22 +46,19 @@ export default function NotificacionesScreen() {
   }, []);
 
   useEffect(() => {
-    (async () => {
-      await load();
-    })();
+    void load();
   }, [load]);
 
   const handlePress = async (item: NotificationItem) => {
     if (isRead(item)) return;
 
     const previous = items;
-    setItems((current) => current.map((n) => (n.id === item.id ? { ...n, leido: true, leida: true } : n)));
+    setItems((current) => current.map((n) => (n.id === item.id ? { ...n, leida: true } : n)));
 
     try {
       await notificacionesApi.markAsRead(item.id);
     } catch (error) {
       logError('notificaciones.markAsRead', error);
-      // Si falla, se restaura el estado anterior y se refresca desde el servidor.
       setItems(previous);
       void load(true);
     }
@@ -81,21 +78,15 @@ export default function NotificacionesScreen() {
           const read = isRead(item);
           const titulo = pickString(item, ['titulo']) ?? 'Notificación';
           const mensaje = pickString(item, ['mensaje']);
-          const fecha = pickString(item, ['fecha', 'created_at']);
+          const fecha = pickString(item, ['creada_en_iso', 'creada_en']);
 
           return (
-            <Pressable
-              onPress={() => void handlePress(item)}
-              style={[styles.item, !read && styles.itemUnread]}>
+            <Pressable onPress={() => void handlePress(item)} style={[styles.item, !read && styles.itemUnread]}>
               <View style={[styles.dot, read && styles.dotRead]} />
               <View style={styles.itemBody}>
                 <Text style={[styles.itemTitle, !read && styles.itemTitleUnread]}>{titulo}</Text>
-                {mensaje ? (
-                  <Text style={styles.itemMessage} numberOfLines={3}>
-                    {mensaje}
-                  </Text>
-                ) : null}
-                {fecha ? <Text style={styles.itemDate}>{formatDateTime(fecha)}</Text> : null}
+                {mensaje ? <Text style={styles.itemMessage} numberOfLines={3}>{mensaje}</Text> : null}
+                {fecha ? <Text style={styles.itemDate}>{item.creada_en_iso ? formatDateTime(fecha) : fecha}</Text> : null}
               </View>
               {!read ? <Ionicons name="ellipse" size={8} color={Colors.primary} /> : null}
             </Pressable>
@@ -116,14 +107,8 @@ export default function NotificacionesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  listContent: {
-    padding: Spacing.lg,
-    flexGrow: 1,
-  },
+  container: { flex: 1, backgroundColor: Colors.background },
+  listContent: { padding: Spacing.lg, flexGrow: 1 },
   item: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -134,39 +119,12 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     padding: Spacing.md,
   },
-  itemUnread: {
-    backgroundColor: Colors.primarySoft,
-    borderColor: Colors.primarySoft,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.primary,
-    marginTop: 6,
-  },
-  dotRead: {
-    backgroundColor: 'transparent',
-  },
-  itemBody: {
-    flex: 1,
-    gap: 2,
-  },
-  itemTitle: {
-    fontSize: FontSize.md,
-    fontWeight: '600',
-    color: Colors.text,
-  },
-  itemTitleUnread: {
-    fontWeight: '800',
-  },
-  itemMessage: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
-  },
-  itemDate: {
-    fontSize: FontSize.xs,
-    color: Colors.textMuted,
-    marginTop: 2,
-  },
+  itemUnread: { backgroundColor: Colors.primarySoft, borderColor: Colors.primarySoft },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.primary, marginTop: 6 },
+  dotRead: { backgroundColor: 'transparent' },
+  itemBody: { flex: 1, gap: 2 },
+  itemTitle: { fontSize: FontSize.md, fontWeight: '600', color: Colors.text },
+  itemTitleUnread: { fontWeight: '800' },
+  itemMessage: { fontSize: FontSize.sm, color: Colors.textMuted },
+  itemDate: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: 2 },
 });
