@@ -1,9 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
-import { notificacionesApi } from '@/api/notificaciones';
 import { AppHeader } from '@/components/AppHeader';
 import { ErrorState } from '@/components/ErrorState';
 import { FadeInView } from '@/components/FadeInView';
@@ -12,10 +11,10 @@ import { PressableScale } from '@/components/PressableScale';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 import { MascotMessages } from '@/constants/mascotMessages';
+import { useMarkNotificacionLeida, useNotificaciones } from '@/hooks/queries/useNotificaciones';
 import type { NotificationItem } from '@/types/notification';
 import { getErrorMessage, logError } from '@/utils/errors';
 
-type ViewState = 'loading' | 'success' | 'error';
 type Tab = 'todas' | 'no_leidas';
 
 const ICON_BY_TYPE: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -32,44 +31,19 @@ function iconFor(tipo?: string | null): keyof typeof Ionicons.glyphMap {
 
 export default function NotificacionesScreen() {
   const router = useRouter();
-  const [items, setItems] = useState<NotificationItem[]>([]);
-  const [state, setState] = useState<ViewState>('loading');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const { data, isLoading, isError, error, refetch, isRefetching } = useNotificaciones();
+  const markAsRead = useMarkNotificacionLeida();
   const [tab, setTab] = useState<Tab>('todas');
 
-  const load = useCallback(async () => {
-    setState('loading');
-    setErrorMessage(null);
-    try {
-      const result = await notificacionesApi.getAll();
-      setItems(result);
-      setState('success');
-    } catch (error) {
-      logError('notificaciones.getAll', error);
-      setErrorMessage(getErrorMessage(error));
-      setState('error');
-    }
-  }, []);
-
-  useEffect(() => {
-    (async () => {
-      await load();
-    })();
-  }, [load]);
-
+  const items = useMemo(() => data ?? [], [data]);
   const filtered = useMemo(() => (tab === 'no_leidas' ? items.filter((item) => !item.leida) : items), [items, tab]);
   const unreadCount = useMemo(() => items.filter((item) => !item.leida).length, [items]);
 
-  const handlePress = async (item: NotificationItem) => {
+  const handlePress = (item: NotificationItem) => {
     if (!item.leida) {
-      const previous = items;
-      setItems((current) => current.map((n) => (n.id === item.id ? { ...n, leida: true } : n)));
-      try {
-        await notificacionesApi.markAsRead(item.id);
-      } catch (error) {
-        logError('notificaciones.markAsRead', error);
-        setItems(previous);
-      }
+      markAsRead.mutate(item.id, {
+        onError: (markError) => logError('notificaciones.markAsRead', markError),
+      });
     }
 
     // Navegación al recurso relacionado solo cuando el backend entrega una
@@ -77,8 +51,8 @@ export default function NotificacionesScreen() {
     if (item.url && item.url.startsWith('/')) {
       try {
         router.push(item.url as never);
-      } catch (error) {
-        logError('notificaciones.navigate', error);
+      } catch (navError) {
+        logError('notificaciones.navigate', navError);
       }
     }
   };
@@ -96,15 +70,13 @@ export default function NotificacionesScreen() {
         data={filtered}
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={styles.listContent}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={Colors.primary} />}
         ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
         renderItem={({ item, index }) => {
           const read = Boolean(item.leida);
           return (
             <FadeInView index={index}>
-              <PressableScale
-                haptic={false}
-                onPress={() => void handlePress(item)}
-                style={[styles.item, !read && styles.itemUnread] as object}>
+              <PressableScale haptic={false} onPress={() => handlePress(item)} style={[styles.item, !read && styles.itemUnread] as object}>
                 <View style={[styles.iconWrapper, !read && styles.iconWrapperUnread]}>
                   <Ionicons name={iconFor(item.tipo)} size={18} color={!read ? Colors.primaryDark : Colors.textMuted} />
                 </View>
@@ -123,10 +95,10 @@ export default function NotificacionesScreen() {
           );
         }}
         ListEmptyComponent={
-          state === 'loading' ? (
+          isLoading ? (
             <SkeletonCardList count={4} />
-          ) : state === 'error' ? (
-            <ErrorState message={errorMessage ?? undefined} onRetry={() => void load()} />
+          ) : isError ? (
+            <ErrorState message={getErrorMessage(error)} onRetry={() => void refetch()} />
           ) : (
             <MascotAssistant message={MascotMessages.estasAlDia} type="success" dismissible={false} />
           )

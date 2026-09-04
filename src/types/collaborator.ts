@@ -14,12 +14,18 @@ export interface CollaboratorProfile {
   numero_empleado?: string;
   /**
    * Ruta protegida por sesión web (`rh.expedientes.foto`), NO por Bearer
-   * token: un cliente 100% nativo no puede cargarla directamente todavía
-   * (ver docs/MOBILE_BACKEND_REQUIREMENTS.md, P0 "Foto de perfil móvil").
+   * token: un cliente 100% nativo no puede cargarla directamente todavía.
    * El componente Avatar cae a iniciales si la carga falla, así que exponer
    * este campo tal cual es seguro aunque hoy casi siempre falle.
    */
   foto_url?: string | null;
+  /**
+   * URL de la foto autenticable con el mismo Bearer token de la sesión
+   * móvil (`GET /api/v1/colaborador/foto`, pendiente en backend — ver
+   * docs/MOBILE_BACKEND_REQUIREMENTS.md P0.3). Es la fuente preferida: la
+   * app la usa antes que `foto_url`.
+   */
+  foto_url_api?: string | null;
   puesto?: string | null;
   departamento?: string | null;
   sucursal?: string | null;

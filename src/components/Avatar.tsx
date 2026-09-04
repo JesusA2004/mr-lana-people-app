@@ -7,20 +7,21 @@ import { getInitials } from '@/utils/formatters';
 export interface AvatarProps {
   name?: string;
   uri?: string;
+  /** Headers HTTP para `uri` (por ejemplo, Authorization: Bearer <token> para `foto_url_api`). */
+  headers?: Record<string, string>;
   size?: number;
   /** Borde de acento (por ejemplo, para señalar perfil completo). */
   ringColor?: string;
 }
 
 /**
- * Muestra la foto del colaborador si hay una URL válida y carga
- * correctamente; si no, cae de forma elegante a un avatar con iniciales.
- * La ausencia de foto nunca debe romper Dashboard ni Perfil (ver AGENTS.md
- * / especificación sección 16). `foto_url` del backend hoy depende de sesión
- * web (ver docs/MOBILE_BACKEND_REQUIREMENTS.md), así que en la práctica casi
- * siempre se usa el fallback de iniciales — es un camino esperado, no un bug.
+ * Muestra una foto por URL (con headers opcionales) si carga correctamente;
+ * si no, cae de forma elegante a un avatar con iniciales. La ausencia de
+ * foto nunca debe romper Dashboard ni Perfil. Para la cadena de prioridad
+ * completa (foto_url_api → foto_url → avatar demo → iniciales) usa
+ * `<ProfileAvatar />`, que envuelve este componente.
  */
-export function Avatar({ name, uri, size = 56, ringColor }: AvatarProps) {
+export function Avatar({ name, uri, headers, size = 56, ringColor }: AvatarProps) {
   const [failed, setFailed] = useState(false);
   const dimension = { width: size, height: size, borderRadius: size / 2 };
   const ringStyle = ringColor ? { borderWidth: 2.5, borderColor: ringColor } : null;
@@ -28,7 +29,7 @@ export function Avatar({ name, uri, size = 56, ringColor }: AvatarProps) {
   if (uri && !failed) {
     return (
       <Image
-        source={{ uri }}
+        source={{ uri, headers }}
         style={[styles.image, dimension, ringStyle]}
         onError={() => setFailed(true)}
         accessibilityLabel="Foto de perfil"

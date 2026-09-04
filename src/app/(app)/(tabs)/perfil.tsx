@@ -1,53 +1,23 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { colaboradorApi } from '@/api/colaborador';
 import { AppHeader } from '@/components/AppHeader';
-import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
 import { FadeInView } from '@/components/FadeInView';
+import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
-import type { CollaboratorProfile } from '@/types/collaborator';
+import { usePerfil } from '@/hooks/queries/usePerfil';
 import { formatDateLong } from '@/utils/dates';
-import { getErrorMessage, logError } from '@/utils/errors';
+import { getErrorMessage } from '@/utils/errors';
 import { joinName } from '@/utils/formatters';
-
-type ViewState = 'loading' | 'success' | 'error';
 
 export default function PerfilScreen() {
   const router = useRouter();
-  const [perfil, setPerfil] = useState<CollaboratorProfile | null>(null);
-  const [state, setState] = useState<ViewState>('loading');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const load = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setState('loading');
-    setErrorMessage(null);
-    try {
-      const result = await colaboradorApi.getPerfil();
-      setPerfil(result);
-      setState('success');
-    } catch (error) {
-      logError('perfil.getPerfil', error);
-      setErrorMessage(getErrorMessage(error));
-      setState('error');
-    } finally {
-      if (isRefresh) setRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    (async () => {
-      await load();
-    })();
-  }, [load]);
+  const { data: perfil, isLoading, isError, error, refetch, isRefetching } = usePerfil();
 
   const nombre = joinName(perfil?.nombre, perfil?.apellidos) ?? perfil?.nombre_completo;
 
@@ -96,20 +66,24 @@ export default function PerfilScreen() {
 
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={Colors.primary} />}>
-        {state === 'loading' ? (
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={Colors.primary} />}>
+        {isLoading ? (
           <View style={{ gap: Spacing.lg }}>
-            <SkeletonBlock height={140} radius={Radius.lg} />
+            <SkeletonBlock height={160} radius={Radius.lg} />
             <SkeletonBlock height={220} radius={Radius.lg} />
           </View>
-        ) : state === 'error' ? (
-          <ErrorState message={errorMessage ?? undefined} onRetry={() => void load()} />
+        ) : isError ? (
+          <ErrorState message={getErrorMessage(error)} onRetry={() => void refetch()} />
         ) : (
           <>
             <FadeInView index={0}>
               <Card style={styles.headerCard}>
-                <Avatar name={nombre} uri={perfil?.foto_url ?? undefined} size={84} ringColor={Colors.primary} />
+                <ProfileAvatar name={nombre} fotoUrlApi={perfil?.foto_url_api} fotoUrl={perfil?.foto_url} size={96} ringColor={Colors.primary} />
                 <Text style={styles.name}>{nombre ?? 'Colaborador'}</Text>
+                {perfil?.puesto ? <Text style={styles.role}>{perfil.puesto}</Text> : null}
+                {perfil?.empresa || perfil?.sucursal ? (
+                  <Text style={styles.company}>{[perfil?.empresa, perfil?.sucursal].filter(Boolean).join(' · ')}</Text>
+                ) : null}
                 {perfil?.numero_empleado ? <Text style={styles.employeeNumber}>N.º {perfil.numero_empleado}</Text> : null}
               </Card>
             </FadeInView>
@@ -125,19 +99,32 @@ export default function PerfilScreen() {
             ) : null}
 
             <FadeInView index={3}>
-              <Card style={styles.expedienteCard} onPress={() => router.push('/(app)/(tabs)/expediente')}>
-                <View style={styles.expedienteIcon}>
+              <Card style={styles.linkCard} onPress={() => router.push('/(app)/(tabs)/expediente')}>
+                <View style={styles.linkIcon}>
                   <Ionicons name="folder-open-outline" size={20} color={Colors.primaryDark} />
                 </View>
-                <View style={styles.expedienteText}>
-                  <Text style={styles.expedienteTitle}>Mi expediente digital</Text>
-                  <Text style={styles.expedienteCaption}>Consulta el estado de tu documentación</Text>
+                <View style={styles.linkText}>
+                  <Text style={styles.linkTitle}>Mi expediente digital</Text>
+                  <Text style={styles.linkCaption}>Consulta y carga tus documentos</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
               </Card>
             </FadeInView>
 
             <FadeInView index={4}>
+              <Card style={styles.linkCard} onPress={() => router.push('/incorporacion')}>
+                <View style={styles.linkIcon}>
+                  <Ionicons name="briefcase-outline" size={20} color={Colors.primaryDark} />
+                </View>
+                <View style={styles.linkText}>
+                  <Text style={styles.linkTitle}>Mi incorporación</Text>
+                  <Text style={styles.linkCaption}>Sigue el avance de tu proceso de alta</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+              </Card>
+            </FadeInView>
+
+            <FadeInView index={5}>
               <Button
                 title="Solicitar actualización de datos"
                 variant="outline"
@@ -207,19 +194,29 @@ const styles = StyleSheet.create({
   },
   headerCard: {
     alignItems: 'center',
-    gap: Spacing.xs,
+    gap: 2,
   },
   name: {
     fontSize: FontSize.lg,
     fontWeight: '800',
     color: Colors.text,
     textAlign: 'center',
-    marginTop: Spacing.xs,
+    marginTop: Spacing.md,
+  },
+  role: {
+    fontSize: FontSize.sm,
+    fontWeight: '700',
+    color: Colors.primaryDark,
+  },
+  company: {
+    fontSize: FontSize.xs,
+    color: Colors.textMuted,
   },
   employeeNumber: {
-    fontSize: FontSize.sm,
+    fontSize: FontSize.xs,
     color: Colors.textMuted,
     fontWeight: '600',
+    marginTop: 4,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -273,12 +270,12 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     textAlign: 'center',
   },
-  expedienteCard: {
+  linkCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
   },
-  expedienteIcon: {
+  linkIcon: {
     width: 40,
     height: 40,
     borderRadius: Radius.md,
@@ -286,15 +283,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  expedienteText: {
+  linkText: {
     flex: 1,
   },
-  expedienteTitle: {
+  linkTitle: {
     fontSize: FontSize.md,
     fontWeight: '700',
     color: Colors.text,
   },
-  expedienteCaption: {
+  linkCaption: {
     fontSize: FontSize.xs,
     color: Colors.textMuted,
     marginTop: 2,

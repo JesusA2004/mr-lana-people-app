@@ -1,11 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
-import { solicitudesApi } from '@/api/solicitudes';
-import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
+import { AppHeader } from '@/components/AppHeader';
 import { ErrorState } from '@/components/ErrorState';
 import { FadeInView } from '@/components/FadeInView';
 import { MascotAssistant } from '@/components/mascot/MascotAssistant';
@@ -14,11 +13,10 @@ import { RequestCard } from '@/components/RequestCard';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 import { MascotMessages } from '@/constants/mascotMessages';
-import type { RequestStatus, Solicitud } from '@/types/request';
-import { getErrorMessage, logError } from '@/utils/errors';
+import { useSolicitudes } from '@/hooks/queries/useSolicitudes';
+import type { RequestStatus } from '@/types/request';
+import { getErrorMessage } from '@/utils/errors';
 import { humanizeRequestStatus } from '@/utils/formatters';
-
-type ViewState = 'loading' | 'success' | 'error';
 
 const FILTERS: { label: string; value: RequestStatus | 'todas' }[] = [
   { label: 'Todas', value: 'todas' },
@@ -31,35 +29,10 @@ const FILTERS: { label: string; value: RequestStatus | 'todas' }[] = [
 
 export default function SolicitudesScreen() {
   const router = useRouter();
-  const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
-  const [state, setState] = useState<ViewState>('loading');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
+  const { data, isLoading, isError, error, refetch, isRefetching } = useSolicitudes();
   const [filter, setFilter] = useState<RequestStatus | 'todas'>('todas');
 
-  const load = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setState('loading');
-    setErrorMessage(null);
-    try {
-      const result = await solicitudesApi.getAll();
-      setSolicitudes(result);
-      setState('success');
-    } catch (error) {
-      logError('solicitudes.getAll', error);
-      setErrorMessage(getErrorMessage(error));
-      setState('error');
-    } finally {
-      if (isRefresh) setRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    (async () => {
-      await load();
-    })();
-  }, [load]);
-
+  const solicitudes = useMemo(() => data ?? [], [data]);
   const filtered = useMemo(
     () => (filter === 'todas' ? solicitudes : solicitudes.filter((item) => item.estado === filter)),
     [solicitudes, filter],
@@ -79,7 +52,7 @@ export default function SolicitudesScreen() {
         }
       />
 
-      {state === 'success' && solicitudes.length > 0 ? (
+      {!isLoading && solicitudes.length > 0 ? (
         <FlatList
           horizontal
           data={FILTERS}
@@ -101,7 +74,7 @@ export default function SolicitudesScreen() {
         data={filtered}
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={styles.listContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={Colors.primary} />}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={Colors.primary} />}
         ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
         renderItem={({ item, index }) => (
           <FadeInView index={index}>
@@ -112,10 +85,10 @@ export default function SolicitudesScreen() {
           </FadeInView>
         )}
         ListEmptyComponent={
-          state === 'loading' ? (
+          isLoading ? (
             <SkeletonCardList count={4} />
-          ) : state === 'error' ? (
-            <ErrorState message={errorMessage ?? undefined} onRetry={() => void load()} />
+          ) : isError ? (
+            <ErrorState message={getErrorMessage(error)} onRetry={() => void refetch()} />
           ) : filter === 'todas' ? (
             <MascotAssistant
               message={MascotMessages.todoTranquilo}
@@ -132,7 +105,7 @@ export default function SolicitudesScreen() {
         }
       />
 
-      {state === 'success' && solicitudes.length === 0 ? (
+      {!isLoading && solicitudes.length === 0 ? (
         <View style={styles.fabWrapper}>
           <Button title="Nueva solicitud" onPress={() => router.push('/solicitud/nueva')} />
         </View>

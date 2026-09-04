@@ -8,7 +8,6 @@ import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { z } from 'zod';
 
-import { solicitudesApi } from '@/api/solicitudes';
 import { AnimatedProgressBar } from '@/components/AnimatedProgressBar';
 import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
@@ -18,6 +17,7 @@ import { MascotBubble } from '@/components/mascot/MascotBubble';
 import { PressableScale } from '@/components/PressableScale';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 import { MascotMessages } from '@/constants/mascotMessages';
+import { useCreateSolicitud } from '@/hooks/queries/useSolicitudes';
 import { toast } from '@/store/toastStore';
 import { REQUEST_TYPES_WITH_DATE_RANGE, type RequestType } from '@/types/request';
 import { formatDateLong, isDateBefore, toApiDateString } from '@/utils/dates';
@@ -64,8 +64,8 @@ export default function NuevaSolicitudScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ tipo?: string }>();
   const [step, setStep] = useState(0);
-  const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const createMutation = useCreateSolicitud();
 
   const {
     control,
@@ -112,9 +112,8 @@ export default function NuevaSolicitudScreen() {
 
   const onSubmit = async (values: FormValues) => {
     setFormError(null);
-    setSubmitting(true);
     try {
-      const solicitud = await solicitudesApi.create({
+      const solicitud = await createMutation.mutateAsync({
         tipo: values.tipo,
         motivo: values.motivo.trim(),
         observaciones: values.observaciones?.trim() || undefined,
@@ -128,8 +127,6 @@ export default function NuevaSolicitudScreen() {
       const validation = getValidationErrors(error);
       const firstValidationMessage = validation ? Object.values(validation)[0]?.[0] : undefined;
       setFormError(firstValidationMessage ?? getErrorMessage(error));
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -267,8 +264,8 @@ export default function NuevaSolicitudScreen() {
         <Button
           title={step === 2 ? 'Enviar solicitud' : 'Siguiente'}
           onPress={step === 2 ? handleSubmit(onSubmit) : () => void goNext()}
-          loading={submitting}
-          disabled={submitting}
+          loading={createMutation.isPending}
+          disabled={createMutation.isPending}
         />
       </View>
 

@@ -1,13 +1,16 @@
+import { QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { queryClient } from '@/api/queryClient';
 import { AppErrorBoundary } from '@/components/AppErrorBoundary';
 import { ErrorState } from '@/components/ErrorState';
 import { ToastHost } from '@/components/ToastHost';
 import { IS_API_URL_CONFIGURED } from '@/constants/config';
+import { useNotificationResponseRouting } from '@/hooks/useNotificationResponseRouting';
 import { usePushRegistration } from '@/hooks/usePushRegistration';
 import { useAuthStore } from '@/store/authStore';
 import { useOnboardingStore } from '@/store/onboardingStore';
@@ -41,6 +44,7 @@ function RootNavigator() {
   const isOnboardingLoading = useOnboardingStore((state) => state.isLoading);
 
   usePushRegistration(isAuthenticated && onboardingCompleted);
+  useNotificationResponseRouting(isAuthenticated && onboardingCompleted);
 
   // El splash nativo sigue visible mientras se restaura sesión/onboarding.
   if (isInitializing || isOnboardingLoading) return null;
@@ -82,13 +86,15 @@ export default function RootLayout() {
   }
 
   return (
-    <SafeAreaProvider>
-      <StatusBar style="dark" />
-      <SplashScreenController />
-      <AppErrorBoundary>
-        <RootNavigator />
-      </AppErrorBoundary>
-      <ToastHost />
-    </SafeAreaProvider>
+    <QueryClientProvider client={queryClient}>
+      <SafeAreaProvider>
+        <StatusBar style="dark" />
+        <SplashScreenController />
+        <AppErrorBoundary>
+          <RootNavigator />
+        </AppErrorBoundary>
+        <ToastHost />
+      </SafeAreaProvider>
+    </QueryClientProvider>
   );
 }

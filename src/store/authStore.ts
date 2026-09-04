@@ -3,6 +3,7 @@ import { create } from 'zustand';
 
 import { authApi } from '@/api/auth';
 import { setAuthToken, setUnauthorizedHandler } from '@/api/client';
+import { queryClient } from '@/api/queryClient';
 import { AUTH_TOKEN_KEY, DEVICE_NAME } from '@/constants/config';
 import { revokeCurrentPushToken } from '@/hooks/usePushRegistration';
 import type { AuthUser } from '@/types/auth';
@@ -35,6 +36,9 @@ export const useAuthStore = create<AuthState>((set) => {
   function clearSessionState() {
     setAuthToken(null);
     set({ token: null, user: null, isAuthenticated: false });
+    // Evita que datos del colaborador anterior sobrevivan en caché de
+    // react-query si otra persona inicia sesión en el mismo dispositivo.
+    queryClient.clear();
   }
 
   // Cualquier 401 de cualquier endpoint autenticado expulsa la sesión.

@@ -1,72 +1,44 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colaboradorApi } from '@/api/colaborador';
 import { AnimatedProgressBar } from '@/components/AnimatedProgressBar';
-import { Avatar } from '@/components/Avatar';
 import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
 import { FadeInView } from '@/components/FadeInView';
 import { MascotAssistant } from '@/components/mascot/MascotAssistant';
 import { NotificationBellButton } from '@/components/NotificationBellButton';
 import { PressableScale } from '@/components/PressableScale';
+import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { RequestCard } from '@/components/RequestCard';
 import { SkeletonBlock, SkeletonCardList } from '@/components/SkeletonBlock';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 import { MascotMessages } from '@/constants/mascotMessages';
-import { useAuthStore } from '@/store/authStore';
-import type { CollaboratorProfile, DashboardData } from '@/types/collaborator';
+import { useDashboard } from '@/hooks/queries/useDashboard';
+import { useExpediente } from '@/hooks/queries/useExpediente';
 import type { Solicitud } from '@/types/request';
+import { getErrorMessage } from '@/utils/errors';
 import { getGreeting } from '@/utils/dates';
-import { getErrorMessage, logError } from '@/utils/errors';
-import { joinName, pickString } from '@/utils/formatters';
+import { joinName } from '@/utils/formatters';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-type ViewState = 'loading' | 'success' | 'error';
-
-/** Campos laborales que se muestran en la tarjeta de "Tu información" del dashboard. */
-const PROFILE_FIELDS: (keyof CollaboratorProfile)[] = ['puesto', 'departamento', 'sucursal', 'empresa', 'jefe_directo'];
+const HEADER_TOP_EXTRA = 20;
+const HEADER_BOTTOM = 22;
+const HEADER_HORIZONTAL = 20;
 
 export default function DashboardScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const user = useAuthStore((state) => state.user);
 
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [state, setState] = useState<ViewState>('loading');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const load = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setState('loading');
-    setErrorMessage(null);
-    try {
-      const dashboard = await colaboradorApi.getDashboard();
-      setData(dashboard);
-      setState('success');
-    } catch (error) {
-      logError('dashboard.getDashboard', error);
-      setErrorMessage(getErrorMessage(error));
-      setState('error');
-    } finally {
-      if (isRefresh) setRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    (async () => {
-      await load();
-    })();
-  }, [load]);
+  const { data, isLoading, isError, error, refetch, isRefetching } = useDashboard();
+  const expediente = useExpediente();
 
   const perfil = data?.perfil;
-  const nombre = joinName(perfil?.nombre, perfil?.apellidos) ?? joinName(pickString(user, ['nombre']), pickString(user, ['apellidos']));
+  const nombre = joinName(perfil?.nombre, perfil?.apellidos);
   const primerNombre = nombre?.split(' ')[0];
   const puesto = perfil?.puesto;
-  const sucursal = perfil?.sucursal;
+  const empresa = perfil?.empresa;
 
   const diasDisponibles = data?.vacaciones?.dias_disponibles;
   const diasEnSolicitud = data?.vacaciones?.dias_en_solicitud ?? 0;
@@ -77,16 +49,47 @@ export default function DashboardScreen() {
   );
   const enProceso = solicitudesRecientes.filter((item) => item.estado === 'enviada' || item.estado === 'en_revision').length;
 
-  const filledFields = PROFILE_FIELDS.filter((field) => Boolean(perfil?.[field]));
-  const profilePercent = perfil ? Math.round((filledFields.length / PROFILE_FIELDS.length) * 100) : 0;
-  const missingFields = PROFILE_FIELDS.length - filledFields.length;
+  const expedienteStats = useMemo(() => {
+    const documentos = expediente.data?.documentos ?? [];
+    let pendientes = 0;
+    let rechazados = 0;
+    for (const entry of documentos) {
+      const status = entry.documento?.status;
+      if (status === 'rechazado' || status === 'requiere_correccion' || status === 'vencido') rechazados++;
+      else if (status !== 'aprobado') pendientes++;
+    }
+    return { pendientes, rechazados };
+  }, [expediente.data]);
 
+  // Prioridad del home dinámico (AGENTS.md): 1) documento rechazado, 2) expediente
+  // incompleto, 3) aprobación pendiente, 4) solicitud requiere corrección, 5) notificaciones.
   const priorityMascot = useMemo(() => {
+    if (expedienteStats.rechazados > 0) {
+      return {
+        type: 'warning' as const,
+        priority: 'high' as const,
+        message:
+          expedienteStats.rechazados === 1
+            ? 'Un documento de tu expediente necesita corrección.'
+            : `${expedienteStats.rechazados} documentos de tu expediente necesitan corrección.`,
+        actionLabel: 'Ver expediente',
+        onAction: () => router.push('/(app)/(tabs)/expediente'),
+      };
+    }
+    if (expedienteStats.pendientes > 0) {
+      return {
+        type: 'tip' as const,
+        priority: 'normal' as const,
+        message: MascotMessages.documentosPendientes(expedienteStats.pendientes),
+        actionLabel: 'Completar expediente',
+        onAction: () => router.push('/(app)/(tabs)/expediente'),
+      };
+    }
     const requiresCorrection = solicitudesRecientes.find((item) => item.estado === 'requiere_correccion');
     if (requiresCorrection) {
       return {
         type: 'warning' as const,
-        priority: 'high' as const,
+        priority: 'normal' as const,
         message: MascotMessages.documentoRechazado,
         actionLabel: 'Ver solicitud',
         onAction: () => router.push({ pathname: '/solicitud/[id]', params: { id: String(requiresCorrection.id) } }),
@@ -101,33 +104,28 @@ export default function DashboardScreen() {
         onAction: () => router.push('/notificaciones'),
       };
     }
-    if (missingFields > 0) {
-      return {
-        type: 'tip' as const,
-        priority: 'normal' as const,
-        message: MascotMessages.perfilIncompleto,
-        actionLabel: 'Solicitar actualización',
-        onAction: () =>
-          router.push({ pathname: '/solicitud/nueva', params: { tipo: 'actualizacion_datos' } }),
-      };
-    }
     return null;
-  }, [solicitudesRecientes, noLeidas, missingFields, router]);
+  }, [expedienteStats, solicitudesRecientes, noLeidas, router]);
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + Spacing.sm }]}>
+      <View style={[styles.header, { paddingTop: insets.top + HEADER_TOP_EXTRA }]}>
         <PressableScale
           accessibilityLabel="Ir a mi perfil"
           onPress={() => router.push('/(app)/(tabs)/perfil')}
           haptic={false}
           style={styles.headerLeft}>
-          <Avatar name={nombre} uri={perfil?.foto_url ?? undefined} size={48} />
+          <ProfileAvatar name={nombre} fotoUrlApi={perfil?.foto_url_api} fotoUrl={perfil?.foto_url} size={48} />
           <View style={styles.headerText}>
-            <Text style={styles.greeting}>{getGreeting()},</Text>
+            <Text style={styles.greeting}>{getGreeting()}</Text>
             <Text style={styles.name} numberOfLines={1}>
               {primerNombre ?? 'Colaborador'}
             </Text>
+            {puesto || empresa ? (
+              <Text style={styles.role} numberOfLines={1}>
+                {[puesto, empresa].filter(Boolean).join(' · ')}
+              </Text>
+            ) : null}
           </View>
         </PressableScale>
         <NotificationBellButton unreadCount={noLeidas} />
@@ -135,20 +133,18 @@ export default function DashboardScreen() {
 
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={Colors.primary} />}>
-        {state === 'loading' ? (
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={Colors.primary} />
+        }>
+        {isLoading ? (
           <View style={styles.skeletonWrapper}>
             <SkeletonBlock height={110} radius={Radius.lg} />
             <SkeletonCardList count={3} />
           </View>
-        ) : state === 'error' ? (
-          <ErrorState message={errorMessage ?? undefined} onRetry={() => void load()} />
+        ) : isError ? (
+          <ErrorState message={getErrorMessage(error)} onRetry={() => void refetch()} />
         ) : (
           <>
-            {(puesto ?? sucursal) ? (
-              <Text style={styles.roleLine}>{[puesto, sucursal].filter(Boolean).join(' · ')}</Text>
-            ) : null}
-
             {priorityMascot ? (
               <MascotAssistant
                 message={priorityMascot.message}
@@ -160,17 +156,25 @@ export default function DashboardScreen() {
             ) : null}
 
             <FadeInView index={0}>
-              <Card style={styles.infoCard} onPress={() => router.push('/(app)/(tabs)/perfil')}>
-                <View style={styles.infoHeaderRow}>
-                  <Text style={styles.infoTitle}>Tu información laboral</Text>
-                  <Text style={styles.infoPercent}>{profilePercent}%</Text>
+              <Card style={styles.expedienteCard} onPress={() => router.push('/(app)/(tabs)/expediente')}>
+                <View style={styles.expedienteHeaderRow}>
+                  <Text style={styles.expedienteTitle}>Tu expediente</Text>
+                  {expediente.data ? <Text style={styles.expedientePercent}>{Math.round(expediente.data.resumen.porcentaje)}%</Text> : null}
                 </View>
-                <AnimatedProgressBar percent={profilePercent} />
-                <Text style={styles.infoCaption}>
-                  {missingFields === 0
-                    ? 'Tu información laboral está completa.'
-                    : `${missingFields} ${missingFields === 1 ? 'dato pendiente' : 'datos pendientes'} de confirmar.`}
-                </Text>
+                {expediente.data ? (
+                  <>
+                    <AnimatedProgressBar percent={expediente.data.resumen.porcentaje} />
+                    <Text style={styles.expedienteCaption}>
+                      {expedienteStats.pendientes + expedienteStats.rechazados === 0
+                        ? 'Todo en orden.'
+                        : `${expedienteStats.pendientes + expedienteStats.rechazados} documentos por atender`}
+                    </Text>
+                  </>
+                ) : expediente.isError ? (
+                  <Text style={styles.expedienteCaption}>No pudimos cargar tu expediente. Toca para reintentar.</Text>
+                ) : (
+                  <SkeletonBlock height={8} radius={Radius.full} />
+                )}
               </Card>
             </FadeInView>
 
@@ -200,7 +204,7 @@ export default function DashboardScreen() {
             <View style={styles.quickGrid}>
               <QuickAction icon="add-circle-outline" label="Nueva solicitud" onPress={() => router.push('/solicitud/nueva')} />
               <QuickAction icon="airplane-outline" label="Vacaciones" onPress={() => router.push('/(app)/(tabs)/vacaciones')} />
-              <QuickAction icon="folder-open-outline" label="Mi expediente" onPress={() => router.push('/(app)/(tabs)/expediente')} />
+              <QuickAction icon="briefcase-outline" label="Mi incorporación" onPress={() => router.push('/incorporacion')} />
               <QuickAction icon="help-buoy-outline" label="Ayuda" onPress={() => router.push('/ayuda')} />
             </View>
 
@@ -285,19 +289,20 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.md,
+    paddingHorizontal: HEADER_HORIZONTAL,
+    paddingBottom: HEADER_BOTTOM,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: Spacing.md,
     flexShrink: 1,
   },
   headerText: {
     flexShrink: 1,
+    gap: 1,
   },
   greeting: {
     fontSize: FontSize.sm,
@@ -309,6 +314,11 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: Colors.text,
   },
+  role: {
+    fontSize: FontSize.xs,
+    color: Colors.textMuted,
+    fontWeight: '600',
+  },
   content: {
     padding: Spacing.lg,
     paddingTop: 0,
@@ -318,30 +328,25 @@ const styles = StyleSheet.create({
   skeletonWrapper: {
     gap: Spacing.lg,
   },
-  roleLine: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
-    marginTop: -Spacing.sm,
-  },
-  infoCard: {
+  expedienteCard: {
     gap: Spacing.sm,
   },
-  infoHeaderRow: {
+  expedienteHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  infoTitle: {
+  expedienteTitle: {
     fontSize: FontSize.md,
     fontWeight: '800',
     color: Colors.text,
   },
-  infoPercent: {
+  expedientePercent: {
     fontSize: FontSize.lg,
     fontWeight: '800',
     color: Colors.primaryDark,
   },
-  infoCaption: {
+  expedienteCaption: {
     fontSize: FontSize.xs,
     color: Colors.textMuted,
     fontWeight: '600',

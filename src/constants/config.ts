@@ -22,3 +22,12 @@ export const APP_NAME = 'MR. LANA PEOPLE';
 export const DEVICE_NAME = 'app-movil';
 export const REQUEST_TIMEOUT_MS = 15000;
 export const AUTH_TOKEN_KEY = 'mrlana-auth-token';
+
+/**
+ * Avatar ilustrado de desarrollo cuando no hay foto real disponible (ver
+ * `ProfileAvatar`). Se activa por defecto en DEV (se puede apagar con
+ * EXPO_PUBLIC_SHOW_DEMO_PROFILE_PHOTO=false) y queda **forzado a false**
+ * fuera de DEV sin importar el env — nunca debe llegar a producción, ni por
+ * un .env mal copiado.
+ */
+export const SHOW_DEMO_PROFILE_PHOTO = __DEV__ && process.env.EXPO_PUBLIC_SHOW_DEMO_PROFILE_PHOTO !== 'false';

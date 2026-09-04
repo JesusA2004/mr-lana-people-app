@@ -1,12 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { Modal, Platform, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { z } from 'zod';
 
-import { vacacionesApi } from '@/api/vacaciones';
 import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
@@ -19,12 +18,10 @@ import { SkeletonBlock, SkeletonCardList } from '@/components/SkeletonBlock';
 import { VacationCard } from '@/components/VacationCard';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 import { MascotMessages } from '@/constants/mascotMessages';
+import { useCreateVacacionSolicitud, useVacacionesSaldo, useVacacionesSolicitudes } from '@/hooks/queries/useVacaciones';
 import { toast } from '@/store/toastStore';
-import type { VacationBalance, VacationRequest } from '@/types/vacation';
 import { diffInDaysInclusive, formatDateLong, isDateBefore, toApiDateString } from '@/utils/dates';
 import { getErrorMessage, getValidationErrors, logError } from '@/utils/errors';
-
-type ViewState = 'loading' | 'success' | 'error';
 
 const vacationFormSchema = z
   .object({
@@ -40,44 +37,22 @@ const vacationFormSchema = z
 type VacationFormValues = z.infer<typeof vacationFormSchema>;
 
 export default function VacacionesScreen() {
-  const [saldo, setSaldo] = useState<VacationBalance | null>(null);
-  const [historial, setHistorial] = useState<VacationRequest[]>([]);
-  const [state, setState] = useState<ViewState>('loading');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
+  const saldoQuery = useVacacionesSaldo();
+  const historialQuery = useVacacionesSolicitudes();
   const [modalVisible, setModalVisible] = useState(false);
 
-  const load = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setState('loading');
-    setErrorMessage(null);
-    try {
-      const [saldoResult, historialResult] = await Promise.all([
-        vacacionesApi.getSaldo(),
-        vacacionesApi.getSolicitudes(),
-      ]);
-      setSaldo(saldoResult);
-      setHistorial(historialResult);
-      setState('success');
-    } catch (error) {
-      logError('vacaciones.load', error);
-      setErrorMessage(getErrorMessage(error));
-      setState('error');
-    } finally {
-      if (isRefresh) setRefreshing(false);
-    }
-  }, []);
+  const isLoading = saldoQuery.isLoading || historialQuery.isLoading;
+  const isError = saldoQuery.isError || historialQuery.isError;
+  const isRefetching = saldoQuery.isFetching || historialQuery.isFetching;
+  const errorMessage = saldoQuery.error ? getErrorMessage(saldoQuery.error) : historialQuery.error ? getErrorMessage(historialQuery.error) : undefined;
 
-  useEffect(() => {
-    (async () => {
-      await load();
-    })();
-  }, [load]);
+  const refetchAll = () => {
+    void saldoQuery.refetch();
+    void historialQuery.refetch();
+  };
 
-  const generados = saldo?.dias_generados;
-  const usados = saldo?.dias_usados;
-  const disponibles = saldo?.dias_disponibles;
-  const enSolicitud = saldo?.dias_en_solicitud;
+  const saldo = saldoQuery.data;
+  const historial = historialQuery.data ?? [];
 
   return (
     <View style={styles.container}>
@@ -85,14 +60,14 @@ export default function VacacionesScreen() {
 
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={Colors.primary} />}>
-        {state === 'loading' ? (
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetchAll} tintColor={Colors.primary} />}>
+        {isLoading ? (
           <View style={{ gap: Spacing.lg }}>
             <SkeletonBlock height={120} radius={Radius.lg} />
             <SkeletonCardList count={3} />
           </View>
-        ) : state === 'error' ? (
-          <ErrorState message={errorMessage ?? undefined} onRetry={() => void load()} />
+        ) : isError ? (
+          <ErrorState message={errorMessage} onRetry={refetchAll} />
         ) : (
           <>
             {saldo?.vigencia_fin ? (
@@ -101,16 +76,16 @@ export default function VacacionesScreen() {
 
             <View style={styles.balanceGrid}>
               <FadeInView index={0} style={styles.tileFlex}>
-                <BalanceTile label="Generados" value={generados} icon="trending-up-outline" />
+                <BalanceTile label="Generados" value={saldo?.dias_generados} icon="trending-up-outline" />
               </FadeInView>
               <FadeInView index={1} style={styles.tileFlex}>
-                <BalanceTile label="Usados" value={usados} icon="checkmark-done-outline" />
+                <BalanceTile label="Usados" value={saldo?.dias_usados} icon="checkmark-done-outline" />
               </FadeInView>
               <FadeInView index={2} style={styles.tileFlex}>
-                <BalanceTile label="Disponibles" value={disponibles} icon="airplane-outline" highlight />
+                <BalanceTile label="Disponibles" value={saldo?.dias_disponibles} icon="airplane-outline" highlight />
               </FadeInView>
               <FadeInView index={3} style={styles.tileFlex}>
-                <BalanceTile label="En solicitud" value={enSolicitud} icon="hourglass-outline" />
+                <BalanceTile label="En solicitud" value={saldo?.dias_en_solicitud} icon="hourglass-outline" />
               </FadeInView>
             </View>
 
@@ -138,15 +113,7 @@ export default function VacacionesScreen() {
         )}
       </ScrollView>
 
-      <VacationRequestModal
-        visible={modalVisible}
-        onClose={() => setModalVisible(false)}
-        onCreated={() => {
-          setModalVisible(false);
-          toast.success('Solicitud de vacaciones enviada.');
-          void load(true);
-        }}
-      />
+      <VacationRequestModal visible={modalVisible} onClose={() => setModalVisible(false)} />
     </View>
   );
 }
@@ -173,18 +140,10 @@ function BalanceTile({
   );
 }
 
-function VacationRequestModal({
-  visible,
-  onClose,
-  onCreated,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  onCreated: () => void;
-}) {
-  const [submitting, setSubmitting] = useState(false);
+function VacationRequestModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const [formError, setFormError] = useState<string | null>(null);
   const [activePicker, setActivePicker] = useState<'inicio' | 'fin' | null>(null);
+  const createMutation = useCreateVacacionSolicitud();
 
   const {
     control,
@@ -216,23 +175,21 @@ function VacationRequestModal({
 
   const onSubmit = async (values: VacationFormValues) => {
     setFormError(null);
-    setSubmitting(true);
     try {
-      await vacacionesApi.createSolicitud({
+      await createMutation.mutateAsync({
         fecha_inicio: toApiDateString(values.fechaInicio),
         fecha_fin: toApiDateString(values.fechaFin),
         dias_solicitados: diffInDaysInclusive(values.fechaInicio, values.fechaFin),
         comentario: values.comentario?.trim() || undefined,
       });
       resetForm();
-      onCreated();
+      onClose();
+      toast.success('Solicitud de vacaciones enviada.');
     } catch (error) {
       logError('vacaciones.createSolicitud', error);
       const validation = getValidationErrors(error);
       const firstValidationMessage = validation ? Object.values(validation)[0]?.[0] : undefined;
       setFormError(firstValidationMessage ?? getErrorMessage(error));
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -300,7 +257,12 @@ function VacationRequestModal({
 
           {formError ? <Text style={styles.formError}>{formError}</Text> : null}
 
-          <Button title="Enviar solicitud" onPress={handleSubmit(onSubmit)} loading={submitting} disabled={submitting} />
+          <Button
+            title="Enviar solicitud"
+            onPress={handleSubmit(onSubmit)}
+            loading={createMutation.isPending}
+            disabled={createMutation.isPending}
+          />
         </ScrollView>
 
         {activePicker ? (
