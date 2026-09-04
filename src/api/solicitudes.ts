@@ -30,7 +30,7 @@ export const solicitudesApi = {
 
   /**
    * `POST /api/v1/solicitudes/{id}/cancelar` — pendiente en backend (ver
-   * docs/MOBILE_BACKEND_REQUIREMENTS.md P0.6). `SolicitudesService::cancelar()`
+   * docs/MOBILE_BACKEND_REQUIREMENTS.md P0.5). `SolicitudesService::cancelar()`
    * ya existe y ya se usa en la web (`solicitudes.cancelar`); solo falta la
    * ruta equivalente en `Api\V1\SolicitudController`.
    */
@@ -41,7 +41,7 @@ export const solicitudesApi = {
 
   /**
    * `POST /api/v1/solicitudes/{id}/documentos` — pendiente en backend (ver
-   * docs/MOBILE_BACKEND_REQUIREMENTS.md P0.6). Mismo contrato que ya usa la
+   * docs/MOBILE_BACKEND_REQUIREMENTS.md P0.5). Mismo contrato que ya usa la
    * web (`solicitudes.documentos.store`, `SubirDocumentoSolicitudRequest`:
    * un único campo `archivo`), reutilizando
    * `SolicitudesService::adjuntarDocumento()`.

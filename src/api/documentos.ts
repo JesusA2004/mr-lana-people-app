@@ -14,7 +14,7 @@ export interface UploadDocumentoParams {
 
 /**
  * `POST /api/v1/colaborador/documentos` — pendiente en backend (ver
- * docs/MOBILE_BACKEND_REQUIREMENTS.md P0.5). Reutiliza el mismo contrato
+ * docs/MOBILE_BACKEND_REQUIREMENTS.md P0.2). Reutiliza el mismo contrato
  * multipart que ya usa `Rh\SubirDocumentoRequest`
  * (`document_type_id` + `archivo`) para que el backend solo tenga que
  * exponer una ruta nueva sobre `DocumentoStorageService::subirVersion()`,

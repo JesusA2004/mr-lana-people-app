@@ -6,7 +6,7 @@ import { useAuthStore } from '@/store/authStore';
 
 export interface ProfileAvatarProps {
   name?: string;
-  /** URL autenticable con el Bearer token de la app (`GET /api/v1/colaborador/foto`, ver docs/MOBILE_BACKEND_REQUIREMENTS.md P0.3). */
+  /** URL autenticable con el Bearer token de la app (`GET /api/v1/colaborador/foto`, ver docs/MOBILE_BACKEND_REQUIREMENTS.md P0.4). */
   fotoUrlApi?: string | null;
   /** URL heredada protegida por sesión web — casi nunca cargará desde la app, se conserva como segundo intento. */
   fotoUrl?: string | null;

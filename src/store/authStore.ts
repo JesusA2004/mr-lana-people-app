@@ -5,7 +5,7 @@ import { authApi } from '@/api/auth';
 import { setAuthToken, setUnauthorizedHandler } from '@/api/client';
 import { queryClient } from '@/api/queryClient';
 import { AUTH_TOKEN_KEY, DEVICE_NAME } from '@/constants/config';
-import { revokeCurrentPushToken } from '@/hooks/usePushRegistration';
+import { revokeCurrentPushToken } from '@/services/pushNotifications';
 import type { AuthUser } from '@/types/auth';
 import { logError } from '@/utils/errors';
 

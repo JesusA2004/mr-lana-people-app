@@ -22,7 +22,7 @@ export interface CollaboratorProfile {
   /**
    * URL de la foto autenticable con el mismo Bearer token de la sesión
    * móvil (`GET /api/v1/colaborador/foto`, pendiente en backend — ver
-   * docs/MOBILE_BACKEND_REQUIREMENTS.md P0.3). Es la fuente preferida: la
+   * docs/MOBILE_BACKEND_REQUIREMENTS.md P0.4). Es la fuente preferida: la
    * app la usa antes que `foto_url`.
    */
   foto_url_api?: string | null;

@@ -4,7 +4,7 @@ import type { ExpedienteResponse } from '@/types/expediente';
 
 /**
  * `GET /api/v1/colaborador/expediente` — pendiente en backend (ver
- * docs/MOBILE_BACKEND_REQUIREMENTS.md P0.4). El contrato se definió leyendo
+ * docs/MOBILE_BACKEND_REQUIREMENTS.md P0.1). El contrato se definió leyendo
  * `App\Services\Expedientes\ExpedienteService` y
  * `Rh\ExpedienteController::documentosParaVista()` en capacitaciones: no se
  * inventó, solo se expone lo que el backend ya calcula.

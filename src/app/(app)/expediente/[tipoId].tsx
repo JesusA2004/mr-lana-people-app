@@ -45,7 +45,7 @@ export default function DocumentoDetalleScreen() {
     if (!documento) return;
     setDownloading(true);
     try {
-      // GET /api/v1/colaborador/documentos/{id}/descargar — pendiente en backend (ver docs/MOBILE_BACKEND_REQUIREMENTS.md P0.4).
+      // GET /api/v1/colaborador/documentos/{id}/descargar — pendiente en backend (ver docs/MOBILE_BACKEND_REQUIREMENTS.md P0.3).
       await downloadAndOpenFile(`/colaborador/documentos/${documento.id}/descargar`, token, documento.original_name);
     } catch (downloadError) {
       logError('documento.descargar', downloadError);

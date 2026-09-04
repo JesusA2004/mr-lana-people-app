@@ -22,7 +22,7 @@ import { pluralize } from '@/utils/formatters';
 /**
  * Módulo completo del expediente digital. `GET /api/v1/colaborador/expediente`
  * todavía no existe en el backend (ver docs/MOBILE_BACKEND_REQUIREMENTS.md
- * P0.4) — mientras se agrega, esta pantalla muestra el error real (con
+ * P0.1) — mientras se agrega, esta pantalla muestra el error real (con
  * detalle técnico en DEV), nunca un "próximamente" ni datos inventados.
  */
 export default function ExpedienteScreen() {

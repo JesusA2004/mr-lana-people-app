@@ -17,8 +17,6 @@ export const MascotMessages = {
   wizardTipo: 'Selecciona qué tipo de trámite deseas realizar.',
   wizardMotivo: 'Ahora cuéntanos el motivo.',
   wizardRevision: 'Revisa los datos antes de enviar.',
-  expedienteProximamente:
-    'Muy pronto podrás cargar y dar seguimiento a tus documentos desde aquí. Por ahora, Recursos Humanos sigue gestionando tu expediente.',
   todoTranquilo: 'Todo tranquilo por aquí.',
   estasAlDia: '¡Estás al día!',
 } as const;

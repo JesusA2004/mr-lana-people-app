@@ -9,7 +9,7 @@ export interface ExpedienteResumen {
   rechazados: number;
 }
 
-/** Contrato de `GET /api/v1/colaborador/expediente` (pendiente de agregar en backend — ver docs/MOBILE_BACKEND_REQUIREMENTS.md P0.4). */
+/** Contrato de `GET /api/v1/colaborador/expediente` (pendiente de agregar en backend — ver docs/MOBILE_BACKEND_REQUIREMENTS.md P0.1). */
 export interface ExpedienteResponse {
   resumen: ExpedienteResumen;
   documentos: ExpedienteDocumentoEntry[];

@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
-import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
@@ -15,21 +14,36 @@ import { PressableScale } from '@/components/PressableScale';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 import { API_URL, APP_NAME } from '@/constants/config';
 import { useAuthStore } from '@/store/authStore';
+import { supportsRemotePush } from '@/utils/runtime';
 import { joinName } from '@/utils/formatters';
+
+type PushStatus = 'granted' | 'denied' | 'undetermined' | null;
 
 export default function ConfiguracionScreen() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const [loggingOut, setLoggingOut] = useState(false);
-  const [pushStatus, setPushStatus] = useState<Notifications.PermissionStatus | null>(null);
+  const [pushStatus, setPushStatus] = useState<PushStatus>(null);
 
   const nombre = joinName(user?.nombre, user?.apellidos);
 
   useEffect(() => {
-    Notifications.getPermissionsAsync()
-      .then((result) => setPushStatus(result.status))
-      .catch(() => setPushStatus(null));
+    // `expo-notifications` se importa dinámicamente y solo si el entorno lo
+    // soporta (nunca en Expo Go/web) — ver src/services/pushNotifications.ts.
+    if (!supportsRemotePush) return;
+    let cancelled = false;
+    import('expo-notifications')
+      .then((Notifications) => Notifications.getPermissionsAsync())
+      .then((result) => {
+        if (!cancelled) setPushStatus(result.status);
+      })
+      .catch(() => {
+        if (!cancelled) setPushStatus(null);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleLogout = () => {
@@ -47,8 +61,13 @@ export default function ConfiguracionScreen() {
     ]);
   };
 
-  const pushStatusLabel =
-    pushStatus === 'granted' ? 'Activadas' : pushStatus === 'denied' ? 'Desactivadas' : 'Sin definir';
+  const pushStatusLabel = !supportsRemotePush
+    ? 'No disponible en Expo Go'
+    : pushStatus === 'granted'
+      ? 'Activadas'
+      : pushStatus === 'denied'
+        ? 'Desactivadas'
+        : 'Sin definir';
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
