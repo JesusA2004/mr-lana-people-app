@@ -1,10 +1,16 @@
+/**
+ * Confirmado contra backend real (App\Services\Colaboradores\NotificacionesService).
+ * El campo de "leída" es `leida` (no `leido`); `tipo` y `url` permiten
+ * navegar al recurso relacionado cuando el backend los provee.
+ */
 export interface NotificationItem {
   id: number | string;
+  tipo?: string | null;
   titulo?: string;
   mensaje?: string;
-  leido?: boolean;
+  url?: string | null;
   leida?: boolean;
-  fecha?: string;
-  created_at?: string;
+  creada_en?: string;
+  creada_en_iso?: string;
   [key: string]: unknown;
 }

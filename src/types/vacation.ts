@@ -1,8 +1,18 @@
+/**
+ * Confirmado contra backend real (App\Services\Vacaciones\VacacionesService::saldo
+ * y App\Http\Requests\Vacaciones\StoreSolicitudVacacionesRequest).
+ * Importante: el campo es `dias_usados` (no `dias_utilizados`), y crear una
+ * solicitud EXIGE `dias_solicitados` (entero) además del rango de fechas —
+ * si no se manda, el backend responde 422.
+ */
 export interface VacationBalance {
+  antiguedad_anios?: number;
+  vigencia_inicio?: string | null;
+  vigencia_fin?: string | null;
   dias_generados?: number;
-  dias_utilizados?: number;
-  dias_disponibles?: number;
+  dias_usados?: number;
   dias_en_solicitud?: number;
+  dias_disponibles?: number;
   [key: string]: unknown;
 }
 
@@ -10,8 +20,9 @@ export interface VacationRequest {
   id: number | string;
   fecha_inicio?: string;
   fecha_fin?: string;
-  dias?: number;
+  dias_solicitados?: number;
   estado?: string;
+  estado_etiqueta?: string;
   comentario?: string;
   created_at?: string;
   [key: string]: unknown;
@@ -20,5 +31,7 @@ export interface VacationRequest {
 export interface CreateVacationRequestPayload {
   fecha_inicio: string;
   fecha_fin: string;
+  /** Requerido por el backend (StoreSolicitudVacacionesRequest::rules). */
+  dias_solicitados: number;
   comentario?: string;
 }

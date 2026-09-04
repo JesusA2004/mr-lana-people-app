@@ -8,9 +8,11 @@ import { Colors, FontSize, Spacing } from '@/constants/colors';
 export interface ErrorStateProps {
   message?: string;
   onRetry?: () => void;
+  /** Detalle técnico (método/URL/status) — pásalo solo desde `getDevErrorDetail()`; nunca se muestra fuera de DEV. */
+  devDetail?: string;
 }
 
-export function ErrorState({ message = 'Ocurrió un error inesperado.', onRetry }: ErrorStateProps) {
+export function ErrorState({ message = 'Ocurrió un error inesperado.', onRetry, devDetail }: ErrorStateProps) {
   return (
     <View style={styles.container}>
       <View style={styles.iconWrapper}>
@@ -18,6 +20,7 @@ export function ErrorState({ message = 'Ocurrió un error inesperado.', onRetry 
       </View>
       <Text style={styles.title}>Algo salió mal</Text>
       <Text style={styles.message}>{message}</Text>
+      {__DEV__ && devDetail ? <Text style={styles.devDetail}>{devDetail}</Text> : null}
       {onRetry ? (
         <Button title="Reintentar" onPress={onRetry} variant="outline" fullWidth={false} style={styles.action} />
       ) : null}
@@ -52,6 +55,13 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     textAlign: 'center',
     marginTop: Spacing.xs,
+  },
+  devDetail: {
+    fontSize: FontSize.xs,
+    color: Colors.warning,
+    textAlign: 'center',
+    marginTop: Spacing.sm,
+    fontFamily: 'monospace',
   },
   action: {
     marginTop: Spacing.lg,

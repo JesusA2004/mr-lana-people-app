@@ -6,8 +6,11 @@ export default function AppLayout() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="solicitud/nueva" options={{ presentation: 'modal' }} />
       <Stack.Screen name="solicitud/[id]" />
+      <Stack.Screen name="expediente/[tipoId]" />
+      <Stack.Screen name="incorporacion" />
       <Stack.Screen name="notificaciones" />
       <Stack.Screen name="configuracion" />
+      <Stack.Screen name="ayuda" />
     </Stack>
   );
 }

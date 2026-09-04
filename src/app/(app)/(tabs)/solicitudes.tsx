@@ -1,61 +1,38 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
-import { solicitudesApi } from '@/api/solicitudes';
-import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
-import { EmptyState } from '@/components/EmptyState';
+import { AppHeader } from '@/components/AppHeader';
 import { ErrorState } from '@/components/ErrorState';
+import { FadeInView } from '@/components/FadeInView';
+import { MascotAssistant } from '@/components/mascot/MascotAssistant';
+import { PressableScale } from '@/components/PressableScale';
 import { RequestCard } from '@/components/RequestCard';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
-import type { RequestStatus, Solicitud } from '@/types/request';
-import { getErrorMessage, logError } from '@/utils/errors';
+import { MascotMessages } from '@/constants/mascotMessages';
+import { useSolicitudes } from '@/hooks/queries/useSolicitudes';
+import type { RequestStatus } from '@/types/request';
+import { getErrorMessage } from '@/utils/errors';
 import { humanizeRequestStatus } from '@/utils/formatters';
-
-type ViewState = 'loading' | 'success' | 'error';
 
 const FILTERS: { label: string; value: RequestStatus | 'todas' }[] = [
   { label: 'Todas', value: 'todas' },
   { label: humanizeRequestStatus('enviada'), value: 'enviada' },
   { label: humanizeRequestStatus('en_revision'), value: 'en_revision' },
+  { label: humanizeRequestStatus('requiere_correccion'), value: 'requiere_correccion' },
   { label: humanizeRequestStatus('aprobada'), value: 'aprobada' },
   { label: humanizeRequestStatus('rechazada'), value: 'rechazada' },
 ];
 
 export default function SolicitudesScreen() {
   const router = useRouter();
-  const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
-  const [state, setState] = useState<ViewState>('loading');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
+  const { data, isLoading, isError, error, refetch, isRefetching } = useSolicitudes();
   const [filter, setFilter] = useState<RequestStatus | 'todas'>('todas');
 
-  const load = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setState('loading');
-    setErrorMessage(null);
-    try {
-      const result = await solicitudesApi.getAll();
-      setSolicitudes(result);
-      setState('success');
-    } catch (error) {
-      logError('solicitudes.getAll', error);
-      setErrorMessage(getErrorMessage(error));
-      setState('error');
-    } finally {
-      if (isRefresh) setRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    (async () => {
-      await load();
-    })();
-  }, [load]);
-
+  const solicitudes = useMemo(() => data ?? [], [data]);
   const filtered = useMemo(
     () => (filter === 'todas' ? solicitudes : solicitudes.filter((item) => item.estado === filter)),
     [solicitudes, filter],
@@ -66,17 +43,16 @@ export default function SolicitudesScreen() {
       <AppHeader
         title="Mis solicitudes"
         right={
-          <Pressable
-            accessibilityRole="button"
+          <PressableScale
             accessibilityLabel="Nueva solicitud"
             onPress={() => router.push('/solicitud/nueva')}
             style={styles.newButton}>
             <Ionicons name="add" size={22} color={Colors.white} />
-          </Pressable>
+          </PressableScale>
         }
       />
 
-      {state === 'success' && solicitudes.length > 0 ? (
+      {!isLoading && solicitudes.length > 0 ? (
         <FlatList
           horizontal
           data={FILTERS}
@@ -84,13 +60,12 @@ export default function SolicitudesScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.filterRow}
           renderItem={({ item }) => (
-            <Pressable
+            <PressableScale
+              haptic={false}
               onPress={() => setFilter(item.value)}
-              style={[styles.filterChip, filter === item.value && styles.filterChipActive]}>
-              <Text style={[styles.filterLabel, filter === item.value && styles.filterLabelActive]}>
-                {item.label}
-              </Text>
-            </Pressable>
+              style={[styles.filterChip, filter === item.value && styles.filterChipActive] as object}>
+              <Text style={[styles.filterLabel, filter === item.value && styles.filterLabelActive]}>{item.label}</Text>
+            </PressableScale>
           )}
         />
       ) : null}
@@ -99,36 +74,38 @@ export default function SolicitudesScreen() {
         data={filtered}
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={styles.listContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={Colors.primary} />}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={Colors.primary} />}
         ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
-        renderItem={({ item }) => (
-          <RequestCard
-            solicitud={item}
-            onPress={() => router.push({ pathname: '/solicitud/[id]', params: { id: String(item.id) } })}
-          />
+        renderItem={({ item, index }) => (
+          <FadeInView index={index}>
+            <RequestCard
+              solicitud={item}
+              onPress={() => router.push({ pathname: '/solicitud/[id]', params: { id: String(item.id) } })}
+            />
+          </FadeInView>
         )}
         ListEmptyComponent={
-          state === 'loading' ? (
+          isLoading ? (
             <SkeletonCardList count={4} />
-          ) : state === 'error' ? (
-            <ErrorState message={errorMessage ?? undefined} onRetry={() => void load()} />
-          ) : (
-            <EmptyState
-              icon="document-text-outline"
-              title={filter === 'todas' ? 'Sin solicitudes' : 'Sin resultados'}
-              message={
-                filter === 'todas'
-                  ? 'Cuando crees una solicitud aparecerá aquí.'
-                  : 'No hay solicitudes con este estado.'
-              }
-              actionLabel={filter === 'todas' ? 'Nueva solicitud' : undefined}
-              onAction={filter === 'todas' ? () => router.push('/solicitud/nueva') : undefined}
+          ) : isError ? (
+            <ErrorState message={getErrorMessage(error)} onRetry={() => void refetch()} />
+          ) : filter === 'todas' ? (
+            <MascotAssistant
+              message={MascotMessages.todoTranquilo}
+              type="tip"
+              dismissible={false}
+              actionLabel="Crear solicitud"
+              onAction={() => router.push('/solicitud/nueva')}
             />
+          ) : (
+            <View style={styles.emptyFilter}>
+              <Text style={styles.emptyFilterText}>No hay solicitudes con este estado.</Text>
+            </View>
           )
         }
       />
 
-      {state === 'success' && solicitudes.length === 0 ? (
+      {!isLoading && solicitudes.length === 0 ? (
         <View style={styles.fabWrapper}>
           <Button title="Nueva solicitud" onPress={() => router.push('/solicitud/nueva')} />
         </View>
@@ -180,6 +157,14 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     paddingTop: 0,
     flexGrow: 1,
+  },
+  emptyFilter: {
+    paddingVertical: Spacing.xxl,
+    alignItems: 'center',
+  },
+  emptyFilterText: {
+    fontSize: FontSize.sm,
+    color: Colors.textMuted,
   },
   fabWrapper: {
     padding: Spacing.lg,

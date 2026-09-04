@@ -1,12 +1,19 @@
 /**
- * El nombre exacto del campo de usuario en la respuesta de /login o /me
- * (`usuario` vs `user`) no está confirmado; se soportan ambos y se
- * normaliza en `src/api/auth.ts`.
+ * Confirmado contra backend real (App\Http\Controllers\Api\V1\AuthController::login/me,
+ * ver capacitaciones/docs/API_MOVIL.md): el usuario siempre trae `nombre` +
+ * `apellidos` por separado y `correo` (no `email`). Se conservan `email`/`name`
+ * como opcionales de compatibilidad por si una respuesta futura cambia de forma,
+ * pero la app ya no debe depender de ellos como fuente primaria.
  */
 export interface AuthUser {
   id: number | string;
-  email: string;
   nombre?: string;
+  apellidos?: string;
+  correo?: string;
+  roles?: string[];
+  permisos?: string[];
+  /** Compatibilidad con formas alternativas de respuesta. */
+  email?: string;
   name?: string;
   [key: string]: unknown;
 }

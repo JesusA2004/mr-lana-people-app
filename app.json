@@ -36,7 +36,23 @@
       ],
       "expo-secure-store",
       "expo-status-bar",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/brand/logo-mark.png",
+          "color": "#4CB838"
+        }
+      ],
+      "expo-sharing",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "MR. LANA PEOPLE necesita acceso a tus fotos para adjuntar documentos a tu expediente o solicitudes.",
+          "cameraPermission": "MR. LANA PEOPLE necesita acceso a tu cámara para fotografiar documentos de tu expediente o solicitudes.",
+          "microphonePermission": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
