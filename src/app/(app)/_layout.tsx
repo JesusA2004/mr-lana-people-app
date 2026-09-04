@@ -8,6 +8,7 @@ export default function AppLayout() {
       <Stack.Screen name="solicitud/[id]" />
       <Stack.Screen name="notificaciones" />
       <Stack.Screen name="configuracion" />
+      <Stack.Screen name="ayuda" />
     </Stack>
   );
 }

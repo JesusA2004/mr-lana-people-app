@@ -2,24 +2,27 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
-import { Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Controller, useForm, useWatch } from 'react-hook-form';
+import { Modal, Platform, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { z } from 'zod';
 
 import { vacacionesApi } from '@/api/vacaciones';
 import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
-import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
+import { FadeInView } from '@/components/FadeInView';
 import { Input } from '@/components/Input';
+import { MascotAssistant } from '@/components/mascot/MascotAssistant';
+import { PressableScale } from '@/components/PressableScale';
 import { SkeletonBlock, SkeletonCardList } from '@/components/SkeletonBlock';
 import { VacationCard } from '@/components/VacationCard';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { MascotMessages } from '@/constants/mascotMessages';
+import { toast } from '@/store/toastStore';
 import type { VacationBalance, VacationRequest } from '@/types/vacation';
-import { formatDateLong, isDateBefore, toApiDateString } from '@/utils/dates';
+import { diffInDaysInclusive, formatDateLong, isDateBefore, toApiDateString } from '@/utils/dates';
 import { getErrorMessage, getValidationErrors, logError } from '@/utils/errors';
-import { pickNumber } from '@/utils/formatters';
 
 type ViewState = 'loading' | 'success' | 'error';
 
@@ -71,10 +74,10 @@ export default function VacacionesScreen() {
     })();
   }, [load]);
 
-  const generados = pickNumber(saldo, ['dias_generados']);
-  const utilizados = pickNumber(saldo, ['dias_utilizados']);
-  const disponibles = pickNumber(saldo, ['dias_disponibles']);
-  const enSolicitud = pickNumber(saldo, ['dias_en_solicitud']);
+  const generados = saldo?.dias_generados;
+  const usados = saldo?.dias_usados;
+  const disponibles = saldo?.dias_disponibles;
+  const enSolicitud = saldo?.dias_en_solicitud;
 
   return (
     <View style={styles.container}>
@@ -92,22 +95,42 @@ export default function VacacionesScreen() {
           <ErrorState message={errorMessage ?? undefined} onRetry={() => void load()} />
         ) : (
           <>
+            {saldo?.vigencia_fin ? (
+              <Text style={styles.vigenciaText}>Vigencia hasta {formatDateLong(saldo.vigencia_fin)}</Text>
+            ) : null}
+
             <View style={styles.balanceGrid}>
-              <BalanceTile label="Generados" value={generados} icon="trending-up-outline" />
-              <BalanceTile label="Utilizados" value={utilizados} icon="checkmark-done-outline" />
-              <BalanceTile label="Disponibles" value={disponibles} icon="airplane-outline" highlight />
-              <BalanceTile label="En solicitud" value={enSolicitud} icon="hourglass-outline" />
+              <FadeInView index={0} style={styles.tileFlex}>
+                <BalanceTile label="Generados" value={generados} icon="trending-up-outline" />
+              </FadeInView>
+              <FadeInView index={1} style={styles.tileFlex}>
+                <BalanceTile label="Usados" value={usados} icon="checkmark-done-outline" />
+              </FadeInView>
+              <FadeInView index={2} style={styles.tileFlex}>
+                <BalanceTile label="Disponibles" value={disponibles} icon="airplane-outline" highlight />
+              </FadeInView>
+              <FadeInView index={3} style={styles.tileFlex}>
+                <BalanceTile label="En solicitud" value={enSolicitud} icon="hourglass-outline" />
+              </FadeInView>
             </View>
 
             <Button title="Solicitar vacaciones" onPress={() => setModalVisible(true)} />
 
             <Text style={styles.sectionTitle}>Historial</Text>
             {historial.length === 0 ? (
-              <EmptyState icon="airplane-outline" title="Sin solicitudes de vacaciones" message="Tu historial aparecerá aquí." />
+              <MascotAssistant
+                message={MascotMessages.vacaciones}
+                type="tip"
+                dismissible={false}
+                actionLabel="Solicitar vacaciones"
+                onAction={() => setModalVisible(true)}
+              />
             ) : (
               <View style={styles.list}>
-                {historial.map((item) => (
-                  <VacationCard key={String(item.id)} request={item} />
+                {historial.map((item, index) => (
+                  <FadeInView key={String(item.id)} index={index}>
+                    <VacationCard request={item} />
+                  </FadeInView>
                 ))}
               </View>
             )}
@@ -120,6 +143,7 @@ export default function VacacionesScreen() {
         onClose={() => setModalVisible(false)}
         onCreated={() => {
           setModalVisible(false);
+          toast.success('Solicitud de vacaciones enviada.');
           void load(true);
         }}
       />
@@ -172,6 +196,11 @@ function VacationRequestModal({
     defaultValues: { fechaInicio: undefined, fechaFin: undefined, comentario: '' },
   });
 
+  const watchedValues = useWatch({ control });
+  const fechaInicio = watchedValues.fechaInicio;
+  const fechaFin = watchedValues.fechaFin;
+  const diasSolicitados = fechaInicio && fechaFin && !isDateBefore(fechaFin, fechaInicio) ? diffInDaysInclusive(fechaInicio, fechaFin) : null;
+
   // El formulario se reinicia al cerrar (por acción del usuario, no en un
   // efecto) para no disparar setState de forma síncrona durante el render.
   const resetForm = () => {
@@ -192,6 +221,7 @@ function VacationRequestModal({
       await vacacionesApi.createSolicitud({
         fecha_inicio: toApiDateString(values.fechaInicio),
         fecha_fin: toApiDateString(values.fechaFin),
+        dias_solicitados: diffInDaysInclusive(values.fechaInicio, values.fechaFin),
         comentario: values.comentario?.trim() || undefined,
       });
       resetForm();
@@ -211,9 +241,9 @@ function VacationRequestModal({
       <View style={styles.modalContainer}>
         <View style={styles.modalHeader}>
           <Text style={styles.modalTitle}>Solicitar vacaciones</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel="Cerrar" onPress={handleClose} hitSlop={10}>
+          <PressableScale accessibilityLabel="Cerrar" onPress={handleClose} haptic={false} hitSlop={10}>
             <Ionicons name="close" size={24} color={Colors.text} />
-          </Pressable>
+          </PressableScale>
         </View>
 
         <ScrollView contentContainerStyle={styles.modalContent}>
@@ -242,6 +272,15 @@ function VacationRequestModal({
               />
             )}
           />
+
+          {diasSolicitados ? (
+            <View style={styles.diasBadge}>
+              <Ionicons name="calendar-outline" size={16} color={Colors.primaryDark} />
+              <Text style={styles.diasBadgeText}>
+                {diasSolicitados} {diasSolicitados === 1 ? 'día' : 'días'} naturales
+              </Text>
+            </View>
+          ) : null}
 
           <Controller
             control={control}
@@ -304,10 +343,10 @@ function DateField({
   return (
     <View style={{ gap: Spacing.xs }}>
       <Text style={styles.dateLabel}>{label}</Text>
-      <Pressable onPress={onPress} style={[styles.dateInput, error && styles.dateInputError]}>
+      <PressableScale haptic={false} onPress={onPress} style={[styles.dateInput, error && styles.dateInputError] as object}>
         <Ionicons name="calendar-outline" size={18} color={Colors.textMuted} />
         <Text style={styles.dateValue}>{value ? formatDateLong(toApiDateString(value)) : 'Selecciona una fecha'}</Text>
-      </Pressable>
+      </PressableScale>
       {error ? <Text style={styles.formError}>{error}</Text> : null}
     </View>
   );
@@ -323,13 +362,21 @@ const styles = StyleSheet.create({
     gap: Spacing.lg,
     paddingBottom: Spacing.xxxl,
   },
+  vigenciaText: {
+    fontSize: FontSize.xs,
+    color: Colors.textMuted,
+    fontWeight: '600',
+    marginTop: -Spacing.sm,
+  },
   balanceGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.md,
   },
-  tile: {
+  tileFlex: {
     width: '47%',
+  },
+  tile: {
     alignItems: 'flex-start',
     gap: Spacing.xs,
   },
@@ -401,6 +448,22 @@ const styles = StyleSheet.create({
   dateValue: {
     fontSize: FontSize.md,
     color: Colors.text,
+  },
+  diasBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.primarySoft,
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    marginTop: -Spacing.sm,
+  },
+  diasBadgeText: {
+    fontSize: FontSize.xs,
+    fontWeight: '700',
+    color: Colors.primaryDark,
   },
   multilineInput: {
     minHeight: 80,

@@ -59,3 +59,26 @@ export function isDateBefore(a: Date, b: Date): boolean {
 export function isValidDateString(value?: string | null): boolean {
   return parseDate(value) !== null;
 }
+
+/**
+ * Días naturales entre dos fechas, ambas incluidas (3 al 3 = 1 día, 3 al 5 =
+ * 3 días). El backend exige `dias_solicitados` como entero al crear una
+ * solicitud de vacaciones (ver StoreSolicitudVacacionesRequest); esta es la
+ * única fuente de ese cálculo en la app — no se recalcula distinto por
+ * pantalla. Es una cuenta de días naturales simple: el backend es quien
+ * valida reglas de negocio (días hábiles, festivos, etc.) si aplican.
+ */
+/** "Buenos días" / "Buenas tardes" / "Buenas noches" según la hora local del dispositivo. */
+export function getGreeting(date: Date = new Date()): string {
+  const hour = date.getHours();
+  if (hour < 12) return 'Buenos días';
+  if (hour < 19) return 'Buenas tardes';
+  return 'Buenas noches';
+}
+
+export function diffInDaysInclusive(start: Date, end: Date): number {
+  const MS_PER_DAY = 24 * 60 * 60 * 1000;
+  const startUtc = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
+  const endUtc = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate());
+  return Math.max(1, Math.round((endUtc - startUtc) / MS_PER_DAY) + 1);
+}

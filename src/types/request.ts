@@ -1,11 +1,11 @@
 /**
- * `RequestType` y `RequestStatus` incluyen los valores documentados por el
- * backend, pero permanecen abiertos (`string & {}`) porque el catálogo real
- * debe respetarse tal cual lo devuelva la API — no se debe inventar lógica
- * administrativa en el cliente.
+ * Confirmado contra backend real (App\Enums\TipoSolicitudInterna,
+ * App\Enums\EstadoSolicitudInterna, App\Http\Resources\Api\V1\SolicitudInternaResource,
+ * App\Http\Requests\Solicitudes\StoreSolicitudInternaRequest). El payload de
+ * creación usa `motivo` (requerido), no `comentario` — enviar `comentario`
+ * como antes hacía que el backend respondiera 422 en producción.
  */
 export type RequestType =
-  | 'vacaciones'
   | 'permiso_con_goce'
   | 'permiso_sin_goce'
   | 'incapacidad'
@@ -13,7 +13,8 @@ export type RequestType =
   | 'actualizacion_datos'
   | 'actualizacion_bancaria'
   | 'reposicion_documental'
-  | 'solicitud_general'
+  | 'prestamo_interno'
+  | 'general'
   | (string & {});
 
 export type RequestStatus =
@@ -27,21 +28,31 @@ export type RequestStatus =
   | 'cerrada'
   | (string & {});
 
+/** Tipos cuyo formulario incluye rango de fechas (ver TipoSolicitudInterna::usaRangoFechas). */
+export const REQUEST_TYPES_WITH_DATE_RANGE: RequestType[] = ['permiso_con_goce', 'permiso_sin_goce', 'incapacidad'];
+
 export interface Solicitud {
   id: number | string;
   folio?: string;
   tipo?: RequestType;
+  tipo_etiqueta?: string;
   estado?: RequestStatus;
-  fecha?: string;
-  created_at?: string;
-  comentario?: string;
-  observaciones?: string;
-  respuesta?: string;
+  estado_etiqueta?: string;
+  fecha_inicio?: string | null;
+  fecha_fin?: string | null;
+  motivo?: string;
+  observaciones?: string | null;
+  motivo_rechazo?: string | null;
+  revisado_en?: string | null;
+  creada_en?: string;
   [key: string]: unknown;
 }
 
 export interface CreateSolicitudPayload {
   tipo: RequestType;
-  comentario?: string;
+  motivo: string;
+  observaciones?: string;
+  fecha_inicio?: string;
+  fecha_fin?: string;
   [key: string]: unknown;
 }

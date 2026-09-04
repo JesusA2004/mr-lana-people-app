@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { authApi } from '@/api/auth';
 import { setAuthToken, setUnauthorizedHandler } from '@/api/client';
 import { AUTH_TOKEN_KEY, DEVICE_NAME } from '@/constants/config';
+import { revokeCurrentPushToken } from '@/hooks/usePushRegistration';
 import type { AuthUser } from '@/types/auth';
 import { logError } from '@/utils/errors';
 
@@ -58,6 +59,7 @@ export const useAuthStore = create<AuthState>((set) => {
     },
 
     async logout() {
+      await revokeCurrentPushToken();
       try {
         await authApi.logout();
       } catch (error) {

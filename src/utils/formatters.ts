@@ -1,22 +1,22 @@
 /**
  * Humanización de catálogos y helpers de lectura defensiva de campos.
  *
- * `pickString` / `pickNumber` existen porque el contrato exacto de campos del
- * backend no está 100% confirmado (ver comentarios en src/types). En vez de
- * poner distintos "hacks" por pantalla para leer variantes de un mismo campo,
- * se centraliza aquí.
+ * Los catálogos reflejan exactamente App\Enums\TipoSolicitudInterna y
+ * App\Enums\EstadoSolicitudInterna del backend real. Las pantallas deben
+ * preferir siempre `tipo_etiqueta`/`estado_etiqueta` cuando el backend los
+ * incluye (ya vienen traducidos) y usar estas funciones solo como respaldo.
  */
 
 const REQUEST_TYPE_LABELS: Record<string, string> = {
-  vacaciones: 'Vacaciones',
-  permiso_con_goce: 'Permiso con goce',
-  permiso_sin_goce: 'Permiso sin goce',
+  permiso_con_goce: 'Permiso con goce de sueldo',
+  permiso_sin_goce: 'Permiso sin goce de sueldo',
   incapacidad: 'Incapacidad',
   constancia_laboral: 'Constancia laboral',
   actualizacion_datos: 'Actualización de datos',
   actualizacion_bancaria: 'Actualización bancaria',
   reposicion_documental: 'Reposición documental',
-  solicitud_general: 'Solicitud general',
+  prestamo_interno: 'Préstamo interno',
+  general: 'Solicitud general',
 };
 
 const REQUEST_STATUS_LABELS: Record<string, string> = {
@@ -55,6 +55,12 @@ export function getInitials(name?: string | null): string {
   return `${first}${last}`.toUpperCase() || '?';
 }
 
+/** Arma "Nombre Apellidos" a partir de las dos columnas separadas del backend. */
+export function joinName(nombre?: string | null, apellidos?: string | null): string | undefined {
+  const value = [nombre, apellidos].filter((part) => Boolean(part && part.trim())).join(' ');
+  return value.length > 0 ? value : undefined;
+}
+
 /** Lee la primera clave de `keys` presente en `obj` cuyo valor sea un string no vacío. */
 export function pickString(obj: Record<string, unknown> | undefined | null, keys: string[]): string | undefined {
   if (!obj) return undefined;
@@ -86,4 +92,9 @@ export function pickBoolean(obj: Record<string, unknown> | undefined | null, key
     if (typeof value === 'boolean') return value;
   }
   return undefined;
+}
+
+/** "3 documentos", "1 documento" — pluraliza sin librería adicional. */
+export function pluralize(count: number, singular: string, plural: string): string {
+  return count === 1 ? singular : plural;
 }

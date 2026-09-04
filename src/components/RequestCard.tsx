@@ -7,7 +7,7 @@ import { StatusBadge } from './StatusBadge';
 import { Colors, FontSize, Spacing } from '@/constants/colors';
 import type { Solicitud } from '@/types/request';
 import { formatDateLong } from '@/utils/dates';
-import { humanizeRequestType, pickString } from '@/utils/formatters';
+import { humanizeRequestType } from '@/utils/formatters';
 
 export interface RequestCardProps {
   solicitud: Solicitud;
@@ -15,24 +15,23 @@ export interface RequestCardProps {
 }
 
 export function RequestCard({ solicitud, onPress }: RequestCardProps) {
-  const fecha = pickString(solicitud, ['fecha', 'created_at']);
-  const resumen = pickString(solicitud, ['comentario', 'observaciones']);
+  const fecha = solicitud.creada_en;
 
   return (
     <Card onPress={onPress} style={styles.card}>
       <View style={styles.headerRow}>
         <View style={styles.typeRow}>
           <Ionicons name="document-text-outline" size={16} color={Colors.textMuted} />
-          <Text style={styles.type}>{humanizeRequestType(solicitud.tipo)}</Text>
+          <Text style={styles.type}>{solicitud.tipo_etiqueta ?? humanizeRequestType(solicitud.tipo)}</Text>
         </View>
-        <StatusBadge status={solicitud.estado} />
+        <StatusBadge status={solicitud.estado} label={solicitud.estado_etiqueta} />
       </View>
 
       {solicitud.folio ? <Text style={styles.folio}>Folio {solicitud.folio}</Text> : null}
       {fecha ? <Text style={styles.date}>{formatDateLong(fecha)}</Text> : null}
-      {resumen ? (
+      {solicitud.motivo ? (
         <Text style={styles.summary} numberOfLines={2}>
-          {resumen}
+          {solicitud.motivo}
         </Text>
       ) : null}
     </Card>

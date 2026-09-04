@@ -1,34 +1,67 @@
 /**
- * Los nombres de campo exactos que devuelve el backend para perfil/dashboard
- * no están confirmados contra una respuesta real todavía. Se modelan los
- * nombres más probables (snake_case, español, estilo Laravel) como opcionales
- * y se conserva un índice `[key: string]: unknown` para tolerar variaciones
- * sin romper tipos. Ver utils/formatters.ts `pickString` / `pickNumber` para
- * leer estos campos de forma defensiva en las pantallas.
+ * Confirmado contra backend real (App\Services\Colaboradores\ColaboradorPerfilService,
+ * ver capacitaciones/docs/API_MOVIL.md). `dashboard()` NO aplana los campos del
+ * colaborador: los anida bajo `perfil`, y agrupa vacaciones/notificaciones en
+ * sus propias llaves. Se conserva `[key: string]: unknown` por si el backend
+ * agrega campos nuevos sin romper tipos.
  */
 export interface CollaboratorProfile {
+  id?: number | string;
+  nombre?: string;
+  apellidos?: string;
   nombre_completo?: string;
+  correo?: string;
   numero_empleado?: string;
-  puesto?: string;
-  sucursal?: string;
-  departamento?: string;
-  empresa?: string;
-  fecha_ingreso?: string;
-  antiguedad?: string;
-  estatus_laboral?: string;
-  imss?: string;
-  periodo_prueba?: string | boolean;
-  /** Ruta protegida por sesión web del NAS; puede no ser accesible con Bearer token. */
-  foto_url?: string;
-  /** URL firmada temporal pensada para consumo desde apps (aún no confirmada en backend). */
-  foto_url_api?: string;
+  /**
+   * Ruta protegida por sesión web (`rh.expedientes.foto`), NO por Bearer
+   * token: un cliente 100% nativo no puede cargarla directamente todavía
+   * (ver docs/MOBILE_BACKEND_REQUIREMENTS.md, P0 "Foto de perfil móvil").
+   * El componente Avatar cae a iniciales si la carga falla, así que exponer
+   * este campo tal cual es seguro aunque hoy casi siempre falle.
+   */
+  foto_url?: string | null;
+  puesto?: string | null;
+  departamento?: string | null;
+  sucursal?: string | null;
+  empresa?: string | null;
+  jefe_directo?: string | null;
+  fecha_ingreso?: string | null;
+  antiguedad_anios?: number;
   [key: string]: unknown;
 }
 
+export interface DashboardVacacionesResumen {
+  antiguedad_anios?: number;
+  vigencia_inicio?: string | null;
+  vigencia_fin?: string | null;
+  dias_generados?: number;
+  dias_usados?: number;
+  dias_en_solicitud?: number;
+  dias_disponibles?: number;
+  [key: string]: unknown;
+}
+
+export interface DashboardNotificacionItem {
+  id: string | number;
+  tipo?: string | null;
+  titulo?: string;
+  mensaje?: string;
+  url?: string | null;
+  leida?: boolean;
+  creada_en?: string;
+  creada_en_iso?: string;
+  [key: string]: unknown;
+}
+
+export interface DashboardNotificacionesResumen {
+  no_leidas?: number;
+  recientes?: DashboardNotificacionItem[];
+}
+
 export interface DashboardData {
-  colaborador?: CollaboratorProfile;
-  vacaciones_disponibles?: number;
+  perfil?: CollaboratorProfile;
+  vacaciones?: DashboardVacacionesResumen;
   solicitudes_recientes?: unknown[];
-  notificaciones_no_leidas?: number;
+  notificaciones?: DashboardNotificacionesResumen;
   [key: string]: unknown;
 }

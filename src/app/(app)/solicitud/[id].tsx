@@ -7,13 +7,15 @@ import { solicitudesApi } from '@/api/solicitudes';
 import { AppHeader } from '@/components/AppHeader';
 import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
+import { MascotAssistant } from '@/components/mascot/MascotAssistant';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { MascotMessages } from '@/constants/mascotMessages';
 import type { Solicitud } from '@/types/request';
-import { formatDateLong } from '@/utils/dates';
+import { formatDateLong, formatDateTime } from '@/utils/dates';
 import { getErrorMessage, logError } from '@/utils/errors';
-import { humanizeRequestType, pickString } from '@/utils/formatters';
+import { humanizeRequestType } from '@/utils/formatters';
 
 type ViewState = 'loading' | 'success' | 'error';
 
@@ -46,12 +48,27 @@ export default function SolicitudDetalleScreen() {
     })();
   }, [load]);
 
-  const fecha = pickString(solicitud, ['fecha', 'created_at']);
+  interface DetailItem {
+    icon: keyof typeof Ionicons.glyphMap;
+    label: string;
+    value?: string | null;
+  }
 
-  const allDetails: { icon: keyof typeof Ionicons.glyphMap; label: string; value?: string }[] = [
-    { icon: 'chatbox-ellipses-outline', label: 'Comentario', value: pickString(solicitud, ['comentario']) },
-    { icon: 'reader-outline', label: 'Observaciones', value: pickString(solicitud, ['observaciones']) },
-    { icon: 'return-down-back-outline', label: 'Respuesta', value: pickString(solicitud, ['respuesta']) },
+  const hasDateRange = Boolean(solicitud?.fecha_inicio || solicitud?.fecha_fin);
+  const allDetails: DetailItem[] = [
+    { icon: 'chatbox-ellipses-outline', label: 'Motivo', value: solicitud?.motivo },
+    { icon: 'reader-outline', label: 'Observaciones', value: solicitud?.observaciones },
+    {
+      icon: 'calendar-outline',
+      label: 'Fechas',
+      value: hasDateRange
+        ? [solicitud?.fecha_inicio, solicitud?.fecha_fin]
+            .filter((value): value is string => Boolean(value))
+            .map((value) => formatDateLong(value))
+            .join(' — ')
+        : undefined,
+    },
+    { icon: 'time-outline', label: 'Última revisión', value: solicitud?.revisado_en ? formatDateTime(solicitud.revisado_en) : undefined },
   ];
   const details = allDetails.filter((item) => Boolean(item.value));
 
@@ -71,12 +88,31 @@ export default function SolicitudDetalleScreen() {
           <>
             <Card style={styles.headerCard}>
               <View style={styles.headerRow}>
-                <Text style={styles.type}>{humanizeRequestType(solicitud.tipo)}</Text>
-                <StatusBadge status={solicitud.estado} />
+                <Text style={styles.type}>{solicitud.tipo_etiqueta ?? humanizeRequestType(solicitud.tipo)}</Text>
+                <StatusBadge status={solicitud.estado} label={solicitud.estado_etiqueta} />
               </View>
               {solicitud.folio ? <Text style={styles.folio}>Folio {solicitud.folio}</Text> : null}
-              {fecha ? <Text style={styles.date}>{formatDateLong(fecha)}</Text> : null}
+              {solicitud.creada_en ? <Text style={styles.date}>{formatDateLong(solicitud.creada_en)}</Text> : null}
             </Card>
+
+            {solicitud.estado === 'requiere_correccion' && solicitud.motivo_rechazo ? (
+              <MascotAssistant
+                message={MascotMessages.documentoRechazado}
+                type="warning"
+                priority="high"
+                dismissible={false}
+              />
+            ) : null}
+
+            {solicitud.motivo_rechazo ? (
+              <Card style={styles.rejectionCard}>
+                <View style={styles.rejectionHeader}>
+                  <Ionicons name="alert-circle" size={18} color={Colors.danger} />
+                  <Text style={styles.rejectionTitle}>Motivo de rechazo / corrección</Text>
+                </View>
+                <Text style={styles.rejectionText}>{solicitud.motivo_rechazo}</Text>
+              </Card>
+            ) : null}
 
             {details.length > 0 ? (
               <Card>
@@ -137,6 +173,25 @@ const styles = StyleSheet.create({
   date: {
     fontSize: FontSize.sm,
     color: Colors.textMuted,
+  },
+  rejectionCard: {
+    backgroundColor: Colors.dangerSoft,
+    borderColor: Colors.dangerSoft,
+    gap: Spacing.xs,
+  },
+  rejectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  rejectionTitle: {
+    fontSize: FontSize.sm,
+    fontWeight: '800',
+    color: Colors.danger,
+  },
+  rejectionText: {
+    fontSize: FontSize.sm,
+    color: Colors.text,
   },
   detailRow: {
     flexDirection: 'row',

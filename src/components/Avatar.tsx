@@ -8,23 +8,28 @@ export interface AvatarProps {
   name?: string;
   uri?: string;
   size?: number;
+  /** Borde de acento (por ejemplo, para señalar perfil completo). */
+  ringColor?: string;
 }
 
 /**
  * Muestra la foto del colaborador si hay una URL válida y carga
  * correctamente; si no, cae de forma elegante a un avatar con iniciales.
  * La ausencia de foto nunca debe romper Dashboard ni Perfil (ver AGENTS.md
- * / especificación sección 16).
+ * / especificación sección 16). `foto_url` del backend hoy depende de sesión
+ * web (ver docs/MOBILE_BACKEND_REQUIREMENTS.md), así que en la práctica casi
+ * siempre se usa el fallback de iniciales — es un camino esperado, no un bug.
  */
-export function Avatar({ name, uri, size = 56 }: AvatarProps) {
+export function Avatar({ name, uri, size = 56, ringColor }: AvatarProps) {
   const [failed, setFailed] = useState(false);
   const dimension = { width: size, height: size, borderRadius: size / 2 };
+  const ringStyle = ringColor ? { borderWidth: 2.5, borderColor: ringColor } : null;
 
   if (uri && !failed) {
     return (
       <Image
         source={{ uri }}
-        style={[styles.image, dimension]}
+        style={[styles.image, dimension, ringStyle]}
         onError={() => setFailed(true)}
         accessibilityLabel="Foto de perfil"
       />
@@ -32,7 +37,7 @@ export function Avatar({ name, uri, size = 56 }: AvatarProps) {
   }
 
   return (
-    <View style={[styles.fallback, dimension]}>
+    <View style={[styles.fallback, dimension, ringStyle]}>
       <Text style={[styles.initials, { fontSize: size * 0.36 }]}>{getInitials(name)}</Text>
     </View>
   );

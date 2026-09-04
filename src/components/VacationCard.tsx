@@ -22,12 +22,12 @@ export function VacationCard({ request }: VacationCardProps) {
             {formatDateLong(request.fecha_inicio)} — {formatDateLong(request.fecha_fin)}
           </Text>
         </View>
-        <StatusBadge status={request.estado} />
+        <StatusBadge status={request.estado} label={request.estado_etiqueta} />
       </View>
 
-      {typeof request.dias === 'number' ? (
+      {typeof request.dias_solicitados === 'number' ? (
         <Text style={styles.days}>
-          {request.dias} {request.dias === 1 ? 'día' : 'días'}
+          {request.dias_solicitados} {request.dias_solicitados === 1 ? 'día' : 'días'}
         </Text>
       ) : null}
 

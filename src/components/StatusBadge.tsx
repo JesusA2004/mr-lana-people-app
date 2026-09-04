@@ -30,15 +30,17 @@ const DEFAULT_STYLE: StatusStyle = { icon: 'ellipse-outline', color: Colors.text
 
 export interface StatusBadgeProps {
   status?: RequestStatus | string;
+  /** Texto ya traducido por el backend (`estado_etiqueta`); tiene prioridad sobre humanizeRequestStatus. */
+  label?: string;
 }
 
-export function StatusBadge({ status }: StatusBadgeProps) {
+export function StatusBadge({ status, label }: StatusBadgeProps) {
   const style = (status ? STATUS_STYLES[status] : undefined) ?? DEFAULT_STYLE;
 
   return (
     <View style={[styles.badge, { backgroundColor: style.background }]}>
       <Ionicons name={style.icon} size={14} color={style.color} />
-      <Text style={[styles.label, { color: style.color }]}>{humanizeRequestStatus(status)}</Text>
+      <Text style={[styles.label, { color: style.color }]}>{label ?? humanizeRequestStatus(status)}</Text>
     </View>
   );
 }
