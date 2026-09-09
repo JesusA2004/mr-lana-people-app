@@ -1,12 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import { useEffect } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { Easing, FadeInDown, FadeOutUp } from 'react-native-reanimated';
 
 import { Colors, FontSize, Radius, Shadow, Spacing } from '@/constants/colors';
 import { useToastStore, type ToastItem, type ToastType } from '@/store/toastStore';
+import { haptics } from '@/utils/haptics';
 
 const TOAST_DURATION_MS = 3200;
 
@@ -36,15 +36,10 @@ function ToastRow({ item, onDismiss }: { item: ToastItem; onDismiss: () => void 
   const style = TOAST_STYLES[item.type];
 
   useEffect(() => {
-    if (Platform.OS !== 'web') {
-      const feedback =
-        item.type === 'success'
-          ? Haptics.NotificationFeedbackType.Success
-          : item.type === 'error'
-            ? Haptics.NotificationFeedbackType.Error
-            : Haptics.NotificationFeedbackType.Warning;
-      Haptics.notificationAsync(feedback).catch(() => {});
-    }
+    if (item.type === 'success') haptics.success();
+    else if (item.type === 'error') haptics.error();
+    else haptics.warning();
+
     const timer = setTimeout(onDismiss, TOAST_DURATION_MS);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- solo debe correr una vez por toast montado.
@@ -59,6 +54,19 @@ function ToastRow({ item, onDismiss }: { item: ToastItem; onDismiss: () => void 
       <Text style={[styles.message, { color: Colors.text }]} numberOfLines={3}>
         {item.message}
       </Text>
+      {item.actionLabel && item.onAction ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={item.actionLabel}
+          hitSlop={8}
+          onPress={() => {
+            item.onAction?.();
+            onDismiss();
+          }}
+          style={styles.actionButton}>
+          <Text style={[styles.actionLabel, { color: style.color }]}>{item.actionLabel}</Text>
+        </Pressable>
+      ) : null}
       <Pressable accessibilityRole="button" accessibilityLabel="Cerrar aviso" hitSlop={10} onPress={onDismiss}>
         <Ionicons name="close" size={16} color={Colors.textMuted} />
       </Pressable>
@@ -81,11 +89,18 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.md,
-    ...Shadow.raised,
+    ...Shadow.lg,
   },
   message: {
     flex: 1,
     fontSize: FontSize.sm,
     fontWeight: '600',
+  },
+  actionButton: {
+    paddingHorizontal: Spacing.xs,
+  },
+  actionLabel: {
+    fontSize: FontSize.sm,
+    fontWeight: '800',
   },
 });

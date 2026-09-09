@@ -1,8 +1,17 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+
+const LABEL_COLOR: Record<ButtonVariant, string> = {
+  primary: Colors.white,
+  secondary: Colors.white,
+  outline: Colors.primary,
+  ghost: Colors.primary,
+  danger: Colors.white,
+};
 
 export interface ButtonProps {
   title: string;
@@ -12,8 +21,18 @@ export interface ButtonProps {
   disabled?: boolean;
   fullWidth?: boolean;
   style?: StyleProp<ViewStyle>;
+  /** Ícono a la izquierda del texto (Ionicons). Se oculta durante `loading` para no competir con el spinner. */
+  leftIcon?: keyof typeof Ionicons.glyphMap;
+  /** Ícono a la derecha del texto (Ionicons). */
+  rightIcon?: keyof typeof Ionicons.glyphMap;
 }
 
+/**
+ * Botón base de toda la app. `loading` nunca cambia el ancho del botón: el
+ * contenido (texto + íconos) se mantiene en el layout pero invisible
+ * (`opacity: 0`) mientras el spinner se dibuja encima, así el botón no
+ * "salta" al activarse/desactivarse el loading.
+ */
 export function Button({
   title,
   onPress,
@@ -22,8 +41,11 @@ export function Button({
   disabled = false,
   fullWidth = true,
   style,
+  leftIcon,
+  rightIcon,
 }: ButtonProps) {
   const isDisabled = disabled || loading;
+  const labelColor = LABEL_COLOR[variant];
 
   return (
     <Pressable
@@ -39,11 +61,18 @@ export function Button({
         pressed && !isDisabled && styles.pressed,
         style,
       ]}>
+      <View style={[styles.content, loading && styles.contentHidden]}>
+        {leftIcon ? <Ionicons name={leftIcon} size={18} color={labelColor} /> : null}
+        <Text style={[styles.label, variantLabelStyles[variant]]} numberOfLines={1}>
+          {title}
+        </Text>
+        {rightIcon ? <Ionicons name={rightIcon} size={18} color={labelColor} /> : null}
+      </View>
       {loading ? (
-        <ActivityIndicator color={variant === 'outline' || variant === 'ghost' ? Colors.primary : Colors.white} />
-      ) : (
-        <Text style={[styles.label, variantLabelStyles[variant]]}>{title}</Text>
-      )}
+        <View style={styles.spinnerOverlay} pointerEvents="none">
+          <ActivityIndicator color={labelColor} />
+        </View>
+      ) : null}
     </Pressable>
   );
 }
@@ -55,8 +84,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.lg,
-    flexDirection: 'row',
-    gap: Spacing.sm,
   },
   fullWidth: {
     alignSelf: 'stretch',
@@ -66,6 +93,24 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.5,
+  },
+  content: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+  },
+  contentHidden: {
+    opacity: 0,
+  },
+  spinnerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   label: {
     fontSize: FontSize.md,

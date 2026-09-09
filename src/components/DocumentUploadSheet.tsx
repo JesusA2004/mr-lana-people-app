@@ -1,16 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
-import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
-import { Image, Modal, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { AnimatedProgressBar } from './AnimatedProgressBar';
 import { Button } from './Button';
 import { PressableScale } from './PressableScale';
 
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 import { toast } from '@/store/toastStore';
 import { getErrorMessage, logError } from '@/utils/errors';
+import { haptics } from '@/utils/haptics';
 
 export interface PickedDocumentFile {
   uri: string;
@@ -21,11 +22,11 @@ export interface PickedDocumentFile {
 
 export interface DocumentUploadSheetProps {
   visible: boolean;
-  /** Título del documento que se está subiendo, ej. "Identificación oficial". */
+  /** Título del documento que se está subiendo, ej. "Número de Seguro Social (NSS)". Puede ser largo: el header lo envuelve en hasta 2 líneas, nunca lo desborda. */
   title: string;
   onClose: () => void;
-  /** Ejecuta la subida real (API); el sheet muestra progreso/errores alrededor de esta promesa. */
-  onConfirm: (file: PickedDocumentFile) => Promise<void>;
+  /** Ejecuta la subida real (API); recibe `onProgress` para pintar la barra real de subida. El sheet muestra progreso/errores alrededor de esta promesa. */
+  onConfirm: (file: PickedDocumentFile, onProgress: (percent: number) => void) => Promise<void>;
   /** MB máximos permitidos por el backend (config('expedientes.max_upload_mb'), hoy 20). Solo valida en cliente para feedback rápido; el backend sigue siendo la fuente de verdad. */
   maxSizeMb?: number;
 }
@@ -45,12 +46,14 @@ export function DocumentUploadSheet({ visible, title, onClose, onConfirm, maxSiz
   const [step, setStep] = useState<Step>('choose');
   const [file, setFile] = useState<PickedDocumentFile | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   const reset = () => {
     setStep('choose');
     setFile(null);
     setSubmitting(false);
+    setProgress(0);
     setError(null);
   };
 
@@ -110,18 +113,19 @@ export function DocumentUploadSheet({ visible, title, onClose, onConfirm, maxSiz
   const handleConfirm = async () => {
     if (!file) return;
     setError(null);
+    setProgress(0);
     setSubmitting(true);
     try {
-      await onConfirm(file);
-      if (Platform.OS !== 'web') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      }
+      await onConfirm(file, setProgress);
+      haptics.success();
       toast.success('Documento cargado correctamente.');
       reset();
       onClose();
     } catch (uploadError) {
       logError('DocumentUploadSheet.onConfirm', uploadError);
+      haptics.error();
       setError(getErrorMessage(uploadError));
+      setProgress(0);
     } finally {
       setSubmitting(false);
     }
@@ -133,9 +137,16 @@ export function DocumentUploadSheet({ visible, title, onClose, onConfirm, maxSiz
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={handleClose}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>{title}</Text>
-          <PressableScale accessibilityLabel="Cerrar" onPress={handleClose} haptic={false} disabled={submitting}>
-            <Ionicons name="close" size={24} color={Colors.text} />
+          <View style={styles.headerTitleRow}>
+            <View style={styles.headerIcon}>
+              <Ionicons name="document-text-outline" size={18} color={Colors.primaryDark} />
+            </View>
+            <Text style={styles.headerTitle} numberOfLines={2}>
+              {title}
+            </Text>
+          </View>
+          <PressableScale accessibilityLabel="Cerrar" onPress={handleClose} haptic={false} disabled={submitting} style={styles.closeButton}>
+            <Ionicons name="close" size={22} color={Colors.text} />
           </PressableScale>
         </View>
 
@@ -166,7 +177,22 @@ export function DocumentUploadSheet({ visible, title, onClose, onConfirm, maxSiz
                 </View>
               </View>
 
-              {error ? <Text style={styles.errorText}>{error}</Text> : null}
+              {submitting ? (
+                <View style={styles.progressBlock}>
+                  <View style={styles.progressLabelRow}>
+                    <Text style={styles.progressLabel}>Subiendo documento…</Text>
+                    <Text style={styles.progressPercent}>{progress}%</Text>
+                  </View>
+                  <AnimatedProgressBar percent={progress} height={8} />
+                </View>
+              ) : null}
+
+              {error ? (
+                <View style={styles.errorRow}>
+                  <Ionicons name="alert-circle-outline" size={16} color={Colors.danger} />
+                  <Text style={styles.errorText}>{error}</Text>
+                </View>
+              ) : null}
 
               <View style={styles.previewActions}>
                 <Button
@@ -181,7 +207,7 @@ export function DocumentUploadSheet({ visible, title, onClose, onConfirm, maxSiz
                   style={styles.previewActionButton}
                 />
                 <Button
-                  title="Confirmar y subir"
+                  title={error ? 'Reintentar' : 'Confirmar y subir'}
                   onPress={() => void handleConfirm()}
                   loading={submitting}
                   disabled={submitting}
@@ -217,15 +243,40 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: Spacing.sm,
     padding: Spacing.lg,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
+  headerTitleRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  headerIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
   headerTitle: {
+    flex: 1,
     fontSize: FontSize.lg,
     fontWeight: '800',
     color: Colors.text,
-    flexShrink: 1,
+    flexWrap: 'wrap',
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: Radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   content: {
     padding: Spacing.lg,
@@ -303,9 +354,32 @@ const styles = StyleSheet.create({
   previewActionButton: {
     flex: 1,
   },
+  errorRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.xs,
+  },
   errorText: {
+    flex: 1,
     fontSize: FontSize.xs,
     color: Colors.danger,
     fontWeight: '600',
+  },
+  progressBlock: {
+    gap: Spacing.xs,
+  },
+  progressLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  progressLabel: {
+    fontSize: FontSize.xs,
+    fontWeight: '700',
+    color: Colors.textMuted,
+  },
+  progressPercent: {
+    fontSize: FontSize.xs,
+    fontWeight: '800',
+    color: Colors.primaryDark,
   },
 });

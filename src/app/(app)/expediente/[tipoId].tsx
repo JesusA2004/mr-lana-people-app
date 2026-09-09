@@ -27,13 +27,14 @@ export default function DocumentoDetalleScreen() {
 
   const documento = data?.documentos.find((item) => String(item.id) === tipoId);
 
-  const handleUpload = async (file: PickedDocumentFile) => {
+  const handleUpload = async (file: PickedDocumentFile, onProgress: (percent: number) => void) => {
     if (!documento) return;
     await uploadMutation.mutateAsync({
       documentTypeId: documento.id,
       fileUri: file.uri,
       fileName: file.name,
       mimeType: file.mimeType,
+      onProgress,
     });
   };
 

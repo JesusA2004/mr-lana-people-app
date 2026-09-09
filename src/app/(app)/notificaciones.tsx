@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, SectionList, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/AppHeader';
 import { ErrorState } from '@/components/ErrorState';
@@ -29,6 +29,32 @@ function iconFor(tipo?: string | null): keyof typeof Ionicons.glyphMap {
   return ICON_BY_TYPE[tipo] ?? 'notifications-outline';
 }
 
+function startOfDay(date: Date): Date {
+  const copy = new Date(date);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+
+/** Agrupa por Hoy / Ayer / Anteriores usando `creada_en_iso`; sin fecha reconocible, cae en Anteriores. */
+function groupByDate(items: NotificationItem[]): { title: string; data: NotificationItem[] }[] {
+  const today = startOfDay(new Date());
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  const groups: Record<'Hoy' | 'Ayer' | 'Anteriores', NotificationItem[]> = { Hoy: [], Ayer: [], Anteriores: [] };
+
+  for (const item of items) {
+    const date = item.creada_en_iso ? new Date(item.creada_en_iso) : null;
+    const day = date && !Number.isNaN(date.getTime()) ? startOfDay(date) : null;
+
+    if (day && day.getTime() === today.getTime()) groups.Hoy.push(item);
+    else if (day && day.getTime() === yesterday.getTime()) groups.Ayer.push(item);
+    else groups.Anteriores.push(item);
+  }
+
+  return (['Hoy', 'Ayer', 'Anteriores'] as const).filter((key) => groups[key].length > 0).map((key) => ({ title: key, data: groups[key] }));
+}
+
 export default function NotificacionesScreen() {
   const router = useRouter();
   const { data, isLoading, isError, error, refetch, isRefetching } = useNotificaciones();
@@ -38,6 +64,7 @@ export default function NotificacionesScreen() {
   const items = useMemo(() => data ?? [], [data]);
   const filtered = useMemo(() => (tab === 'no_leidas' ? items.filter((item) => !item.leida) : items), [items, tab]);
   const unreadCount = useMemo(() => items.filter((item) => !item.leida).length, [items]);
+  const sections = useMemo(() => groupByDate(filtered), [filtered]);
 
   const handlePress = (item: NotificationItem) => {
     if (!item.leida) {
@@ -66,12 +93,15 @@ export default function NotificacionesScreen() {
         <TabButton label={`No leídas${unreadCount > 0 ? ` (${unreadCount})` : ''}`} active={tab === 'no_leidas'} onPress={() => setTab('no_leidas')} />
       </View>
 
-      <FlatList
-        data={filtered}
+      <SectionList
+        sections={sections}
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={styles.listContent}
+        stickySectionHeadersEnabled={false}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={Colors.primary} />}
         ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
+        renderSectionHeader={({ section }) => <Text style={styles.sectionHeader}>{section.title}</Text>}
+        renderSectionFooter={() => <View style={{ height: Spacing.md }} />}
         renderItem={({ item, index }) => {
           const read = Boolean(item.leida);
           return (
@@ -151,6 +181,14 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     paddingTop: 0,
     flexGrow: 1,
+  },
+  sectionHeader: {
+    fontSize: FontSize.xs,
+    fontWeight: '800',
+    color: Colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: Spacing.sm,
   },
   item: {
     flexDirection: 'row',

@@ -1,8 +1,8 @@
-import * as Haptics from 'expo-haptics';
-import { Platform, Pressable, type GestureResponderEvent, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, type GestureResponderEvent, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { Motion } from '@/constants/motion';
+import { haptics } from '@/utils/haptics';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -16,6 +16,8 @@ export interface PressableScaleProps {
   accessibilityRole?: 'button' | 'link' | 'none';
   accessibilityLabel?: string;
   hitSlop?: number;
+  /** Color del ripple nativo de Android (además del scale) — solo cuando conviene, ej. filas de lista sobre fondo plano. No aplica en iOS. */
+  rippleColor?: string;
 }
 
 /**
@@ -33,6 +35,7 @@ export function PressableScale({
   accessibilityRole = 'button',
   accessibilityLabel,
   hitSlop,
+  rippleColor,
 }: PressableScaleProps) {
   'use no memo';
   // El React Compiler (habilitado en app.json) no reconoce todavía el
@@ -50,19 +53,17 @@ export function PressableScale({
 
   function handlePressIn() {
     // eslint-disable-next-line react-hooks/immutability -- mutación de shared value de Reanimated, patrón esperado.
-    scale.value = withTiming(Motion.scale.pressed, { duration: Motion.duration.fast });
+    scale.value = withTiming(Motion.scale.pressed, { duration: Motion.duration.press });
   }
 
   function handlePressOut() {
     // eslint-disable-next-line react-hooks/immutability -- mutación de shared value de Reanimated, patrón esperado.
-    scale.value = withTiming(1, { duration: Motion.duration.fast });
+    scale.value = withTiming(1, { duration: Motion.duration.press });
   }
 
   function handlePress(event: GestureResponderEvent) {
     if (disabled) return;
-    if (haptic && Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    }
+    if (haptic) haptics.tap();
     onPress?.();
     void event;
   }
@@ -74,6 +75,7 @@ export function PressableScale({
       accessibilityState={{ disabled }}
       disabled={disabled}
       hitSlop={hitSlop}
+      android_ripple={rippleColor ? { color: rippleColor } : undefined}
       onPress={handlePress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}

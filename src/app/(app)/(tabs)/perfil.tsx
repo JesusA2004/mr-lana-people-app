@@ -7,9 +7,12 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
 import { FadeInView } from '@/components/FadeInView';
+import { PressableScale } from '@/components/PressableScale';
 import { ProfileAvatar } from '@/components/ProfileAvatar';
+import { SecurityWatermark } from '@/components/SecurityWatermark';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { useIncorporacion } from '@/hooks/queries/useIncorporacion';
 import { usePerfil } from '@/hooks/queries/usePerfil';
 import { formatDateLong } from '@/utils/dates';
 import { getErrorMessage } from '@/utils/errors';
@@ -18,8 +21,10 @@ import { joinName } from '@/utils/formatters';
 export default function PerfilScreen() {
   const router = useRouter();
   const { data: perfil, isLoading, isError, error, refetch, isRefetching } = usePerfil();
+  const incorporacion = useIncorporacion();
 
   const nombre = joinName(perfil?.nombre, perfil?.apellidos) ?? perfil?.nombre_completo;
+  const watermarkLabel = [nombre, perfil?.numero_empleado ? `EMP-${perfil.numero_empleado}` : null].filter(Boolean).join(' · ');
 
   const laboralFields: { icon: keyof typeof Ionicons.glyphMap; label: string; value?: string }[] = [
     { icon: 'id-card-outline', label: 'Número de empleado', value: perfil?.numero_empleado },
@@ -64,6 +69,8 @@ export default function PerfilScreen() {
         }
       />
 
+      {!isLoading && !isError && watermarkLabel ? <SecurityWatermark label={watermarkLabel} /> : null}
+
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={Colors.primary} />}>
@@ -85,6 +92,16 @@ export default function PerfilScreen() {
                   <Text style={styles.company}>{[perfil?.empresa, perfil?.sucursal].filter(Boolean).join(' · ')}</Text>
                 ) : null}
                 {perfil?.numero_empleado ? <Text style={styles.employeeNumber}>N.º {perfil.numero_empleado}</Text> : null}
+                {incorporacion.data ? (
+                  <PressableScale haptic={false} onPress={() => router.push('/(app)/(tabs)/expediente')} style={styles.statusPill}>
+                    <Ionicons
+                      name={incorporacion.data.estado === 'aprobado' ? 'checkmark-circle' : 'folder-open-outline'}
+                      size={13}
+                      color={Colors.primaryDark}
+                    />
+                    <Text style={styles.statusPillText}>Expediente {Math.round(incorporacion.data.progreso.porcentaje)}%</Text>
+                  </PressableScale>
+                ) : null}
               </Card>
             </FadeInView>
 
@@ -217,6 +234,21 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     fontWeight: '600',
     marginTop: 4,
+  },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: Spacing.sm,
+    backgroundColor: Colors.primarySoft,
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+  },
+  statusPillText: {
+    fontSize: FontSize.xs,
+    fontWeight: '800',
+    color: Colors.primaryDark,
   },
   sectionHeader: {
     flexDirection: 'row',

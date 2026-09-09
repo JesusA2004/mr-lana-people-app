@@ -5,21 +5,21 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import Animated, { FadeInRight, FadeOutLeft } from 'react-native-reanimated';
 import { z } from 'zod';
 
-import { AnimatedProgressBar } from '@/components/AnimatedProgressBar';
 import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Input } from '@/components/Input';
 import { MascotBubble } from '@/components/mascot/MascotBubble';
 import { PressableScale } from '@/components/PressableScale';
+import { Stepper } from '@/components/Stepper';
+import { SuccessCheck } from '@/components/SuccessCheck';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 import { MascotMessages } from '@/constants/mascotMessages';
 import { useCreateSolicitud } from '@/hooks/queries/useSolicitudes';
-import { toast } from '@/store/toastStore';
-import { REQUEST_TYPES_WITH_DATE_RANGE, type RequestType } from '@/types/request';
+import { REQUEST_TYPES_WITH_DATE_RANGE, type RequestType, type Solicitud } from '@/types/request';
 import { formatDateLong, isDateBefore, toApiDateString } from '@/utils/dates';
 import { getErrorMessage, getValidationErrors, logError } from '@/utils/errors';
 
@@ -58,6 +58,7 @@ const schema = z
 
 type FormValues = z.infer<typeof schema>;
 
+/** "Archivos" no es un paso real: la API de solicitudes (Api\V1\SolicitudController) no tiene ruta de adjuntos hoy — no se inventa esa capacidad en el cliente. */
 const STEPS = ['Tipo', 'Información', 'Revisar'] as const;
 
 export default function NuevaSolicitudScreen() {
@@ -65,6 +66,7 @@ export default function NuevaSolicitudScreen() {
   const params = useLocalSearchParams<{ tipo?: string }>();
   const [step, setStep] = useState(0);
   const [formError, setFormError] = useState<string | null>(null);
+  const [sentSolicitud, setSentSolicitud] = useState<Solicitud | null>(null);
   const createMutation = useCreateSolicitud();
 
   const {
@@ -84,7 +86,14 @@ export default function NuevaSolicitudScreen() {
   const selectedOption = REQUEST_TYPE_OPTIONS.find((option) => option.tipo === selectedTipo);
   const [activePicker, setActivePicker] = useState<'inicio' | 'fin' | null>(null);
 
-  const stepProgress = useMemo(() => Math.round(((step + 1) / STEPS.length) * 100), [step]);
+  const fechasResumen = useMemo(
+    () =>
+      [formValues.fechaInicio, formValues.fechaFin]
+        .filter((date): date is Date => Boolean(date))
+        .map((date) => formatDateLong(toApiDateString(date)))
+        .join(' — '),
+    [formValues.fechaInicio, formValues.fechaFin],
+  );
 
   const goNext = async () => {
     if (step === 0) {
@@ -120,8 +129,7 @@ export default function NuevaSolicitudScreen() {
         fecha_inicio: values.fechaInicio ? toApiDateString(values.fechaInicio) : undefined,
         fecha_fin: values.fechaFin ? toApiDateString(values.fechaFin) : undefined,
       });
-      toast.success(MascotMessages.solicitudEnviada);
-      router.replace({ pathname: '/solicitud/[id]', params: { id: String(solicitud.id) } });
+      setSentSolicitud(solicitud);
     } catch (error) {
       logError('solicitudes.create', error);
       const validation = getValidationErrors(error);
@@ -130,24 +138,21 @@ export default function NuevaSolicitudScreen() {
     }
   };
 
+  if (sentSolicitud) {
+    return <SuccessScreen solicitud={sentSolicitud} />;
+  }
+
   return (
     <View style={styles.container}>
       <AppHeader title="Nueva solicitud" showBack onBackPress={goBack} />
 
-      <View style={styles.progressWrapper}>
-        <View style={styles.stepLabels}>
-          {STEPS.map((label, index) => (
-            <Text key={label} style={[styles.stepLabel, index === step && styles.stepLabelActive]}>
-              {index + 1}. {label}
-            </Text>
-          ))}
-        </View>
-        <AnimatedProgressBar percent={stepProgress} />
+      <View style={styles.stepperWrapper}>
+        <Stepper steps={[...STEPS]} currentIndex={step} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {step === 0 ? (
-          <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(120)} style={styles.stepBlock}>
+          <Animated.View key="step-0" entering={FadeInRight.duration(240)} exiting={FadeOutLeft.duration(160)} style={styles.stepBlock}>
             <MascotBubble message={MascotMessages.wizardTipo} />
             <Text style={styles.title}>¿Qué necesitas solicitar?</Text>
             <View style={styles.typeList}>
@@ -159,13 +164,13 @@ export default function NuevaSolicitudScreen() {
                     onPress={() => setValue('tipo', option.tipo, { shouldValidate: true })}
                     style={[styles.typeCard, active && styles.typeCardActive] as object}>
                     <View style={[styles.typeIcon, active && styles.typeIconActive]}>
-                      <Ionicons name={option.icon} size={20} color={active ? Colors.white : Colors.primaryDark} />
+                      <Ionicons name={option.icon} size={22} color={active ? Colors.white : Colors.primaryDark} />
                     </View>
                     <View style={styles.typeText}>
                       <Text style={styles.typeLabel}>{option.label}</Text>
                       <Text style={styles.typeDescription}>{option.description}</Text>
                     </View>
-                    {active ? <Ionicons name="checkmark-circle" size={20} color={Colors.primary} /> : null}
+                    {active ? <Ionicons name="checkmark-circle" size={22} color={Colors.primary} /> : null}
                   </PressableScale>
                 );
               })}
@@ -175,7 +180,7 @@ export default function NuevaSolicitudScreen() {
         ) : null}
 
         {step === 1 ? (
-          <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(120)} style={styles.stepBlock}>
+          <Animated.View key="step-1" entering={FadeInRight.duration(240)} exiting={FadeOutLeft.duration(160)} style={styles.stepBlock}>
             <MascotBubble message={MascotMessages.wizardMotivo} orientation="left" />
             <Text style={styles.title}>{selectedOption?.label ?? 'Cuéntanos más'}</Text>
 
@@ -234,26 +239,21 @@ export default function NuevaSolicitudScreen() {
         ) : null}
 
         {step === 2 ? (
-          <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(120)} style={styles.stepBlock}>
+          <Animated.View key="step-2" entering={FadeInRight.duration(240)} exiting={FadeOutLeft.duration(160)} style={styles.stepBlock}>
             <MascotBubble message={MascotMessages.wizardRevision} />
             <Text style={styles.title}>Revisa tu solicitud</Text>
 
             <Card style={{ gap: Spacing.md }}>
-              <SummaryRow label="Tipo" value={selectedOption?.label ?? '—'} />
-              <SummaryRow label="Motivo" value={formValues.motivo || '—'} />
-              {formValues.observaciones ? <SummaryRow label="Observaciones" value={formValues.observaciones} /> : null}
-              {needsDateRange ? (
-                <SummaryRow
-                  label="Fechas"
-                  value={
-                    [formValues.fechaInicio, formValues.fechaFin]
-                      .filter((date): date is Date => Boolean(date))
-                      .map((date) => formatDateLong(toApiDateString(date)))
-                      .join(' — ') || '—'
-                  }
-                />
-              ) : null}
+              <SummaryRow icon="pricetag-outline" label="Tipo" value={selectedOption?.label ?? '—'} />
+              <SummaryRow icon="chatbox-ellipses-outline" label="Motivo" value={formValues.motivo || '—'} />
+              {formValues.observaciones ? <SummaryRow icon="reader-outline" label="Observaciones" value={formValues.observaciones} /> : null}
+              {needsDateRange ? <SummaryRow icon="calendar-outline" label="Fechas" value={fechasResumen || '—'} /> : null}
             </Card>
+
+            <PressableScale haptic={false} onPress={() => setStep(0)} style={styles.editRow}>
+              <Ionicons name="create-outline" size={16} color={Colors.primaryDark} />
+              <Text style={styles.editText}>Editar</Text>
+            </PressableScale>
 
             {formError ? <Text style={styles.formError}>{formError}</Text> : null}
           </Animated.View>
@@ -263,6 +263,7 @@ export default function NuevaSolicitudScreen() {
       <View style={styles.footer}>
         <Button
           title={step === 2 ? 'Enviar solicitud' : 'Siguiente'}
+          rightIcon={step === 2 ? undefined : 'arrow-forward'}
           onPress={step === 2 ? handleSubmit(onSubmit) : () => void goNext()}
           loading={createMutation.isPending}
           disabled={createMutation.isPending}
@@ -293,11 +294,43 @@ export default function NuevaSolicitudScreen() {
   );
 }
 
-function SummaryRow({ label, value }: { label: string; value: string }) {
+/** Pantalla de éxito: check animado + "Ver solicitud" / "Volver al inicio" (sección 18 del encargo V3). */
+function SuccessScreen({ solicitud }: { solicitud: Solicitud }) {
+  const router = useRouter();
+
   return (
-    <View>
-      <Text style={styles.summaryLabel}>{label}</Text>
-      <Text style={styles.summaryValue}>{value}</Text>
+    <View style={styles.successContainer}>
+      <View style={styles.successBody}>
+        <SuccessCheck size={104} />
+        <Text style={styles.successTitle}>Solicitud enviada</Text>
+        <Text style={styles.successSubtitle}>Te avisaremos cuando haya cambios en tu solicitud.</Text>
+        {solicitud.folio ? <Text style={styles.successFolio}>Folio {solicitud.folio}</Text> : null}
+
+        <MascotBubble message={MascotMessages.solicitudEnviada} />
+      </View>
+
+      <View style={styles.successActions}>
+        <Button
+          title="Ver solicitud"
+          leftIcon="document-text-outline"
+          onPress={() => router.replace({ pathname: '/solicitud/[id]', params: { id: String(solicitud.id) } })}
+        />
+        <Button title="Volver al inicio" variant="ghost" onPress={() => router.replace('/(app)/(tabs)')} />
+      </View>
+    </View>
+  );
+}
+
+function SummaryRow({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
+  return (
+    <View style={styles.summaryRow}>
+      <View style={styles.summaryIcon}>
+        <Ionicons name={icon} size={16} color={Colors.primaryDark} />
+      </View>
+      <View style={styles.summaryText}>
+        <Text style={styles.summaryLabel}>{label}</Text>
+        <Text style={styles.summaryValue}>{value}</Text>
+      </View>
     </View>
   );
 }
@@ -330,22 +363,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  progressWrapper: {
+  stepperWrapper: {
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.md,
-    gap: Spacing.sm,
-  },
-  stepLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  stepLabel: {
-    fontSize: FontSize.xs,
-    fontWeight: '700',
-    color: Colors.textMuted,
-  },
-  stepLabelActive: {
-    color: Colors.primaryDark,
   },
   content: {
     padding: Spacing.lg,
@@ -379,8 +399,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primarySoft,
   },
   typeIcon: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: Radius.md,
     backgroundColor: Colors.primarySoft,
     alignItems: 'center',
@@ -435,6 +455,21 @@ const styles = StyleSheet.create({
     fontSize: FontSize.md,
     color: Colors.text,
   },
+  summaryRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  summaryIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  summaryText: {
+    flex: 1,
+  },
   summaryLabel: {
     fontSize: FontSize.xs,
     color: Colors.textMuted,
@@ -444,6 +479,17 @@ const styles = StyleSheet.create({
     fontSize: FontSize.md,
     color: Colors.text,
     marginTop: 2,
+  },
+  editRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+  },
+  editText: {
+    fontSize: FontSize.sm,
+    fontWeight: '700',
+    color: Colors.primaryDark,
   },
   formError: {
     fontSize: FontSize.xs,
@@ -458,5 +504,39 @@ const styles = StyleSheet.create({
   },
   doneButton: {
     margin: Spacing.lg,
+  },
+  successContainer: {
+    flex: 1,
+    backgroundColor: Colors.background,
+    justifyContent: 'space-between',
+    padding: Spacing.xl,
+    paddingTop: Spacing.xxxl,
+  },
+  successBody: {
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  successTitle: {
+    fontSize: FontSize.xxl,
+    fontWeight: '800',
+    color: Colors.text,
+    marginTop: Spacing.sm,
+  },
+  successSubtitle: {
+    fontSize: FontSize.sm,
+    color: Colors.textMuted,
+    textAlign: 'center',
+  },
+  successFolio: {
+    fontSize: FontSize.xs,
+    fontWeight: '700',
+    color: Colors.primaryDark,
+    backgroundColor: Colors.primarySoft,
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 4,
+  },
+  successActions: {
+    gap: Spacing.md,
   },
 });

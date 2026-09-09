@@ -24,6 +24,14 @@ export const REQUEST_TIMEOUT_MS = 15000;
 export const AUTH_TOKEN_KEY = 'mrlana-auth-token';
 
 /**
+ * Auto-lock (AGENTS.md V3 sección 46): minutos en background antes de exigir
+ * contraseña de nuevo al volver a foreground. No cierra sesión — solo pide
+ * reconfirmar. 5 minutos: protege sin castigar el uso normal (cambiar de
+ * app un momento, contestar una llamada).
+ */
+export const AUTO_LOCK_MINUTES = 5;
+
+/**
  * Avatar ilustrado de desarrollo cuando no hay foto real disponible (ver
  * `ProfileAvatar`). Se activa por defecto en DEV (se puede apagar con
  * EXPO_PUBLIC_SHOW_DEMO_PROFILE_PHOTO=false) y queda **forzado a false**

@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AnimatedProgressBar } from '@/components/AnimatedProgressBar';
+import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
 import { FadeInView } from '@/components/FadeInView';
@@ -20,7 +21,7 @@ import { useIncorporacion } from '@/hooks/queries/useIncorporacion';
 import type { Solicitud } from '@/types/request';
 import { getErrorMessage } from '@/utils/errors';
 import { getGreeting } from '@/utils/dates';
-import { joinName } from '@/utils/formatters';
+import { joinName, pluralize } from '@/utils/formatters';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const HEADER_TOP_EXTRA = 20;
@@ -57,8 +58,11 @@ export default function DashboardScreen() {
     [incorporacion.data],
   );
 
-  // Prioridad del home dinámico (AGENTS.md): 1) documento rechazado, 2) expediente
-  // incompleto, 3) aprobación pendiente, 4) solicitud requiere corrección, 5) notificaciones.
+  const expedienteEnRevision = incorporacion.data?.progreso.en_revision ?? 0;
+
+  // Prioridad del home dinámico: 1) documento rechazado, 2) expediente incompleto,
+  // 3) aprobación pendiente, 4) solicitud requiere corrección, 5) vacaciones
+  // pendientes, 6) notificaciones, 7) resumen normal (sin banner).
   const priorityMascot = useMemo(() => {
     if (expedienteStats.rechazados > 0) {
       return {
@@ -81,6 +85,15 @@ export default function DashboardScreen() {
         onAction: () => router.push('/(app)/(tabs)/expediente'),
       };
     }
+    if (expedienteEnRevision > 0) {
+      return {
+        type: 'info' as const,
+        priority: 'normal' as const,
+        message: MascotMessages.pendienteAprobacion,
+        actionLabel: 'Ver expediente',
+        onAction: () => router.push('/(app)/(tabs)/expediente'),
+      };
+    }
     const requiresCorrection = solicitudesRecientes.find((item) => item.estado === 'requiere_correccion');
     if (requiresCorrection) {
       return {
@@ -89,6 +102,15 @@ export default function DashboardScreen() {
         message: MascotMessages.documentoRechazado,
         actionLabel: 'Ver solicitud',
         onAction: () => router.push({ pathname: '/solicitud/[id]', params: { id: String(requiresCorrection.id) } }),
+      };
+    }
+    if (diasEnSolicitud > 0) {
+      return {
+        type: 'tip' as const,
+        priority: 'normal' as const,
+        message: `Tienes ${diasEnSolicitud} ${diasEnSolicitud === 1 ? 'día' : 'días'} de vacaciones en espera de aprobación.`,
+        actionLabel: 'Ver vacaciones',
+        onAction: () => router.push('/(app)/(tabs)/vacaciones'),
       };
     }
     if (noLeidas > 0) {
@@ -101,7 +123,7 @@ export default function DashboardScreen() {
       };
     }
     return null;
-  }, [expedienteStats, solicitudesRecientes, noLeidas, router]);
+  }, [expedienteStats, expedienteEnRevision, solicitudesRecientes, diasEnSolicitud, noLeidas, router]);
 
   return (
     <View style={styles.container}>
@@ -154,17 +176,43 @@ export default function DashboardScreen() {
             <FadeInView index={0}>
               <Card style={styles.expedienteCard} onPress={() => router.push('/(app)/(tabs)/expediente')}>
                 <View style={styles.expedienteHeaderRow}>
-                  <Text style={styles.expedienteTitle}>Tu expediente</Text>
+                  <View style={styles.expedienteTitleRow}>
+                    <View style={styles.expedienteIcon}>
+                      <Ionicons name="briefcase" size={16} color={Colors.primaryDark} />
+                    </View>
+                    <Text style={styles.expedienteTitle}>Tu incorporación</Text>
+                  </View>
                   {incorporacion.data ? <Text style={styles.expedientePercent}>{Math.round(incorporacion.data.progreso.porcentaje)}%</Text> : null}
                 </View>
                 {incorporacion.data ? (
                   <>
                     <AnimatedProgressBar percent={incorporacion.data.progreso.porcentaje} />
-                    <Text style={styles.expedienteCaption}>
-                      {expedienteStats.pendientes + expedienteStats.rechazados === 0
-                        ? 'Todo en orden.'
-                        : `${expedienteStats.pendientes + expedienteStats.rechazados} documentos por atender`}
-                    </Text>
+                    <View style={styles.expedienteCaptionRow}>
+                      <Ionicons
+                        name={expedienteStats.pendientes + expedienteStats.rechazados === 0 ? 'checkmark-circle' : 'alert-circle'}
+                        size={14}
+                        color={expedienteStats.pendientes + expedienteStats.rechazados === 0 ? Colors.success : Colors.warning}
+                      />
+                      <Text style={styles.expedienteCaption}>
+                        {expedienteStats.pendientes + expedienteStats.rechazados === 0
+                          ? 'Todo en orden.'
+                          : `${expedienteStats.pendientes + expedienteStats.rechazados} ${pluralize(
+                              expedienteStats.pendientes + expedienteStats.rechazados,
+                              'documento requiere',
+                              'documentos requieren',
+                            )} atención`}
+                      </Text>
+                    </View>
+                    {expedienteStats.pendientes + expedienteStats.rechazados > 0 ? (
+                      <Button
+                        title="Continuar expediente"
+                        variant="outline"
+                        rightIcon="arrow-forward"
+                        fullWidth={false}
+                        onPress={() => router.push('/(app)/(tabs)/expediente')}
+                        style={styles.expedienteCta}
+                      />
+                    ) : null}
                   </>
                 ) : incorporacion.isError ? (
                   <Text style={styles.expedienteCaption}>No pudimos cargar tu expediente. Toca para reintentar.</Text>
@@ -332,6 +380,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  expedienteTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  expedienteIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   expedienteTitle: {
     fontSize: FontSize.md,
     fontWeight: '800',
@@ -342,10 +403,21 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: Colors.primaryDark,
   },
+  expedienteCaptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   expedienteCaption: {
     fontSize: FontSize.xs,
     color: Colors.textMuted,
     fontWeight: '600',
+  },
+  expedienteCta: {
+    marginTop: Spacing.xs,
+    alignSelf: 'flex-start',
+    minHeight: 40,
+    paddingHorizontal: Spacing.md,
   },
   statGrid: {
     flexDirection: 'row',

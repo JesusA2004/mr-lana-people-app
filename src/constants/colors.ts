@@ -75,15 +75,23 @@ export const FontSize = {
   xxxl: 30,
 } as const;
 
+/** Compatible Android (elevation) / iOS (shadow*). Tres niveles nada más — no inventar sombras nuevas por pantalla. */
 export const Shadow = {
-  card: {
+  sm: {
+    shadowColor: '#111111',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  md: {
     shadowColor: '#111111',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06,
     shadowRadius: 12,
     elevation: 2,
   },
-  raised: {
+  lg: {
     shadowColor: '#111111',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.1,

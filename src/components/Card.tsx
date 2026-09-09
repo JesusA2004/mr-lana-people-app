@@ -29,7 +29,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Colors.border,
-    ...Shadow.card,
+    ...Shadow.md,
   },
   padded: {
     padding: Spacing.lg,

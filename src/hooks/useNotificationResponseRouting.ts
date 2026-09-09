@@ -57,7 +57,10 @@ export function useNotificationResponseRouting(enabled: boolean): void {
       receivedSubscription = Notifications.addNotificationReceivedListener((notification) => {
         const title = notification.request.content.title ?? 'Notificación';
         const body = notification.request.content.body;
-        toast.info(body ? `${title}: ${body}` : title);
+        const data = (notification.request.content.data ?? {}) as PushNotificationData;
+        const route = resolveRoute(data);
+
+        toast.info(body ? `${title}: ${body}` : title, route ? { actionLabel: 'Ver', onAction: () => router.push(route as never) } : undefined);
       });
 
       responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {

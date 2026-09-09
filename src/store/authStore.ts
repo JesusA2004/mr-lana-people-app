@@ -6,6 +6,7 @@ import { setAuthToken, setUnauthorizedHandler } from '@/api/client';
 import { queryClient } from '@/api/queryClient';
 import { AUTH_TOKEN_KEY, DEVICE_NAME } from '@/constants/config';
 import { revokeCurrentPushToken } from '@/services/pushNotifications';
+import { useAppLockStore } from '@/store/appLockStore';
 import type { AuthUser } from '@/types/auth';
 import { logError } from '@/utils/errors';
 
@@ -41,6 +42,8 @@ export const useAuthStore = create<AuthState>((set) => {
     // Evita que datos del colaborador anterior sobrevivan en caché de
     // react-query si otra persona inicia sesión en el mismo dispositivo.
     queryClient.clear();
+    // No dejar el auto-lock (V3 sección 46) esperando un desbloqueo que ya no aplica.
+    useAppLockStore.getState().reset();
   }
 
   // Cualquier 401 de cualquier endpoint autenticado expulsa la sesión.

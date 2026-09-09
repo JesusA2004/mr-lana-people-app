@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     padding: Spacing.md,
-    ...Shadow.card,
+    ...Shadow.md,
   },
   body: {
     flex: 1,
