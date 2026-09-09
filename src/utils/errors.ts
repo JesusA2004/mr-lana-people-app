@@ -72,10 +72,11 @@ export function logError(context: string, error: unknown): void {
 }
 
 /**
- * Detalle técnico ("GET /colaborador/expediente → 404") para mostrar SOLO en
- * DEV cuando una pantalla depende de un endpoint que el backend todavía no
- * agregó (AGENTS.md sección 29: "no degradar toda la UI a próximamente", en
- * DEV sí mostrar un mensaje técnico claro). Nunca se muestra en producción.
+ * Detalle técnico ("GET /colaborador/incorporacion → 404") para mostrar SOLO
+ * en DEV cuando una pantalla depende de un endpoint que el backend todavía
+ * no agregó (AGENTS.md sección 29: "no degradar toda la UI a próximamente",
+ * en DEV sí mostrar un mensaje técnico claro). Nunca se muestra en
+ * producción.
  */
 export function getDevErrorDetail(error: unknown): string | undefined {
   if (!__DEV__) return undefined;
