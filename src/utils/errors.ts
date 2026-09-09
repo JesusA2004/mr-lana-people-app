@@ -67,7 +67,7 @@ export function getValidationErrors(error: unknown): Record<string, string[]> | 
 /** Log técnico para desarrollo. Nunca debe recibir tokens ni contraseñas. */
 export function logError(context: string, error: unknown): void {
   if (__DEV__) {
-    console.error(`[${context}]`, normalizeError(error), error);
+    console.warn(`[${context}]`, normalizeError(error), error);
   }
 }
 

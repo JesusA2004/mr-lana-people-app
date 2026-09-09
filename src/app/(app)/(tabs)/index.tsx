@@ -16,7 +16,7 @@ import { SkeletonBlock, SkeletonCardList } from '@/components/SkeletonBlock';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 import { MascotMessages } from '@/constants/mascotMessages';
 import { useDashboard } from '@/hooks/queries/useDashboard';
-import { useExpediente } from '@/hooks/queries/useExpediente';
+import { useIncorporacion } from '@/hooks/queries/useIncorporacion';
 import type { Solicitud } from '@/types/request';
 import { getErrorMessage } from '@/utils/errors';
 import { getGreeting } from '@/utils/dates';
@@ -32,7 +32,7 @@ export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
 
   const { data, isLoading, isError, error, refetch, isRefetching } = useDashboard();
-  const expediente = useExpediente();
+  const incorporacion = useIncorporacion();
 
   const perfil = data?.perfil;
   const nombre = joinName(perfil?.nombre, perfil?.apellidos);
@@ -49,17 +49,13 @@ export default function DashboardScreen() {
   );
   const enProceso = solicitudesRecientes.filter((item) => item.estado === 'enviada' || item.estado === 'en_revision').length;
 
-  const expedienteStats = useMemo(() => {
-    const documentos = expediente.data?.documentos ?? [];
-    let pendientes = 0;
-    let rechazados = 0;
-    for (const entry of documentos) {
-      const status = entry.documento?.status;
-      if (status === 'rechazado' || status === 'requiere_correccion' || status === 'vencido') rechazados++;
-      else if (status !== 'aprobado') pendientes++;
-    }
-    return { pendientes, rechazados };
-  }, [expediente.data]);
+  const expedienteStats = useMemo(
+    () => ({
+      pendientes: incorporacion.data?.progreso.pendientes ?? 0,
+      rechazados: incorporacion.data?.progreso.rechazados ?? 0,
+    }),
+    [incorporacion.data],
+  );
 
   // Prioridad del home dinámico (AGENTS.md): 1) documento rechazado, 2) expediente
   // incompleto, 3) aprobación pendiente, 4) solicitud requiere corrección, 5) notificaciones.
@@ -159,18 +155,18 @@ export default function DashboardScreen() {
               <Card style={styles.expedienteCard} onPress={() => router.push('/(app)/(tabs)/expediente')}>
                 <View style={styles.expedienteHeaderRow}>
                   <Text style={styles.expedienteTitle}>Tu expediente</Text>
-                  {expediente.data ? <Text style={styles.expedientePercent}>{Math.round(expediente.data.resumen.porcentaje)}%</Text> : null}
+                  {incorporacion.data ? <Text style={styles.expedientePercent}>{Math.round(incorporacion.data.progreso.porcentaje)}%</Text> : null}
                 </View>
-                {expediente.data ? (
+                {incorporacion.data ? (
                   <>
-                    <AnimatedProgressBar percent={expediente.data.resumen.porcentaje} />
+                    <AnimatedProgressBar percent={incorporacion.data.progreso.porcentaje} />
                     <Text style={styles.expedienteCaption}>
                       {expedienteStats.pendientes + expedienteStats.rechazados === 0
                         ? 'Todo en orden.'
                         : `${expedienteStats.pendientes + expedienteStats.rechazados} documentos por atender`}
                     </Text>
                   </>
-                ) : expediente.isError ? (
+                ) : incorporacion.isError ? (
                   <Text style={styles.expedienteCaption}>No pudimos cargar tu expediente. Toca para reintentar.</Text>
                 ) : (
                   <SkeletonBlock height={8} radius={Radius.full} />

@@ -12,54 +12,50 @@ import { ErrorState } from '@/components/ErrorState';
 import { MascotAssistant } from '@/components/mascot/MascotAssistant';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
-import { useExpediente, useUploadDocumento } from '@/hooks/queries/useExpediente';
-import { useAuthStore } from '@/store/authStore';
+import { useIncorporacion, useSolicitarCambioDocumento, useUploadDocumento } from '@/hooks/queries/useIncorporacion';
 import { toast } from '@/store/toastStore';
 import { formatDateLong, formatDateTime } from '@/utils/dates';
 import { getErrorMessage, logError } from '@/utils/errors';
-import { downloadAndOpenFile } from '@/utils/fileDownload';
 
 export default function DocumentoDetalleScreen() {
   const router = useRouter();
   const { tipoId } = useLocalSearchParams<{ tipoId: string }>();
-  const token = useAuthStore((state) => state.token);
-  const { data, isLoading, isError, error, refetch } = useExpediente();
+  const { data, isLoading, isError, error, refetch } = useIncorporacion();
   const uploadMutation = useUploadDocumento();
+  const solicitarCambioMutation = useSolicitarCambioDocumento();
   const [sheetVisible, setSheetVisible] = useState(false);
-  const [downloading, setDownloading] = useState(false);
 
-  const entry = data?.documentos.find((item) => String(item.tipo.id) === tipoId);
-  const documento = entry?.documento;
+  const documento = data?.documentos.find((item) => String(item.id) === tipoId);
 
   const handleUpload = async (file: PickedDocumentFile) => {
-    if (!entry) return;
+    if (!documento) return;
     await uploadMutation.mutateAsync({
-      documentTypeId: entry.tipo.id,
+      documentTypeId: documento.id,
       fileUri: file.uri,
       fileName: file.name,
       mimeType: file.mimeType,
     });
   };
 
-  const handleViewFile = async () => {
+  const handleSolicitarCambio = async () => {
     if (!documento) return;
-    setDownloading(true);
     try {
-      // GET /api/v1/colaborador/documentos/{id}/descargar — pendiente en backend (ver docs/MOBILE_BACKEND_REQUIREMENTS.md P0.3).
-      await downloadAndOpenFile(`/colaborador/documentos/${documento.id}/descargar`, token, documento.original_name);
-    } catch (downloadError) {
-      logError('documento.descargar', downloadError);
-      toast.error(getErrorMessage(downloadError));
-    } finally {
-      setDownloading(false);
+      await solicitarCambioMutation.mutateAsync(documento.id);
+      toast.success('Le pedimos a Recursos Humanos que autorice el cambio.');
+    } catch (solicitudError) {
+      logError('documento.solicitarCambio', solicitudError);
+      toast.error(getErrorMessage(solicitudError));
     }
   };
 
-  const needsCorrection = documento?.status === 'rechazado' || documento?.status === 'requiere_correccion';
+  const needsCorrection = documento?.estado === 'rechazado' || documento?.estado === 'requiere_correccion';
+  const canUploadDirectly = Boolean(documento && (documento.puede_subir || documento.puede_reemplazar));
+  const canRequestChange = Boolean(documento?.puede_solicitar_cambio);
+  const hasUploadedFile = Boolean(documento && documento.estado !== 'pendiente');
 
   return (
     <View style={styles.container}>
-      <AppHeader title={entry?.tipo.nombre ?? 'Documento'} showBack onBackPress={() => router.back()} />
+      <AppHeader title={documento?.nombre ?? 'Documento'} showBack onBackPress={() => router.back()} />
 
       <ScrollView contentContainerStyle={styles.content}>
         {isLoading ? (
@@ -69,19 +65,20 @@ export default function DocumentoDetalleScreen() {
           </View>
         ) : isError ? (
           <ErrorState message={getErrorMessage(error)} onRetry={() => void refetch()} />
-        ) : !entry ? (
+        ) : !documento ? (
           <ErrorState message="No encontramos este documento en tu expediente." onRetry={() => void refetch()} />
         ) : (
           <>
             <Card style={styles.headerCard}>
               <View style={styles.headerRow}>
                 <Text style={styles.headerLabel}>Estado</Text>
-                <DocumentStatusBadge status={documento?.status} />
+                <DocumentStatusBadge status={documento.estado} />
               </View>
-              {entry.tipo.requerido ? <Text style={styles.requiredNote}>Este documento es requerido para tu expediente.</Text> : null}
+              {documento.obligatorio ? <Text style={styles.requiredNote}>Este documento es requerido para tu expediente.</Text> : null}
+              {documento.mensaje ? <Text style={styles.requiredNote}>{documento.mensaje}</Text> : null}
             </Card>
 
-            {needsCorrection && documento?.rejection_reason ? (
+            {needsCorrection && documento.motivo_rechazo ? (
               <>
                 <MascotAssistant message={MascotMessagesCorreccion} type="warning" priority="high" dismissible={false} />
                 <Card style={styles.rejectionCard}>
@@ -89,24 +86,15 @@ export default function DocumentoDetalleScreen() {
                     <Ionicons name="alert-circle" size={18} color={Colors.danger} />
                     <Text style={styles.rejectionTitle}>Observación de Recursos Humanos</Text>
                   </View>
-                  <Text style={styles.rejectionText}>{documento.rejection_reason}</Text>
+                  <Text style={styles.rejectionText}>{documento.motivo_rechazo}</Text>
                 </Card>
               </>
-            ) : documento?.comments ? (
-              <Card>
-                <Text style={styles.commentsLabel}>Comentarios</Text>
-                <Text style={styles.commentsText}>{documento.comments}</Text>
-              </Card>
             ) : null}
 
-            {documento ? (
+            {hasUploadedFile ? (
               <Card>
-                <DetailRow label="Archivo" value={documento.original_name} />
-                <DetailRow label="Versión" value={`v${documento.version}`} />
-                {documento.created_at ? <DetailRow label="Fecha de carga" value={formatDateLong(documento.created_at)} /> : null}
-                {documento.subido_por ? <DetailRow label="Cargado por" value={documento.subido_por} /> : null}
-                {documento.reviewed_at ? <DetailRow label="Última revisión" value={formatDateTime(documento.reviewed_at)} /> : null}
-                {documento.revisado_por ? <DetailRow label="Revisado por" value={documento.revisado_por} last /> : null}
+                {documento.fecha_subida ? <DetailRow label="Fecha de carga" value={formatDateLong(documento.fecha_subida)} /> : null}
+                {documento.fecha_revision ? <DetailRow label="Última revisión" value={formatDateTime(documento.fecha_revision)} last /> : null}
               </Card>
             ) : (
               <Card>
@@ -114,18 +102,34 @@ export default function DocumentoDetalleScreen() {
               </Card>
             )}
 
+            {canRequestChange && !canUploadDirectly ? (
+              <Card style={styles.infoCard}>
+                <Text style={styles.infoText}>
+                  Este documento ya está {documento.estado === 'aprobado' ? 'aprobado' : 'en revisión'}. Si necesitas reemplazarlo, pide autorización a
+                  Recursos Humanos primero.
+                </Text>
+              </Card>
+            ) : null}
+
             <View style={styles.actions}>
-              {documento ? (
-                <Button title="Ver archivo" variant="outline" onPress={() => void handleViewFile()} loading={downloading} disabled={downloading} />
+              {canUploadDirectly ? (
+                <Button title={hasUploadedFile ? 'Reemplazar documento' : 'Subir documento'} onPress={() => setSheetVisible(true)} />
+              ) : canRequestChange ? (
+                <Button
+                  title="Solicitar cambio"
+                  variant="outline"
+                  onPress={() => void handleSolicitarCambio()}
+                  loading={solicitarCambioMutation.isPending}
+                  disabled={solicitarCambioMutation.isPending}
+                />
               ) : null}
-              <Button title={documento ? 'Reemplazar documento' : 'Subir documento'} onPress={() => setSheetVisible(true)} />
             </View>
           </>
         )}
       </ScrollView>
 
-      {entry ? (
-        <DocumentUploadSheet visible={sheetVisible} title={entry.tipo.nombre} onClose={() => setSheetVisible(false)} onConfirm={handleUpload} />
+      {documento ? (
+        <DocumentUploadSheet visible={sheetVisible} title={documento.nombre} onClose={() => setSheetVisible(false)} onConfirm={handleUpload} />
       ) : null}
     </View>
   );
@@ -190,13 +194,11 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     color: Colors.text,
   },
-  commentsLabel: {
-    fontSize: FontSize.xs,
-    fontWeight: '700',
-    color: Colors.textMuted,
-    marginBottom: 4,
+  infoCard: {
+    backgroundColor: Colors.infoSoft,
+    borderColor: Colors.infoSoft,
   },
-  commentsText: {
+  infoText: {
     fontSize: FontSize.sm,
     color: Colors.text,
   },

@@ -1,51 +1,49 @@
+import type { DocumentoIncorporacion } from './document';
+
+/** Espejo de `App\Services\Incorporacion\IncorporacionService::progreso()`. */
+export interface IncorporacionProgreso {
+  total: number;
+  aprobados: number;
+  pendientes: number;
+  en_revision: number;
+  rechazados: number;
+  porcentaje: number;
+}
+
+/** Espejo de `App\Services\Incorporacion\IncorporacionService::estadoGeneral()`. */
+export type IncorporacionEstado = 'incompleto' | 'en_revision' | 'completo' | 'aprobado' | 'rechazado';
+
 /**
- * Espejo de `App\Services\Onboarding\OnboardingService::checklist()` — 11
- * ítems fijos (`datos_personales`, `datos_laborales`, `fotografia`,
- * `documentos_cargados`, `documentos_aprobados`, `contrato_generado`,
- * `contrato_firmado`, `aviso_privacidad`, `consentimiento`,
- * `expediente_completo`, `alta_aprobada`). La app no debe asumir el
- * catálogo fijo — solo renderizar lo que llegue.
+ * Contrato real de `GET /api/v1/colaborador/incorporacion` (alias
+ * `/colaborador/incorporacion/resumen`) — confirmado contra
+ * `App\Services\Incorporacion\IncorporacionService::estadoIncorporacion()`
+ * en capacitaciones. Es el único endpoint que expone el checklist de
+ * documentos del colaborador, tanto durante el alta como después (mientras
+ * `estado !== 'aprobado'` sigue pudiendo subir/solicitar cambios).
  */
-export interface ChecklistItem {
-  clave: string;
-  etiqueta: string;
-  completado: boolean;
+export interface IncorporacionResponse {
+  estado: IncorporacionEstado;
+  puede_acceder_portal: boolean;
+  puede_subir_documentos: boolean;
+  puede_solicitar_cambios: boolean;
+  progreso: IncorporacionProgreso;
+  documentos: DocumentoIncorporacion[];
 }
 
 export type ApprovalStepStatus = 'pending' | 'in_review' | 'approved' | 'rejected';
 
 /**
- * Pasos de aprobación estructurados (RH → Gerente → Director Comercial para
- * Corporativo MR. LANA, ver AGENTS.md). El backend HOY no calcula esta
- * cadena (confirmado: `AltaDigital` solo tiene un `revisado_por`/`aprobado_por`
- * de un solo paso) — por eso este campo es opcional/nulo. Cuando el backend
- * lo agregue, la pantalla de incorporación debe representarlo tal cual, sin
- * decidir la regla de negocio en el cliente.
+ * Pasos visuales para `ApprovalTimeline`, derivados en el cliente del único
+ * campo `estado` que el backend calcula hoy (ver `utils/incorporation.ts`).
+ * El backend NO expone una cadena de aprobación estructurada (RH → Gerente
+ * → Director Comercial): solo `estado` general de la incorporación —
+ * confirmado en `IncorporacionService`/`docs/API_MOVIL.md`. Si el backend
+ * llega a exponer una cadena real, esto debe reemplazarse por los pasos que
+ * entregue directamente, no seguir derivándose en el cliente.
  */
 export interface ApprovalStep {
   key: string;
   label: string;
   status: ApprovalStepStatus;
   comment?: string | null;
-  updated_at?: string | null;
-}
-
-/** Espejo del subconjunto de `AltaDigital` relevante para el colaborador. */
-export interface AltaDigitalSummary {
-  id: number;
-  estado: string;
-  estado_etiqueta?: string;
-  enviada_en?: string | null;
-  revisado_en?: string | null;
-  aprobado_en?: string | null;
-  motivo_rechazo?: string | null;
-}
-
-/** Contrato de `GET /api/v1/colaborador/incorporacion` (pendiente — ver docs/MOBILE_BACKEND_REQUIREMENTS.md P1.2). */
-export interface IncorporacionResponse {
-  checklist: ChecklistItem[];
-  porcentaje: number;
-  alta_digital: AltaDigitalSummary | null;
-  /** Ausente hasta que el backend implemente la cadena de aprobación estructurada. */
-  approval_steps?: ApprovalStep[] | null;
 }

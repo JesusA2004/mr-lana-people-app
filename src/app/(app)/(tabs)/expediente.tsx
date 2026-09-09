@@ -14,61 +14,21 @@ import { PressableScale } from '@/components/PressableScale';
 import { SkeletonBlock, SkeletonCardList } from '@/components/SkeletonBlock';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 import { MascotMessages } from '@/constants/mascotMessages';
-import { useExpediente } from '@/hooks/queries/useExpediente';
-import type { ExpedienteDocumentoEntry } from '@/types/document';
+import { useIncorporacion } from '@/hooks/queries/useIncorporacion';
+import type { DocumentoIncorporacion } from '@/types/document';
 import { getDevErrorDetail, getErrorMessage } from '@/utils/errors';
 import { pluralize } from '@/utils/formatters';
 
 /**
- * Módulo completo del expediente digital. `GET /api/v1/colaborador/expediente`
- * todavía no existe en el backend (ver docs/MOBILE_BACKEND_REQUIREMENTS.md
- * P0.1) — mientras se agrega, esta pantalla muestra el error real (con
- * detalle técnico en DEV), nunca un "próximamente" ni datos inventados.
+ * Módulo del expediente digital. `GET /api/v1/colaborador/incorporacion`
+ * (ver `useIncorporacion`) es el mismo endpoint real que alimenta la
+ * pantalla de "Mi incorporación": el backend no separa ambos conceptos.
  */
 export default function ExpedienteScreen() {
   const router = useRouter();
-  const { data, isLoading, isError, error, refetch, isRefetching } = useExpediente();
+  const { data, isLoading, isError, error, refetch, isRefetching } = useIncorporacion();
 
   const documentos = useMemo(() => data?.documentos ?? [], [data]);
-  const stats = useMemo(() => {
-    let pendientes = 0;
-    let enRevision = 0;
-    let aprobados = 0;
-    let rechazados = 0;
-
-    for (const entry of documentos) {
-      const status = entry.documento?.status;
-      if (status === 'aprobado') aprobados++;
-      else if (status === 'en_revision') enRevision++;
-      else if (status === 'rechazado' || status === 'requiere_correccion' || status === 'vencido') rechazados++;
-      else pendientes++;
-    }
-
-    return { pendientes, enRevision, aprobados, rechazados };
-  }, [documentos]);
-
-  const priorityMascot = useMemo(() => {
-    if (stats.rechazados > 0) {
-      return {
-        type: 'warning' as const,
-        priority: 'high' as const,
-        message:
-          stats.rechazados === 1
-            ? 'Un documento necesita corrección. Revisa la observación de Recursos Humanos.'
-            : `${stats.rechazados} documentos necesitan corrección. Revisa las observaciones de Recursos Humanos.`,
-      };
-    }
-    if (stats.pendientes > 0) {
-      return { type: 'tip' as const, priority: 'normal' as const, message: MascotMessages.documentosPendientes(stats.pendientes) };
-    }
-    if (stats.enRevision > 0) {
-      return { type: 'info' as const, priority: 'normal' as const, message: MascotMessages.pendienteAprobacion };
-    }
-    if (data && data.resumen.porcentaje >= 100) {
-      return { type: 'success' as const, priority: 'normal' as const, message: MascotMessages.expedienteCompleto };
-    }
-    return null;
-  }, [stats, data]);
 
   return (
     <View style={styles.container}>
@@ -90,46 +50,59 @@ export default function ExpedienteScreen() {
               <Card style={styles.heroCard}>
                 <View style={styles.heroHeader}>
                   <Text style={styles.heroTitle}>Expediente</Text>
-                  <Text style={styles.heroPercent}>{Math.round(data.resumen.porcentaje)}%</Text>
+                  <Text style={styles.heroPercent}>{Math.round(data.progreso.porcentaje)}%</Text>
                 </View>
-                <AnimatedProgressBar percent={data.resumen.porcentaje} height={10} />
+                <AnimatedProgressBar percent={data.progreso.porcentaje} height={10} />
                 <Text style={styles.heroCaption}>
-                  {data.resumen.requeridos_aprobados} de {data.resumen.requeridos_total}{' '}
-                  {pluralize(data.resumen.requeridos_total, 'documento completo', 'documentos completos')}
+                  {data.progreso.aprobados} de {data.progreso.total} {pluralize(data.progreso.total, 'documento completo', 'documentos completos')}
                 </Text>
               </Card>
             </FadeInView>
 
-            {priorityMascot ? (
-              <MascotAssistant message={priorityMascot.message} type={priorityMascot.type} priority={priorityMascot.priority} />
+            {data.progreso.rechazados > 0 ? (
+              <MascotAssistant
+                message={
+                  data.progreso.rechazados === 1
+                    ? 'Un documento necesita corrección. Revisa la observación de Recursos Humanos.'
+                    : `${data.progreso.rechazados} documentos necesitan corrección. Revisa las observaciones de Recursos Humanos.`
+                }
+                type="warning"
+                priority="high"
+              />
+            ) : data.progreso.pendientes > 0 ? (
+              <MascotAssistant message={MascotMessages.documentosPendientes(data.progreso.pendientes)} type="tip" />
+            ) : data.progreso.en_revision > 0 ? (
+              <MascotAssistant message={MascotMessages.pendienteAprobacion} type="info" />
+            ) : data.progreso.porcentaje >= 100 ? (
+              <MascotAssistant message={MascotMessages.expedienteCompleto} type="success" />
             ) : null}
 
             <FadeInView index={1}>
               <View style={styles.statsRow}>
-                <StatChip label="Pendientes" value={stats.pendientes} color={Colors.textMuted} background={Colors.neutralSoft} />
-                <StatChip label="En revisión" value={stats.enRevision} color={Colors.warning} background={Colors.warningSoft} />
-                <StatChip label="Aprobados" value={stats.aprobados} color={Colors.success} background={Colors.successSoft} />
-                <StatChip label="Rechazados" value={stats.rechazados} color={Colors.danger} background={Colors.dangerSoft} />
+                <StatChip label="Pendientes" value={data.progreso.pendientes} color={Colors.textMuted} background={Colors.neutralSoft} />
+                <StatChip label="En revisión" value={data.progreso.en_revision} color={Colors.warning} background={Colors.warningSoft} />
+                <StatChip label="Aprobados" value={data.progreso.aprobados} color={Colors.success} background={Colors.successSoft} />
+                <StatChip label="Rechazados" value={data.progreso.rechazados} color={Colors.danger} background={Colors.dangerSoft} />
               </View>
             </FadeInView>
 
             <Text style={styles.sectionTitle}>Documentos</Text>
             <View style={styles.list}>
-              {documentos.map((entry: ExpedienteDocumentoEntry, index: number) => (
-                <FadeInView key={entry.tipo.id} index={index + 2}>
+              {documentos.map((documento: DocumentoIncorporacion, index: number) => (
+                <FadeInView key={documento.id} index={index + 2}>
                   <PressableScale
-                    onPress={() => router.push({ pathname: '/expediente/[tipoId]', params: { tipoId: String(entry.tipo.id) } })}
+                    onPress={() => router.push({ pathname: '/expediente/[tipoId]', params: { tipoId: String(documento.id) } })}
                     style={styles.documentRow}>
                     <View style={styles.documentIcon}>
                       <Ionicons name="document-text-outline" size={18} color={Colors.primaryDark} />
                     </View>
                     <View style={styles.documentInfo}>
                       <Text style={styles.documentName} numberOfLines={1}>
-                        {entry.tipo.nombre}
+                        {documento.nombre}
                       </Text>
-                      {entry.tipo.requerido ? <Text style={styles.documentRequired}>Requerido</Text> : null}
+                      {documento.obligatorio ? <Text style={styles.documentRequired}>Requerido</Text> : null}
                     </View>
-                    <DocumentStatusBadge status={entry.documento?.status} />
+                    <DocumentStatusBadge status={documento.estado} />
                     <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
                   </PressableScale>
                 </FadeInView>

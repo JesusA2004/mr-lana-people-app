@@ -63,12 +63,12 @@ dashboard de expo.dev del proyecto).
 1. Inicia sesión en la app (Development Build).
 2. Acepta el permiso de notificaciones cuando se solicite.
 3. Revisa el log de Metro: `usePushRegistration` llama a
-   `dispositivosApi.registerPushToken(...)` — hasta que el backend agregue
-   `POST /api/v1/dispositivos/push-token` (ver
-   `docs/MOBILE_BACKEND_REQUIREMENTS.md` P0.2), esa llamada devolverá 404 y
-   se registrará con `logError`, sin romper la sesión. Una vez el backend
-   tenga el endpoint, deberías ver la llamada en 200/201 y el token guardado
-   en la tabla `device_push_tokens`.
+   `dispositivosApi.registerPushToken(...)` — confirmado (auditoría
+   2026-09-09 contra `routes/api.php` de capacitaciones) que
+   `POST /api/v1/dispositivos/push-token` todavía no existe en el backend,
+   esa llamada devolverá 404 y se registrará con `logError`, sin romper la
+   sesión. Una vez el backend tenga el endpoint, deberías ver la llamada en
+   200/201 y el token guardado del lado del backend.
 
 ## 5. Enviar un push de prueba manual (sin esperar al backend)
 
@@ -95,8 +95,8 @@ curl -X POST https://exp.host/--/api/v2/push/send \
 
 ## 6. Cuando el backend implemente el envío real
 
-El payload `data` que debe mandar el backend (Service nuevo, ver
-`docs/MOBILE_BACKEND_REQUIREMENTS.md` P0.1) tiene que respetar exactamente
-`{ tipo, recurso_id }` — es el contrato que ya consume
+El payload `data` que debe mandar el backend (todavía no hay Service de
+envío de push ni rutas `/dispositivos/*` en capacitaciones) tiene que
+respetar exactamente `{ tipo, recurso_id }` — es el contrato que ya consume
 `useNotificationResponseRouting`. Si el backend manda otra forma, esta app
 no sabrá navegar (caerá al fallback de abrir el Centro de notificaciones).

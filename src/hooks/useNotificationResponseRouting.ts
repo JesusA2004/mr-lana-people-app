@@ -5,11 +5,13 @@ import { toast } from '@/store/toastStore';
 import { supportsRemotePush } from '@/utils/runtime';
 
 /**
- * Payload esperado en `data` de cada push (AGENTS.md secciones 25/27,
- * ver docs/MOBILE_BACKEND_REQUIREMENTS.md P0.6): `tipo` + `recurso_id`
- * estructurados, no una URL web como hoy usan las notificaciones in-app
- * (`app/Notifications/*` en capacitaciones siempre arma `url` con
- * `route(...)`, nunca algo que la app pueda navegar).
+ * Payload esperado en `data` de cada push: `tipo` + `recurso_id`
+ * estructurados, no una URL web como usan hoy las notificaciones in-app
+ * (`App\Services\Colaboradores\NotificacionesService::aArray()` en
+ * capacitaciones solo expone `url`, pensado para el layout web — nunca algo
+ * que la app pueda navegar directamente). El backend todavía no envía push
+ * remoto (no hay rutas `/dispositivos/*`), así que esta forma es una
+ * expectativa razonable para cuando exista, no un contrato confirmado.
  */
 interface PushNotificationData {
   tipo?: 'solicitud' | 'vacaciones' | 'documento' | 'expediente' | string;

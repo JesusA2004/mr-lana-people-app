@@ -87,9 +87,9 @@ export async function registerCurrentPushToken(): Promise<void> {
     });
     lastRegisteredToken = expoPushToken;
   } catch (error) {
-    // Nunca debe interrumpir la sesión: el backend puede no tener el
-    // endpoint todavía (ver docs/MOBILE_BACKEND_REQUIREMENTS.md P0.7), o el
-    // dispositivo puede no soportar push.
+    // Nunca debe interrumpir la sesión: el backend todavía no tiene las
+    // rutas /dispositivos/push-token (confirmado contra routes/api.php de
+    // capacitaciones), o el dispositivo puede no soportar push.
     logError('registerCurrentPushToken', error);
   }
 }

@@ -3,12 +3,12 @@ import { apiClient, extractData } from './client';
 import type { IncorporacionResponse } from '@/types/incorporation';
 
 /**
- * `GET /api/v1/colaborador/incorporacion` — pendiente en backend (ver
- * docs/MOBILE_BACKEND_REQUIREMENTS.md P1.2). Expone
- * `App\Services\Onboarding\OnboardingService::checklist()`/`porcentaje()` +
- * el `AltaDigital` ligado al colaborador (si existe). `approval_steps` no
- * lo calcula el backend todavía (no existe cadena RH→Gerente→Director
- * Comercial) — puede venir ausente.
+ * `GET /api/v1/colaborador/incorporacion` (alias `.../resumen`) —
+ * `App\Http\Controllers\Api\V1\IncorporacionController::index()`. Único
+ * endpoint real para el checklist de documentos del colaborador: cubre
+ * tanto la pantalla de "Mi incorporación" como el tab "Expediente" (ver
+ * capacitaciones/docs/API_MOVIL.md, "Incorporación documental" — el
+ * backend no separa ambos conceptos en dos rutas).
  */
 export const incorporacionApi = {
   async get(): Promise<IncorporacionResponse> {

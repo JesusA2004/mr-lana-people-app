@@ -16,6 +16,8 @@ interface AuthState {
   /** true mientras se restaura la sesión al abrir la app (splash). */
   isInitializing: boolean;
   login: (email: string, password: string) => Promise<void>;
+  /** Aplica una sesión ya obtenida fuera de /login (ver registro por QR en incorporacion/qr/[token].tsx). */
+  loginWithToken: (token: string, user: AuthUser) => Promise<void>;
   logout: () => Promise<void>;
   restoreSession: () => Promise<void>;
 }
@@ -60,6 +62,12 @@ export const useAuthStore = create<AuthState>((set) => {
 
       const user = response.usuario ?? response.user ?? (await authApi.me());
       set({ token: response.token, user, isAuthenticated: true });
+    },
+
+    async loginWithToken(token, user) {
+      setAuthToken(token);
+      await persistToken(token);
+      set({ token, user, isAuthenticated: true });
     },
 
     async logout() {

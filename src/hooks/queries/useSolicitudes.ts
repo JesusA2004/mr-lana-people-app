@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { solicitudesApi, type UploadSolicitudAdjuntoParams } from '@/api/solicitudes';
+import { solicitudesApi } from '@/api/solicitudes';
 import { queryKeys } from '@/api/queryKeys';
 import type { CreateSolicitudPayload } from '@/types/request';
 
@@ -29,31 +29,6 @@ export function useCreateSolicitud() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.solicitudes });
       void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
       void queryClient.invalidateQueries({ queryKey: queryKeys.notificaciones });
-    },
-  });
-}
-
-export function useCancelSolicitud(id: string | number) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: () => solicitudesApi.cancel(id),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.solicitud(id) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.solicitudes });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
-    },
-  });
-}
-
-export function useUploadSolicitudAdjunto(solicitudId: string | number) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (params: Omit<UploadSolicitudAdjuntoParams, 'solicitudId'>) =>
-      solicitudesApi.uploadAdjunto({ ...params, solicitudId }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.solicitud(solicitudId) });
     },
   });
 }

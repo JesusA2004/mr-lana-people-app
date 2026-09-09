@@ -1,12 +1,11 @@
 /**
- * Contrato cliente para el expediente digital y sus documentos.
- *
- * Espejo exacto de lo que ya arma `Rh\ExpedienteController::documentosParaVista()`
- * y `App\Enums\EstadoDocumento` en capacitaciones — el endpoint móvil
- * (`GET /api/v1/colaborador/expediente`, ver docs/MOBILE_BACKEND_REQUIREMENTS.md)
- * todavía no existe, pero el contrato se definió leyendo el código real, no
- * inventado. En cuanto el backend lo agregue, estos tipos no deberían
- * necesitar cambios.
+ * Contrato real de un documento del checklist de incorporación/expediente
+ * del colaborador — espejo de
+ * `App\Services\Incorporacion\IncorporacionService::documentoParaColaborador()`
+ * (ver capacitaciones/docs/API_MOVIL.md, sección "Incorporación documental").
+ * `id` es el id del TIPO de documento (`document_types.id`), no el id
+ * interno de `employee_documents`: la app nunca necesita ese id, solo RH
+ * (vista aparte, fuera de esta app).
  */
 export type DocumentStatus =
   | 'pendiente'
@@ -16,32 +15,22 @@ export type DocumentStatus =
   | 'rechazado'
   | 'requiere_correccion'
   | 'vencido'
-  | 'archivado';
+  | 'archivado'
+  | 'cambio_solicitado'
+  | 'cambio_autorizado';
 
-export interface DocumentTypeCatalogItem {
+/** Una entrada de `documentos[]` en `GET /api/v1/colaborador/incorporacion`. */
+export interface DocumentoIncorporacion {
   id: number;
+  tipo: string;
   nombre: string;
-  clave: string;
-  requerido: boolean;
-}
-
-export interface EmployeeDocumentSummary {
-  id: number;
-  status: DocumentStatus;
-  version: number;
-  original_name: string;
-  mime?: string | null;
-  size?: number | null;
-  comments?: string | null;
-  rejection_reason?: string | null;
-  subido_por?: string | null;
-  revisado_por?: string | null;
-  reviewed_at?: string | null;
-  created_at?: string | null;
-}
-
-/** Una fila del expediente: el catálogo de tipo de documento + el documento vigente (o null si no se ha cargado). */
-export interface ExpedienteDocumentoEntry {
-  tipo: DocumentTypeCatalogItem;
-  documento: EmployeeDocumentSummary | null;
+  obligatorio: boolean;
+  estado: DocumentStatus;
+  mensaje?: string | null;
+  motivo_rechazo?: string | null;
+  puede_subir: boolean;
+  puede_reemplazar: boolean;
+  puede_solicitar_cambio: boolean;
+  fecha_subida?: string | null;
+  fecha_revision?: string | null;
 }

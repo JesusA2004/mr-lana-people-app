@@ -43,7 +43,7 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     if (__DEV__) {
-      console.error(
+      console.warn(
         '[API]',
         error.config?.method?.toUpperCase(),
         error.config?.url,

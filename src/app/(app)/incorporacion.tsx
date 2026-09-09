@@ -7,27 +7,31 @@ import { AnimatedProgressBar } from '@/components/AnimatedProgressBar';
 import { ApprovalTimeline } from '@/components/ApprovalTimeline';
 import { AppHeader } from '@/components/AppHeader';
 import { Card } from '@/components/Card';
+import { DocumentStatusBadge } from '@/components/DocumentStatusBadge';
 import { ErrorState } from '@/components/ErrorState';
 import { FadeInView } from '@/components/FadeInView';
 import { MascotAssistant } from '@/components/mascot/MascotAssistant';
+import { PressableScale } from '@/components/PressableScale';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 import { useIncorporacion } from '@/hooks/queries/useIncorporacion';
 import { getDevErrorDetail, getErrorMessage } from '@/utils/errors';
-import { deriveApprovalStepsFromEstado } from '@/utils/incorporation';
+import { deriveIncorporationSteps } from '@/utils/incorporation';
+
+const ESTADO_MENSAJE: Record<string, string> = {
+  incompleto: 'Todavía te faltan documentos por cargar.',
+  en_revision: 'Recursos Humanos está revisando tus documentos.',
+  completo: 'Cargaste todos tus documentos. En cuanto RH los apruebe, tu incorporación queda aprobada.',
+  aprobado: '¡Tu incorporación fue aprobada! Ya tienes acceso completo.',
+  rechazado: 'Tu incorporación fue rechazada. Revisa los documentos con observaciones.',
+};
 
 export default function IncorporacionScreen() {
   const router = useRouter();
   const { data, isLoading, isError, error, refetch } = useIncorporacion();
 
-  const steps = useMemo(() => {
-    if (!data) return [];
-    if (data.approval_steps && data.approval_steps.length > 0) return data.approval_steps;
-    if (data.alta_digital) return deriveApprovalStepsFromEstado(data.alta_digital);
-    return [];
-  }, [data]);
-
-  const pendingItems = useMemo(() => data?.checklist.filter((item) => !item.completado) ?? [], [data]);
+  const steps = useMemo(() => (data ? deriveIncorporationSteps(data.estado) : []), [data]);
+  const pendingDocs = useMemo(() => data?.documentos.filter((doc) => doc.obligatorio && doc.estado !== 'aprobado') ?? [], [data]);
 
   return (
     <View style={styles.container}>
@@ -47,50 +51,54 @@ export default function IncorporacionScreen() {
               <Card style={styles.heroCard}>
                 <View style={styles.heroHeader}>
                   <Text style={styles.heroTitle}>Progreso de incorporación</Text>
-                  <Text style={styles.heroPercent}>{Math.round(data.porcentaje)}%</Text>
+                  <Text style={styles.heroPercent}>{Math.round(data.progreso.porcentaje)}%</Text>
                 </View>
-                <AnimatedProgressBar percent={data.porcentaje} />
+                <AnimatedProgressBar percent={data.progreso.porcentaje} />
               </Card>
             </FadeInView>
 
-            {pendingItems.length > 0 ? (
-              <MascotAssistant
-                message={
-                  pendingItems.length === 1
-                    ? `Todavía falta: ${pendingItems[0]?.etiqueta}.`
-                    : `Todavía te faltan ${pendingItems.length} pasos por completar.`
-                }
-                type="tip"
-                dismissible={false}
-              />
-            ) : (
-              <MascotAssistant message="¡Tu incorporación está al día!" type="success" dismissible={false} />
-            )}
+            <MascotAssistant
+              message={ESTADO_MENSAJE[data.estado] ?? ESTADO_MENSAJE.incompleto}
+              type={data.estado === 'aprobado' ? 'success' : data.estado === 'rechazado' ? 'warning' : 'tip'}
+              priority={data.estado === 'rechazado' ? 'high' : 'normal'}
+              dismissible={false}
+            />
 
-            {steps.length > 0 ? (
-              <FadeInView index={1}>
-                <Card>
-                  <Text style={styles.sectionTitle}>Proceso de aprobación</Text>
-                  <ApprovalTimeline steps={steps} />
-                </Card>
-              </FadeInView>
-            ) : null}
+            <FadeInView index={1}>
+              <Card>
+                <Text style={styles.sectionTitle}>Proceso de aprobación</Text>
+                <ApprovalTimeline steps={steps} />
+              </Card>
+            </FadeInView>
 
             <FadeInView index={2}>
               <Card>
-                <Text style={styles.sectionTitle}>Checklist</Text>
-                {data.checklist.map((item, index) => (
-                  <View key={item.clave} style={[styles.checklistRow, index === data.checklist.length - 1 && styles.checklistRowLast]}>
-                    <Ionicons
-                      name={item.completado ? 'checkmark-circle' : 'ellipse-outline'}
-                      size={20}
-                      color={item.completado ? Colors.success : Colors.textMuted}
-                    />
-                    <Text style={[styles.checklistLabel, item.completado && styles.checklistLabelDone]}>{item.etiqueta}</Text>
-                  </View>
-                ))}
+                <Text style={styles.sectionTitle}>Documentos requeridos</Text>
+                {data.documentos
+                  .filter((doc) => doc.obligatorio)
+                  .map((doc, index, arr) => (
+                    <PressableScale
+                      key={doc.id}
+                      haptic={false}
+                      onPress={() => router.push({ pathname: '/expediente/[tipoId]', params: { tipoId: String(doc.id) } })}
+                      style={[styles.docRow, index === arr.length - 1 && styles.docRowLast]}>
+                      <Text style={styles.docLabel} numberOfLines={1}>
+                        {doc.nombre}
+                      </Text>
+                      <DocumentStatusBadge status={doc.estado} />
+                      <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+                    </PressableScale>
+                  ))}
               </Card>
             </FadeInView>
+
+            {pendingDocs.length > 0 ? (
+              <Text style={styles.pendingHint}>
+                {pendingDocs.length === 1
+                  ? `Todavía falta: ${pendingDocs[0]?.nombre}.`
+                  : `Todavía te faltan ${pendingDocs.length} documentos por completar.`}
+              </Text>
+            ) : null}
           </>
         ) : null}
       </ScrollView>
@@ -132,28 +140,29 @@ const styles = StyleSheet.create({
     color: Colors.text,
     marginBottom: Spacing.md,
   },
-  checklistRow: {
+  docRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
+    gap: Spacing.sm,
     paddingBottom: Spacing.md,
     marginBottom: Spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: Colors.divider,
   },
-  checklistRowLast: {
+  docRowLast: {
     borderBottomWidth: 0,
     marginBottom: 0,
     paddingBottom: 0,
   },
-  checklistLabel: {
+  docLabel: {
     flex: 1,
     fontSize: FontSize.sm,
     fontWeight: '600',
     color: Colors.text,
   },
-  checklistLabelDone: {
+  pendingHint: {
+    fontSize: FontSize.xs,
     color: Colors.textMuted,
-    textDecorationLine: 'line-through',
+    textAlign: 'center',
   },
 });

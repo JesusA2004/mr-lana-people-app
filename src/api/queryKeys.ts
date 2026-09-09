@@ -2,7 +2,7 @@
 export const queryKeys = {
   dashboard: ['dashboard'] as const,
   perfil: ['perfil'] as const,
-  expediente: ['expediente'] as const,
+  /** El backend no separa "expediente" de "incorporación": mismo endpoint real (ver src/api/incorporacion.ts). */
   incorporacion: ['incorporacion'] as const,
   solicitudes: ['solicitudes'] as const,
   solicitud: (id: string | number) => ['solicitudes', String(id)] as const,

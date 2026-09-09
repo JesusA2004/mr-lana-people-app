@@ -11,7 +11,7 @@ interface DocumentStatusStyle {
   label: string;
 }
 
-/** Espejo de App\Enums\EstadoDocumento::etiqueta() — mismos 8 valores exactos. */
+/** Espejo de App\Enums\EstadoDocumento::etiqueta() — mismos 10 valores exactos. */
 const DOCUMENT_STATUS_STYLES: Record<DocumentStatus, DocumentStatusStyle> = {
   pendiente: { icon: 'ellipse-outline', color: Colors.textMuted, background: Colors.neutralSoft, label: 'Pendiente' },
   cargado: { icon: 'cloud-upload-outline', color: Colors.info, background: Colors.infoSoft, label: 'Cargado' },
@@ -21,6 +21,8 @@ const DOCUMENT_STATUS_STYLES: Record<DocumentStatus, DocumentStatusStyle> = {
   requiere_correccion: { icon: 'alert-circle', color: Colors.warning, background: Colors.warningSoft, label: 'Requiere corrección' },
   vencido: { icon: 'calendar-outline', color: Colors.danger, background: Colors.dangerSoft, label: 'Vencido' },
   archivado: { icon: 'archive-outline', color: Colors.textMuted, background: Colors.neutralSoft, label: 'Archivado' },
+  cambio_solicitado: { icon: 'sync-outline', color: Colors.warning, background: Colors.warningSoft, label: 'Cambio solicitado' },
+  cambio_autorizado: { icon: 'checkmark-done-outline', color: Colors.info, background: Colors.infoSoft, label: 'Cambio autorizado' },
 };
 
 const PENDING_STYLE: DocumentStatusStyle = {
