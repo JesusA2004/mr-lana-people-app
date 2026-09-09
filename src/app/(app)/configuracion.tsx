@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -10,15 +9,14 @@ import { AppHeader } from '@/components/AppHeader';
 import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { DevPushTokenTool } from '@/components/DevPushTokenTool';
 import { PressableScale } from '@/components/PressableScale';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
-import { API_URL, APP_NAME } from '@/constants/config';
 import { authenticateWithBiometricsAsync, biometricLabel, getBiometricCapabilityAsync, type BiometricKind } from '@/services/biometricAuth';
 import { getPushPermissionStatusAsync, type PushPermissionSnapshot, registerCurrentPushToken } from '@/services/pushNotifications';
 import { useAuthStore } from '@/store/authStore';
 import { useBiometricStore } from '@/store/biometricStore';
 import { toast } from '@/store/toastStore';
-import { supportsRemotePush } from '@/utils/runtime';
 import { joinName } from '@/utils/formatters';
 
 export default function ConfiguracionScreen() {
@@ -61,13 +59,17 @@ export default function ConfiguracionScreen() {
   };
 
   const handlePushRowPress = async () => {
-    if (!pushSnapshot || pushSnapshot.status === 'unsupported') return;
-    if (pushSnapshot.status === 'undetermined') {
+    if (!pushSnapshot || pushSnapshot.status === 'unsupported' || pushSnapshot.status === 'granted') return;
+    // `canAskAgain` (no `status === 'undetermined'`) es lo que de verdad
+    // decide si el sistema todavía puede mostrar su propio diálogo: en
+    // Android es normal que el primer chequeo llegue como `denied` con
+    // `canAskAgain: true` cuando nunca se le preguntó al colaborador.
+    if (pushSnapshot.canAskAgain) {
       await registerCurrentPushToken({ promptIfUndetermined: true });
       refreshPushStatus();
       return;
     }
-    // 'granted' o 'denied': el sistema ya no deja re-preguntar desde la app, solo Ajustes.
+    // Ya se le preguntó antes y lo negó: el sistema ya no deja re-preguntar desde la app, solo Ajustes.
     void Linking.openSettings();
   };
 
@@ -116,6 +118,8 @@ export default function ConfiguracionScreen() {
           <SettingRow icon="notifications-outline" label="Notificaciones push" value={pushStatusLabel} onPress={() => void handlePushRowPress()} last />
         </Card>
 
+        {__DEV__ ? <DevPushTokenTool /> : null}
+
         <Text style={styles.sectionLabel}>Seguridad</Text>
         <Card style={{ gap: 0 }} padded={false}>
           <View style={styles.toggleRow}>
@@ -150,14 +154,6 @@ export default function ConfiguracionScreen() {
         </Card>
 
         <Button title="Cerrar sesión" onPress={handleLogout} variant="danger" loading={loggingOut} disabled={loggingOut} />
-
-        <Text style={styles.footer}>
-          {APP_NAME}
-          {'\n'}Versión {Constants.expoConfig?.version ?? '1.0.0'}
-          {Constants.expoConfig?.android?.versionCode ? ` · Build ${Constants.expoConfig.android.versionCode}` : ''}
-          {!supportsRemotePush ? '\nExpo Go — push remoto no disponible' : ''}
-          {__DEV__ ? `\n${API_URL}` : ''}
-        </Text>
       </View>
     </SafeAreaView>
   );
@@ -269,12 +265,5 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     color: Colors.textMuted,
     fontWeight: '600',
-  },
-  footer: {
-    textAlign: 'center',
-    fontSize: FontSize.xs,
-    color: Colors.textMuted,
-    marginTop: Spacing.xl,
-    lineHeight: 18,
   },
 });

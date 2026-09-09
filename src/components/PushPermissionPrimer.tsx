@@ -33,8 +33,17 @@ export function PushPermissionPrimer() {
 
     const timer = setTimeout(() => {
       void getPushPermissionStatusAsync().then((snapshot) => {
-        if (snapshot.status === 'undetermined') setVisible(true);
-        else void markAsked();
+        // `canAskAgain` decide si el sistema todavía va a mostrar su
+        // diálogo — en Android es normal que el primer chequeo llegue como
+        // `denied` con `canAskAgain: true` cuando nunca se le preguntó al
+        // colaborador (no solo cuando el status es literalmente
+        // `undetermined`). Sin esto, la primera vez podía saltar directo a
+        // "ya no se puede preguntar" y mandar a Ajustes sin necesidad.
+        if (snapshot.status !== 'granted' && snapshot.status !== 'unsupported' && snapshot.canAskAgain) {
+          setVisible(true);
+        } else {
+          void markAsked();
+        }
       });
     }, SHOW_DELAY_MS);
 

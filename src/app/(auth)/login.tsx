@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Image } from 'expo-image';
-import { useState } from 'react';
+import * as SecureStore from 'expo-secure-store';
+import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,6 +10,7 @@ import { z } from 'zod';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { REMEMBERED_EMAIL_KEY } from '@/constants/config';
 import { useAuthStore } from '@/store/authStore';
 import { getErrorMessage, logError } from '@/utils/errors';
 
@@ -26,16 +28,28 @@ export default function LoginScreen() {
   const {
     control,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: '', password: '' },
   });
 
+  // Recuerda solo el correo (nunca la contraseña) para no tener que
+  // volver a escribirlo cada vez que se cierra sesión.
+  useEffect(() => {
+    SecureStore.getItemAsync(REMEMBERED_EMAIL_KEY)
+      .then((saved) => {
+        if (saved) setValue('email', saved);
+      })
+      .catch(() => {});
+  }, [setValue]);
+
   const onSubmit = async (values: LoginFormValues) => {
     setFormError(null);
     try {
       await login(values.email.trim(), values.password);
+      void SecureStore.setItemAsync(REMEMBERED_EMAIL_KEY, values.email.trim()).catch(() => {});
     } catch (error) {
       logError('login', error);
       setFormError(getErrorMessage(error));
@@ -45,7 +59,7 @@ export default function LoginScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.flex}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.brand}>

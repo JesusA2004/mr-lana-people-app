@@ -23,6 +23,9 @@ export const DEVICE_NAME = 'app-movil';
 export const REQUEST_TIMEOUT_MS = 15000;
 export const AUTH_TOKEN_KEY = 'mrlana-auth-token';
 
+/** Último correo usado para iniciar sesión — NUNCA la contraseña. Solo para prellenar el campo la próxima vez. */
+export const REMEMBERED_EMAIL_KEY = 'mrlana-remembered-email';
+
 /**
  * Auto-lock (AGENTS.md V3 sección 46): minutos en background antes de exigir
  * contraseña de nuevo al volver a foreground. No cierra sesión — solo pide

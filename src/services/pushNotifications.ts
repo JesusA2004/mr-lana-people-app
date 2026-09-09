@@ -72,10 +72,17 @@ export async function registerCurrentPushToken(options: RegisterPushTokenOptions
     const Notifications = await import('expo-notifications');
     await configureNotificationHandler();
 
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
+    const existing = await Notifications.getPermissionsAsync();
+    let finalStatus = existing.status;
 
-    if (existingStatus === 'undetermined' && options.promptIfUndetermined) {
+    // `canAskAgain` (no solo `status === 'undetermined'`) es lo que de
+    // verdad decide si Android/iOS van a mostrar el diálogo nativo otra
+    // vez: en Android es común que el primer chequeo llegue como `denied`
+    // con `canAskAgain: true` (todavía no se le preguntó nunca al
+    // colaborador) — tratar eso igual que "denegado permanente" mandaba a
+    // Ajustes de una vez, sin darle nunca la oportunidad de aceptar desde
+    // la propia app.
+    if (existing.status !== 'granted' && existing.canAskAgain && options.promptIfUndetermined) {
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
     }
