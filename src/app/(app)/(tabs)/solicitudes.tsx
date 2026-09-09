@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Button } from '@/components/Button';
 import { AppHeader } from '@/components/AppHeader';
@@ -13,8 +13,8 @@ import { RequestCard } from '@/components/RequestCard';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 import { MascotMessages } from '@/constants/mascotMessages';
-import { useSolicitudes } from '@/hooks/queries/useSolicitudes';
-import type { RequestStatus } from '@/types/request';
+import { useSolicitudesInfinite } from '@/hooks/queries/useSolicitudes';
+import type { RequestStatus, Solicitud } from '@/types/request';
 import { getErrorMessage } from '@/utils/errors';
 import { humanizeRequestStatus } from '@/utils/formatters';
 
@@ -27,15 +27,22 @@ const FILTERS: { label: string; value: RequestStatus | 'todas' }[] = [
   { label: humanizeRequestStatus('rechazada'), value: 'rechazada' },
 ];
 
+function matchesSearch(solicitud: Solicitud, query: string): boolean {
+  if (!query) return true;
+  const haystack = `${solicitud.folio ?? ''} ${solicitud.tipo_etiqueta ?? solicitud.tipo ?? ''}`.toLowerCase();
+  return haystack.includes(query.toLowerCase());
+}
+
 export default function SolicitudesScreen() {
   const router = useRouter();
-  const { data, isLoading, isError, error, refetch, isRefetching } = useSolicitudes();
+  const { data, isLoading, isError, error, refetch, isRefetching, fetchNextPage, hasNextPage, isFetchingNextPage } = useSolicitudesInfinite();
   const [filter, setFilter] = useState<RequestStatus | 'todas'>('todas');
+  const [search, setSearch] = useState('');
 
-  const solicitudes = useMemo(() => data ?? [], [data]);
+  const solicitudes = useMemo(() => data?.pages.flatMap((page) => page.data) ?? [], [data]);
   const filtered = useMemo(
-    () => (filter === 'todas' ? solicitudes : solicitudes.filter((item) => item.estado === filter)),
-    [solicitudes, filter],
+    () => solicitudes.filter((item) => (filter === 'todas' || item.estado === filter) && matchesSearch(item, search)),
+    [solicitudes, filter, search],
   );
 
   return (
@@ -51,6 +58,26 @@ export default function SolicitudesScreen() {
           </PressableScale>
         }
       />
+
+      {!isLoading && solicitudes.length > 0 ? (
+        <View style={styles.searchWrapper}>
+          <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Buscar por folio o tipo"
+            placeholderTextColor={Colors.textMuted}
+            style={styles.searchInput}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {search ? (
+            <PressableScale haptic={false} accessibilityLabel="Limpiar búsqueda" onPress={() => setSearch('')}>
+              <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
+            </PressableScale>
+          ) : null}
+        </View>
+      ) : null}
 
       {!isLoading && solicitudes.length > 0 ? (
         <FlatList
@@ -76,6 +103,10 @@ export default function SolicitudesScreen() {
         contentContainerStyle={styles.listContent}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={Colors.primary} />}
         ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
+        onEndReachedThreshold={0.4}
+        onEndReached={() => {
+          if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
+        }}
         renderItem={({ item, index }) => (
           <FadeInView index={index}>
             <RequestCard
@@ -84,12 +115,19 @@ export default function SolicitudesScreen() {
             />
           </FadeInView>
         )}
+        ListFooterComponent={
+          isFetchingNextPage ? (
+            <View style={styles.footerLoading}>
+              <Text style={styles.footerLoadingText}>Cargando más…</Text>
+            </View>
+          ) : null
+        }
         ListEmptyComponent={
           isLoading ? (
             <SkeletonCardList count={4} />
           ) : isError ? (
             <ErrorState message={getErrorMessage(error)} onRetry={() => void refetch()} />
-          ) : filter === 'todas' ? (
+          ) : filter === 'todas' && !search ? (
             <MascotAssistant
               message={MascotMessages.todoTranquilo}
               type="tip"
@@ -99,7 +137,7 @@ export default function SolicitudesScreen() {
             />
           ) : (
             <View style={styles.emptyFilter}>
-              <Text style={styles.emptyFilterText}>No hay solicitudes con este estado.</Text>
+              <Text style={styles.emptyFilterText}>No hay solicitudes que coincidan.</Text>
             </View>
           )
         }
@@ -126,6 +164,24 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  searchWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    height: 40,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: FontSize.sm,
+    color: Colors.text,
   },
   filterRow: {
     paddingHorizontal: Spacing.lg,
@@ -165,6 +221,15 @@ const styles = StyleSheet.create({
   emptyFilterText: {
     fontSize: FontSize.sm,
     color: Colors.textMuted,
+  },
+  footerLoading: {
+    paddingVertical: Spacing.lg,
+    alignItems: 'center',
+  },
+  footerLoadingText: {
+    fontSize: FontSize.xs,
+    color: Colors.textMuted,
+    fontWeight: '600',
   },
   fabWrapper: {
     padding: Spacing.lg,

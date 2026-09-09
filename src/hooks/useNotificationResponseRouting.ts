@@ -1,44 +1,21 @@
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
 
+import { queryClient } from '@/api/queryClient';
+import { queryKeys } from '@/api/queryKeys';
 import { toast } from '@/store/toastStore';
+import type { PushNotificationData } from '@/types/pushNotification';
+import { resolveResourceRoute } from '@/utils/appLinks';
 import { supportsRemotePush } from '@/utils/runtime';
 
 /**
- * Payload esperado en `data` de cada push: `tipo` + `recurso_id`
- * estructurados, no una URL web como usan hoy las notificaciones in-app
- * (`App\Services\Colaboradores\NotificacionesService::aArray()` en
- * capacitaciones solo expone `url`, pensado para el layout web — nunca algo
- * que la app pueda navegar directamente). El backend todavía no envía push
- * remoto (no hay rutas `/dispositivos/*`), así que esta forma es una
- * expectativa razonable para cuando exista, no un contrato confirmado.
- */
-interface PushNotificationData {
-  tipo?: 'solicitud' | 'vacaciones' | 'documento' | 'expediente' | string;
-  recurso_id?: string | number;
-}
-
-function resolveRoute(data: PushNotificationData): string | null {
-  switch (data.tipo) {
-    case 'solicitud':
-      return data.recurso_id ? `/solicitud/${data.recurso_id}` : '/(app)/(tabs)/solicitudes';
-    case 'vacaciones':
-      return '/(app)/(tabs)/vacaciones';
-    case 'documento':
-    case 'expediente':
-      return '/(app)/(tabs)/expediente';
-    default:
-      return null;
-  }
-}
-
-/**
- * Recepción en foreground (toast interno) y tap de push (navegación al
- * recurso relacionado). `expo-notifications` se importa dinámicamente y
- * solo cuando `supportsRemotePush` es verdadero — nunca a nivel de módulo —
- * para que este hook no arrastre esa dependencia dentro de Expo Go (ver
- * `src/services/pushNotifications.ts` para el porqué exacto del crash que
- * esto corrige).
+ * Recepción en foreground (toast interno + refresco de notificaciones/
+ * dashboard para que el badge se actualice, V4 sección 89) y tap de push
+ * (navegación al recurso relacionado, V4 sección 15). `expo-notifications`
+ * se importa dinámicamente y solo cuando `supportsRemotePush` es verdadero —
+ * nunca a nivel de módulo — para que este hook no arrastre esa dependencia
+ * dentro de Expo Go (ver `src/services/pushNotifications.ts` para el
+ * porqué exacto del crash que esto corrige).
  */
 export function useNotificationResponseRouting(enabled: boolean): void {
   const router = useRouter();
@@ -58,14 +35,20 @@ export function useNotificationResponseRouting(enabled: boolean): void {
         const title = notification.request.content.title ?? 'Notificación';
         const body = notification.request.content.body;
         const data = (notification.request.content.data ?? {}) as PushNotificationData;
-        const route = resolveRoute(data);
+        const route = resolveResourceRoute(data);
+
+        // El historial real sigue siendo GET /notificaciones (V4 sección 18):
+        // el push solo avisa, así que refrescamos esa cache y el dashboard
+        // para que el contador de no leídas quede al día de inmediato.
+        void queryClient.invalidateQueries({ queryKey: queryKeys.notificaciones });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
 
         toast.info(body ? `${title}: ${body}` : title, route ? { actionLabel: 'Ver', onAction: () => router.push(route as never) } : undefined);
       });
 
       responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
         const data = (response.notification.request.content.data ?? {}) as PushNotificationData;
-        const route = resolveRoute(data);
+        const route = resolveResourceRoute(data);
         router.push((route ?? '/notificaciones') as Parameters<typeof router.push>[0]);
       });
     })();

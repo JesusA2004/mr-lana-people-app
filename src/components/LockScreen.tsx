@@ -1,16 +1,20 @@
+import { Ionicons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Image } from 'expo-image';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { z } from 'zod';
 
 import { Button } from './Button';
+import { PressableScale } from './PressableScale';
 
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { authenticateWithBiometricsAsync, biometricLabel, getBiometricCapabilityAsync, type BiometricKind } from '@/services/biometricAuth';
 import { useAppLockStore } from '@/store/appLockStore';
 import { useAuthStore } from '@/store/authStore';
+import { useBiometricStore } from '@/store/biometricStore';
 import { getErrorMessage, logError } from '@/utils/errors';
 import { haptics } from '@/utils/haptics';
 
@@ -25,20 +29,26 @@ export interface LockScreenProps {
 }
 
 /**
- * Auto-lock (AGENTS.md V3 sección 46): tras `AUTO_LOCK_MINUTES` en
- * background, se exige contraseña de nuevo antes de volver a ver cualquier
- * dato — sin cerrar la sesión. Reutiliza `authStore.login()` con el correo
- * ya conocido: si la contraseña es correcta, refresca el token (Sanctum
- * emite uno nuevo) y desbloquea; si falla, se queda en esta pantalla. No
- * usa biometría todavía — ver recomendación de `expo-local-authentication`
- * en el reporte de entrega.
+ * Auto-lock (V4 sección 33): tras `AUTO_LOCK_MINUTES` en background, se
+ * exige reautenticación antes de volver a ver cualquier dato — sin cerrar
+ * la sesión (el token sigue siendo válido). Si el colaborador activó
+ * biometría (Configuración → Seguridad), se intenta primero automáticamente
+ * al mostrarse; si falla, se cancela, o no está activada, cae al formulario
+ * de contraseña (`authStore.login()` reconfirma la contraseña real y de
+ * paso refresca el token). Nunca deja al usuario atrapado sin salida (V4
+ * sección 118): contraseña y "Cerrar sesión" siempre están disponibles.
  */
 export function LockScreen({ visible }: LockScreenProps) {
   const user = useAuthStore((state) => state.user);
   const login = useAuthStore((state) => state.login);
   const logout = useAuthStore((state) => state.logout);
   const unlock = useAppLockStore((state) => state.unlock);
+  const biometricEnabled = useBiometricStore((state) => state.enabled);
+
   const [formError, setFormError] = useState<string | null>(null);
+  const [biometricBusy, setBiometricBusy] = useState(false);
+  const [biometricType, setBiometricType] = useState<BiometricKind | null>(null);
+  const attemptedRef = useRef(false);
 
   const {
     control,
@@ -49,6 +59,32 @@ export function LockScreen({ visible }: LockScreenProps) {
     resolver: zodResolver(unlockSchema),
     defaultValues: { password: '' },
   });
+
+  const tryBiometric = async () => {
+    setBiometricBusy(true);
+    const result = await authenticateWithBiometricsAsync('Desbloquea MR. LANA PEOPLE');
+    setBiometricBusy(false);
+    if (result.success) {
+      haptics.success();
+      unlock();
+    }
+    // Si falla/cancela: se queda en esta misma pantalla con el formulario de contraseña ya visible — nunca atrapado.
+  };
+
+  useEffect(() => {
+    if (!visible) {
+      attemptedRef.current = false;
+      return;
+    }
+    if (!biometricEnabled || attemptedRef.current) return;
+    attemptedRef.current = true;
+
+    void getBiometricCapabilityAsync().then((capability) => {
+      setBiometricType(capability.primaryType);
+      if (capability.hasHardware && capability.isEnrolled) void tryBiometric();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo debe reintentar cuando `visible` cambia a true, no en cada render.
+  }, [visible, biometricEnabled]);
 
   if (!visible) return null;
 
@@ -79,6 +115,13 @@ export function LockScreen({ visible }: LockScreenProps) {
               <Text style={styles.lockedTitle}>Sesión protegida</Text>
               <Text style={styles.lockedSubtitle}>{nombre ? `Hola de nuevo, ${nombre}` : 'Ingresa tu contraseña para continuar'}</Text>
             </View>
+
+            {biometricEnabled ? (
+              <PressableScale onPress={() => void tryBiometric()} disabled={biometricBusy} style={styles.biometricButton}>
+                <Ionicons name="finger-print-outline" size={22} color={Colors.primaryDark} />
+                <Text style={styles.biometricText}>{biometricBusy ? 'Verificando…' : `Usar ${biometricLabel(biometricType)}`}</Text>
+              </PressableScale>
+            ) : null}
 
             <View style={styles.form}>
               <Controller
@@ -142,7 +185,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     padding: Spacing.xl,
-    gap: Spacing.xxl,
+    gap: Spacing.lg,
   },
   brand: {
     alignItems: 'center',
@@ -162,6 +205,22 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     color: Colors.textMuted,
     textAlign: 'center',
+  },
+  biometricButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    alignSelf: 'center',
+    backgroundColor: Colors.primarySoft,
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+  },
+  biometricText: {
+    fontSize: FontSize.sm,
+    fontWeight: '800',
+    color: Colors.primaryDark,
   },
   form: {
     backgroundColor: Colors.surface,

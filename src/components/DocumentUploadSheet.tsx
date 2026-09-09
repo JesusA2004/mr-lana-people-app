@@ -6,6 +6,7 @@ import { Image, Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AnimatedProgressBar } from './AnimatedProgressBar';
 import { Button } from './Button';
+import { PermissionPrimerSheet, type PermissionPrimerKind } from './PermissionPrimerSheet';
 import { PressableScale } from './PressableScale';
 
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
@@ -48,6 +49,7 @@ export function DocumentUploadSheet({ visible, title, onClose, onConfirm, maxSiz
   const [submitting, setSubmitting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [permissionPrimer, setPermissionPrimer] = useState<{ kind: PermissionPrimerKind; blocked: boolean } | null>(null);
 
   const reset = () => {
     setStep('choose');
@@ -73,12 +75,7 @@ export function DocumentUploadSheet({ visible, title, onClose, onConfirm, maxSiz
     return true;
   };
 
-  const pickFromCamera = async () => {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permission.granted) {
-      toast.warning('Necesitamos permiso de cámara para tomar la foto.');
-      return;
-    }
+  const launchCamera = async () => {
     const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
     if (result.canceled || !result.assets[0]) return;
     const asset = result.assets[0];
@@ -87,18 +84,53 @@ export function DocumentUploadSheet({ visible, title, onClose, onConfirm, maxSiz
     setStep('preview');
   };
 
-  const pickFromGallery = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      toast.warning('Necesitamos permiso para acceder a tus fotos.');
-      return;
-    }
+  const launchGallery = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({ quality: 0.8, mediaTypes: ['images'] });
     if (result.canceled || !result.assets[0]) return;
     const asset = result.assets[0];
     if (!validateSize(asset.fileSize)) return;
     setFile({ uri: asset.uri, name: asset.fileName ?? `imagen-${Date.now()}.jpg`, mimeType: asset.mimeType ?? 'image/jpeg', size: asset.fileSize });
     setStep('preview');
+  };
+
+  /**
+   * Antes de disparar el diálogo nativo de permisos (el que el sistema
+   * operativo dibuja con su propio estilo/idioma — eso no lo controla
+   * ninguna app), mostramos nuestra propia explicación con marca. Si el
+   * permiso ya estaba concedido, se salta directo a la acción.
+   */
+  const pickFromCamera = async () => {
+    const current = await ImagePicker.getCameraPermissionsAsync();
+    if (current.granted) {
+      await launchCamera();
+      return;
+    }
+    setPermissionPrimer({ kind: 'camera', blocked: current.status === 'denied' && !current.canAskAgain });
+  };
+
+  const pickFromGallery = async () => {
+    const current = await ImagePicker.getMediaLibraryPermissionsAsync();
+    if (current.granted) {
+      await launchGallery();
+      return;
+    }
+    setPermissionPrimer({ kind: 'gallery', blocked: current.status === 'denied' && !current.canAskAgain });
+  };
+
+  const handlePermissionConfirm = async () => {
+    if (!permissionPrimer) return;
+    const { kind } = permissionPrimer;
+    setPermissionPrimer(null);
+
+    if (kind === 'camera') {
+      const result = await ImagePicker.requestCameraPermissionsAsync();
+      if (result.granted) await launchCamera();
+      else if (!result.canAskAgain) setPermissionPrimer({ kind: 'camera', blocked: true });
+    } else {
+      const result = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (result.granted) await launchGallery();
+      else if (!result.canAskAgain) setPermissionPrimer({ kind: 'gallery', blocked: true });
+    }
   };
 
   const pickDocument = async () => {
@@ -218,6 +250,14 @@ export function DocumentUploadSheet({ visible, title, onClose, onConfirm, maxSiz
           ) : null}
         </ScrollView>
       </View>
+
+      <PermissionPrimerSheet
+        visible={Boolean(permissionPrimer)}
+        kind={permissionPrimer?.kind ?? 'camera'}
+        blocked={permissionPrimer?.blocked ?? false}
+        onClose={() => setPermissionPrimer(null)}
+        onConfirm={() => void handlePermissionConfirm()}
+      />
     </Modal>
   );
 }

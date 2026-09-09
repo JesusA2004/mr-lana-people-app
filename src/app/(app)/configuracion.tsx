@@ -3,7 +3,7 @@ import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/AppHeader';
@@ -13,37 +13,36 @@ import { Card } from '@/components/Card';
 import { PressableScale } from '@/components/PressableScale';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 import { API_URL, APP_NAME } from '@/constants/config';
+import { authenticateWithBiometricsAsync, biometricLabel, getBiometricCapabilityAsync, type BiometricKind } from '@/services/biometricAuth';
+import { getPushPermissionStatusAsync, type PushPermissionSnapshot, registerCurrentPushToken } from '@/services/pushNotifications';
 import { useAuthStore } from '@/store/authStore';
+import { useBiometricStore } from '@/store/biometricStore';
+import { toast } from '@/store/toastStore';
 import { supportsRemotePush } from '@/utils/runtime';
 import { joinName } from '@/utils/formatters';
-
-type PushStatus = 'granted' | 'denied' | 'undetermined' | null;
 
 export default function ConfiguracionScreen() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const [loggingOut, setLoggingOut] = useState(false);
-  const [pushStatus, setPushStatus] = useState<PushStatus>(null);
+  const [pushSnapshot, setPushSnapshot] = useState<PushPermissionSnapshot | null>(null);
+
+  const [biometricCapable, setBiometricCapable] = useState(false);
+  const [biometricType, setBiometricType] = useState<BiometricKind | null>(null);
+  const biometricEnabled = useBiometricStore((state) => state.enabled);
+  const setBiometricEnabled = useBiometricStore((state) => state.setEnabled);
 
   const nombre = joinName(user?.nombre, user?.apellidos);
 
+  const refreshPushStatus = () => void getPushPermissionStatusAsync().then(setPushSnapshot);
+
   useEffect(() => {
-    // `expo-notifications` se importa dinámicamente y solo si el entorno lo
-    // soporta (nunca en Expo Go/web) — ver src/services/pushNotifications.ts.
-    if (!supportsRemotePush) return;
-    let cancelled = false;
-    import('expo-notifications')
-      .then((Notifications) => Notifications.getPermissionsAsync())
-      .then((result) => {
-        if (!cancelled) setPushStatus(result.status);
-      })
-      .catch(() => {
-        if (!cancelled) setPushStatus(null);
-      });
-    return () => {
-      cancelled = true;
-    };
+    refreshPushStatus();
+    void getBiometricCapabilityAsync().then((capability) => {
+      setBiometricCapable(capability.hasHardware && capability.isEnrolled);
+      setBiometricType(capability.primaryType);
+    });
   }, []);
 
   const handleLogout = () => {
@@ -61,13 +60,43 @@ export default function ConfiguracionScreen() {
     ]);
   };
 
-  const pushStatusLabel = !supportsRemotePush
-    ? 'No disponible en Expo Go'
-    : pushStatus === 'granted'
-      ? 'Activadas'
-      : pushStatus === 'denied'
-        ? 'Desactivadas'
-        : 'Sin definir';
+  const handlePushRowPress = async () => {
+    if (!pushSnapshot || pushSnapshot.status === 'unsupported') return;
+    if (pushSnapshot.status === 'undetermined') {
+      await registerCurrentPushToken({ promptIfUndetermined: true });
+      refreshPushStatus();
+      return;
+    }
+    // 'granted' o 'denied': el sistema ya no deja re-preguntar desde la app, solo Ajustes.
+    void Linking.openSettings();
+  };
+
+  const handleToggleBiometric = async (value: boolean) => {
+    if (!value) {
+      await setBiometricEnabled(false);
+      toast.info('Desactivamos el desbloqueo biométrico.');
+      return;
+    }
+    const result = await authenticateWithBiometricsAsync('Confirma tu identidad para activar el desbloqueo biométrico');
+    if (result.success) {
+      await setBiometricEnabled(true);
+      toast.success('Desbloqueo biométrico activado.');
+    } else if (!result.cancelled) {
+      toast.error('No pudimos confirmar tu biometría. Inténtalo de nuevo.');
+    }
+  };
+
+  const pushStatusLabel = !pushSnapshot
+    ? '…'
+    : pushSnapshot.status === 'unsupported'
+      ? 'No disponible en Expo Go'
+      : pushSnapshot.status === 'granted'
+        ? 'Activadas'
+        : pushSnapshot.status === 'denied'
+          ? 'Desactivadas'
+          : 'Sin definir';
+
+  const biometricStatusLabel = biometricCapable ? biometricLabel(biometricType) : 'No configurada en este dispositivo';
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -82,26 +111,51 @@ export default function ConfiguracionScreen() {
           </View>
         </Card>
 
-        <Text style={styles.sectionLabel}>Preferencias</Text>
+        <Text style={styles.sectionLabel}>Notificaciones</Text>
         <Card style={{ gap: 0 }} padded={false}>
+          <SettingRow icon="notifications-outline" label="Notificaciones push" value={pushStatusLabel} onPress={() => void handlePushRowPress()} last />
+        </Card>
+
+        <Text style={styles.sectionLabel}>Seguridad</Text>
+        <Card style={{ gap: 0 }} padded={false}>
+          <View style={styles.toggleRow}>
+            <View style={styles.settingIcon}>
+              <Ionicons name="finger-print-outline" size={18} color={Colors.primaryDark} />
+            </View>
+            <View style={styles.toggleTextColumn}>
+              <Text style={styles.settingLabel}>Desbloqueo biométrico</Text>
+              <Text style={styles.settingValue}>{biometricStatusLabel}</Text>
+            </View>
+            <Switch
+              value={biometricEnabled}
+              onValueChange={(value) => void handleToggleBiometric(value)}
+              disabled={!biometricCapable}
+              trackColor={{ false: Colors.border, true: Colors.primarySoft }}
+              thumbColor={biometricEnabled ? Colors.primary : Colors.surface}
+            />
+          </View>
           <SettingRow
-            icon="notifications-outline"
-            label="Notificaciones push"
-            value={pushStatusLabel}
-            onPress={() => void Linking.openSettings()}
+            icon="shield-checkmark-outline"
+            label="Privacidad y protección"
+            value="Ver detalle"
+            onPress={() => router.push('/ayuda')}
+            last
           />
-          <SettingRow icon="shield-checkmark-outline" label="Privacidad" value="Ver aviso" onPress={() => router.push('/ayuda')} last />
         </Card>
 
         <Text style={styles.sectionLabel}>Soporte</Text>
         <Card style={{ gap: 0 }} padded={false}>
+          <SettingRow icon="sparkles-outline" label="Guía de la app" onPress={() => router.push('/guia')} />
           <SettingRow icon="help-buoy-outline" label="Ayuda y preguntas frecuentes" onPress={() => router.push('/ayuda')} last />
         </Card>
 
         <Button title="Cerrar sesión" onPress={handleLogout} variant="danger" loading={loggingOut} disabled={loggingOut} />
 
         <Text style={styles.footer}>
-          {APP_NAME} · Versión {Constants.expoConfig?.version ?? '1.0.0'}
+          {APP_NAME}
+          {'\n'}Versión {Constants.expoConfig?.version ?? '1.0.0'}
+          {Constants.expoConfig?.android?.versionCode ? ` · Build ${Constants.expoConfig.android.versionCode}` : ''}
+          {!supportsRemotePush ? '\nExpo Go — push remoto no disponible' : ''}
           {__DEV__ ? `\n${API_URL}` : ''}
         </Text>
       </View>
@@ -153,6 +207,7 @@ const styles = StyleSheet.create({
   },
   userInfo: {
     flex: 1,
+    minWidth: 0,
   },
   userName: {
     fontSize: FontSize.md,
@@ -183,6 +238,19 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.divider,
   },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.divider,
+  },
+  toggleTextColumn: {
+    flex: 1,
+    minWidth: 0,
+  },
   settingIcon: {
     width: 32,
     height: 32,
@@ -207,5 +275,6 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     color: Colors.textMuted,
     marginTop: Spacing.xl,
+    lineHeight: 18,
   },
 });

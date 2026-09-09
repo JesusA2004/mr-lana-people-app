@@ -5,9 +5,11 @@ import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { queryClient } from '@/api/queryClient';
+import { bindQueryClientToNetworkStatus, queryClient } from '@/api/queryClient';
 import { AppErrorBoundary } from '@/components/AppErrorBoundary';
 import { ErrorState } from '@/components/ErrorState';
+import { MaintenanceScreen } from '@/components/MaintenanceScreen';
+import { OfflineBanner } from '@/components/OfflineBanner';
 import { ToastHost } from '@/components/ToastHost';
 import { IS_API_URL_CONFIGURED } from '@/constants/config';
 import { useNotificationResponseRouting } from '@/hooks/useNotificationResponseRouting';
@@ -73,6 +75,7 @@ export default function RootLayout() {
   useEffect(() => {
     void restoreSession();
     void loadOnboarding();
+    return bindQueryClientToNetworkStatus();
   }, [restoreSession, loadOnboarding]);
 
   if (!IS_API_URL_CONFIGURED) {
@@ -94,6 +97,8 @@ export default function RootLayout() {
           <RootNavigator />
         </AppErrorBoundary>
         <ToastHost />
+        <OfflineBanner />
+        <MaintenanceScreen />
       </SafeAreaProvider>
     </QueryClientProvider>
   );

@@ -5,6 +5,8 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/AppHeader';
 import { Card } from '@/components/Card';
+import { FadeInView } from '@/components/FadeInView';
+import { MascotAvatar } from '@/components/mascot/MascotAvatar';
 import { PressableScale } from '@/components/PressableScale';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 
@@ -13,7 +15,6 @@ interface Faq {
   answer: string;
 }
 
-/** Contenido local (AGENTS.md sección 46: "no crear un chat, puede ser contenido local"). */
 const FAQS: Faq[] = [
   {
     question: '¿Cómo solicito vacaciones?',
@@ -33,13 +34,27 @@ const FAQS: Faq[] = [
   {
     question: '¿Qué hago si rechazaron un documento o solicitud?',
     answer:
-      'Revisa el motivo indicado por Recursos Humanos en el detalle correspondiente. Si necesitas corregir información, crea una nueva solicitud del tipo adecuado (por ejemplo, "Actualización de datos") o contacta directamente a RH.',
+      'Revisa la observación de Recursos Humanos en el detalle correspondiente. Si es un documento, toca "Subir documento" para reemplazarlo (o "Solicitar cambio" si ya estaba en revisión/aprobado); si es una solicitud, crea una nueva del tipo adecuado.',
   },
   {
-    question: '¿Cuándo podré subir documentos de mi expediente desde la app?',
+    question: '¿Cómo subo un documento de mi expediente?',
     answer:
-      'Esta función está en desarrollo. Por ahora, Recursos Humanos sigue gestionando la carga y validación de tu expediente; te avisaremos en cuanto esté disponible desde la app.',
+      'Ve al tab "Expediente", toca el documento que quieres cargar y elige "Subir documento". Puedes tomar una foto, elegir una de tu galería o subir un PDF — verás el progreso real de la subida.',
   },
+  {
+    question: '¿Mi información está segura?',
+    answer:
+      'Sí: bloqueamos capturas de pantalla y grabación dentro de la app, tu sesión viaja cifrada y se protege sola si dejas la app en segundo plano. Puedes ver el detalle en "Privacidad" más abajo.',
+  },
+];
+
+const QUICK_LINKS: { icon: keyof typeof Ionicons.glyphMap; label: string; description: string; path: Parameters<ReturnType<typeof useRouter>['push']>[0] }[] = [
+  { icon: 'home-outline', label: 'Inicio', description: 'Resumen de todo', path: '/(app)/(tabs)' },
+  { icon: 'folder-open-outline', label: 'Expediente', description: 'Tus documentos', path: '/(app)/(tabs)/expediente' },
+  { icon: 'document-text-outline', label: 'Solicitudes', description: 'Permisos y trámites', path: '/(app)/(tabs)/solicitudes' },
+  { icon: 'airplane-outline', label: 'Vacaciones', description: 'Días disponibles', path: '/(app)/(tabs)/vacaciones' },
+  { icon: 'person-outline', label: 'Perfil', description: 'Tus datos', path: '/(app)/(tabs)/perfil' },
+  { icon: 'briefcase-outline', label: 'Incorporación', description: 'Tu proceso de alta', path: '/incorporacion' },
 ];
 
 export default function AyudaScreen() {
@@ -51,17 +66,45 @@ export default function AyudaScreen() {
       <AppHeader title="Ayuda" showBack onBackPress={() => router.back()} />
 
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.intro}>Encuentra respuesta a las dudas más comunes sobre la app.</Text>
+        <FadeInView index={0}>
+          <Card style={styles.guideCard} onPress={() => router.push('/guia')}>
+            <MascotAvatar orientation="right" size="sm" />
+            <View style={styles.guideText}>
+              <Text style={styles.guideTitle}>¿Nuevo por aquí?</Text>
+              <Text style={styles.guideSubtitle}>Recorre la guía de la app en un minuto.</Text>
+            </View>
+            <View style={styles.guideCta}>
+              <Text style={styles.guideCtaText}>Ver guía</Text>
+              <Ionicons name="chevron-forward" size={16} color={Colors.primaryDark} />
+            </View>
+          </Card>
+        </FadeInView>
 
+        <FadeInView index={1}>
+          <Text style={styles.sectionTitle}>Explora la app</Text>
+          <View style={styles.quickGrid}>
+            {QUICK_LINKS.map((link) => (
+              <PressableScale key={link.label} onPress={() => router.push(link.path)} style={styles.quickCard}>
+                <View style={styles.quickIcon}>
+                  <Ionicons name={link.icon} size={20} color={Colors.primaryDark} />
+                </View>
+                <Text style={styles.quickLabel}>{link.label}</Text>
+                <Text style={styles.quickDescription}>{link.description}</Text>
+              </PressableScale>
+            ))}
+          </View>
+        </FadeInView>
+
+        <Text style={styles.sectionTitle}>Preguntas frecuentes</Text>
         <View style={styles.list}>
           {FAQS.map((faq, index) => {
             const open = openIndex === index;
             return (
               <Card key={faq.question} padded={false} style={styles.faqCard}>
-                <PressableScale
-                  haptic={false}
-                  onPress={() => setOpenIndex(open ? null : index)}
-                  style={styles.faqHeader}>
+                <PressableScale haptic={false} onPress={() => setOpenIndex(open ? null : index)} style={styles.faqHeader}>
+                  <View style={styles.faqIcon}>
+                    <Ionicons name="help-circle-outline" size={18} color={Colors.primaryDark} />
+                  </View>
                   <Text style={styles.faqQuestion}>{faq.question}</Text>
                   <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={Colors.textMuted} />
                 </PressableScale>
@@ -71,12 +114,19 @@ export default function AyudaScreen() {
           })}
         </View>
 
-        <Text style={styles.privacyTitle}>Privacidad</Text>
-        <Text style={styles.privacyText}>
-          Tu información laboral y personal se consulta directamente desde los sistemas de MR. LANA PEOPLE mediante
-          conexión segura (HTTPS) y tu sesión se protege con un token cifrado en tu dispositivo. No compartimos tu
-          información con servicios externos ajenos a la plataforma.
-        </Text>
+        <FadeInView index={2}>
+          <Card style={styles.privacyCard}>
+            <View style={styles.privacyHeader}>
+              <Ionicons name="shield-checkmark-outline" size={18} color={Colors.primaryDark} />
+              <Text style={styles.privacyTitle}>Privacidad</Text>
+            </View>
+            <Text style={styles.privacyText}>
+              Tu información laboral y personal se consulta directamente desde los sistemas de MR. LANA PEOPLE mediante conexión segura (HTTPS). La
+              app bloquea capturas de pantalla y grabación, oculta la vista previa en el selector de apps recientes, y tu sesión se protege con un
+              token cifrado en tu dispositivo. No compartimos tu información con servicios externos ajenos a la plataforma.
+            </Text>
+          </Card>
+        </FadeInView>
       </ScrollView>
     </View>
   );
@@ -92,8 +142,72 @@ const styles = StyleSheet.create({
     gap: Spacing.lg,
     paddingBottom: Spacing.xxxl,
   },
-  intro: {
-    fontSize: FontSize.sm,
+  guideCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  guideText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  guideTitle: {
+    fontSize: FontSize.md,
+    fontWeight: '800',
+    color: Colors.text,
+  },
+  guideSubtitle: {
+    fontSize: FontSize.xs,
+    color: Colors.textMuted,
+    marginTop: 2,
+  },
+  guideCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    flexShrink: 0,
+  },
+  guideCtaText: {
+    fontSize: FontSize.xs,
+    fontWeight: '800',
+    color: Colors.primaryDark,
+  },
+  sectionTitle: {
+    fontSize: FontSize.md,
+    fontWeight: '800',
+    color: Colors.text,
+  },
+  quickGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+  },
+  quickCard: {
+    width: '31%',
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: Spacing.sm,
+    gap: 2,
+  },
+  quickIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+  },
+  quickLabel: {
+    fontSize: FontSize.xs,
+    fontWeight: '800',
+    color: Colors.text,
+  },
+  quickDescription: {
+    fontSize: 10,
     color: Colors.textMuted,
   },
   list: {
@@ -105,12 +219,21 @@ const styles = StyleSheet.create({
   faqHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     gap: Spacing.sm,
     padding: Spacing.md,
   },
+  faqIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
   faqQuestion: {
     flex: 1,
+    minWidth: 0,
     fontSize: FontSize.sm,
     fontWeight: '700',
     color: Colors.text,
@@ -120,20 +243,27 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.md,
+    paddingLeft: 56,
     lineHeight: 20,
+  },
+  privacyCard: {
+    gap: Spacing.xs,
+    backgroundColor: Colors.primarySoft,
+    borderColor: Colors.primarySoft,
+  },
+  privacyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
   },
   privacyTitle: {
     fontSize: FontSize.md,
     fontWeight: '800',
     color: Colors.text,
-    marginTop: Spacing.md,
   },
   privacyText: {
     fontSize: FontSize.sm,
-    color: Colors.textMuted,
+    color: Colors.text,
     lineHeight: 20,
-  },
-  radius: {
-    borderRadius: Radius.lg,
   },
 });

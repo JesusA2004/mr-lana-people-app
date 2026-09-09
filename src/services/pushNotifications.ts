@@ -46,8 +46,20 @@ async function configureNotificationHandler(): Promise<void> {
   notificationHandlerConfigured = true;
 }
 
-/** Pide permiso, obtiene el Expo Push Token y lo registra en el backend. No hace nada (ni lanza) en Expo Go/web. */
-export async function registerCurrentPushToken(): Promise<void> {
+export interface RegisterPushTokenOptions {
+  /**
+   * Si el permiso está `undetermined`, dispara el diálogo nativo del
+   * sistema. Default `false` — así `usePushRegistration` (llamada
+   * automática en cada apertura de la app) NUNCA sorprende al usuario con
+   * el diálogo del sistema sin nuestra explicación previa (V4 sección 9).
+   * Solo `PushPermissionPrimer.onConfirm()` (después de que el usuario ya
+   * aceptó nuestra propia hoja) pasa `true`.
+   */
+  promptIfUndetermined?: boolean;
+}
+
+/** Obtiene el Expo Push Token y lo registra en el backend. No hace nada (ni lanza) en Expo Go/web. */
+export async function registerCurrentPushToken(options: RegisterPushTokenOptions = {}): Promise<void> {
   if (!supportsRemotePush) {
     if (__DEV__) {
       console.log('[Push] Deshabilitado en Expo Go. Usa un Development Build para probar push remoto.');
@@ -63,7 +75,7 @@ export async function registerCurrentPushToken(): Promise<void> {
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
 
-    if (existingStatus !== 'granted') {
+    if (existingStatus === 'undetermined' && options.promptIfUndetermined) {
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
     }
@@ -84,6 +96,7 @@ export async function registerCurrentPushToken(): Promise<void> {
       token: expoPushToken,
       platform: Platform.OS === 'ios' ? 'ios' : 'android',
       device_name: Device.modelName ?? DEVICE_NAME,
+      app_version: Constants.expoConfig?.version,
     });
     lastRegisteredToken = expoPushToken;
   } catch (error) {
@@ -92,6 +105,16 @@ export async function registerCurrentPushToken(): Promise<void> {
     // capacitaciones), o el dispositivo puede no soportar push.
     logError('registerCurrentPushToken', error);
   }
+}
+
+export type PushPermissionSnapshot = { status: 'granted' | 'denied' | 'undetermined'; canAskAgain: boolean } | { status: 'unsupported' };
+
+/** Estado actual del permiso de push, sin disparar ningún diálogo — usado por el primer de permiso y por Configuración. */
+export async function getPushPermissionStatusAsync(): Promise<PushPermissionSnapshot> {
+  if (!supportsRemotePush) return { status: 'unsupported' };
+  const Notifications = await import('expo-notifications');
+  const result = await Notifications.getPermissionsAsync();
+  return { status: result.status, canAskAgain: result.canAskAgain };
 }
 
 /** Revoca el token del dispositivo actual (best-effort). Usado por authStore al cerrar sesión. */

@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -6,11 +5,10 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 import { AnimatedProgressBar } from '@/components/AnimatedProgressBar';
 import { AppHeader } from '@/components/AppHeader';
 import { Card } from '@/components/Card';
-import { DocumentStatusBadge } from '@/components/DocumentStatusBadge';
+import { DocumentCard } from '@/components/DocumentCard';
 import { ErrorState } from '@/components/ErrorState';
 import { FadeInView } from '@/components/FadeInView';
 import { MascotAssistant } from '@/components/mascot/MascotAssistant';
-import { PressableScale } from '@/components/PressableScale';
 import { SkeletonBlock, SkeletonCardList } from '@/components/SkeletonBlock';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 import { MascotMessages } from '@/constants/mascotMessages';
@@ -90,21 +88,10 @@ export default function ExpedienteScreen() {
             <View style={styles.list}>
               {documentos.map((documento: DocumentoIncorporacion, index: number) => (
                 <FadeInView key={documento.id} index={index + 2}>
-                  <PressableScale
+                  <DocumentCard
+                    documento={documento}
                     onPress={() => router.push({ pathname: '/expediente/[tipoId]', params: { tipoId: String(documento.id) } })}
-                    style={styles.documentRow}>
-                    <View style={styles.documentIcon}>
-                      <Ionicons name="document-text-outline" size={18} color={Colors.primaryDark} />
-                    </View>
-                    <View style={styles.documentInfo}>
-                      <Text style={styles.documentName} numberOfLines={1}>
-                        {documento.nombre}
-                      </Text>
-                      {documento.obligatorio ? <Text style={styles.documentRequired}>Requerido</Text> : null}
-                    </View>
-                    <DocumentStatusBadge status={documento.estado} />
-                    <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
-                  </PressableScale>
+                  />
                 </FadeInView>
               ))}
             </View>
@@ -184,37 +171,5 @@ const styles = StyleSheet.create({
   },
   list: {
     gap: Spacing.sm,
-  },
-  documentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: Spacing.md,
-  },
-  documentIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  documentInfo: {
-    flex: 1,
-  },
-  documentName: {
-    fontSize: FontSize.sm,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  documentRequired: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: Colors.textMuted,
-    marginTop: 2,
   },
 });

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect } from 'react';
 import { StyleSheet, Text, View, type ColorValue } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 
 import { Colors, FontSize } from '@/constants/colors';
 import { Motion } from '@/constants/motion';
@@ -21,16 +21,17 @@ export interface TabIconProps {
  * nada de rebote exagerado) y badge numérico opcional — máximo "99+".
  */
 export function TabIcon({ name, color, focused, size = 23, badgeCount }: TabIconProps) {
+  const reducedMotion = useReducedMotion();
   const scale = useSharedValue(1);
 
   useEffect(() => {
-    if (!focused) return;
+    if (!focused || reducedMotion) return;
     scale.value = withSequence(
       withTiming(Motion.scale.iconActive, { duration: Motion.duration.press }),
       withTiming(1, { duration: Motion.duration.press }),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps -- solo debe reaccionar al cambio de foco.
-  }, [focused]);
+  }, [focused, reducedMotion]);
 
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   const badgeLabel = badgeCount && badgeCount > 0 ? (badgeCount > 99 ? '99+' : String(badgeCount)) : null;

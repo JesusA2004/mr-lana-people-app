@@ -56,3 +56,20 @@ export interface CreateSolicitudPayload {
   fecha_fin?: string;
   [key: string]: unknown;
 }
+
+/** Respuesta esperada de `POST /solicitudes/{id}/adjuntos` — endpoint sugerido, ver docs/BACKEND_REQUIREMENTS_V4.md. */
+export interface SolicitudAttachment {
+  id: number | string;
+  nombre: string;
+  mime?: string | null;
+  size?: number | null;
+}
+
+/** Respuesta esperada de `GET /solicitudes/configuracion` — endpoint sugerido, ver docs/BACKEND_REQUIREMENTS_V4.md. */
+export interface SolicitudTipoConfig {
+  tipo: RequestType;
+  label: string;
+  requires_dates: boolean;
+  allows_attachments: boolean;
+  attachment_required?: boolean;
+}

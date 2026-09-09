@@ -11,7 +11,8 @@ import { PressableScale } from '@/components/PressableScale';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 import { MascotMessages } from '@/constants/mascotMessages';
-import { useMarkNotificacionLeida, useNotificaciones } from '@/hooks/queries/useNotificaciones';
+import { useMarkAllNotificacionesLeidas, useMarkNotificacionLeida, useNotificaciones } from '@/hooks/queries/useNotificaciones';
+import { toast } from '@/store/toastStore';
 import type { NotificationItem } from '@/types/notification';
 import { getErrorMessage, logError } from '@/utils/errors';
 
@@ -59,6 +60,7 @@ export default function NotificacionesScreen() {
   const router = useRouter();
   const { data, isLoading, isError, error, refetch, isRefetching } = useNotificaciones();
   const markAsRead = useMarkNotificacionLeida();
+  const markAllAsRead = useMarkAllNotificacionesLeidas();
   const [tab, setTab] = useState<Tab>('todas');
 
   const items = useMemo(() => data ?? [], [data]);
@@ -84,9 +86,31 @@ export default function NotificacionesScreen() {
     }
   };
 
+  const handleMarkAllAsRead = () => {
+    markAllAsRead.mutate(undefined, {
+      onSuccess: () => toast.success('Marcamos todas tus notificaciones como leídas.'),
+      onError: (markError) => {
+        logError('notificaciones.markAllAsRead', markError);
+        toast.error(getErrorMessage(markError));
+      },
+    });
+  };
+
   return (
     <View style={styles.container}>
-      <AppHeader title="Notificaciones" showBack onBackPress={() => router.back()} />
+      <AppHeader
+        title="Notificaciones"
+        showBack
+        onBackPress={() => router.back()}
+        right={
+          unreadCount > 0 ? (
+            <PressableScale haptic={false} onPress={handleMarkAllAsRead} disabled={markAllAsRead.isPending} style={styles.markAllButton}>
+              <Ionicons name="checkmark-done-outline" size={16} color={Colors.primaryDark} />
+              <Text style={styles.markAllText}>Marcar todas</Text>
+            </PressableScale>
+          ) : undefined
+        }
+      />
 
       <View style={styles.tabRow}>
         <TabButton label="Todas" active={tab === 'todas'} onPress={() => setTab('todas')} />
@@ -150,6 +174,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  markAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 6,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.primarySoft,
+  },
+  markAllText: {
+    fontSize: FontSize.xs,
+    fontWeight: '800',
+    color: Colors.primaryDark,
   },
   tabRow: {
     flexDirection: 'row',

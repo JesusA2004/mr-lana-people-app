@@ -40,14 +40,20 @@ export function normalizeError(error: unknown): NormalizedError {
         return { message: 'No tienes permisos para realizar esta acción.', status };
       case 404:
         return { message: 'No se encontró la información solicitada.', status };
+      case 409:
+        return { message: 'Esta información cambió mientras tanto. Actualiza la pantalla e inténtalo de nuevo.', status };
       case 422:
         return {
           message: data?.message ?? 'Revisa los datos ingresados.',
           status,
           validationErrors: data?.errors,
         };
+      case 429:
+        return { message: 'Hiciste demasiadas solicitudes seguidas. Espera un momento e inténtalo de nuevo.', status };
       case 500:
         return { message: 'Ocurrió un error en el servidor. Intenta más tarde.', status };
+      case 503:
+        return { message: 'Estamos realizando mantenimiento. Intenta de nuevo en unos minutos.', status };
       default:
         return { message: data?.message ?? 'Ocurrió un error inesperado.', status };
     }

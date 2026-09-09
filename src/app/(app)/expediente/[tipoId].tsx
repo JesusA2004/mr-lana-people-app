@@ -7,6 +7,7 @@ import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { DocumentStatusBadge } from '@/components/DocumentStatusBadge';
+import { DocumentTypeIcon } from '@/components/DocumentTypeIcon';
 import { DocumentUploadSheet, type PickedDocumentFile } from '@/components/DocumentUploadSheet';
 import { ErrorState } from '@/components/ErrorState';
 import { MascotAssistant } from '@/components/mascot/MascotAssistant';
@@ -56,7 +57,7 @@ export default function DocumentoDetalleScreen() {
 
   return (
     <View style={styles.container}>
-      <AppHeader title={documento?.nombre ?? 'Documento'} showBack onBackPress={() => router.back()} />
+      <AppHeader title={documento?.nombre ?? 'Documento'} showBack onBackPress={() => router.back()} titleNumberOfLines={0} />
 
       <ScrollView contentContainerStyle={styles.content}>
         {isLoading ? (
@@ -71,11 +72,17 @@ export default function DocumentoDetalleScreen() {
         ) : (
           <>
             <Card style={styles.headerCard}>
+              <View style={styles.previewRow}>
+                <DocumentTypeIcon clave={documento.tipo} size={56} />
+                <View style={styles.previewText}>
+                  <Text style={styles.previewName}>{documento.nombre}</Text>
+                  {documento.obligatorio ? <Text style={styles.requiredNote}>Documento requerido</Text> : null}
+                </View>
+              </View>
               <View style={styles.headerRow}>
                 <Text style={styles.headerLabel}>Estado</Text>
                 <DocumentStatusBadge status={documento.estado} />
               </View>
-              {documento.obligatorio ? <Text style={styles.requiredNote}>Este documento es requerido para tu expediente.</Text> : null}
               {documento.mensaje ? <Text style={styles.requiredNote}>{documento.mensaje}</Text> : null}
             </Card>
 
@@ -160,12 +167,30 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xxxl,
   },
   headerCard: {
-    gap: Spacing.xs,
+    gap: Spacing.md,
+  },
+  previewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  previewText: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  previewName: {
+    fontSize: FontSize.lg,
+    fontWeight: '800',
+    color: Colors.text,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingTop: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: Colors.divider,
   },
   headerLabel: {
     fontSize: FontSize.sm,

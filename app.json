@@ -8,17 +8,20 @@
     "scheme": "mrlanapeopleapp",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.mrlana.people",
+      "buildNumber": "1"
     },
     "android": {
+      "package": "com.mrlana.people",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false,
-      "usesCleartextTraffic": true
+      "predictiveBackGestureEnabled": false
     },
     "web": {
       "output": "static",
@@ -50,6 +53,14 @@
           "photosPermission": "MR. LANA PEOPLE necesita acceso a tus fotos para adjuntar documentos a tu expediente o solicitudes.",
           "cameraPermission": "MR. LANA PEOPLE necesita acceso a tu cámara para fotografiar documentos de tu expediente o solicitudes.",
           "microphonePermission": false
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
         }
       ]
     ],

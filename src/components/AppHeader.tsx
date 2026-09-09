@@ -10,13 +10,21 @@ export interface AppHeaderProps {
   showBack?: boolean;
   onBackPress?: () => void;
   right?: React.ReactNode;
+  /**
+   * Líneas máximas del título antes de truncar con "…". La mayoría de las
+   * pantallas tienen títulos cortos fijos y usan el default (1). Pantallas
+   * con título dinámico y potencialmente largo (ej. el nombre real de un
+   * documento, "Constancia de situación fiscal (RFC)") deben pasar `0` para
+   * que NUNCA se corte — envuelve las líneas que haga falta.
+   */
+  titleNumberOfLines?: number;
 }
 
 /**
  * Encabezado propio de marca (reemplaza el header nativo, headerShown está
  * en `false` en todos los Stack de la app) para mantener un look consistente.
  */
-export function AppHeader({ title, subtitle, showBack = false, onBackPress, right }: AppHeaderProps) {
+export function AppHeader({ title, subtitle, showBack = false, onBackPress, right, titleNumberOfLines = 1 }: AppHeaderProps) {
   const insets = useSafeAreaInsets();
 
   return (
@@ -33,8 +41,8 @@ export function AppHeader({ title, subtitle, showBack = false, onBackPress, righ
               <Ionicons name="chevron-back" size={22} color={Colors.text} />
             </Pressable>
           ) : null}
-          <View>
-            <Text style={styles.title} numberOfLines={1}>
+          <View style={styles.titleColumn}>
+            <Text style={styles.title} numberOfLines={titleNumberOfLines === 0 ? undefined : titleNumberOfLines}>
               {title}
             </Text>
             {subtitle ? (
@@ -65,7 +73,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    flexShrink: 1,
+    flex: 1,
+    minWidth: 0,
+  },
+  titleColumn: {
+    flex: 1,
+    minWidth: 0,
   },
   backButton: {
     width: 36,

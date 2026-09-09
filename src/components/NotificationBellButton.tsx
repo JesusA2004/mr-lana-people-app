@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 
 import { Colors, Radius } from '@/constants/colors';
 import { Motion } from '@/constants/motion';
@@ -14,19 +14,20 @@ export interface NotificationBellButtonProps {
 /** Botón de acceso a notificaciones con badge de no leídas, usado en el header del Dashboard. */
 export function NotificationBellButton({ unreadCount = 0 }: NotificationBellButtonProps) {
   const router = useRouter();
+  const reducedMotion = useReducedMotion();
   const scale = useSharedValue(1);
   const previousCount = useRef(unreadCount);
 
   useEffect(() => {
     // Solo "rebota" cuando SUBE el conteo (notificación nueva) — no al bajar (marcar leída).
-    if (unreadCount > previousCount.current) {
+    if (unreadCount > previousCount.current && !reducedMotion) {
       scale.value = withSequence(
         withTiming(Motion.scale.iconActive, { duration: Motion.duration.press }),
         withTiming(1, { duration: Motion.duration.press }),
       );
     }
     previousCount.current = unreadCount;
-  }, [unreadCount, scale]);
+  }, [unreadCount, scale, reducedMotion]);
 
   const badgeStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 

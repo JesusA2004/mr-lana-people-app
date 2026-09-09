@@ -1,15 +1,15 @@
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { GuideTour } from '@/components/GuideTour';
 import { GUIDE_SLIDES } from '@/constants/guideSlides';
 import { useAuthStore } from '@/store/authStore';
-import { useOnboardingStore } from '@/store/onboardingStore';
 import { pickString } from '@/utils/formatters';
 
-export default function OnboardingScreen() {
+/** Guía de usuario re-visitable en cualquier momento (ver Ayuda → "Ver guía de la app") — mismo contenido que el onboarding de primer ingreso. */
+export default function GuiaScreen() {
+  const router = useRouter();
   const user = useAuthStore((state) => state.user);
-  const completeOnboarding = useOnboardingStore((state) => state.complete);
-
   const nombre = pickString(user, ['nombre']);
 
   return (
@@ -17,10 +17,10 @@ export default function OnboardingScreen() {
       <GuideTour
         slides={GUIDE_SLIDES}
         greetingName={nombre}
-        onFinish={() => void completeOnboarding()}
-        onSkip={() => void completeOnboarding()}
-        finishLabel="Comenzar"
-        skipLabel="Omitir"
+        onFinish={() => router.back()}
+        onSkip={() => router.back()}
+        finishLabel="Entendido"
+        skipLabel="Cerrar"
       />
     </SafeAreaView>
   );

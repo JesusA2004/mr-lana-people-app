@@ -2,15 +2,16 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
-import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInRight, FadeOutLeft } from 'react-native-reanimated';
 import { z } from 'zod';
 
 import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { ExitConfirmSheet } from '@/components/ExitConfirmSheet';
 import { Input } from '@/components/Input';
 import { MascotBubble } from '@/components/mascot/MascotBubble';
 import { PressableScale } from '@/components/PressableScale';
@@ -19,9 +20,11 @@ import { SuccessCheck } from '@/components/SuccessCheck';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 import { MascotMessages } from '@/constants/mascotMessages';
 import { useCreateSolicitud } from '@/hooks/queries/useSolicitudes';
+import { toast } from '@/store/toastStore';
 import { REQUEST_TYPES_WITH_DATE_RANGE, type RequestType, type Solicitud } from '@/types/request';
 import { formatDateLong, isDateBefore, toApiDateString } from '@/utils/dates';
 import { getErrorMessage, getValidationErrors, logError } from '@/utils/errors';
+import { haptics } from '@/utils/haptics';
 
 interface RequestTypeOption {
   tipo: RequestType;
@@ -67,6 +70,7 @@ export default function NuevaSolicitudScreen() {
   const [step, setStep] = useState(0);
   const [formError, setFormError] = useState<string | null>(null);
   const [sentSolicitud, setSentSolicitud] = useState<Solicitud | null>(null);
+  const [exitConfirmVisible, setExitConfirmVisible] = useState(false);
   const createMutation = useCreateSolicitud();
 
   const {
@@ -98,26 +102,52 @@ export default function NuevaSolicitudScreen() {
   const goNext = async () => {
     if (step === 0) {
       const valid = await trigger('tipo');
-      if (!valid) return;
+      if (!valid) {
+        haptics.warning();
+        toast.warning('Selecciona un tipo de solicitud para continuar.');
+        return;
+      }
       setStep(1);
       return;
     }
     if (step === 1) {
       const fields: (keyof FormValues)[] = needsDateRange ? ['motivo', 'fechaInicio', 'fechaFin'] : ['motivo'];
       const valid = await trigger(fields);
-      if (!valid) return;
+      if (!valid) {
+        haptics.warning();
+        return;
+      }
       setStep(2);
       return;
     }
   };
 
+  const hasUnsavedChanges = Boolean(formValues.tipo) || Boolean(formValues.motivo?.trim());
+
   const goBack = () => {
     if (step === 0) {
+      if (hasUnsavedChanges) {
+        setExitConfirmVisible(true);
+        return;
+      }
       router.back();
       return;
     }
     setStep((current) => current - 1);
   };
+
+  useEffect(() => {
+    // Botón físico "atrás" de Android: mismo criterio que el back del
+    // header (V4 sección 47) — nunca perder el formulario por un back
+    // accidental. El swipe-to-dismiss de iOS ya está desactivado para esta
+    // ruta (`gestureEnabled: false` en `(app)/_layout.tsx`).
+    if (Platform.OS !== 'android' || sentSolicitud) return undefined;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      goBack();
+      return true;
+    });
+    return () => subscription.remove();
+  });
 
   const onSubmit = async (values: FormValues) => {
     setFormError(null);
@@ -155,6 +185,12 @@ export default function NuevaSolicitudScreen() {
           <Animated.View key="step-0" entering={FadeInRight.duration(240)} exiting={FadeOutLeft.duration(160)} style={styles.stepBlock}>
             <MascotBubble message={MascotMessages.wizardTipo} />
             <Text style={styles.title}>¿Qué necesitas solicitar?</Text>
+            {errors.tipo ? (
+              <View style={styles.inlineErrorBanner}>
+                <Ionicons name="alert-circle" size={16} color={Colors.danger} />
+                <Text style={styles.inlineErrorText}>{errors.tipo.message}</Text>
+              </View>
+            ) : null}
             <View style={styles.typeList}>
               {REQUEST_TYPE_OPTIONS.map((option) => {
                 const active = selectedTipo === option.tipo;
@@ -175,7 +211,6 @@ export default function NuevaSolicitudScreen() {
                 );
               })}
             </View>
-            {errors.tipo ? <Text style={styles.formError}>{errors.tipo.message}</Text> : null}
           </Animated.View>
         ) : null}
 
@@ -290,6 +325,15 @@ export default function NuevaSolicitudScreen() {
       {activePicker && Platform.OS === 'ios' ? (
         <Button title="Listo" onPress={() => setActivePicker(null)} variant="ghost" style={styles.doneButton} />
       ) : null}
+
+      <ExitConfirmSheet
+        visible={exitConfirmVisible}
+        onContinueEditing={() => setExitConfirmVisible(false)}
+        onExit={() => {
+          setExitConfirmVisible(false);
+          router.back();
+        }}
+      />
     </View>
   );
 }
@@ -380,6 +424,21 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xl,
     fontWeight: '800',
     color: Colors.text,
+  },
+  inlineErrorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.dangerSoft,
+    borderRadius: Radius.md,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+  },
+  inlineErrorText: {
+    flex: 1,
+    fontSize: FontSize.sm,
+    fontWeight: '700',
+    color: Colors.danger,
   },
   typeList: {
     gap: Spacing.sm,

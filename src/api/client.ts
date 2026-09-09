@@ -1,6 +1,7 @@
 import axios, { type AxiosError } from 'axios';
 
 import { API_URL, REQUEST_TIMEOUT_MS } from '@/constants/config';
+import { useMaintenanceStore } from '@/store/maintenanceStore';
 
 /**
  * Cliente Axios central. Toda la app debe consumir la API a través de este
@@ -40,7 +41,12 @@ apiClient.interceptors.request.use((config) => {
 });
 
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Una respuesta exitosa significa que el backend ya no está en
+    // mantenimiento — quita la pantalla completa si seguía activa.
+    if (useMaintenanceStore.getState().active) useMaintenanceStore.getState().setActive(false);
+    return response;
+  },
   (error: AxiosError) => {
     if (__DEV__) {
       console.warn(
@@ -54,6 +60,10 @@ apiClient.interceptors.response.use(
 
     if (error.response?.status === 401) {
       unauthorizedHandler?.();
+    }
+
+    if (error.response?.status === 503) {
+      useMaintenanceStore.getState().setActive(true);
     }
 
     return Promise.reject(error);

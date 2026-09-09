@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -7,11 +6,10 @@ import { AnimatedProgressBar } from '@/components/AnimatedProgressBar';
 import { ApprovalTimeline } from '@/components/ApprovalTimeline';
 import { AppHeader } from '@/components/AppHeader';
 import { Card } from '@/components/Card';
-import { DocumentStatusBadge } from '@/components/DocumentStatusBadge';
+import { DocumentCard } from '@/components/DocumentCard';
 import { ErrorState } from '@/components/ErrorState';
 import { FadeInView } from '@/components/FadeInView';
 import { MascotAssistant } from '@/components/mascot/MascotAssistant';
-import { PressableScale } from '@/components/PressableScale';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 import { useIncorporacion } from '@/hooks/queries/useIncorporacion';
@@ -72,24 +70,18 @@ export default function IncorporacionScreen() {
             </FadeInView>
 
             <FadeInView index={2}>
-              <Card>
-                <Text style={styles.sectionTitle}>Documentos requeridos</Text>
+              <Text style={styles.sectionTitle}>Documentos requeridos</Text>
+              <View style={styles.docList}>
                 {data.documentos
                   .filter((doc) => doc.obligatorio)
-                  .map((doc, index, arr) => (
-                    <PressableScale
+                  .map((doc) => (
+                    <DocumentCard
                       key={doc.id}
-                      haptic={false}
+                      documento={doc}
                       onPress={() => router.push({ pathname: '/expediente/[tipoId]', params: { tipoId: String(doc.id) } })}
-                      style={[styles.docRow, index === arr.length - 1 && styles.docRowLast]}>
-                      <Text style={styles.docLabel} numberOfLines={1}>
-                        {doc.nombre}
-                      </Text>
-                      <DocumentStatusBadge status={doc.estado} />
-                      <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
-                    </PressableScale>
+                    />
                   ))}
-              </Card>
+              </View>
             </FadeInView>
 
             {pendingDocs.length > 0 ? (
@@ -140,25 +132,8 @@ const styles = StyleSheet.create({
     color: Colors.text,
     marginBottom: Spacing.md,
   },
-  docRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  docList: {
     gap: Spacing.sm,
-    paddingBottom: Spacing.md,
-    marginBottom: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.divider,
-  },
-  docRowLast: {
-    borderBottomWidth: 0,
-    marginBottom: 0,
-    paddingBottom: 0,
-  },
-  docLabel: {
-    flex: 1,
-    fontSize: FontSize.sm,
-    fontWeight: '600',
-    color: Colors.text,
   },
   pendingHint: {
     fontSize: FontSize.xs,
