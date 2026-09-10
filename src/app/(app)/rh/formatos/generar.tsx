@@ -21,17 +21,48 @@ import { slugifyFilename } from '@/utils/formatters';
 import { haptics } from '@/utils/haptics';
 
 /**
+ * `preparar`/`generar`/`generados/{id}/preview` NO existen todavía en el
+ * backend real (confirmado contra `routes/api.php` — solo catálogo +
+ * descarga de lo ya generado, ver `docs/BACKEND_GAPS_FINAL.md`). El wizard
+ * de abajo queda completo y compilando para el día que existan, pero esta
+ * pantalla nunca debe dejar a RH pulsar una acción que hoy solo puede
+ * responder 404 — ninguna navegación real de la app enlaza aquí (ver
+ * `rh/formatos/index.tsx` y `rh/colaboradores/[id].tsx`), y esta bandera
+ * es una segunda barrera por si algún día se alcanza por deep link directo.
+ */
+const GENERACION_MOVIL_DISPONIBLE = false;
+
+export default function RhFormatoGenerarScreen() {
+  const router = useRouter();
+
+  // Nunca condicionar hooks a esta bandera (rules-of-hooks): el wizard real
+  // vive en un componente hijo separado (`FormatoGenerarWizard`) que solo
+  // se monta cuando `GENERACION_MOVIL_DISPONIBLE` es `true`.
+  if (!GENERACION_MOVIL_DISPONIBLE) {
+    return (
+      <View style={styles.container}>
+        <AppHeader title="Generar documento" showBack onBackPress={() => router.back()} />
+        <View style={styles.resultWrapper}>
+          <Ionicons name="construct-outline" size={40} color={Colors.textMuted} />
+          <Text style={styles.resultTitle}>Todavía no disponible desde el celular</Text>
+          <Text style={styles.resultSubtitle}>Genera este documento desde el panel web de MR. LANA PEOPLE por ahora.</Text>
+          <Button title="Regresar" onPress={() => router.back()} style={styles.resultButton} />
+        </View>
+      </View>
+    );
+  }
+
+  return <FormatoGenerarWizard />;
+}
+
+/**
  * Wizard corto de generación de formato (AGENTS.md de este encargo,
  * secciones 42-44): seleccionar formato → prellenar → revisar faltantes →
- * vista previa → generar → descargar. GAP DE BACKEND: `POST
- * /rh/formatos/{formato}/generar` todavía no existe en capacitaciones — el
- * flujo queda completo y listo, la única diferencia es que hoy termina en
- * un error 404 manejado (mensaje claro, nunca un crash), ver
- * `docs/BACKEND_GAPS_FINAL.md`. Los valores capturados aquí (`overrides`)
- * NUNCA se guardan en el perfil del colaborador — solo viajan en el body de
- * `generar()` (sección 44).
+ * vista previa → generar → descargar. Separado del export default para
+ * respetar rules-of-hooks: solo se monta cuando la generación móvil está
+ * habilitada.
  */
-export default function RhFormatoGenerarScreen() {
+function FormatoGenerarWizard() {
   const router = useRouter();
   const { formato: formatoParam, colaborador: colaboradorParam } = useLocalSearchParams<{ formato?: string; colaborador?: string }>();
 
@@ -171,8 +202,8 @@ export default function RhFormatoGenerarScreen() {
 }
 
 function FormatoPickerStep({ onSelect, onBack }: { onSelect: (id: string) => void; onBack: () => void }) {
-  const { data, isLoading, isError, error, refetch } = useRhFormatos({}, true);
-  const formatos = data?.data ?? [];
+  const { data, isLoading, isError, error, refetch } = useRhFormatos(true);
+  const formatos = data ?? [];
 
   return (
     <View style={styles.container}>

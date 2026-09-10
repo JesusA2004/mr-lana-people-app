@@ -14,7 +14,11 @@ import { SecurityWatermark } from './SecurityWatermark';
 import { SkeletonBlock } from './SkeletonBlock';
 
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { API_URL } from '@/constants/config';
+import { useAuthStore } from '@/store/authStore';
+import { extensionForSniffedType, sniffFileType } from '@/utils/fileSniff';
 import { getErrorMessage, logError } from '@/utils/errors';
+import { uniqueTempFileName } from '@/utils/tempFileName';
 
 export interface SecureDocumentViewerProps {
   /** Ruta relativa a la API (ej. `rhDocumentosApi.verPath(id)`) — nunca una URL absoluta expuesta al cliente. */
@@ -31,27 +35,26 @@ export interface SecureDocumentViewerProps {
   /**
    * true solo cuando el backend ya autorizó descarga para este documento
    * concreto (`puede_descargar`/`acciones_permitidas` incluye `"download"`)
-   * — nunca un botón "Descargar" incondicional (sección 33: RH nunca
-   * descarga documentos internos por defecto). Reutiliza el archivo ya
-   * descargado para el visor: abre el sheet nativo de compartir/guardar
+   * — nunca un botón de guardar/compartir incondicional (sección 33: RH
+   * nunca descarga documentos internos por defecto). Reutiliza el archivo
+   * ya descargado para el visor: abre el sheet nativo de compartir/guardar
    * (`expo-sharing`) en vez de una segunda descarga.
    */
   allowDownload?: boolean;
   /**
    * Nombre BASE (sin extensión) sugerido al guardar/compartir — la
-   * extensión siempre es la real, detectada por `Content-Type` (sección
-   * 73: nunca exponer UUID/ruta del NAS ni confiar en una extensión que no
-   * se verificó). Usar `slugifyFilename()` para construirlo.
+   * extensión siempre es la real, detectada por firma binaria del archivo
+   * (sección 73: nunca exponer UUID/ruta del NAS ni confiar en una
+   * extensión que no se verificó). Usar `slugifyFilename()` para
+   * construirlo.
    */
   downloadFileName?: string;
 }
 
-function extensionForMime(mime: string): string {
-  if (mime.includes('pdf')) return 'pdf';
-  if (mime.includes('png')) return 'png';
-  if (mime.includes('jpeg') || mime.includes('jpg')) return 'jpg';
-  return 'bin';
-}
+/** Clave PROPIA de protección de captura — nunca la del hook global (`useAppPrivacyProtection`), para que ninguno libere la protección del otro por accidente (ver `expo-screen-capture`: las claves llevan cuenta independiente, `allowScreenCaptureAsync` de una clave nunca apaga la de otra mientras siga activa). */
+const DOCUMENT_VIEWER_PROTECTION_KEY = 'mrlana-secure-document-viewer';
+
+type ViewerStatus = 'loading' | 'ready' | 'error' | 'unsupported';
 
 /**
  * Visor seguro reutilizable (AGENTS.md sección 11, generalizado en la
@@ -61,45 +64,87 @@ function extensionForMime(mime: string): string {
  * opcional, y descarga opcional solo cuando el backend la autoriza
  * explícitamente. Usado por expediente colaborador/RH, adjuntos de
  * solicitud RH, formatos generados, documentos laborales y recibos de
- * nómina — un solo componente, nunca duplicado por tipo de documento. El
- * archivo se escribe a un temporal en `Paths.cache` solo para poder
- * pintarlo (Image/WebView necesitan una URI) y se borra al cerrar — nunca
- * queda persistido.
+ * nómina — un solo componente, nunca duplicado por tipo de documento.
+ *
+ * Descarga a disco (auditoría de integración — "ARCHIVOS GRANDES"):
+ * en vez de pedir el archivo completo como `ArrayBuffer` en JS (costoso en
+ * memoria para PDFs de varios MB) se usa `File.createDownloadTask` de
+ * expo-file-system — el cuerpo de la respuesta se escribe directo a disco
+ * desde nativo, sin pasar por un buffer de JS completo. Como esa API
+ * nativa no expone el status HTTP ni los headers de la respuesta, primero
+ * se hace un `HEAD` con el cliente axios normal (mismos interceptores de
+ * siempre: 401 real cierra sesión, 403/404/etc. se normalizan igual que en
+ * el resto de la app) — si el HEAD falla, nunca se llega a descargar nada.
+ * El tipo de archivo se determina leyendo la firma binaria del archivo YA
+ * en disco (nunca confiar en `Content-Type` ni en la extensión del
+ * título), y el archivo se renombra a su extensión real antes de
+ * mostrarlo — necesario para que el visor de PDF nativo de Android/iOS
+ * reconozca `file://...pdf` dentro del WebView.
  */
 export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, allowDownload = false, downloadFileName }: SecureDocumentViewerProps) {
-  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const token = useAuthStore((state) => state.token);
+  const [status, setStatus] = useState<ViewerStatus>('loading');
   const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined);
   const [fileUri, setFileUri] = useState<string | null>(null);
-  const [mimeType, setMimeType] = useState('');
+  const [sniffedType, setSniffedType] = useState<'pdf' | 'png' | 'jpeg' | null>(null);
   const [sharing, setSharing] = useState(false);
 
   useEffect(() => {
-    void ScreenCapture.preventScreenCaptureAsync();
+    void ScreenCapture.preventScreenCaptureAsync(DOCUMENT_VIEWER_PROTECTION_KEY);
     return () => {
-      void ScreenCapture.allowScreenCaptureAsync();
+      void ScreenCapture.allowScreenCaptureAsync(DOCUMENT_VIEWER_PROTECTION_KEY);
     };
   }, []);
 
   useEffect(() => {
     let cancelled = false;
-    let localFile: File | null = null;
+    let downloadedFile: File | null = null;
     const controller = new AbortController();
 
     (async () => {
       setStatus('loading');
       try {
-        const response = await apiClient.get(path, { responseType: 'arraybuffer', signal: controller.signal });
+        // 1) Chequeo de acceso vía axios (mismo pipeline de interceptores
+        // que el resto de la app: 401 real → cierra sesión, no un timeout
+        // ni un error de red; 403/404/etc. → mensaje normalizado). Laravel
+        // registra HEAD automáticamente para toda ruta GET, así que corre
+        // las mismas verificaciones de permiso/alcance del controlador
+        // antes de que el body se genere.
+        await apiClient.head(path, { signal: controller.signal });
         if (cancelled) return;
 
-        const contentType = (response.headers?.['content-type'] as string | undefined) ?? 'application/octet-stream';
-        const extension = extensionForMime(contentType);
-        const filename = downloadFileName ? `${downloadFileName}.${extension}` : `mrlana-doc-${Date.now()}.${extension}`;
-        localFile = new File(Paths.cache, filename);
-        localFile.create();
-        localFile.write(new Uint8Array(response.data as ArrayBuffer));
+        // 2) Descarga real, directo a disco, sin ArrayBuffer completo en JS.
+        const tempFile = new File(Paths.cache, uniqueTempFileName('bin'));
+        const task = File.createDownloadTask(`${API_URL}${path}`, tempFile, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          signal: controller.signal,
+        });
+        const downloaded = await task.downloadAsync();
+        if (cancelled) return;
+        if (!downloaded || downloaded.size === 0) {
+          throw new Error('El archivo descargado está vacío.');
+        }
+        downloadedFile = downloaded;
 
-        setMimeType(contentType);
-        setFileUri(localFile.uri);
+        // 3) Nunca confiar en extensión/Content-Type: se reconoce el tipo
+        // real por firma binaria, leyendo solo los primeros bytes.
+        const head = new Uint8Array(await downloaded.slice(0, 8).arrayBuffer());
+        const sniffed = sniffFileType(head);
+
+        if (sniffed === 'unknown') {
+          setStatus('unsupported');
+          return;
+        }
+
+        // 4) Renombra a la extensión real (necesario para que el WebView
+        // reconozca un PDF local por su extensión).
+        const finalFile = new File(Paths.cache, uniqueTempFileName(extensionForSniffedType(sniffed)));
+        await downloaded.move(finalFile);
+        downloadedFile = finalFile;
+
+        if (cancelled) return;
+        setSniffedType(sniffed);
+        setFileUri(finalFile.uri);
         setStatus('ready');
       } catch (error) {
         if (cancelled) return;
@@ -117,22 +162,20 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
       // termine en segundo plano (AGENTS.md: "requests sin cancelar").
       controller.abort();
       try {
-        localFile?.delete();
+        downloadedFile?.delete();
       } catch {
         // No crítico: el sistema operativo limpia `Paths.cache` eventualmente.
       }
     };
-  }, [path, downloadFileName]);
+  }, [path, token]);
 
-  const isPdf = mimeType.includes('pdf');
-
-  const handleDownload = async () => {
+  const handleSaveOrShare = async () => {
     if (!fileUri) return;
     setSharing(true);
     try {
       const available = await Sharing.isAvailableAsync();
       if (!available) {
-        logError('SecureDocumentViewer.download', new Error('Sharing no disponible en este dispositivo'));
+        logError('SecureDocumentViewer.saveOrShare', new Error('Sharing no disponible en este dispositivo'));
         return;
       }
       // No hay una API de "Descargar a la carpeta de descargas" multiplataforma
@@ -140,13 +183,31 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
       // compartir/guardar es el mecanismo estándar de Expo para esto (deja
       // elegir "Guardar en archivos"/galería). Nunca se expone el Bearer
       // token ni la ruta física: el archivo ya está en el temporal local.
-      await Sharing.shareAsync(fileUri, { mimeType: mimeType || undefined, dialogTitle: title });
+      // El botón dice "Guardar o compartir" (nunca "Descargar") porque
+      // eso es exactamente lo que hace esta acción.
+      let shareUri = fileUri;
+      if (downloadFileName && sniffedType) {
+        // Sharing.shareAsync usa el nombre del archivo tal cual está en
+        // disco — se copia a un nombre legible sugerido justo antes de
+        // compartir, nunca se usa ese nombre como path de trabajo interno
+        // (ver `uniqueTempFileName`).
+        const suggested = new File(Paths.cache, `${downloadFileName}.${extensionForSniffedType(sniffedType)}`);
+        try {
+          await new File(fileUri).copy(suggested);
+          shareUri = suggested.uri;
+        } catch {
+          // Si falla la copia (nombre inválido, etc.), comparte el archivo original.
+        }
+      }
+      await Sharing.shareAsync(shareUri, { dialogTitle: title });
     } catch (error) {
-      logError('SecureDocumentViewer.download', error);
+      logError('SecureDocumentViewer.saveOrShare', error);
     } finally {
       setSharing(false);
     }
   };
+
+  const isPdf = sniffedType === 'pdf';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -157,12 +218,12 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
         <View style={styles.headerActions}>
           {allowDownload && status === 'ready' && fileUri ? (
             <Button
-              title="Descargar"
+              title="Guardar o compartir"
               variant="ghost"
-              onPress={() => void handleDownload()}
+              onPress={() => void handleSaveOrShare()}
               loading={sharing}
               fullWidth={false}
-              leftIcon="download-outline"
+              leftIcon="share-outline"
               style={styles.closeButton}
             />
           ) : null}
@@ -177,6 +238,11 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
           </View>
         ) : status === 'error' ? (
           <ErrorState message={errorMessage} />
+        ) : status === 'unsupported' ? (
+          <View style={styles.unsupportedBox}>
+            <Text style={styles.unsupportedText}>Este archivo no puede previsualizarse.</Text>
+            {allowDownload ? <Text style={styles.unsupportedHint}>Puedes guardarlo o compartirlo con &ldquo;Guardar o compartir&rdquo;.</Text> : null}
+          </View>
         ) : fileUri && isPdf ? (
           <WebView
             source={{ uri: fileUri }}
@@ -192,6 +258,14 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
 
         {status === 'ready' && watermarkLabel ? <SecurityWatermark label={watermarkLabel} /> : null}
       </View>
+
+      {/* El botón de descarga cuando el archivo no pudo previsualizarse vive
+          fuera del `viewerArea` para no competir con el mensaje de arriba. */}
+      {status === 'unsupported' && allowDownload && fileUri ? (
+        <View style={styles.unsupportedActions}>
+          <Button title="Guardar o compartir" onPress={() => void handleSaveOrShare()} loading={sharing} leftIcon="share-outline" />
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -238,5 +312,29 @@ const styles = StyleSheet.create({
   },
   image: {
     flex: 1,
+  },
+  unsupportedBox: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.xl,
+    gap: Spacing.sm,
+  },
+  unsupportedText: {
+    fontSize: FontSize.md,
+    fontWeight: '700',
+    color: Colors.white,
+    textAlign: 'center',
+  },
+  unsupportedHint: {
+    fontSize: FontSize.sm,
+    color: 'rgba(255,255,255,0.7)',
+    textAlign: 'center',
+  },
+  unsupportedActions: {
+    padding: Spacing.lg,
+    backgroundColor: Colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
   },
 });

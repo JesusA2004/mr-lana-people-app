@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import * as SecureStore from 'expo-secure-store';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -13,9 +14,10 @@ import { ErrorState } from '@/components/ErrorState';
 import { Input } from '@/components/Input';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { REMEMBERED_EMAIL_KEY } from '@/constants/config';
 import { useAuthStore } from '@/store/authStore';
 import type { InvitacionValida } from '@/types/invitation';
-import { getErrorMessage, getValidationErrors, logError } from '@/utils/errors';
+import { getErrorMessage, getValidationErrors, logError, normalizeError } from '@/utils/errors';
 
 const registroSchema = z
   .object({
@@ -63,6 +65,19 @@ export default function IncorporacionQrScreen() {
   const [invitacion, setInvitacion] = useState<InvitacionValida | null>(null);
   const [invalidReason, setInvalidReason] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  /**
+   * Caso crítico (auditoría de integración — "INCORPORACIÓN QR"): si
+   * `POST registrar` sí creó la cuenta en el backend pero la respuesta se
+   * perdió por la red antes de llegar al teléfono, la app no puede saber
+   * si la cuenta existe o no. Reintentar el mismo formulario normalmente
+   * fallaría (el token de invitación ya quedó "usado" del lado del
+   * backend) y dejaría a la persona en un loop confuso — en vez de eso, un
+   * error DE RED (nunca un 422/409 real, esos sí significan que el
+   * backend respondió y el registro falló de verdad) durante el envío
+   * muestra una recuperación explícita: intentar iniciar sesión con lo que
+   * ya capturó, en vez de insistir en crear otra cuenta.
+   */
+  const [registrationAmbiguous, setRegistrationAmbiguous] = useState<{ email: string } | null>(null);
 
   const [retryTick, setRetryTick] = useState(0);
 
@@ -124,7 +139,10 @@ export default function IncorporacionQrScreen() {
   const onSubmit = async (values: RegistroFormValues) => {
     if (!token) return;
     setFormError(null);
+    setRegistrationAmbiguous(null);
+    let requestSent = false;
     try {
+      requestSent = true;
       const response = await incorporacionInvitacionApi.registrar(token, {
         name: values.name.trim(),
         apellidos: values.apellidos?.trim() || undefined,
@@ -147,6 +165,17 @@ export default function IncorporacionQrScreen() {
       // en _layout.tsx) muestre onboarding o (app) automáticamente.
     } catch (error) {
       logError('incorporacionInvitacion.registrar', error);
+      const { isNetworkError } = normalizeError(error);
+
+      // Solo un error DE RED (la petición nunca obtuvo respuesta) es
+      // ambiguo — un 422/409/etc. real significa que el backend sí
+      // respondió y el registro de verdad no se completó, ahí el mensaje
+      // normal de validación sigue siendo correcto.
+      if (requestSent && isNetworkError) {
+        setRegistrationAmbiguous({ email: values.email.trim() });
+        return;
+      }
+
       const validation = getValidationErrors(error);
       const firstValidationMessage = validation ? Object.values(validation)[0]?.[0] : undefined;
       setFormError(firstValidationMessage ?? getErrorMessage(error));
@@ -174,6 +203,26 @@ export default function IncorporacionQrScreen() {
               <Text style={styles.invalidTitle}>No podemos continuar</Text>
               <Text style={styles.invalidText}>{invalidReason}</Text>
               <Button title="Ir a inicio de sesión" variant="outline" onPress={() => router.replace('/(auth)/login')} style={{ marginTop: Spacing.md }} />
+            </Card>
+          ) : registrationAmbiguous ? (
+            <Card style={styles.invalidCard}>
+              <Text style={styles.invalidTitle}>Tu registro pudo haberse completado</Text>
+              <Text style={styles.invalidText}>
+                Perdimos la conexión justo al crear tu cuenta con {registrationAmbiguous.email}. Es posible que ya haya quedado lista — intenta
+                iniciar sesión antes de registrarte de nuevo.
+              </Text>
+              <Button
+                title="Intentar iniciar sesión"
+                onPress={() => {
+                  // Reutiliza el mismo mecanismo de "correo recordado" que
+                  // ya prellena login.tsx — no hace falta un param de ruta
+                  // dedicado para esto.
+                  void SecureStore.setItemAsync(REMEMBERED_EMAIL_KEY, registrationAmbiguous.email).catch(() => {});
+                  router.replace('/(auth)/login');
+                }}
+                style={{ marginTop: Spacing.md }}
+              />
+              <Button title="Reintentar registro" variant="outline" onPress={() => setRegistrationAmbiguous(null)} style={{ marginTop: Spacing.sm }} />
             </Card>
           ) : invitacion ? (
             <View style={styles.form}>

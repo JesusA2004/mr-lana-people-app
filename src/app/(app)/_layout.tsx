@@ -24,7 +24,7 @@ import { useExperienceStore } from '@/store/experienceStore';
 import { usePendingNavigationStore } from '@/store/pendingNavigationStore';
 import { canUseRhExperience } from '@/utils/capabilities';
 import { getErrorMessage } from '@/utils/errors';
-import { isFeatureEnabled } from '@/utils/featureFlags';
+import { isExperimentalFeatureEnabled, isFeatureEnabled } from '@/utils/featureFlags';
 
 /**
  * Este layout SOLO se monta cuando `isAuthenticated` es verdadero (ver
@@ -53,10 +53,14 @@ export default function AppLayout() {
   // AGENTS.md sección 16 ("feature flags... las rutas profundas también
   // deben manejarlo"): mientras el bootstrap no ha resuelto se asume
   // habilitado (fail-open, ver `isFeatureEnabled`) para no ocultar nada de
-  // golpe antes de tiempo.
+  // golpe antes de tiempo — módulos CORE ya existentes.
   const cumpleanosEnabled = isFeatureEnabled(bootstrap.data?.features, 'cumpleanos');
   const incorporacionEnabled = isFeatureEnabled(bootstrap.data?.features, 'incorporacion');
-  const documentosLaboralesEnabled = isFeatureEnabled(bootstrap.data?.features, 'documentos_laborales');
+  // Documentos laborales es un módulo EXPERIMENTAL sin backend real todavía
+  // (`GET /colaborador/documentos-laborales` sigue sin existir, ver
+  // docs/BACKEND_GAPS_FINAL.md) — fail-CLOSED: ausente = oculto, nunca
+  // mostrar un módulo que solo puede responder 404.
+  const documentosLaboralesEnabled = isExperimentalFeatureEnabled(bootstrap.data?.features, 'documentos_laborales');
 
   const birthday = useBirthdayGreeting(cumpleanosEnabled);
   useBirthdayAutoCelebration(cumpleanosEnabled ? birthday.data : null);

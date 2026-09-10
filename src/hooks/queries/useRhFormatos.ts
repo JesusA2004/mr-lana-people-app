@@ -1,21 +1,24 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { queryKeys } from '@/api/queryKeys';
-import { rhFormatosApi, type GenerarFormatoPayload, type RhFormatosParams } from '@/api/rh/formatos';
+import { rhFormatosApi, type GenerarFormatoPayload } from '@/api/rh/formatos';
 
-export function useRhFormatos(params: RhFormatosParams, enabled: boolean) {
+/** `GET /rh/formatos` — arreglo plano, sin paginación ni filtros de query (ver `rhFormatosApi.list`). */
+export function useRhFormatos(enabled: boolean) {
   return useQuery({
-    queryKey: queryKeys.rhFormatos(params as Record<string, unknown>),
-    queryFn: () => rhFormatosApi.list(params),
+    queryKey: queryKeys.rhFormatos(),
+    queryFn: () => rhFormatosApi.list(),
     enabled,
   });
 }
 
-/**
- * `GET .../preparar` — solo se dispara cuando ya se eligió formato +
- * colaborador (AGENTS.md de este encargo, sección 43: "nunca mandar
- * Generate a ciegas", esta consulta es justo el paso previo).
- */
+// -----------------------------------------------------------------------------
+// Contrato PROPUESTO, aún no implementado en el backend real — ver
+// `src/api/rh/formatos.ts` y `docs/BACKEND_GAPS_FINAL.md`. Se mantienen
+// estos hooks solo para que `rh/formatos/generar.tsx` compile; nada en la
+// navegación real de la app los invoca.
+// -----------------------------------------------------------------------------
+
 export function useRhFormatoPreparation(formatoId: string | number | undefined, colaboradorId: string | number | undefined) {
   return useQuery({
     queryKey: queryKeys.rhFormatoPreparation(formatoId ?? '', colaboradorId ?? ''),
@@ -30,7 +33,6 @@ export function useRhFormatoGenerar() {
     mutationFn: ({ formatoId, payload }: { formatoId: string | number; payload: GenerarFormatoPayload }) =>
       rhFormatosApi.generar(formatoId, payload),
     onSuccess: () => {
-      // Un formato recién generado puede afectar contadores del expediente/bootstrap del colaborador.
       void queryClient.invalidateQueries({ queryKey: queryKeys.rhFormatos() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.bootstrap });
     },

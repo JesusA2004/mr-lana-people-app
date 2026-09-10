@@ -1,34 +1,92 @@
 /**
- * Formatos automáticos RH (contratos, cartas, constancias, recibos) —
- * contrato AÚN NO IMPLEMENTADO en capacitaciones (confirmado: no existe
- * `routes/api.php` ni controlador de "formatos" al momento de escribir este
- * cliente). Se implementa completo contra el contrato acordado — ver
- * `docs/BACKEND_GAPS_FINAL.md`.
+ * Catálogo de formatos automáticos RH + descarga de lo ya generado — espejo
+ * EXACTO de `App\Services\Formatos\FormatoCatalogoService::listar()` +
+ * `App\Http\Controllers\Api\V1\Rh\FormatoController` en capacitaciones
+ * (confirmado contra el código fuente real el 2026-09-10, commit
+ * `34a8132`). El backend YA implementa catálogo + descarga (DOCX/PDF) —
+ * auditoría anterior lo daba como gap completo, eso estaba desactualizado.
+ * Generar un documento nuevo y su vista previa con variables faltantes
+ * siguen solo en el panel web (`Rh\FormatoController` docblock: "requieren
+ * un flujo de selección/edición más largo del que tiene sentido en la
+ * app... aquí RH solo consulta el catálogo y descarga lo ya generado").
  */
 
-export type FormatoTipo = 'contrato' | 'solicitud' | 'recibo_nomina' | 'carta' | 'constancia' | 'otro';
 export type FormatoOutput = 'pdf' | 'docx';
-export type FormatoAction = 'ver' | 'generar' | 'preview' | (string & {});
 
+/**
+ * Valores reales de `App\Enums\TipoPlantillaDocumento` — closed set con
+ * passthrough para forward-compat si el backend agrega un tipo nuevo. La
+ * app nunca decide el texto a mostrar por este valor: siempre usa
+ * `tipo_etiqueta`, que ya viene traducido desde el backend.
+ */
+export type FormatoTipo =
+  | 'contrato'
+  | 'aviso_privacidad'
+  | 'consentimiento_datos'
+  | 'carta_confidencialidad'
+  | 'formato_permiso'
+  | 'formato_vacaciones'
+  | 'formato_incapacidad'
+  | 'formato_alta'
+  | 'formato_baja'
+  | 'constancia_laboral'
+  | 'actualizacion_datos'
+  | 'reposicion_documental'
+  | 'solicitud_general'
+  | 'resguardo'
+  | 'acuse'
+  | 'otro'
+  | (string & {});
+
+/**
+ * Entrada real de `GET /rh/formatos` (`FormatoCatalogoService::listar()`).
+ * NO trae `clave`, `formatos_salida`, `variables_requeridas` ni
+ * `acciones_permitidas` — esos campos eran parte de un contrato
+ * especulativo de una auditoría anterior que nunca existió en el backend
+ * real. `variables` son los placeholders detectados dentro del DOCX
+ * (informativo, no hay UI de generación móvil hoy). El permiso que
+ * controla ver el catálogo es `plantillas.ver` (autorización backend, no
+ * algo que la app deba replicar).
+ */
 export interface RhFormato {
   id: number;
-  clave: string;
   nombre: string;
-  descripcion?: string | null;
   tipo: FormatoTipo;
-  formatos_salida: FormatoOutput[];
-  variables_requeridas: string[];
-  acciones_permitidas: FormatoAction[];
+  tipo_etiqueta: string;
+  descripcion: string | null;
+  variables: string[];
+  veces_generado: number;
+  ultimo_uso: string | null;
 }
+
+// ---------------------------------------------------------------------------
+// Contrato PROPUESTO para generación móvil — AÚN NO IMPLEMENTADO en el
+// backend real (confirmado: no existen `preparar`/`generar`/`generados/
+// {id}/preview` en `routes/api.php`). Se mantienen estos tipos y el wizard
+// (`src/app/(app)/rh/formatos/generar.tsx`) preparados mas NO alcanzables
+// desde ninguna navegación real de la app — ver `docs/BACKEND_GAPS_FINAL.md`.
+// ---------------------------------------------------------------------------
 
 export interface FormatoMissingField {
   field: string;
   label: string;
 }
 
-/** `GET /rh/formatos/{formato}/preparar?colaborador_id=` — valores prellenados desde el expediente, nunca editables permanentemente aquí (sección 44: los overrides nunca tocan el perfil). */
+/**
+ * Shape especulativa del formato dentro de `FormatoPreparation` — distinta
+ * de `RhFormato` (el catálogo real) porque el contrato propuesto para
+ * `preparar` incluye campos (`formatos_salida`) que el catálogo real nunca
+ * mandó. Mantenida separada para no mezclar el contrato real con el
+ * propuesto.
+ */
+export interface FormatoPreparationFormato {
+  id: number;
+  nombre: string;
+  formatos_salida: FormatoOutput[];
+}
+
 export interface FormatoPreparation {
-  formato: RhFormato;
+  formato: FormatoPreparationFormato;
   colaborador: {
     id: number;
     nombre: string;

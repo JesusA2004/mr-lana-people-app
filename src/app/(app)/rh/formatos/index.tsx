@@ -1,58 +1,61 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AppHeader } from '@/components/AppHeader';
 import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
 import { MascotAssistant } from '@/components/mascot/MascotAssistant';
-import { PressableScale } from '@/components/PressableScale';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 import { useRhFormatos } from '@/hooks/queries/useRhFormatos';
-import type { FormatoTipo, RhFormato } from '@/types/formato';
+import type { RhFormato } from '@/types/formato';
+import { formatDateShort } from '@/utils/dates';
 import { getErrorMessage } from '@/utils/errors';
-
-const TIPOS: { label: string; value: FormatoTipo | 'todos' }[] = [
-  { label: 'Todos', value: 'todos' },
-  { label: 'Contratos', value: 'contrato' },
-  { label: 'Solicitudes', value: 'solicitud' },
-  { label: 'Recibos', value: 'recibo_nomina' },
-  { label: 'Cartas', value: 'carta' },
-  { label: 'Constancias', value: 'constancia' },
-];
 
 const TIPO_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
   contrato: 'document-text-outline',
-  solicitud: 'create-outline',
-  recibo_nomina: 'cash-outline',
-  carta: 'mail-outline',
-  constancia: 'ribbon-outline',
+  aviso_privacidad: 'shield-checkmark-outline',
+  consentimiento_datos: 'shield-checkmark-outline',
+  carta_confidencialidad: 'mail-outline',
+  formato_permiso: 'exit-outline',
+  formato_vacaciones: 'airplane-outline',
+  formato_incapacidad: 'medkit-outline',
+  formato_alta: 'person-add-outline',
+  formato_baja: 'person-remove-outline',
+  constancia_laboral: 'ribbon-outline',
+  actualizacion_datos: 'create-outline',
+  reposicion_documental: 'refresh-outline',
+  solicitud_general: 'document-text-outline',
+  resguardo: 'lock-closed-outline',
+  acuse: 'checkmark-done-outline',
   otro: 'document-outline',
 };
 
 /**
  * Catálogo de formatos automáticos RH (AGENTS.md de este encargo, sección
- * 13). GAP DE BACKEND: `GET /rh/formatos` todavía no existe en
- * capacitaciones — esta pantalla queda lista y muestra un estado claro (no
- * un crash) mientras el backend no despliegue la ruta, ver
- * `docs/BACKEND_GAPS_FINAL.md`.
+ * 13) — espejo EXACTO de `FormatoCatalogoService::listar()` en
+ * capacitaciones, YA IMPLEMENTADO en el backend real. Solo lectura: el
+ * backend real solo ofrece a móvil catálogo + descarga de lo YA generado
+ * (generar/preparar/preview siguen solo en el panel web, ver
+ * `docs/BACKEND_GAPS_FINAL.md`) — por eso ninguna fila navega a ningún
+ * lado todavía; mostrar el catálogo como referencia (nombre, tipo, cuántas
+ * veces se ha generado, último uso) sin prometer una acción que hoy daría
+ * 404. El filtro por texto es enteramente local (el backend no acepta
+ * ningún query param en `index()`), nunca se manda al servidor.
  */
 export default function RhFormatosListScreen() {
   const router = useRouter();
-  const [tipo, setTipo] = useState<FormatoTipo | 'todos'>('todos');
-  const [searchInput, setSearchInput] = useState('');
   const [q, setQ] = useState('');
 
-  useEffect(() => {
-    const handle = setTimeout(() => setQ(searchInput.trim()), 300);
-    return () => clearTimeout(handle);
-  }, [searchInput]);
-
-  const params = useMemo(() => ({ tipo: tipo === 'todos' ? undefined : tipo, q: q || undefined }), [tipo, q]);
-  const { data, isLoading, isError, error, refetch, isRefetching } = useRhFormatos(params, true);
-  const formatos = data?.data ?? [];
+  const { data, isLoading, isError, error, refetch, isRefetching } = useRhFormatos(true);
+  const formatos = useMemo(() => {
+    const all = data ?? [];
+    const query = q.trim().toLowerCase();
+    if (!query) return all;
+    return all.filter((formato) => formato.nombre.toLowerCase().includes(query) || formato.tipo_etiqueta.toLowerCase().includes(query));
+  }, [data, q]);
 
   return (
     <View style={styles.container}>
@@ -61,8 +64,8 @@ export default function RhFormatosListScreen() {
       <View style={styles.searchWrapper}>
         <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
         <TextInput
-          value={searchInput}
-          onChangeText={setSearchInput}
+          value={q}
+          onChangeText={setQ}
           placeholder="Buscar formato"
           placeholderTextColor={Colors.textMuted}
           style={styles.searchInput}
@@ -73,50 +76,34 @@ export default function RhFormatosListScreen() {
       </View>
 
       <FlatList
-        horizontal
-        data={TIPOS}
-        keyExtractor={(item) => item.value}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterRow}
-        renderItem={({ item }) => (
-          <PressableScale
-            haptic={false}
-            accessibilityLabel={item.label}
-            onPress={() => setTipo(item.value)}
-            style={[styles.filterChip, tipo === item.value && styles.filterChipActive] as object}>
-            <Text style={[styles.filterLabel, tipo === item.value && styles.filterLabelActive]}>{item.label}</Text>
-          </PressableScale>
-        )}
-      />
-
-      <FlatList
         data={formatos}
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={styles.listContent}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={Colors.primary} />}
         ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
-        renderItem={({ item }) => (
-          <FormatoRow formato={item} onPress={() => router.push(`/(app)/rh/formatos/generar?formato=${item.id}` as never)} />
-        )}
+        renderItem={({ item }) => <FormatoRow formato={item} />}
         ListEmptyComponent={
           isLoading ? (
             <SkeletonCardList count={4} />
           ) : isError ? (
-            <ErrorState message={getErrorMessage(error)} onRetry={() => void refetch()} devDetail={undefined} />
+            <ErrorState message={getErrorMessage(error)} onRetry={() => void refetch()} />
           ) : (
             <MascotAssistant message="Todavía no hay formatos disponibles." type="tip" dismissible={false} />
           )
         }
       />
+
+      <View style={styles.footerNote}>
+        <Ionicons name="information-circle-outline" size={14} color={Colors.textMuted} />
+        <Text style={styles.footerNoteText}>Generar un documento nuevo todavía solo está disponible desde el panel web.</Text>
+      </View>
     </View>
   );
 }
 
-function FormatoRow({ formato, onPress }: { formato: RhFormato; onPress: () => void }) {
-  const canGenerar = formato.acciones_permitidas.includes('generar');
-
+function FormatoRow({ formato }: { formato: RhFormato }) {
   return (
-    <Card onPress={canGenerar ? onPress : undefined} style={styles.row}>
+    <Card style={styles.row}>
       <View style={styles.rowIcon}>
         <Ionicons name={TIPO_ICON[formato.tipo] ?? 'document-outline'} size={20} color={Colors.primaryDark} />
       </View>
@@ -124,16 +111,20 @@ function FormatoRow({ formato, onPress }: { formato: RhFormato; onPress: () => v
         <Text style={styles.rowTitle} numberOfLines={1}>
           {formato.nombre}
         </Text>
+        <Text style={styles.rowType} numberOfLines={1}>
+          {formato.tipo_etiqueta}
+        </Text>
         {formato.descripcion ? (
           <Text style={styles.rowSubtitle} numberOfLines={2}>
             {formato.descripcion}
           </Text>
         ) : null}
-        {formato.formatos_salida.length > 0 ? (
-          <Text style={styles.rowFormats}>{formato.formatos_salida.map((f) => f.toUpperCase()).join(' · ')}</Text>
-        ) : null}
+        <Text style={styles.rowMeta}>
+          {formato.veces_generado > 0
+            ? `Generado ${formato.veces_generado} ${formato.veces_generado === 1 ? 'vez' : 'veces'}${formato.ultimo_uso ? ` · último uso ${formatDateShort(formato.ultimo_uso)}` : ''}`
+            : 'Sin generar todavía'}
+        </Text>
       </View>
-      {canGenerar ? <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} /> : null}
     </Card>
   );
 }
@@ -161,32 +152,6 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     color: Colors.text,
   },
-  filterRow: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.md,
-    gap: Spacing.sm,
-  },
-  filterChip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginRight: Spacing.sm,
-  },
-  filterChipActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  filterLabel: {
-    fontSize: FontSize.xs,
-    fontWeight: '700',
-    color: Colors.textMuted,
-  },
-  filterLabelActive: {
-    color: Colors.white,
-  },
   listContent: {
     padding: Spacing.lg,
     paddingTop: 0,
@@ -194,7 +159,7 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: Spacing.md,
   },
   rowIcon: {
@@ -215,14 +180,31 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.text,
   },
-  rowSubtitle: {
-    fontSize: FontSize.xs,
-    color: Colors.textMuted,
-  },
-  rowFormats: {
+  rowType: {
     fontSize: FontSize.xs,
     color: Colors.primaryDark,
     fontWeight: '700',
+  },
+  rowSubtitle: {
+    fontSize: FontSize.xs,
+    color: Colors.textMuted,
     marginTop: 2,
+  },
+  rowMeta: {
+    fontSize: FontSize.xs,
+    color: Colors.textMuted,
+    marginTop: 2,
+  },
+  footerNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+  },
+  footerNoteText: {
+    flex: 1,
+    fontSize: FontSize.xs,
+    color: Colors.textMuted,
   },
 });

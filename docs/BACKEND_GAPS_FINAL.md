@@ -1,32 +1,51 @@
 # Discrepancias reales entre la app y `capacitaciones` (backend)
 
 **NO se modificó `capacitaciones` desde esta sesión** (fuera de alcance
-explícito). Este documento solo audita y describe, para que quien tenga
-acceso al backend decida qué hacer. La app ya quedó construida para
-funcionar correctamente el día que cada uno de estos puntos se resuelva —
-ninguno bloquea el uso normal de lo demás hoy: cada endpoint que todavía no
-existe responde 404 y la pantalla correspondiente lo maneja como un estado
-claro ("módulo aún no disponible" / error normal con reintentar), nunca
-como un crash.
+explícito, en las tres auditorías que ha tenido este documento). Este
+documento solo audita y describe, para que quien tenga acceso al backend
+decida qué hacer.
 
-Auditado en modo lectura contra el código fuente real de `capacitaciones`
-(rutas, controladores, servicios, seeders, docs) el 2026-09-10 — sesión de
-extensión "mobile documents intelligence and hr tools" — no contra un
-servidor corriendo, no se ejecutó ningún request de prueba.
+Auditado en modo lectura contra el código fuente REAL de `capacitaciones`
+(rutas, controladores, servicios, modelos, enums, seeders, docs) el
+2026-09-10, commit **`34a8132`** — auditoría de integración real, tercera
+pasada de este documento. Las dos auditorías anteriores (commits previos de
+`capacitaciones`) quedaron **desactualizadas en varios puntos clave**: dos
+gaps que se daban por completos ya estaban parcialmente implementados con
+un contrato *distinto* al descrito (OCR, formatos), y dos gaps de la
+primera auditoría ya se cerraron por completo (landing web del QR, y
+cumpleaños RH). Todo lo de abajo está confirmado contra el código fuente
+real, no contra suposiciones.
 
-**G4 (cumpleaños RH) de la auditoría anterior se cerró**: el backend real
-ya implementa `Rh\CumpleanosController` completo (`GET /rh/cumpleanos`,
-`GET /rh/cumpleanos/{greeting}`, `GET /rh/cumpleanos/{greeting}/imagen`,
-`GET /rh/cumpleanos/{colaborador}/foto`) — la app ya está conectada 1:1
-contra ese contrato real (ver `src/api/rh/cumpleanos.ts`,
-`src/app/(app)/rh/cumpleanos/**`).
+---
+
+## Resumen ejecutivo
+
+| Módulo | Estado real hoy |
+|---|---|
+| Cumpleaños colaborador | ✅ IMPLEMENTADO (sin cambios desde siempre) |
+| Cumpleaños RH (bandeja, detalle, imágenes) | ✅ IMPLEMENTADO |
+| Envío manual de felicitación desde móvil | ❌ FALTA (solo panel web) |
+| Organigrama (`GET /rh/jerarquia-puestos`) | ✅ IMPLEMENTADO |
+| Extracción automática de documentos (OCR) — ver, aplicar, ignorar | ✅ IMPLEMENTADO (contrato distinto al descrito en la auditoría anterior — corregido) |
+| Extracción automática — reprocesar desde móvil | ❌ FALTA (solo panel web) |
+| Catálogo de formatos (`GET /rh/formatos`) | ✅ IMPLEMENTADO (contrato distinto al descrito antes — corregido) |
+| Descarga de formatos ya generados (DOCX/PDF) | 🟡 PARCIAL — la ruta existe, pero no hay forma de descubrir los ids desde móvil (ver G-listado abajo) |
+| Generar/preparar/preview un formato nuevo desde móvil | ❌ FALTA (solo panel web) |
+| Documentos laborales del colaborador | ❌ FALTA (módulo completo) |
+| App Links / Universal Links (verificación de dominio) | ❌ FALTA |
+| Landing web del QR de incorporación | ✅ IMPLEMENTADO (cerrado desde la auditoría anterior) |
+| Adjuntos de solicitud RH (ver contenido) | ❌ FALTA |
+| Listado de documentos generados por colaborador | ❌ FALTA |
+| "Mi equipo" (jefe directo/subordinados) | ❌ FALTA — sin ninguna señal de que se vaya a construir, no se inventó contrato |
 
 ---
 
 ## G1 — App Links / Universal Links sin archivos de verificación de dominio
 
-Sin cambios desde la auditoría anterior — sigue sin existir
-`apple-app-site-association`/`assetlinks.json` en `capacitaciones`.
+**Estado: FALTA.** Sin cambios desde las auditorías anteriores — se buscó
+de nuevo en todo el repositorio (`public/`, `routes/web.php`,
+`.well-known/`) y no existe `apple-app-site-association` ni
+`assetlinks.json`.
 
 **Endpoint esperado:**
 ```
@@ -34,164 +53,189 @@ GET https://people.mr-lana.com/.well-known/apple-app-site-association
 GET https://people.mr-lana.com/.well-known/assetlinks.json
 ```
 
-**Request:** ninguno (archivos estáticos servidos por HTTPS, sin auth).
-
-**Response actual:** no confirmada — no se encontró ninguna ruta ni archivo
-público para estas dos rutas en `capacitaciones` (ni en `routes/api.php` ni
-en `public/`).
-
 **Problema:** `app.json` de la app móvil ya declara `associatedDomains`
-(iOS, `applinks:people.mr-lana.com`) e `intentFilters` (Android,
-`autoVerify: true` sobre `/incorporacion/qr`) para que el QR que ya genera
-RH (`https://people.mr-lana.com/incorporacion/qr/{token}`) abra la app
-directo cuando ya está instalada, en vez de solo el navegador. Sin los dos
-archivos de verificación, iOS/Android nunca confirman que el dominio
-autoriza a la app a interceptar esa URL, y el sistema operativo sigue
-abriendo el navegador siempre — comportamiento normal del sistema
-operativo, no un bug de la app.
+(iOS) e `intentFilters` (Android, `autoVerify: true`) para que el QR de
+incorporación abra la app directo cuando ya está instalada. Sin los dos
+archivos de verificación, el sistema operativo nunca confirma que el
+dominio autoriza a la app a interceptar esa URL y sigue abriendo el
+navegador siempre — comportamiento normal del SO, no un bug de la app.
 
-**Cambio mínimo requerido:**
-- `apple-app-site-association` (sin extensión, `Content-Type:
-  application/json`, sin redirección):
-  ```json
-  { "applinks": { "details": [ { "appID": "<TEAM_ID>.com.mrlana.people", "paths": ["/incorporacion/qr/*"] } ] } }
-  ```
-- `assetlinks.json`:
-  ```json
-  [{
-    "relation": ["delegate_permission/common.handle_all_urls"],
-    "target": { "namespace": "android_app", "package_name": "com.mrlana.people", "sha256_cert_fingerprints": ["<SHA256_DEL_KEYSTORE_DE_FIRMA>"] }
-  }]
-  ```
-  El `sha256_cert_fingerprints` depende del keystore real usado para firmar
-  el build de producción (EAS lo genera/gestiona) — coordinarlo con quien
-  corra `eas build --profile production` la primera vez.
+**Cambio mínimo requerido:** los dos archivos estáticos, con el
+`sha256_cert_fingerprints` real del keystore de producción (EAS lo
+genera/gestiona) para `assetlinks.json`, y el Team ID de Apple real para
+`apple-app-site-association`.
 
 ---
 
-## G2 — Sin landing pública para quien escanea el QR sin tener la app instalada
+## G2 — Landing pública del QR de incorporación
 
-Sin cambios desde la auditoría anterior.
+**Estado: ✅ CERRADO.** La auditoría anterior lo daba como faltante — ya no
+es así. `routes/web.php` registra `GET incorporacion/qr/{token}` →
+`App\Http\Controllers\IncorporacionQrController::show()`, que renderiza
+`Incorporacion/Qr` (Inertia) informando el estado de la invitación
+(válida/vencida/revocada/usada/inválida, siempre `200`, nunca 404/500) e
+intenta abrir la app vía deep link `mrlanapeople://incorporacion/qr/{token}`
+— nota: el backend usa el scheme **legado** (`mrlanapeople`, sin "app") para
+este deep link generado desde la landing, no el canónico
+`mrlanapeopleapp`; la app móvil ya acepta ambos (`app.json` declara los dos
+esquemas, `parseIncorporacionQr` acepta los dos), así que esto funciona sin
+cambios adicionales.
 
-**Endpoint esperado:** `GET https://people.mr-lana.com/incorporacion/qr/{token}` (web, HTML).
-
-**Response actual:** capacitaciones documenta explícitamente
-(`docs/API_MOVIL.md`, sección "Registro por QR temporal") que esa ruta
-"todavía no existe" como página web — la liga que codifica el QR solo la
-consume hoy la API pública (`/api/v1/incorporacion/invitaciones/{token}/
-validar`), pensada para la app móvil.
-
-**Problema:** si alguien escanea el QR con la cámara nativa del teléfono
-(no la de la app) y todavía NO tiene MR. LANA PEOPLE instalada, el
-navegador intenta abrir esa URL y no encuentra nada útil — ni la app (sin
-G1 resuelto) ni una página que lo guíe a instalarla.
-
-**Cambio mínimo requerido:** una landing web mínima en esa ruta con "Instala
-MR. LANA PEOPLE" + enlaces a Play Store/APK de descarga directa (ya existe
-`GET /api/v1/app/releases/latest` para obtener el `download_url` real) y,
-si G1 ya está resuelto, un intento de abrir el deep link antes de mostrar
-la landing. Explícitamente fuera de alcance de esta sesión (repo separado).
+Ya no hace falta ningún cambio aquí salvo que G1 se resuelva para que el
+deep link se dispare automáticamente en vez de depender de que el usuario
+lo confirme.
 
 ---
 
 ## G3 — RH no puede ver el contenido de los adjuntos de una solicitud
 
-Sin cambios desde la auditoría anterior — confirmado de nuevo contra
-`routes/api.php`: `POST {solicitud}/adjuntos` (subir) existe, pero ninguna
-ruta `GET .../adjuntos/{adjunto}/ver`.
+**Estado: FALTA.** Confirmado de nuevo contra `Api\V1\SolicitudController`
+(web) — `POST {solicitud}/adjuntos` (subir) existe; el detalle de una
+solicitud RH (`Api\V1\Rh\SolicitudController::show`) sigue devolviendo
+`adjuntos: [{id, nombre}]` únicamente, sin ninguna ruta para ver el
+contenido — a diferencia de documentos de expediente
+(`rh/documentos/{id}/ver`), que sí tienen streaming autenticado.
 
-**Endpoint esperado:** `GET /api/v1/rh/solicitudes/{solicitud}/adjuntos/{adjunto}/ver` (o equivalente).
-
-**Request:** `Authorization: Bearer <token>`, permiso `rh.solicitudes.ver` o `rh.solicitudes.detalle`.
-
-**Response actual esperada:** el detalle de una solicitud RH
-(`GET /rh/solicitudes/{solicitud}`) sí incluye `adjuntos: [{id, nombre}]`
-(confirmado en `docs/RH_MOBILE_API.md`), pero no existe ninguna ruta
-documentada ni en `routes/api.php` para descargar/ver el contenido de esos
-adjuntos — a diferencia de documentos de expediente
-(`rh/documentos/{id}/ver`, `rh/expedientes/{colaborador}/documentos/
-{documento}/ver`), que sí tienen streaming autenticado.
-
-**Problema:** hoy RH ve el NOMBRE del adjunto (ej. "incapacidad.pdf") en el
-detalle de la solicitud, pero no hay forma de abrirlo — la app
-deliberadamente NO ofrece un botón "Ver" ahí para no prometer una acción
-que no existe, ver `src/app/(app)/rh/solicitudes/[id].tsx`.
+**Endpoint esperado:** `GET /api/v1/rh/solicitudes/{solicitud}/adjuntos/{adjunto}/ver`.
 
 **Cambio mínimo requerido:** una ruta de streaming análoga a
 `rh/documentos/{id}/ver`, reutilizando `DocumentoStorageService::respuesta`
-sobre el modelo de adjunto de solicitud (`solicitud_interna_adjuntos`, ver
-`docs/BACKEND_REQUIREMENTS_V4.md` P1.3 para el modelo de datos). En cuanto
-exista, conectar `SecureDocumentViewer` (generalizado en esta sesión —
-`path`/`allowDownload`/`watermarkLabel` opcional) solo requiere agregar
-`path` a la card de adjunto.
+sobre el modelo de adjunto de la solicitud. En cuanto exista, conectar
+`SecureDocumentViewer` (ya generalizado y reutilizable, con
+`allowDownload`/`watermarkLabel` opcionales) solo requiere agregar `path` a
+la card de adjunto.
 
 ---
 
-## G5 — Sin API móvil de "Formatos" (contratos, cartas, constancias, recibos generados)
+## G4 — Cumpleaños RH móvil
 
-**Endpoints esperados:**
-```
-GET  /api/v1/rh/formatos
-GET  /api/v1/rh/formatos/{formato}/preparar?colaborador_id=
-POST /api/v1/rh/formatos/{formato}/generar
-GET  /api/v1/rh/formatos/generados/{documento}/preview
-GET  /api/v1/rh/formatos/generados/{documento}/descargar
-```
+**Estado: ✅ CERRADO** (ya se había cerrado en la auditoría anterior,
+confirmado de nuevo). `Api\V1\Rh\CumpleanosController` completo:
+`GET /rh/cumpleanos` (con `periodo`/`mes`/`sucursal_id`/`departamento_id`/
+`q`/`page`/`per_page`), `GET /rh/cumpleanos/{greeting}`,
+`GET /rh/cumpleanos/{greeting}/imagen`, `GET /rh/cumpleanos/{colaborador}/foto`.
+La app está conectada 1:1 contra el shape real (`src/api/rh/cumpleanos.ts`,
+`src/app/(app)/rh/cumpleanos/**`).
 
-**Response actual:** no existe — confirmado contra `routes/api.php`: no hay
-ningún controlador/ruta relacionado con "formatos" en capacitaciones hoy.
-`docs/PLANTILLAS_FORMATOS.md` documenta plantillas/formatos en otro
-contexto (no una API móvil de generación). `docs/ROADMAP.md` solo menciona
-"Plantillas y formatos precargados (DOCX)" como punto de roadmap general,
-sin ruta ni controlador todavía.
-
-**Problema:** RH no puede generar un contrato/carta/constancia/recibo
-prellenado desde el celular — el flujo completo (catálogo → preparar con
-datos del expediente → revisar faltantes → generar → vista previa →
-descargar) está construido en la app (`src/api/rh/formatos.ts`,
-`src/app/(app)/rh/formatos/**`) contra el contrato acordado, pero cada
-llamada responde 404 hasta que el backend despliegue las rutas.
-
-**Cambio mínimo requerido:** los cinco endpoints de arriba, con el shape
-exacto documentado en `src/types/formato.ts` (`RhFormato`,
-`FormatoPreparation`, `GeneratedDocument`) — la app queda lista en
-automático en cuanto respondan.
+**Sub-gap real:** el envío manual de felicitación (botón "Enviar
+felicitación") **no existe en la API móvil** — solo en el panel web
+(`/rh/cumpleanos/{colaborador}/felicitacion`, permiso
+`rh.cumpleanos.notificaciones.gestionar`). El detalle móvil tampoco manda
+`acciones_permitidas`, así que el botón "Enviar" en
+`rh/cumpleanos/[id].tsx` nunca se muestra hoy (correcto: aparecerá solo
+si el backend algún día agrega esa acción al recurso).
 
 ---
 
-## G6 — Sin API móvil de extracción automática de documentos (OCR)
+## G5 — Extracción automática de documentos (OCR)
 
-**Endpoints esperados:**
-```
-GET  /api/v1/rh/documentos/{documento}/extraccion
-POST /api/v1/rh/documentos/{documento}/extraccion/aplicar   { fields: {...} }
-POST /api/v1/rh/documentos/{documento}/extraccion/ignorar   { fields?: [...] }
-POST /api/v1/rh/documentos/{documento}/extraccion/reprocesar
-```
+**Estado: ✅ IMPLEMENTADO, contrato de la auditoría anterior INCORRECTO —
+corregido en esta sesión.**
 
-**Response actual:** no existe — confirmado contra `routes/api.php`: no hay
-controlador de extracción/OCR. La app NUNCA hace OCR por su cuenta ni manda
-documentos a un servicio externo — solo consumiría el resultado que ya
-procesó el backend.
+El backend real (`App\Models\DocumentExtraction`, `App\Enums\EstadoExtraccion`,
+`App\Services\Documentos\DocumentExtractionService`,
+`Api\V1\Rh\DocumentoController`) ya implementa ver/aplicar/ignorar. La
+auditoría anterior había construido un cliente completo contra un contrato
+**especulativo e incorrecto** en varios puntos — todos corregidos hoy:
 
-**Problema:** la sección "Análisis automático" del detalle de documento RH
-(`src/app/(app)/rh/documentos/[id].tsx`) está construida completa —
-estado, comparador CURP/RFC/domicilio con nivel de confianza,
-aplicar/ignorar/reprocesar selectivo por campo — pero se oculta sola (no
-hay `extraction.data`) mientras el endpoint responda 404. OCR nunca
-aprueba/rechaza el documento: eso lo sigue decidiendo RH con los botones
-Aprobar/Rechazar existentes, sin relación con esta sección.
+| Punto | Auditoría anterior (incorrecto) | Backend real |
+|---|---|---|
+| Respuesta de `GET .../extraccion` | `DocumentExtraction` plana | `{elegible: boolean, extraccion: DocumentExtraction \| null}` — siempre `200` |
+| Body de `POST .../aplicar` | `{ fields: {...} }` | `{ valores: {curp?, rfc?, nss?, fecha_nacimiento?} }` — `fecha_nacimiento` debe ser `d/m/Y` exacto |
+| Body de `POST .../ignorar` | `{ fields?: [...] }` | sin body, no valida nada |
+| `differences` | arreglo `[{field, label, current_value, detected_value, confidence}]` | diccionario `{campo: {detectado, actual, coincide}}`, sin `label` (la app lo traduce) |
+| `confidence` | número 0-1 por campo | string `'alta'`/`'media'` por campo |
+| `acciones_permitidas` en el recurso | sí | **no existe** — la app ahora decide con los permisos reales de `mobile/bootstrap` (`rh.documentos.extraccion.aplicar`/`.ignorar`) |
+| `reprocesar` desde móvil | sí (ruta especulativa) | **no existe** — confirmado también en `docs/DOCUMENT_EXTRACTION.md`: "Reprocesar solo está disponible en el panel web por ahora" |
 
-**Cambio mínimo requerido:** el endpoint `GET .../extraccion` con el shape
-de `src/types/documentExtraction.ts` (`status`, `datos_detectados`,
-`confidence`, `differences`, `acciones_permitidas`) + las tres acciones
-POST. El push opcional `rh_documento` con `reason: "extraction_review"` (o
-un tipo dedicado `rh_extraccion_documento`) ya está resuelto en
-`src/utils/appLinks.ts` para abrir el documento directo en esta sección.
+**Nota de seguridad:** `App\Models\DocumentExtraction` NO tiene `$hidden`
+sobre `extracted_text` — el JSON real incluye hasta 20,000 caracteres del
+texto crudo del PDF. La app nunca lo copia a su estado normalizado ni lo
+renderiza (ver `normalizeDocumentExtractionResponse`), pero si algún día se
+agrega un endpoint que dependa de auditoría de ese campo, considerar
+ocultarlo del lado backend (`$hidden` o un API Resource dedicado) en vez de
+confiar solo en que ningún cliente lo pinte.
+
+**Decisión de producto de esta auditoría:** aunque el backend ya funciona,
+el módulo queda **oculto en el cliente** (`document_extraction` fail-closed,
+ver sección de feature flags) hasta que `mobile/bootstrap` mande
+`features.document_extraction: true` explícito — para no depender de
+que la app adivine que está listo, sino de una señal explícita del backend.
+
+**Cambio sugerido (no bloqueante):** agregar `features.document_extraction`
+a `MobileBootstrapService::features()` cuando el equipo de backend
+considere el módulo listo para producción móvil.
 
 ---
 
-## G7 — Sin API móvil de "Documentos laborales" del colaborador
+## G6 — Catálogo de formatos y descarga
+
+**Estado: ✅ IMPLEMENTADO (catálogo + descarga), contrato de la auditoría
+anterior INCORRECTO — corregido. Generar/preparar/preview: FALTA.**
+
+`App\Services\Formatos\FormatoCatalogoService::listar()` +
+`Api\V1\Rh\FormatoController` ya existen. Diferencias corregidas hoy:
+
+| Punto | Auditoría anterior (incorrecto) | Backend real |
+|---|---|---|
+| `GET /rh/formatos` | paginado, con `tipo`/`q`/`page` como query params | **arreglo plano sin paginar**, `index()` no lee ningún query param |
+| Campos del catálogo | `clave`, `formatos_salida`, `variables_requeridas`, `acciones_permitidas` | `id`, `nombre`, `tipo`, `tipo_etiqueta`, `descripcion`, `variables` (variables detectadas en el DOCX, informativo), `veces_generado`, `ultimo_uso` — **ninguno de los cuatro campos de la izquierda existe** |
+| Descarga | `GET /rh/formatos/generados/{id}/descargar` | `GET /rh/formatos/{documento}/descargar` y `.../descargar-pdf` — `{documento}` es directo el id de un `GeneratedDocument`, sin el segmento `generados/` |
+| Generar/preparar/preview | se asumían implementados | **el controlador real dice explícitamente** ("Generar un documento nuevo y la vista previa con variables faltantes se quedan solo en el panel web por ahora") |
+
+**Bug crítico corregido:** el cliente anterior hacía
+`formato.acciones_permitidas.includes(...)` sobre un campo que el backend
+real nunca manda — eso hubiera reventado en runtime (`Cannot read property
+'includes' of undefined`) en cuanto el catálogo real respondiera. Se agregó
+`normalizeRhFormato()` con defaults seguros y se quitó cualquier
+`.includes()`/`.map()` sobre esos campos inexistentes.
+
+**Decisión de producto:** `formatos` queda fail-closed (oculto hasta que
+`mobile/bootstrap` mande `features.formatos: true`) — el catálogo/descarga
+SÍ funcionan hoy, pero se mantienen ocultos porque no tiene sentido mostrar
+un catálogo sin ninguna acción alcanzable (ver G7 abajo) hasta que el
+backend confirme que el módulo está listo para exponerse. El wizard de
+generación (`rh/formatos/generar.tsx`) queda con el código completo y
+compilando, pero deliberadamente inalcanzable desde ninguna navegación real
+(un guard `GENERACION_MOVIL_DISPONIBLE = false` explícito) — ninguna acción
+del catálogo ni del detalle de colaborador enlaza ahí.
+
+---
+
+## G7 — Sin endpoint para listar documentos generados por colaborador
+
+**Estado: FALTA** (gap nuevo, descubierto en esta auditoría).
+
+Las rutas reales `GET /rh/formatos/{documento}/descargar[-pdf]` reciben
+directo el id de un `GeneratedDocument` — pero no existe **ningún**
+endpoint que devuelva esos ids para un colaborador o una plantilla en
+particular. `FormatoCatalogoService::listar()` solo expone
+`veces_generado`/`ultimo_uso` como metadatos, nunca los ids de los
+documentos generados reales.
+
+**Endpoint sugerido:**
+```
+GET /api/v1/rh/colaboradores/{colaborador}/documentos-generados
+```
+o, si conviene reutilizar el módulo de documentos laborales del lado
+colaborador (ver G8):
+```
+GET /api/v1/colaborador/documentos-laborales
+```
+
+**Problema práctico:** sin esto, la descarga real de formatos generados es
+inalcanzable desde el celular aunque la ruta HTTP exista — el cliente no
+tiene forma de saber qué IDs pedir.
+
+---
+
+## G8 — Documentos laborales del colaborador
+
+**Estado: FALTA** (módulo completo, sin cambios desde la auditoría
+anterior). Confirmado de nuevo contra `routes/api.php`: el colaborador solo
+tiene `incorporacion` (expediente que ENTREGA a RH) — no existe ningún
+recurso para lo que la EMPRESA le entrega a él (contrato, recibos de
+nómina, constancias).
 
 **Endpoints esperados:**
 ```
@@ -200,96 +244,87 @@ GET /api/v1/colaborador/documentos-laborales/{documento}/ver
 GET /api/v1/colaborador/documentos-laborales/{documento}/descargar
 ```
 
-**Response actual:** no existe — confirmado contra `routes/api.php`: el
-colaborador solo tiene `incorporacion` (expediente que ENTREGA a RH), no
-existe ningún recurso para lo que la EMPRESA le entrega a él (contrato,
-recibos de nómina, constancias).
-
-**Problema:** "Mi espacio → Documentos laborales" (`src/api/
-documentosLaborales.ts`, `src/app/(app)/documentos-laborales/**`) está
-construido completo — lista agrupada por año, filtro por tipo, visor
-seguro, descarga cuando `puede_descargar` es `true` — pero hoy no hay
-ningún documento que mostrar porque el endpoint no existe.
-
-**Cambio mínimo requerido:** los tres endpoints de arriba con el shape de
-`src/types/laborDocument.ts` (`LaborDocument`). Opcional:
-`POST .../{id}/visto` para marcar como visto (`docs` sección 67 del
-encargo) — si no se implementa, la app simplemente no ofrece esa acción,
-nunca inventa un contador local.
+**Decisión de producto:** `documentos_laborales` queda fail-closed — el
+código (`src/api/documentosLaborales.ts`,
+`src/app/(app)/documentos-laborales/**`) queda completo y listo, oculto
+hasta `features.documentos_laborales: true` explícito.
 
 ---
 
-## G8 — Envío manual de felicitación de cumpleaños no existe en la API móvil
+## G9 — "Mi equipo" (jefe directo / subordinados del colaborador)
 
-**Endpoint esperado:** `POST /api/v1/rh/cumpleanos/{greeting}/enviar`.
+**Estado: FALTA**, sin ninguna señal de que vaya a construirse. No hay
+ninguna ruta, controlador ni mención en los docs de capacitaciones para
+"jefe directo"/"subordinados" desde el punto de vista de un colaborador
+individual. A diferencia de G5-G8 (donde hay un contrato acordado
+explícito a implementar por adelantado), **no se construyó cliente ni
+pantalla** para esto — inventar un contrato sin ninguna base real hubiera
+sido peor que documentarlo como pendiente de decisión de producto.
 
-**Response actual:** no existe — confirmado contra `routes/api.php`: el
-único envío manual real está en el panel WEB
-(`/rh/cumpleanos/{colaborador}/felicitacion`, permiso
-`rh.cumpleanos.notificaciones.gestionar`, ver `docs/CUMPLEANOS.md` sección
-"Envío manual desde el panel RH"), no en `Api\V1\Rh\CumpleanosController`.
-Tampoco `acciones_permitidas` viene en el detalle
-(`GET /rh/cumpleanos/{greeting}`) — el backend real ni siquiera anticipa
-esta acción desde móvil todavía.
-
-**Problema:** ninguno hoy — el botón "Enviar felicitación" en
-`src/app/(app)/rh/cumpleanos/[id].tsx` solo aparece si el backend algún día
-manda `acciones_permitidas` con `"enviar"`, así que hoy simplemente no se
-muestra. `src/api/rh/cumpleanos.ts#enviar()` queda implementado y listo.
-
-**Cambio mínimo requerido:** decidir si esta acción se quiere exponer desde
-móvil (hoy solo existe en el panel web) y, si sí, agregar la ruta +
-`acciones_permitidas` al detalle.
+Si se decide construir, `GET /rh/jerarquia-puestos` (ya conectado) es un
+punto de partida razonable para derivar subordinados de un PUESTO, pero no
+reemplaza un endpoint dedicado a relaciones persona-a-persona.
 
 ---
 
-## G9 — "Mi equipo" (jefe directo / subordinados del colaborador) — no construido, sin endpoint
+## Feature flags — estrategia corregida en esta auditoría
 
-**Endpoint esperado (nunca confirmado):** `GET /api/v1/colaborador/mi-equipo`.
+**Bug de producto corregido:** los módulos nuevos (`formatos`,
+`documentos_laborales`, `document_extraction`) eran **fail-open**
+(`isFeatureEnabled`) — si el backend real (que hoy no manda ninguna de
+estas tres claves) simplemente no las incluye, la app los mostraba de
+todos modos, incluyendo módulos que apuntan a endpoints 404 reales
+(documentos laborales) o que el producto quiere mantener apagados hasta
+confirmación explícita (formatos, OCR).
 
-**Response actual:** no existe — no hay ninguna ruta ni mención de este
-recurso en `capacitaciones` (ni en `routes/api.php` ni en los docs).
+Estrategia final (`src/utils/featureFlags.ts`):
 
-**Decisión de esta sesión:** a diferencia de G5/G6/G7 (donde el encargo dio
-un contrato explícito a implementar por adelantado), este endpoint era
-condicional ("si backend ofrece jefe directo/subordinados") y no hay
-ninguna señal de que vaya a existir — así que NO se construyó cliente ni
-pantalla para "Mi equipo" esta sesión, para no inventar un contrato sin
-ninguna base real. Si se decide construir el módulo, `GET
-/rh/jerarquia-puestos` (organigrama de puestos, ya conectado en
-`src/api/rh/organizacion.ts`) es un punto de partida razonable para
-derivar subordinados de un puesto, pero no reemplaza un endpoint dedicado
-a "quién le reporta a quién" a nivel de personas.
+- **`isFeatureEnabled`** (sin cambios) — CORE/ya existente
+  (`incorporacion`, `vacaciones`, `cumpleanos`, `rh_mobile`, ...):
+  fail-**open**. Mantiene compatibilidad con lo que ya funcionaba.
+- **`isExperimentalFeatureEnabled`** (nueva) — módulos nuevos (`formatos`,
+  `documentos_laborales`, `document_extraction`): fail-**closed**. Ausente
+  = oculto, siempre, sin importar si el bootstrap ya cargó o no.
+- **`isOrganigramaEnabled`** (nueva, caso especial) — el organigrama SÍ
+  tiene endpoint real funcionando hoy, pero `mobile/bootstrap` todavía no
+  manda `features.organigrama`. Se resuelve así: si el backend manda el
+  flag explícito, ese valor manda; si no, cae en el mismo permiso que
+  protege el endpoint real (`puestos.administrar`, `PuestoPolicy`) — nunca
+  fail-open genérico, nunca fail-closed total (eso ocultaría un módulo que
+  sí funciona a quien sí tiene el permiso).
+
+**Pedido al backend (no bloqueante):** agregar `formatos`,
+`documentos_laborales`, `document_extraction` y, preferentemente,
+`organigrama` a `MobileBootstrapService::features()` cuando cada módulo se
+considere listo para exponerse en móvil.
+
+---
+
+## `mobile/bootstrap` — campos que la app NUNCA debe inventar
+
+Confirmado contra `MobileBootstrapService::features()`/`counts()` real: no
+existen hoy `features.{formatos,documentos_laborales,document_extraction,
+organigrama}` ni `counts.{labor_documents_new,rh_document_extractions_pending}`.
+La app los declaró **opcionales** en los tipos
+(`MobileBootstrapFeatures`/`MobileBootstrapCounts`) y en cada sitio de uso
+se lee con `?.` — su ausencia se traduce a "oculto"/"sin badge", nunca a un
+`0` fabricado ni a un `true` asumido.
 
 ---
 
 ## Formas de contrato no confirmadas (no son errores, quedaron defensivas)
 
-Estos campos se tipificaron como **opcionales** porque la documentación no
-muestra un JSON de ejemplo completo para ellos — la app los renderiza solo
-si vienen, nunca asume su ausencia como error:
-
-- `RhVacacion.workflow` / `RhVacacion.historial` — el doc de vacaciones
-  solo confirma `saldo_disponible`; no se confirmó si el detalle también
-  trae `workflow`/`historial` como el de solicitudes.
-- `RhDocumento.workflow` — mismo caso.
-- `RhExpediente.acciones_permitidas` / `RhExpedienteDocumento.acciones_permitidas`
-  — el doc de expedientes no muestra este campo. La app usa en su lugar los
-  permisos reales de Spatie (`user.permissions` de `mobile/bootstrap`, ver
-  `hasPermission()` en `src/utils/capabilities.ts`).
+- `RhVacacion.workflow` / `RhVacacion.historial` / `RhDocumento.workflow`
+  — no confirmados con un JSON de ejemplo completo, se renderizan solo si
+  vienen.
+- `RhExpediente.acciones_permitidas` — el doc de expedientes no lo muestra;
+  la app usa los permisos reales de Spatie (`hasPermission()`) en su lugar.
 - `RhBirthdayItem.mes` — el backend real (`Rh\CumpleanosController::index`)
-  solo manda `dia` en cada entrada de la bandeja, no `mes` — se tipificó
-  opcional y la UI nunca fabrica un mes que no vino.
-- `MobileBootstrapFeatures.{cumpleanos,formatos,documentos_laborales,
-  document_extraction,organigrama}` y `MobileBootstrapCounts.
-  {labor_documents_new,rh_document_extractions_pending}` — el backend real
-  (`MobileBootstrapService`) todavía no los manda; `isFeatureEnabled()` los
-  trata como habilitados por defecto (fail-open) hasta que el backend los
-  agregue explícitamente.
+  solo manda `dia` por entrada, nunca `mes` — tipificado opcional.
 
 Si al conectar contra un backend real alguno de estos campos llega con
 otro nombre o forma, son los únicos puntos que requerirían ajuste — el
 resto del contrato (bootstrap, dashboard, pendientes, solicitudes,
 documentos, incorporaciones, colaboradores, cumpleaños colaborador y RH,
-organigrama, releases, config) se confirmó 1:1 contra el código fuente
-real.
+organigrama, extracción OCR, catálogo de formatos, releases, config) se
+confirmó 1:1 contra el código fuente real el 2026-09-10.

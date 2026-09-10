@@ -1,6 +1,8 @@
 import axios, { type AxiosError } from 'axios';
 
+import { queryKeys } from './queryKeys';
 import { API_URL, REQUEST_TIMEOUT_MS } from '@/constants/config';
+import { queryClient } from '@/api/queryClient';
 import { useMaintenanceStore } from '@/store/maintenanceStore';
 
 /**
@@ -60,6 +62,17 @@ apiClient.interceptors.response.use(
 
     if (error.response?.status === 401) {
       unauthorizedHandler?.();
+    }
+
+    if (error.response?.status === 403) {
+      // Auditoría de integración — "ERROR 403": si RH pierde un permiso
+      // mientras la app sigue abierta (alguien se lo quitó desde el panel
+      // web a media sesión), el próximo 403 de cualquier endpoint invalida
+      // `mobile/bootstrap` — el siguiente render recalcula
+      // capabilities/features/permissions reales y el botón/módulo que ya
+      // no debería estar ahí desaparece solo, en vez de quedarse
+      // reintentando la misma acción prohibida una y otra vez.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.bootstrap });
     }
 
     if (error.response?.status === 503) {

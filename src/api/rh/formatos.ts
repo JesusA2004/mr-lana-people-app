@@ -1,13 +1,7 @@
 import { apiClient, extractData } from '../client';
 
-import type { PaginatedResponse } from '@/types/api';
-import type { FormatoOutput, FormatoPreparation, FormatoTipo, GeneratedDocument, RhFormato } from '@/types/formato';
-
-export interface RhFormatosParams {
-  tipo?: FormatoTipo;
-  q?: string;
-  page?: number;
-}
+import type { FormatoOutput, FormatoPreparation, GeneratedDocument, RhFormato } from '@/types/formato';
+import { normalizeRhFormatosList } from '@/utils/formato';
 
 export interface GenerarFormatoPayload {
   colaborador_id: number | string;
@@ -16,22 +10,47 @@ export interface GenerarFormatoPayload {
 }
 
 /**
- * `GET/POST /api/v1/rh/formatos[...]` — GAP DE BACKEND: no existe todavía
- * en capacitaciones (confirmado contra `routes/api.php`, sin controlador de
- * "formatos"). Cliente implementado completo contra el contrato acordado
- * (AGENTS.md de este encargo, secciones 13-18) para que quede listo en
- * automático el día que el backend lo despliegue — ver
- * `docs/BACKEND_GAPS_FINAL.md`. Hasta entonces toda llamada aquí responde
- * 404 y la UI lo maneja como un estado "módulo aún no disponible", nunca
- * como un crash.
+ * `GET /api/v1/rh/formatos` — espejo EXACTO de
+ * `App\Http\Controllers\Api\V1\Rh\FormatoController` en capacitaciones
+ * (confirmado contra el código fuente real, commit `34a8132`). YA
+ * IMPLEMENTADO: catálogo (sin filtros de query — `index()` no lee ningún
+ * parámetro, nunca mandar `tipo`/`q`/`page` al backend) + descarga
+ * DOCX/PDF de documentos ya generados. Generar/preparar/preview un
+ * documento NUEVO desde el celular sigue sin existir — ver el bloque
+ * "contrato propuesto" al final de este archivo y
+ * `docs/BACKEND_GAPS_FINAL.md`.
  */
 export const rhFormatosApi = {
-  async list(params: RhFormatosParams = {}): Promise<PaginatedResponse<RhFormato>> {
-    const response = await apiClient.get('/rh/formatos', { params });
-    return response.data as PaginatedResponse<RhFormato>;
+  async list(): Promise<RhFormato[]> {
+    const response = await apiClient.get('/rh/formatos');
+    return normalizeRhFormatosList((response.data as { data?: unknown } | undefined)?.data);
   },
 
-  /** Valores prellenados desde el expediente del colaborador — nunca se guardan de vuelta en el perfil (sección 44). */
+  /**
+   * Ambas rutas reciben directamente el id de un `GeneratedDocument` ya
+   * existente (`{documento}` en `routes/api.php`), NO el id del formato —
+   * bug corregido: la auditoría anterior usaba un prefijo `formatos/
+   * generados/{id}/...` que nunca existió. GAP real: no hay endpoint para
+   * DESCUBRIR esos ids desde el celular (ver docs/BACKEND_GAPS_FINAL.md) —
+   * estas rutas solo son útiles el día que exista una lista de documentos
+   * generados por colaborador.
+   */
+  descargarPath(documentoGeneradoId: number | string): string {
+    return `/rh/formatos/${documentoGeneradoId}/descargar`;
+  },
+
+  descargarPdfPath(documentoGeneradoId: number | string): string {
+    return `/rh/formatos/${documentoGeneradoId}/descargar-pdf`;
+  },
+
+  // -------------------------------------------------------------------------
+  // Contrato PROPUESTO, AÚN NO IMPLEMENTADO en el backend real — mantenido
+  // para que `rh/formatos/generar.tsx` compile y quede listo, pero sin
+  // ningún punto de entrada alcanzable desde la navegación normal de la
+  // app (ver docs/BACKEND_GAPS_FINAL.md). Toda llamada aquí responde 404
+  // hoy.
+  // -------------------------------------------------------------------------
+
   async preparar(formatoId: number | string, colaboradorId: number | string): Promise<FormatoPreparation> {
     const response = await apiClient.get(`/rh/formatos/${formatoId}/preparar`, { params: { colaborador_id: colaboradorId } });
     return extractData<FormatoPreparation>(response.data);
@@ -42,13 +61,7 @@ export const rhFormatosApi = {
     return extractData<GeneratedDocument>(response.data);
   },
 
-  /** Visor seguro autenticado (Bearer) — ver `SecureDocumentViewer`, nunca exponer esta URL fuera de la app. */
   previewPath(documentoGeneradoId: number | string): string {
     return `/rh/formatos/generados/${documentoGeneradoId}/preview`;
-  },
-
-  /** Descarga autenticada — solo se ofrece en UI cuando `acciones_permitidas` incluye `"download"`. */
-  descargarPath(documentoGeneradoId: number | string): string {
-    return `/rh/formatos/generados/${documentoGeneradoId}/descargar`;
   },
 };

@@ -17,7 +17,7 @@ import { useRhDashboard } from '@/hooks/queries/useRhDashboard';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useAuthStore } from '@/store/authStore';
 import { getErrorMessage } from '@/utils/errors';
-import { isFeatureEnabled } from '@/utils/featureFlags';
+import { isExperimentalFeatureEnabled, isFeatureEnabled, isOrganigramaEnabled } from '@/utils/featureFlags';
 import { joinName } from '@/utils/formatters';
 import { rhPendienteDetailRoute } from '@/utils/rhRoutes';
 
@@ -37,12 +37,19 @@ export default function RhDashboardScreen() {
   const { data, isLoading, isError, error, refetch, isRefetching } = useRhDashboard(true);
   const bootstrap = useMobileBootstrap(true);
   const cumpleanosEnabled = isFeatureEnabled(bootstrap.data?.features, 'cumpleanos');
-  const formatosEnabled = isFeatureEnabled(bootstrap.data?.features, 'formatos');
-  const organigramaEnabled = isFeatureEnabled(bootstrap.data?.features, 'organigrama');
-  const extractionEnabled = isFeatureEnabled(bootstrap.data?.features, 'document_extraction');
+  // Formatos/extracción OCR: fail-CLOSED (bug de producto corregido) —
+  // ausente = oculto, sin importar que el backend real ya tenga el
+  // catálogo/OCR funcionando (ver docs/BACKEND_GAPS_FINAL.md: ambos quedan
+  // ocultos hasta que el backend mande el flag explícito, decisión de
+  // producto de esta auditoría).
+  const formatosEnabled = isExperimentalFeatureEnabled(bootstrap.data?.features, 'formatos');
+  const extractionEnabled = isExperimentalFeatureEnabled(bootstrap.data?.features, 'document_extraction');
+  const organigramaEnabled = isOrganigramaEnabled(bootstrap.data?.features, bootstrap.data?.user.permissions);
 
   const cumpleanosHoy = useRhCumpleanosInfinite({ periodo: 'hoy' }, cumpleanosEnabled);
   const hoyCount = cumpleanosHoy.data?.pages[0]?.meta.hoy ?? 0;
+  // Nunca inventar el contador: el backend real hoy no manda
+  // `counts.rh_document_extractions_pending` — ausente = sin badge, no 0 forzado.
   const extractionsPending = bootstrap.data?.counts.rh_document_extractions_pending;
 
   const nombre = joinName(user?.nombre, user?.apellidos);

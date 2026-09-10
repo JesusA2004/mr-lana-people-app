@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
-import { isFeatureEnabled } from '@/utils/featureFlags';
+import { isExperimentalFeatureEnabled, isFeatureEnabled, isOrganigramaEnabled } from '@/utils/featureFlags';
 
 /**
  * Stack de la experiencia "Gestión RH" (AGENTS.md sección 5): tabs propios
@@ -20,8 +20,11 @@ import { isFeatureEnabled } from '@/utils/featureFlags';
 export default function RhLayout() {
   const bootstrap = useMobileBootstrap(true);
   const cumpleanosEnabled = isFeatureEnabled(bootstrap.data?.features, 'cumpleanos');
-  const formatosEnabled = isFeatureEnabled(bootstrap.data?.features, 'formatos');
-  const organigramaEnabled = isFeatureEnabled(bootstrap.data?.features, 'organigrama');
+  // Formatos: fail-CLOSED (bug de producto corregido) — el catálogo/descarga
+  // real del backend queda oculto hasta que `mobile/bootstrap` mande
+  // `features.formatos: true` explícito, ver docs/BACKEND_GAPS_FINAL.md.
+  const formatosEnabled = isExperimentalFeatureEnabled(bootstrap.data?.features, 'formatos');
+  const organigramaEnabled = isOrganigramaEnabled(bootstrap.data?.features, bootstrap.data?.user.permissions);
 
   return (
     <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>

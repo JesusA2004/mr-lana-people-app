@@ -1,32 +1,44 @@
-import { apiClient, extractData } from '../client';
+import { apiClient } from '../client';
 
-import type { DocumentExtraction } from '@/types/documentExtraction';
+import type { DocumentExtractionResponse, ExtractionApplicableField } from '@/types/documentExtraction';
+import { normalizeDocumentExtractionResponse } from '@/utils/documentExtraction';
 
 /**
- * `GET/POST /api/v1/rh/documentos/{documento}/extraccion[...]` — GAP DE
- * BACKEND: no existe todavía en capacitaciones (confirmado contra
- * `routes/api.php`, sin controlador de extracción/OCR). Cliente
- * implementado completo contra el contrato acordado (AGENTS.md de este
- * encargo, secciones 7-8) — ver `docs/BACKEND_GAPS_FINAL.md`. La app NUNCA
- * hace OCR por su cuenta ni manda documentos a un servicio externo: solo
- * consume el resultado que ya procesó el backend.
+ * `GET/POST /api/v1/rh/documentos/{documento}/extraccion[...]` — espejo
+ * EXACTO de `App\Http\Controllers\Api\V1\Rh\DocumentoController` en
+ * capacitaciones (confirmado contra el código fuente real, commit
+ * `34a8132`). YA IMPLEMENTADO en el backend — la auditoría anterior lo daba
+ * como gap completo con un contrato distinto (`fields` en vez de
+ * `valores`, `differences` como arreglo con `label`, `acciones_permitidas`
+ * en el recurso, `reprocesar` como acción móvil); todo eso era incorrecto y
+ * quedó corregido aquí. La app NUNCA hace OCR por su cuenta ni manda
+ * documentos a un servicio externo: solo consume el resultado que ya
+ * procesó el backend.
  */
 export const rhDocumentExtractionApi = {
-  async get(documentoId: number | string): Promise<DocumentExtraction> {
+  async get(documentoId: number | string): Promise<DocumentExtractionResponse> {
     const response = await apiClient.get(`/rh/documentos/${documentoId}/extraccion`);
-    return extractData<DocumentExtraction>(response.data);
+    return normalizeDocumentExtractionResponse((response.data as { data?: unknown } | undefined)?.data);
   },
 
-  /** RH elige explícitamente qué campos aceptar — nunca se aplican todos automáticamente (sección 8). */
-  async aplicar(documentoId: number | string, fields: Record<string, string>): Promise<void> {
-    await apiClient.post(`/rh/documentos/${documentoId}/extraccion/aplicar`, { fields });
+  /**
+   * Backend real valida `{ valores: { curp?, rfc?, nss?, fecha_nacimiento? } }`
+   * — bug corregido: la app mandaba `{ fields }`, el backend siempre
+   * respondía 422 (`valores` es `required`). RH elige explícitamente qué
+   * campos aceptar — nunca se aplican todos automáticamente.
+   */
+  async aplicar(documentoId: number | string, valores: Partial<Record<ExtractionApplicableField, string>>): Promise<void> {
+    await apiClient.post(`/rh/documentos/${documentoId}/extraccion/aplicar`, { valores });
   },
 
-  async ignorar(documentoId: number | string, fields?: string[]): Promise<void> {
-    await apiClient.post(`/rh/documentos/${documentoId}/extraccion/ignorar`, fields ? { fields } : undefined);
+  /** `ignorarExtraccion` no valida ni lee ningún campo del body — nunca mandar `fields` (bug corregido: la app mandaba un body que el backend ignora, inofensivo pero incorrecto). */
+  async ignorar(documentoId: number | string): Promise<void> {
+    await apiClient.post(`/rh/documentos/${documentoId}/extraccion/ignorar`);
   },
 
-  async reprocesar(documentoId: number | string): Promise<void> {
-    await apiClient.post(`/rh/documentos/${documentoId}/extraccion/reprocesar`);
-  },
+  // NO existe `reprocesar` en la API móvil real (confirmado contra
+  // `routes/api.php` y documentado explícitamente en
+  // `docs/DOCUMENT_EXTRACTION.md`: "Reprocesar solo está disponible en el
+  // panel web por ahora"). No se declara ningún método aquí para esa
+  // acción — ver `docs/BACKEND_GAPS_FINAL.md`.
 };

@@ -25,7 +25,7 @@ import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import type { Solicitud } from '@/types/request';
 import { getErrorMessage } from '@/utils/errors';
 import { getGreeting } from '@/utils/dates';
-import { isFeatureEnabled } from '@/utils/featureFlags';
+import { isExperimentalFeatureEnabled, isFeatureEnabled } from '@/utils/featureFlags';
 import { joinName, pluralize } from '@/utils/formatters';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -46,9 +46,14 @@ export default function DashboardScreen() {
   const cumpleanosEnabled = isFeatureEnabled(bootstrap.data?.features, 'cumpleanos');
   const vacacionesEnabled = isFeatureEnabled(bootstrap.data?.features, 'vacaciones');
   const incorporacionEnabled = isFeatureEnabled(bootstrap.data?.features, 'incorporacion');
-  const documentosLaboralesEnabled = isFeatureEnabled(bootstrap.data?.features, 'documentos_laborales');
+  // Documentos laborales: fail-CLOSED (bug de producto corregido) — sin
+  // backend real todavía (`GET /colaborador/documentos-laborales`), ver
+  // docs/BACKEND_GAPS_FINAL.md.
+  const documentosLaboralesEnabled = isExperimentalFeatureEnabled(bootstrap.data?.features, 'documentos_laborales');
   const birthday = useBirthdayGreeting(cumpleanosEnabled);
   const laborDocuments = useLaborDocumentsSummary(documentosLaboralesEnabled);
+  // Nunca inventar el contador: el backend real hoy no manda
+  // `counts.labor_documents_new` — ausente se trata como "sin badge", no como 0 forzado.
   const laborDocumentsNew = bootstrap.data?.counts.labor_documents_new;
 
   const perfil = data?.perfil;

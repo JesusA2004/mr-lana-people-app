@@ -6,7 +6,6 @@ import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react
 import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
-import { ConfidenceBadge } from '@/components/ConfidenceBadge';
 import { ErrorState } from '@/components/ErrorState';
 import { FieldComparisonRow, FieldMatchRow } from '@/components/FieldComparisonRow';
 import { MotivoModal } from '@/components/MotivoModal';
@@ -15,19 +14,23 @@ import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
 import { rhDocumentosApi } from '@/api/rh/documentos';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
-import {
-  useRhDocumentExtraction,
-  useRhDocumentExtractionAplicar,
-  useRhDocumentExtractionIgnorar,
-  useRhDocumentExtractionReprocesar,
-} from '@/hooks/queries/useRhDocumentExtraction';
+import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
+import { useRhDocumentExtraction, useRhDocumentExtractionAplicar, useRhDocumentExtractionIgnorar } from '@/hooks/queries/useRhDocumentExtraction';
 import { useRhDocumento, useRhDocumentoAprobar, useRhDocumentoRechazar } from '@/hooks/queries/useRhDocumentos';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from '@/store/toastStore';
-import type { DocumentExtraction } from '@/types/documentExtraction';
-import { extractionStatusLabel, hasExtractionAction, isExtractionInProgress } from '@/utils/documentExtraction';
+import type { DocumentExtraction, ExtractedFieldKey, ExtractionApplicableField } from '@/types/documentExtraction';
+import { hasPermission } from '@/utils/capabilities';
 import { formatDateTime } from '@/utils/dates';
+import {
+  extractedFieldLabel,
+  extractionStatusLabel,
+  isApplicableField,
+  isExtractionInProgress,
+  normalizeFechaNacimientoParaAplicar,
+} from '@/utils/documentExtraction';
 import { getErrorMessage, isConcurrencyConflict, logError } from '@/utils/errors';
+import { isExperimentalFeatureEnabled } from '@/utils/featureFlags';
 import { joinName } from '@/utils/formatters';
 import { haptics } from '@/utils/haptics';
 import { canApprove, canReject } from '@/utils/rhActions';
@@ -43,15 +46,22 @@ export default function RhDocumentoDetailScreen() {
   const [showRechazar, setShowRechazar] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
 
-  // "Análisis automático" — GAP DE BACKEND documentado (ver
-  // docs/BACKEND_GAPS_FINAL.md): mientras `GET .../extraccion` responda 404
-  // el hook simplemente no tiene datos que mostrar, la sección se oculta
-  // sola sin romper el resto de la pantalla.
-  const extraction = useRhDocumentExtraction(id, true);
+  const bootstrap = useMobileBootstrap(true);
+  // "Análisis automático" — módulo EXPERIMENTAL fail-CLOSED (auditoría de
+  // integración: el backend real ya lo implementa por completo, pero se
+  // mantiene oculto hasta que `mobile/bootstrap` mande
+  // `features.document_extraction: true` explícito — decisión de producto,
+  // ver docs/BACKEND_GAPS_FINAL.md). Mientras esté apagado, la query ni
+  // siquiera se dispara.
+  const extractionEnabled = isExperimentalFeatureEnabled(bootstrap.data?.features, 'document_extraction');
+  const permissions = bootstrap.data?.user.permissions;
+  const canAplicar = hasPermission(permissions, 'rh.documentos.extraccion.aplicar');
+  const canIgnorar = hasPermission(permissions, 'rh.documentos.extraccion.ignorar');
+
+  const extraction = useRhDocumentExtraction(id, extractionEnabled);
   const aplicar = useRhDocumentExtractionAplicar(id);
   const ignorar = useRhDocumentExtractionIgnorar(id);
-  const reprocesar = useRhDocumentExtractionReprocesar(id);
-  const [selections, setSelections] = useState<Record<string, 'detected' | 'current'>>({});
+  const [selections, setSelections] = useState<Partial<Record<ExtractedFieldKey, 'detected' | 'current'>>>({});
   const scrollRef = useRef<ScrollView>(null);
   const extractionOffsetRef = useRef<number | null>(null);
   const scrolledToFocusRef = useRef(false);
@@ -120,6 +130,8 @@ export default function RhDocumentoDetailScreen() {
         title={documento?.nombre ?? 'Documento'}
         watermarkLabel={watermarkLabel}
         onClose={() => setViewerOpen(false)}
+        // Documento interno de expediente RH: nunca ofrecer descarga/compartir (sección 33).
+        allowDownload={false}
       />
     );
   }
@@ -173,23 +185,30 @@ export default function RhDocumentoDetailScreen() {
               </Card>
             ) : null}
 
-            {extraction.data ? (
+            {extractionEnabled && extraction.data?.elegible ? (
               <View
                 onLayout={(event) => {
                   extractionOffsetRef.current = event.nativeEvent.layout.y;
                   maybeScrollToExtraction();
                 }}>
                 <ExtractionSection
-                  extraction={extraction.data}
+                  response={extraction.data}
+                  isLoadingFirstTime={extraction.isLoading}
                   selections={selections}
                   onSelect={(field, selection) => setSelections((prev) => ({ ...prev, [field]: selection }))}
+                  canAplicar={canAplicar}
+                  canIgnorar={canIgnorar}
                   onAplicar={() => {
-                    const fields: Record<string, string> = {};
-                    for (const diff of extraction.data!.differences) {
-                      if (selections[diff.field] === 'detected' && diff.detected_value) fields[diff.field] = diff.detected_value;
+                    const extraccion = extraction.data?.extraccion;
+                    if (!extraccion?.differences) return;
+                    const valores: Partial<Record<ExtractionApplicableField, string>> = {};
+                    for (const [field, diff] of Object.entries(extraccion.differences)) {
+                      if (!isApplicableField(field)) continue;
+                      if (selections[field as ExtractedFieldKey] !== 'detected') continue;
+                      valores[field] = field === 'fecha_nacimiento' ? normalizeFechaNacimientoParaAplicar(diff!.detectado) : diff!.detectado;
                     }
-                    if (Object.keys(fields).length === 0) return;
-                    aplicar.mutate(fields, {
+                    if (Object.keys(valores).length === 0) return;
+                    aplicar.mutate(valores, {
                       onSuccess: () => {
                         haptics.success();
                         toast.success('Cambios aplicados.');
@@ -207,14 +226,8 @@ export default function RhDocumentoDetailScreen() {
                       onError: (err) => toast.error(getErrorMessage(err)),
                     })
                   }
-                  onReprocesar={() =>
-                    reprocesar.mutate(undefined, {
-                      onError: (err) => toast.error(getErrorMessage(err)),
-                    })
-                  }
                   applying={aplicar.isPending}
                   ignoring={ignorar.isPending}
-                  reprocessing={reprocesar.isPending}
                   hasSelection={Object.values(selections).some((value) => value === 'detected')}
                 />
               </View>
@@ -258,15 +271,16 @@ function FieldRow({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap
 }
 
 interface ExtractionSectionProps {
-  extraction: DocumentExtraction;
-  selections: Record<string, 'detected' | 'current'>;
-  onSelect: (field: string, selection: 'detected' | 'current') => void;
+  response: { elegible: boolean; extraccion: DocumentExtraction | null };
+  isLoadingFirstTime: boolean;
+  selections: Partial<Record<ExtractedFieldKey, 'detected' | 'current'>>;
+  onSelect: (field: ExtractedFieldKey, selection: 'detected' | 'current') => void;
   onAplicar: () => void;
   onIgnorar: () => void;
-  onReprocesar: () => void;
+  canAplicar: boolean;
+  canIgnorar: boolean;
   applying: boolean;
   ignoring: boolean;
-  reprocessing: boolean;
   hasSelection: boolean;
 }
 
@@ -274,22 +288,24 @@ interface ExtractionSectionProps {
  * "Análisis automático" (AGENTS.md de este encargo, secciones 9-10): OCR
  * NUNCA aprueba/rechaza el documento por su cuenta — es puramente
  * informativo, RH sigue decidiendo con los botones Aprobar/Rechazar de
- * arriba, siempre visibles sin importar el estado de esta sección.
+ * arriba, siempre visibles sin importar el estado de esta sección. Solo se
+ * monta cuando `response.elegible` es `true` (el padre ya filtra) — nunca
+ * cuando el tipo de documento no admite extracción.
  */
 function ExtractionSection({
-  extraction,
+  response,
+  isLoadingFirstTime,
   selections,
   onSelect,
   onAplicar,
   onIgnorar,
-  onReprocesar,
+  canAplicar,
+  canIgnorar,
   applying,
   ignoring,
-  reprocessing,
   hasSelection,
 }: ExtractionSectionProps) {
-  const diffFields = new Set(extraction.differences.map((diff) => diff.field));
-  const matchedFields = Object.entries(extraction.datos_detectados).filter(([field, value]) => value && !diffFields.has(field));
+  const { extraccion } = response;
 
   return (
     <Card style={styles.extractionCard}>
@@ -297,64 +313,71 @@ function ExtractionSection({
         <Ionicons name="sparkles-outline" size={18} color={Colors.primaryDark} />
         <Text style={styles.extractionTitle}>Análisis automático</Text>
       </View>
-      <Text style={styles.extractionStatus}>{extractionStatusLabel(extraction.status)}</Text>
 
-      {isExtractionInProgress(extraction.status) ? (
+      {isLoadingFirstTime ? (
         <SkeletonBlock height={80} radius={Radius.md} />
-      ) : extraction.status === 'failed' ? (
-        <View style={styles.extractionFailedBox}>
-          <Ionicons name="cloud-offline-outline" size={22} color={Colors.textMuted} />
-          <Text style={styles.extractionFailedText}>No pudimos leer este documento automáticamente. Puedes revisarlo manualmente.</Text>
-        </View>
+      ) : !extraccion ? (
+        // `elegible: true` + `extraccion: null` = el job en cola todavía no
+        // corrió (nunca un error) — ver App\Jobs\ProcesarDocumentoPersonalJob.
+        <Text style={styles.extractionStatus}>{extractionStatusLabel('pending')}</Text>
       ) : (
         <>
-          {extraction.confidence_general !== undefined && extraction.confidence_general !== null ? (
-            <ConfidenceBadge value={extraction.confidence_general} />
+          <Text style={styles.extractionStatus}>{extractionStatusLabel(extraccion.status)}</Text>
+
+          {isExtractionInProgress(extraccion.status) ? (
+            <SkeletonBlock height={80} radius={Radius.md} />
+          ) : extraccion.status === 'failed' ? (
+            <View style={styles.extractionFailedBox}>
+              <Ionicons name="cloud-offline-outline" size={22} color={Colors.textMuted} />
+              <Text style={styles.extractionFailedText}>No pudimos leer este documento automáticamente. Puedes revisarlo manualmente.</Text>
+            </View>
+          ) : (
+            Object.entries(extraccion.differences ?? {}).map(([field, diff]) => {
+              const key = field as ExtractedFieldKey;
+              const label = extractedFieldLabel(field);
+              const confidenceLevel = extraccion.confidence?.[key];
+
+              if (diff!.coincide) {
+                return <FieldMatchRow key={field} label={label} value={diff!.detectado} confidenceLevel={confidenceLevel} />;
+              }
+
+              return (
+                <FieldComparisonRow
+                  key={field}
+                  label={label}
+                  systemValue={diff!.actual}
+                  detectedValue={diff!.detectado}
+                  confidenceLevel={confidenceLevel}
+                  applicable={isApplicableField(field) && canAplicar}
+                  selection={selections[key] ?? null}
+                  onSelect={(selection) => onSelect(key, selection)}
+                />
+              );
+            })
+          )}
+
+          {extraccion.status === 'processed' && (canAplicar || canIgnorar) ? (
+            <View style={styles.extractionActions}>
+              {canIgnorar ? (
+                <Button title="Ignorar" variant="ghost" onPress={onIgnorar} loading={ignoring} disabled={ignoring} style={styles.actionButton} />
+              ) : null}
+              {canAplicar ? (
+                <Button
+                  title="Aplicar cambios"
+                  onPress={onAplicar}
+                  loading={applying}
+                  disabled={applying || !hasSelection}
+                  style={styles.actionButton}
+                />
+              ) : null}
+            </View>
           ) : null}
 
-          {extraction.differences.map((diff) => (
-            <FieldComparisonRow
-              key={diff.field}
-              label={diff.label}
-              systemValue={diff.current_value}
-              detectedValue={diff.detected_value}
-              confidence={diff.confidence}
-              selection={selections[diff.field] ?? null}
-              onSelect={(selection) => onSelect(diff.field, selection)}
-            />
-          ))}
-
-          {matchedFields.map(([field, value]) => (
-            <FieldMatchRow key={field} label={field} value={value ?? ''} confidence={extraction.confidence[field]} />
-          ))}
+          {/* No hay botón "Reprocesar": esa acción no existe en la API móvil
+              real — solo en el panel web (ver docs/DOCUMENT_EXTRACTION.md y
+              docs/BACKEND_GAPS_FINAL.md). */}
         </>
       )}
-
-      <View style={styles.extractionActions}>
-        {hasExtractionAction(extraction.acciones_permitidas, 'reprocesar') ? (
-          <Button
-            title="Reprocesar"
-            variant="outline"
-            leftIcon="refresh-outline"
-            onPress={onReprocesar}
-            loading={reprocessing}
-            disabled={reprocessing}
-            style={styles.actionButton}
-          />
-        ) : null}
-        {hasExtractionAction(extraction.acciones_permitidas, 'ignorar') ? (
-          <Button title="Ignorar" variant="ghost" onPress={onIgnorar} loading={ignoring} disabled={ignoring} style={styles.actionButton} />
-        ) : null}
-        {hasExtractionAction(extraction.acciones_permitidas, 'aplicar') ? (
-          <Button
-            title="Aplicar cambios"
-            onPress={onAplicar}
-            loading={applying}
-            disabled={applying || !hasSelection}
-            style={styles.actionButton}
-          />
-        ) : null}
-      </View>
     </Card>
   );
 }
