@@ -108,3 +108,19 @@ export function pickBoolean(obj: Record<string, unknown> | undefined | null, key
 export function pluralize(count: number, singular: string, plural: string): string {
   return count === 1 ? singular : plural;
 }
+
+/**
+ * Nombre de archivo legible para descargas (sección 73: "usar nombre
+ * correcto... no exponer UUID/path NAS"). Sin extensión a propósito —
+ * `SecureDocumentViewer` siempre agrega la extensión real detectada por
+ * `Content-Type`, nunca confía en la del título.
+ */
+export function slugifyFilename(value: string): string {
+  const slug = value
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return slug || 'documento';
+}

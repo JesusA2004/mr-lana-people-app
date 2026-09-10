@@ -31,22 +31,48 @@ export function resolveResourceRoute(data: PushNotificationData): string | null 
       return '/cumpleanos';
     case 'notificacion':
       return '/notificaciones';
+    case 'documento_laboral':
+      // "Documentos laborales" del colaborador (AGENTS.md de este encargo,
+      // sección 19-22) — distinto de `documento` (expediente), que es lo
+      // que el colaborador ENTREGA a RH.
+      return data.resource_id ? `/documentos-laborales/${data.resource_id}` : '/documentos-laborales';
 
     case 'rh_solicitud':
       return data.resource_id ? `/(app)/rh/solicitudes/${data.resource_id}` : '/(app)/rh/(tabs)/pendientes';
-    case 'rh_documento':
-      return data.resource_id ? `/(app)/rh/documentos/${data.resource_id}` : '/(app)/rh/(tabs)/pendientes';
     case 'rh_vacaciones':
       return data.resource_id ? `/(app)/rh/vacaciones/${data.resource_id}` : '/(app)/rh/(tabs)/pendientes';
     case 'rh_incorporacion':
       return data.resource_id ? `/(app)/rh/incorporaciones/${data.resource_id}` : '/(app)/rh/(tabs)/pendientes';
     case 'rh_pendiente':
       return '/(app)/rh/(tabs)/pendientes';
+
+    case 'rh_documento':
+      if (!data.resource_id) return '/(app)/rh/(tabs)/pendientes';
+      // `reason: "extraction_review"` (sección 12): abre el documento
+      // directo en la sección "Análisis automático" en vez del detalle
+      // normal. Cualquier otro `reason` (o ninguno) se ignora — nunca
+      // romper por un valor desconocido, siempre abre el documento normal.
+      return data.reason === 'extraction_review'
+        ? `/(app)/rh/documentos/${data.resource_id}?focus=extraccion`
+        : `/(app)/rh/documentos/${data.resource_id}`;
+    case 'rh_extraccion_documento':
+      // Push dedicado (sección 12): siempre abre directo en "Análisis automático".
+      return data.resource_id ? `/(app)/rh/documentos/${data.resource_id}?focus=extraccion` : '/(app)/rh/(tabs)/pendientes';
+
     case 'rh_cumpleanos':
-      // Todavía no existe una API móvil RH de cumpleaños dedicada (confirmado
-      // contra routes/api.php de capacitaciones) — cae en Notificaciones RH,
-      // nunca en una pantalla rota (AGENTS.md sección 37/61).
-      return '/(app)/rh/(tabs)/notificaciones';
+      // Excepción documentada (`docs/PUSH_NOTIFICATIONS.md`): cuando el
+      // aviso resume varios cumpleaños, `resource_id` es null y el backend
+      // manda `periodo` para navegar a la bandeja en el estado correcto —
+      // nunca se inventa un id.
+      if (data.resource_id) return `/(app)/rh/cumpleanos/${data.resource_id}`;
+      return data.periodo ? `/(app)/rh/cumpleanos?periodo=${encodeURIComponent(data.periodo)}` : '/(app)/rh/cumpleanos';
+
+    case 'formato_disponible':
+      // Los formatos generados son un módulo de RH (AGENTS.md de este
+      // encargo, secciones 13-18) — sin una pantalla de detalle propia por
+      // `documento_generado_id` todavía, cae elegantemente en la lista.
+      return '/(app)/rh/formatos';
+
     default:
       return null;
   }
@@ -59,6 +85,8 @@ const RH_PUSH_TYPES = new Set<PushResourceType>([
   'rh_incorporacion',
   'rh_pendiente',
   'rh_cumpleanos',
+  'rh_extraccion_documento',
+  'formato_disponible',
 ]);
 
 /**

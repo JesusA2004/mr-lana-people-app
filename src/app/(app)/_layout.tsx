@@ -56,6 +56,7 @@ export default function AppLayout() {
   // golpe antes de tiempo.
   const cumpleanosEnabled = isFeatureEnabled(bootstrap.data?.features, 'cumpleanos');
   const incorporacionEnabled = isFeatureEnabled(bootstrap.data?.features, 'incorporacion');
+  const documentosLaboralesEnabled = isFeatureEnabled(bootstrap.data?.features, 'documentos_laborales');
 
   const birthday = useBirthdayGreeting(cumpleanosEnabled);
   useBirthdayAutoCelebration(cumpleanosEnabled ? birthday.data : null);
@@ -119,6 +120,10 @@ export default function AppLayout() {
           <Stack.Screen name="expediente/[tipoId]" />
           <Stack.Protected guard={incorporacionEnabled}>
             <Stack.Screen name="incorporacion" />
+          </Stack.Protected>
+          <Stack.Protected guard={documentosLaboralesEnabled}>
+            <Stack.Screen name="documentos-laborales/index" />
+            <Stack.Screen name="documentos-laborales/[id]" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
           </Stack.Protected>
         </Stack.Protected>
 

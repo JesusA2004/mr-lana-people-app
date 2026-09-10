@@ -57,6 +57,19 @@ export interface MobileBootstrapFeatures {
    * (ver `isFeatureEnabled`, fail-open), nunca como apagado por accidente.
    */
   cumpleanos?: boolean;
+  /**
+   * Los siguientes cinco flags corresponden a módulos que todavía NO están
+   * implementados en `MobileBootstrapService::features()` del backend real
+   * (confirmado contra el código fuente, sesión de extensión "documents
+   * intelligence and hr tools") — se declaran igual, opcionales, para que
+   * `isFeatureEnabled` los trate como habilitados por defecto (fail-open)
+   * hasta que el backend los agregue explícitamente. Ver
+   * `docs/BACKEND_GAPS_FINAL.md`.
+   */
+  formatos?: boolean;
+  documentos_laborales?: boolean;
+  document_extraction?: boolean;
+  organigrama?: boolean;
   [key: string]: boolean | undefined;
 }
 
@@ -69,7 +82,11 @@ export interface MobileBootstrapCounts {
   rh_vacaciones: number;
   rh_documentos: number;
   rh_incorporaciones: number;
-  [key: string]: number;
+  /** Documentos laborales nuevos/no vistos — módulo todavía no implementado en backend, ver `docs/BACKEND_GAPS_FINAL.md`. Ausente ≠ cero: la card solo muestra el contador si el backend lo manda. */
+  labor_documents_new?: number;
+  /** Extracciones OCR con revisión pendiente — mismo caso, todavía no implementado en backend. */
+  rh_document_extractions_pending?: number;
+  [key: string]: number | undefined;
 }
 
 export interface MobileBootstrap {

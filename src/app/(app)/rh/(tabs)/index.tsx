@@ -12,20 +12,38 @@ import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { RhPendienteCard } from '@/components/RhPendienteCard';
 import { SkeletonBlock, SkeletonCardList } from '@/components/SkeletonBlock';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { useRhCumpleanosInfinite } from '@/hooks/queries/useRhCumpleanos';
 import { useRhDashboard } from '@/hooks/queries/useRhDashboard';
+import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useAuthStore } from '@/store/authStore';
 import { getErrorMessage } from '@/utils/errors';
+import { isFeatureEnabled } from '@/utils/featureFlags';
 import { joinName } from '@/utils/formatters';
 import { rhPendienteDetailRoute } from '@/utils/rhRoutes';
 
 const HEADER_TOP_EXTRA = 20;
 
+/**
+ * Home de Gestión RH (AGENTS.md de este encargo, sección 39/64): prioridad
+ * 1) pendientes críticos, 2) documentos/revisiones, 3) cumpleaños, 4)
+ * accesos secundarios — nunca saturado, cada bloque solo aparece si el
+ * feature/permiso correspondiente está habilitado.
+ */
 export default function RhDashboardScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const user = useAuthStore((state) => state.user);
 
   const { data, isLoading, isError, error, refetch, isRefetching } = useRhDashboard(true);
+  const bootstrap = useMobileBootstrap(true);
+  const cumpleanosEnabled = isFeatureEnabled(bootstrap.data?.features, 'cumpleanos');
+  const formatosEnabled = isFeatureEnabled(bootstrap.data?.features, 'formatos');
+  const organigramaEnabled = isFeatureEnabled(bootstrap.data?.features, 'organigrama');
+  const extractionEnabled = isFeatureEnabled(bootstrap.data?.features, 'document_extraction');
+
+  const cumpleanosHoy = useRhCumpleanosInfinite({ periodo: 'hoy' }, cumpleanosEnabled);
+  const hoyCount = cumpleanosHoy.data?.pages[0]?.meta.hoy ?? 0;
+  const extractionsPending = bootstrap.data?.counts.rh_document_extractions_pending;
 
   const nombre = joinName(user?.nombre, user?.apellidos);
   const primerNombre = nombre?.split(' ')[0];
@@ -60,6 +78,50 @@ export default function RhDashboardScreen() {
               <StatTile label="Vacaciones" value={data.resumen.vacaciones} onPress={() => router.push('/(app)/rh/(tabs)/pendientes')} />
               <StatTile label="Documentos" value={data.resumen.documentos} onPress={() => router.push('/(app)/rh/(tabs)/pendientes')} />
             </View>
+
+            {extractionEnabled && extractionsPending ? (
+              <Card onPress={() => router.push('/(app)/rh/(tabs)/pendientes')} style={styles.ocrCard}>
+                <Ionicons name="sparkles-outline" size={20} color={Colors.primaryDark} />
+                <View style={styles.ocrTextColumn}>
+                  <Text style={styles.ocrTitle}>Documentos con revisión automática</Text>
+                  <Text style={styles.ocrSubtitle}>
+                    {extractionsPending} {extractionsPending === 1 ? 'documento requiere' : 'documentos requieren'} tu revisión
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+              </Card>
+            ) : null}
+
+            {cumpleanosEnabled && hoyCount > 0 ? (
+              <Card onPress={() => router.push('/(app)/rh/cumpleanos?periodo=hoy' as never)} style={styles.birthdayCard}>
+                <Ionicons name="gift-outline" size={20} color={Colors.primaryDark} />
+                <View style={styles.ocrTextColumn}>
+                  <Text style={styles.ocrTitle}>Cumpleaños de hoy</Text>
+                  <Text style={styles.ocrSubtitle}>
+                    {hoyCount} {hoyCount === 1 ? 'persona' : 'personas'}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+              </Card>
+            ) : null}
+
+            {formatosEnabled || cumpleanosEnabled || organigramaEnabled ? (
+              <>
+                <Text style={styles.sectionTitle}>Acciones rápidas</Text>
+                <View style={styles.quickGrid}>
+                  <QuickAction icon="search-outline" label="Buscar colaborador" onPress={() => router.push('/(app)/rh/(tabs)/colaboradores')} />
+                  {formatosEnabled ? (
+                    <QuickAction icon="document-text-outline" label="Formatos" onPress={() => router.push('/(app)/rh/formatos' as never)} />
+                  ) : null}
+                  {cumpleanosEnabled ? (
+                    <QuickAction icon="gift-outline" label="Cumpleaños" onPress={() => router.push('/(app)/rh/cumpleanos' as never)} />
+                  ) : null}
+                  {organigramaEnabled ? (
+                    <QuickAction icon="git-network-outline" label="Organización" onPress={() => router.push('/(app)/rh/organizacion' as never)} />
+                  ) : null}
+                </View>
+              </>
+            ) : null}
 
             <Text style={styles.sectionTitle}>Urgentes</Text>
             {data.urgentes.length === 0 ? (
@@ -105,6 +167,17 @@ function StatTile({ label, value, highlight = false, onPress }: { label: string;
     <PressableScale onPress={onPress} style={[styles.statTile, highlight && styles.statTileHighlight]}>
       <Text style={[styles.statValue, highlight && styles.statValueHighlight]}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
+    </PressableScale>
+  );
+}
+
+function QuickAction({ icon, label, onPress }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void }) {
+  return (
+    <PressableScale accessibilityLabel={label} onPress={onPress} style={styles.quickAction}>
+      <View style={styles.quickIcon}>
+        <Ionicons name={icon} size={20} color={Colors.primaryDark} />
+      </View>
+      <Text style={styles.quickLabel}>{label}</Text>
     </PressableScale>
   );
 }
@@ -197,5 +270,61 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: FontSize.sm,
     color: Colors.textMuted,
+  },
+  ocrCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.primarySoft,
+    borderColor: Colors.primarySoft,
+  },
+  birthdayCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  ocrTextColumn: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  ocrTitle: {
+    fontSize: FontSize.sm,
+    fontWeight: '800',
+    color: Colors.text,
+  },
+  ocrSubtitle: {
+    fontSize: FontSize.xs,
+    color: Colors.textMuted,
+    fontWeight: '600',
+  },
+  quickGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.md,
+  },
+  quickAction: {
+    width: '47%',
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.md,
+    gap: Spacing.sm,
+    minHeight: 96,
+  },
+  quickIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickLabel: {
+    fontSize: FontSize.sm,
+    fontWeight: '700',
+    color: Colors.text,
   },
 });

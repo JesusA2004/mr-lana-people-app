@@ -14,6 +14,7 @@ export type PushResourceType =
   | 'perfil'
   | 'cumpleanos'
   | 'notificacion'
+  | 'documento_laboral'
   // RH / aprobadores
   | 'rh_solicitud'
   | 'rh_documento'
@@ -21,9 +22,29 @@ export type PushResourceType =
   | 'rh_incorporacion'
   | 'rh_pendiente'
   | 'rh_cumpleanos'
+  | 'rh_extraccion_documento'
+  | 'formato_disponible'
   | (string & {});
 
 export interface PushNotificationData {
   type?: PushResourceType;
-  resource_id?: string | number;
+  resource_id?: string | number | null;
+  /**
+   * Excepción documentada (`docs/PUSH_NOTIFICATIONS.md`, `rh_cumpleanos`):
+   * cuando el aviso resume varios cumpleaños en vez de apuntar a uno solo,
+   * `resource_id` viaja `null` y el backend manda `route`/`periodo` en su
+   * lugar para que la app navegue a la bandeja en el estado correcto —
+   * nunca se inventa un id (ni timestamp ni conteo). Ejemplo real:
+   * `{ "type": "rh_cumpleanos", "resource_id": null, "route": "rh/cumpleanos", "periodo": "hoy" }`.
+   */
+  route?: string;
+  periodo?: 'hoy' | '7_dias' | '30_dias' | 'mes' | (string & {});
+  /**
+   * Motivo opcional que puede acompañar `rh_documento` cuando el backend
+   * decide notificar por una extracción automática con diferencias
+   * importantes (ej. `"extraction_review"`). La app debe ignorar cualquier
+   * valor que no reconozca y abrir el documento normal — nunca romper por
+   * un `reason` desconocido.
+   */
+  reason?: string;
 }

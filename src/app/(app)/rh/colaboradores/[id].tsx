@@ -10,14 +10,18 @@ import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useRhColaborador } from '@/hooks/queries/useRhColaboradores';
 import { getErrorMessage } from '@/utils/errors';
+import { isFeatureEnabled } from '@/utils/featureFlags';
 
 /** Perfil básico del directorio RH (AGENTS.md sección 13) — nunca inventa expediente aquí; eso vive en `rh/expedientes`. */
 export default function RhColaboradorDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: colaborador, isLoading, isError, error, refetch, isRefetching } = useRhColaborador(id);
+  const bootstrap = useMobileBootstrap(true);
+  const formatosEnabled = isFeatureEnabled(bootstrap.data?.features, 'formatos');
 
   return (
     <View style={styles.container}>
@@ -57,6 +61,15 @@ export default function RhColaboradorDetailScreen() {
               variant="outline"
               onPress={() => router.push(`/(app)/rh/expedientes/${id}` as never)}
             />
+
+            {formatosEnabled ? (
+              <Button
+                title="Generar documento"
+                leftIcon="document-text-outline"
+                variant="outline"
+                onPress={() => router.push(`/(app)/rh/formatos/generar?colaborador=${id}` as never)}
+              />
+            ) : null}
           </>
         )}
       </ScrollView>

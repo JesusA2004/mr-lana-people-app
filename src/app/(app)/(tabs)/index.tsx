@@ -20,6 +20,7 @@ import { MascotMessages } from '@/constants/mascotMessages';
 import { useBirthdayGreeting } from '@/hooks/queries/useBirthday';
 import { useDashboard } from '@/hooks/queries/useDashboard';
 import { useIncorporacion } from '@/hooks/queries/useIncorporacion';
+import { useLaborDocumentsSummary } from '@/hooks/queries/useLaborDocuments';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import type { Solicitud } from '@/types/request';
 import { getErrorMessage } from '@/utils/errors';
@@ -45,7 +46,10 @@ export default function DashboardScreen() {
   const cumpleanosEnabled = isFeatureEnabled(bootstrap.data?.features, 'cumpleanos');
   const vacacionesEnabled = isFeatureEnabled(bootstrap.data?.features, 'vacaciones');
   const incorporacionEnabled = isFeatureEnabled(bootstrap.data?.features, 'incorporacion');
+  const documentosLaboralesEnabled = isFeatureEnabled(bootstrap.data?.features, 'documentos_laborales');
   const birthday = useBirthdayGreeting(cumpleanosEnabled);
+  const laborDocuments = useLaborDocumentsSummary(documentosLaboralesEnabled);
+  const laborDocumentsNew = bootstrap.data?.counts.labor_documents_new;
 
   const perfil = data?.perfil;
   const nombre = joinName(perfil?.nombre, perfil?.apellidos);
@@ -264,6 +268,27 @@ export default function DashboardScreen() {
               </FadeInView>
             </View>
 
+            {documentosLaboralesEnabled && laborDocumentsNew ? (
+              <FadeInView index={0}>
+                <Card style={styles.laborDocsCard} onPress={() => router.push('/documentos-laborales' as never)}>
+                  <View style={styles.laborDocsHeaderRow}>
+                    <Text style={styles.laborDocsTitle}>Tus documentos</Text>
+                    <View style={styles.laborDocsBadge}>
+                      <Text style={styles.laborDocsBadgeText}>
+                        {laborDocumentsNew} {pluralize(laborDocumentsNew, 'nuevo', 'nuevos')}
+                      </Text>
+                    </View>
+                  </View>
+                  {(laborDocuments.data?.data ?? []).slice(0, 2).map((documento) => (
+                    <Text key={documento.id} style={styles.laborDocsItem} numberOfLines={1}>
+                      {documento.titulo}
+                    </Text>
+                  ))}
+                  <Button title="Ver documentos" variant="outline" fullWidth={false} rightIcon="arrow-forward" style={styles.laborDocsCta} onPress={() => router.push('/documentos-laborales' as never)} />
+                </Card>
+              </FadeInView>
+            ) : null}
+
             <Text style={styles.sectionTitle}>Accesos rápidos</Text>
             <View style={styles.quickGrid}>
               <QuickAction icon="add-circle-outline" label="Nueva solicitud" onPress={() => router.push('/solicitud/nueva')} />
@@ -272,6 +297,9 @@ export default function DashboardScreen() {
               ) : null}
               {incorporacionEnabled ? (
                 <QuickAction icon="briefcase-outline" label="Mi incorporación" onPress={() => router.push('/incorporacion')} />
+              ) : null}
+              {documentosLaboralesEnabled ? (
+                <QuickAction icon="folder-outline" label="Documentos laborales" onPress={() => router.push('/documentos-laborales' as never)} />
               ) : null}
               <QuickAction icon="help-buoy-outline" label="Ayuda" onPress={() => router.push('/ayuda')} />
             </View>
@@ -514,6 +542,41 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     fontWeight: '700',
     color: Colors.text,
+  },
+  laborDocsCard: {
+    gap: Spacing.xs,
+  },
+  laborDocsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  laborDocsTitle: {
+    fontSize: FontSize.md,
+    fontWeight: '800',
+    color: Colors.text,
+  },
+  laborDocsBadge: {
+    backgroundColor: Colors.primarySoft,
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+  },
+  laborDocsBadgeText: {
+    fontSize: FontSize.xs,
+    fontWeight: '800',
+    color: Colors.primaryDark,
+  },
+  laborDocsItem: {
+    fontSize: FontSize.sm,
+    color: Colors.textMuted,
+    fontWeight: '600',
+  },
+  laborDocsCta: {
+    marginTop: Spacing.xs,
+    alignSelf: 'flex-start',
+    minHeight: 40,
+    paddingHorizontal: Spacing.md,
   },
   list: {
     gap: Spacing.md,

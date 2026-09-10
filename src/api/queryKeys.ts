@@ -30,6 +30,20 @@ export const queryKeys = {
   rhColaborador: (id: string | number) => ['rh', 'colaboradores', String(id)] as const,
   rhExpedientes: (params: Record<string, unknown> = {}) => ['rh', 'expedientes', params] as const,
   rhExpediente: (id: string | number) => ['rh', 'expedientes', String(id)] as const,
+
+  rhCumpleanos: (params: Record<string, unknown> = {}) => ['rh', 'cumpleanos', params] as const,
+  rhCumpleano: (id: string | number) => ['rh', 'cumpleanos', String(id)] as const,
+
+  rhFormatos: (params: Record<string, unknown> = {}) => ['rh', 'formatos', params] as const,
+  rhFormatoPreparation: (formatoId: string | number, colaboradorId: string | number) =>
+    ['rh', 'formatos', String(formatoId), 'preparar', String(colaboradorId)] as const,
+
+  rhDocumentExtraction: (documentoId: string | number) => ['rh', 'documentos', String(documentoId), 'extraccion'] as const,
+
+  rhOrganizacion: ['rh', 'organizacion', 'jerarquia'] as const,
+
+  laborDocuments: (params: Record<string, unknown> = {}) => ['colaborador', 'documentos-laborales', params] as const,
+  laborDocument: (id: string | number) => ['colaborador', 'documentos-laborales', String(id)] as const,
 } as const;
 
 /** Invalida todo lo que empiece con `['rh', ...]` — usado tras cualquier acción de aprobación/rechazo en Gestión RH. */

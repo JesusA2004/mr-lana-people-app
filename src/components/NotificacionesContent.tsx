@@ -24,11 +24,17 @@ const ICON_BY_TYPE: Record<string, keyof typeof Ionicons.glyphMap> = {
   vacaciones: 'airplane-outline',
   documento: 'folder-open-outline',
   expediente: 'folder-open-outline',
+  incorporacion: 'person-add-outline',
+  cumpleanos: 'gift-outline',
+  documento_laboral: 'briefcase-outline',
   rh_solicitud: 'document-text-outline',
   rh_vacaciones: 'airplane-outline',
   rh_documento: 'folder-open-outline',
   rh_incorporacion: 'person-add-outline',
   rh_pendiente: 'checkbox-outline',
+  rh_cumpleanos: 'gift-outline',
+  rh_extraccion_documento: 'sparkles-outline',
+  formato_disponible: 'document-attach-outline',
 };
 
 function iconFor(tipo?: string | null): keyof typeof Ionicons.glyphMap {
