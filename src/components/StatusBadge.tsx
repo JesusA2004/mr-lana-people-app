@@ -24,6 +24,16 @@ const STATUS_STYLES: Record<string, StatusStyle> = {
   requiere_correccion: { icon: 'alert-circle-outline', color: Colors.warning, background: Colors.warningSoft },
   cancelada: { icon: 'ban-outline', color: Colors.textMuted, background: Colors.neutralSoft },
   cerrada: { icon: 'lock-closed-outline', color: Colors.textMuted, background: Colors.neutralSoft },
+  // Vocabulario adicional de RH/expedientes (App\Enums\EstadoDocumento y estados de vacaciones/incorporaciones).
+  pendiente: { icon: 'ellipse-outline', color: Colors.textMuted, background: Colors.neutralSoft },
+  cargado: { icon: 'cloud-upload-outline', color: Colors.info, background: Colors.infoSoft },
+  aprobado: { icon: 'checkmark-circle-outline', color: Colors.success, background: Colors.successSoft },
+  rechazado: { icon: 'close-circle-outline', color: Colors.danger, background: Colors.dangerSoft },
+  vencido: { icon: 'time-outline', color: Colors.danger, background: Colors.dangerSoft },
+  cambio_solicitado: { icon: 'swap-horizontal-outline', color: Colors.warning, background: Colors.warningSoft },
+  cambio_autorizado: { icon: 'checkmark-done-outline', color: Colors.info, background: Colors.infoSoft },
+  incompleto: { icon: 'ellipse-outline', color: Colors.textMuted, background: Colors.neutralSoft },
+  completo: { icon: 'checkmark-done-outline', color: Colors.info, background: Colors.infoSoft },
 };
 
 const DEFAULT_STYLE: StatusStyle = { icon: 'ellipse-outline', color: Colors.textMuted, background: Colors.neutralSoft };

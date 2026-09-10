@@ -8,7 +8,9 @@ import { Button } from './Button';
 import { Card } from './Card';
 
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { API_URL } from '@/constants/config';
 import { toast } from '@/store/toastStore';
+import { getCurrentAppVersion, getCurrentBuildNumber } from '@/utils/appVersion';
 import { supportsRemotePush } from '@/utils/runtime';
 
 /**
@@ -58,6 +60,11 @@ export function DevPushTokenTool() {
     toast.success('Token copiado.');
   };
 
+  const handleCopyApiUrl = async () => {
+    await Clipboard.setStringAsync(API_URL);
+    toast.success('API endpoint copiado.');
+  };
+
   return (
     <>
       <Card style={styles.card}>
@@ -66,6 +73,23 @@ export function DevPushTokenTool() {
           <Text style={styles.headerText}>Pruebas de desarrollo</Text>
         </View>
         <Text style={styles.description}>Solo visible en modo desarrollo — nunca aparece en producción.</Text>
+
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Versión</Text>
+          <Text style={styles.infoValue}>
+            {getCurrentAppVersion()} ({getCurrentBuildNumber()})
+          </Text>
+        </View>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel} numberOfLines={1}>
+            API endpoint
+          </Text>
+          <Text style={styles.infoValue} numberOfLines={1}>
+            {API_URL || '—'}
+          </Text>
+        </View>
+        <Button title="Copiar API endpoint" variant="ghost" onPress={() => void handleCopyApiUrl()} />
+
         <Button title="Mostrar Expo Push Token" variant="outline" onPress={() => void handleShowToken()} />
       </Card>
 
@@ -113,6 +137,23 @@ const styles = StyleSheet.create({
   description: {
     fontSize: FontSize.xs,
     color: Colors.textMuted,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
+  },
+  infoLabel: {
+    fontSize: FontSize.xs,
+    fontWeight: '700',
+    color: Colors.textMuted,
+  },
+  infoValue: {
+    flexShrink: 1,
+    fontSize: FontSize.xs,
+    fontWeight: '600',
+    color: Colors.text,
+    textAlign: 'right',
   },
   backdrop: {
     flex: 1,

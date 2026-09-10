@@ -28,6 +28,16 @@ const REQUEST_STATUS_LABELS: Record<string, string> = {
   requiere_correccion: 'Requiere corrección',
   cancelada: 'Cancelada',
   cerrada: 'Cerrada',
+  // Vocabulario adicional de RH/expedientes.
+  pendiente: 'Pendiente',
+  cargado: 'Cargado',
+  aprobado: 'Aprobado',
+  rechazado: 'Rechazado',
+  vencido: 'Vencido',
+  cambio_solicitado: 'Cambio solicitado',
+  cambio_autorizado: 'Cambio autorizado',
+  incompleto: 'Incompleto',
+  completo: 'Completo',
 };
 
 function humanizeSlug(value: string): string {

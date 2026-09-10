@@ -7,7 +7,7 @@ import { Button } from './Button';
 
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 
-export type PermissionPrimerKind = 'camera' | 'gallery' | 'push' | 'biometric';
+export type PermissionPrimerKind = 'camera' | 'gallery' | 'push' | 'biometric' | 'qr';
 
 export interface PermissionPrimerSheetProps {
   visible: boolean;
@@ -43,6 +43,11 @@ const COPY: Record<PermissionPrimerKind, { icon: keyof typeof Ionicons.glyphMap;
     icon: 'finger-print-outline',
     title: 'Desbloquea más rápido',
     message: 'Usa tu huella o reconocimiento facial para volver a entrar a MR. LANA PEOPLE sin escribir tu contraseña cada vez.',
+  },
+  qr: {
+    icon: 'qr-code-outline',
+    title: 'Necesitamos tu cámara',
+    message: 'Permite usar la cámara para leer el código QR que te entregó Recursos Humanos.',
   },
 };
 

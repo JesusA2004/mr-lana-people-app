@@ -12,11 +12,14 @@ import { Card } from '@/components/Card';
 import { DevPushTokenTool } from '@/components/DevPushTokenTool';
 import { PressableScale } from '@/components/PressableScale';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { authenticateWithBiometricsAsync, biometricLabel, getBiometricCapabilityAsync, type BiometricKind } from '@/services/biometricAuth';
 import { getPushPermissionStatusAsync, type PushPermissionSnapshot, registerCurrentPushToken } from '@/services/pushNotifications';
 import { useAuthStore } from '@/store/authStore';
 import { useBiometricStore } from '@/store/biometricStore';
+import { useExperienceStore } from '@/store/experienceStore';
 import { toast } from '@/store/toastStore';
+import { canUseRhExperience } from '@/utils/capabilities';
 import { joinName } from '@/utils/formatters';
 
 export default function ConfiguracionScreen() {
@@ -31,7 +34,20 @@ export default function ConfiguracionScreen() {
   const biometricEnabled = useBiometricStore((state) => state.enabled);
   const setBiometricEnabled = useBiometricStore((state) => state.setEnabled);
 
+  const bootstrap = useMobileBootstrap(true);
+  const experience = useExperienceStore((state) => state.experience);
+  const setExperience = useExperienceStore((state) => state.setExperience);
+  const canUseRh = bootstrap.data ? canUseRhExperience(bootstrap.data.capabilities, bootstrap.data.features) : false;
+  const isInRh = experience === 'rh';
+
   const nombre = joinName(user?.nombre, user?.apellidos);
+
+  const handleSwitchExperience = async () => {
+    const target = isInRh ? 'colaborador' : 'rh';
+    await setExperience(target);
+    toast.success(target === 'rh' ? 'Cambiaste a Gestión RH.' : 'Cambiaste a Mi espacio.');
+    router.back();
+  };
 
   const refreshPushStatus = () => void getPushPermissionStatusAsync().then(setPushSnapshot);
 
@@ -112,6 +128,21 @@ export default function ConfiguracionScreen() {
             {user?.correo ? <Text style={styles.userEmail}>{user.correo}</Text> : null}
           </View>
         </Card>
+
+        {canUseRh ? (
+          <>
+            <Text style={styles.sectionLabel}>Cuenta</Text>
+            <Card style={{ gap: 0 }} padded={false}>
+              <SettingRow
+                icon={isInRh ? 'person-outline' : 'briefcase-outline'}
+                label={isInRh ? 'Cambiar a Mi espacio' : 'Cambiar a Gestión RH'}
+                value={isInRh ? 'Gestión RH activa' : 'Mi espacio activo'}
+                onPress={() => void handleSwitchExperience()}
+                last
+              />
+            </Card>
+          </>
+        ) : null}
 
         <Text style={styles.sectionLabel}>Notificaciones</Text>
         <Card style={{ gap: 0 }} padded={false}>

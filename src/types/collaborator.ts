@@ -21,15 +21,9 @@ export interface CollaboratorProfile {
   foto_url?: string | null;
   /**
    * URL de la foto autenticable con el mismo Bearer token de la sesión
-   * móvil — todavía no existe en el backend (confirmado contra
-   * `routes/api.php`/`ColaboradorPerfilService`: no hay ningún endpoint
-   * `colaborador/foto`). El propio `docs/API_MOVIL.md` de capacitaciones lo
-   * deja documentado como pendiente ("Qué NO expone la API" / sección
-   * final): `foto_url` requiere sesión web y no puede resolverse desde un
-   * cliente 100% nativo hasta que el backend agregue una URL firmada o
-   * sirva la imagen en base64. Se conserva el campo (siempre `undefined`
-   * hoy) para no tener que tocar `ProfileAvatar` cuando el backend lo
-   * agregue — es la fuente preferida, la app la usa antes que `foto_url`.
+   * móvil — `GET /api/v1/colaborador/foto` (streaming, backend móvil v5).
+   * `ProfileAvatar` la usa como fuente preferida, antes que `foto_url`
+   * (heredado, protegido por sesión web).
    */
   foto_url_api?: string | null;
   puesto?: string | null;

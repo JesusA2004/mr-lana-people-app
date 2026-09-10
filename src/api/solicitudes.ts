@@ -35,11 +35,10 @@ export const solicitudesApi = {
   },
 
   /**
-   * `POST /api/v1/solicitudes/{id}/adjuntos` — todavía NO existe en
-   * capacitaciones (ver docs/BACKEND_REQUIREMENTS_V4.md, P1). Se deja el
-   * cliente listo y desacoplado para conectarlo en cuanto el backend lo
-   * agregue; hoy nada lo llama (el wizard de Nueva Solicitud no tiene paso
-   * de adjuntos) para no fabricar una capacidad que el backend no soporta.
+   * `POST /api/v1/solicitudes/{id}/adjuntos` — PDF/JPG/PNG, solo a
+   * solicitudes propias. Usado por el paso "Adjuntos" del wizard de Nueva
+   * Solicitud cuando `solicitudesApi.getConfiguracion()` marca
+   * `allows_attachments` para el tipo elegido (AGENTS.md sección 44-46).
    */
   async addAttachment(
     solicitudId: number | string,
@@ -60,10 +59,12 @@ export const solicitudesApi = {
   },
 
   /**
-   * `GET /api/v1/solicitudes/configuracion` — todavía NO existe en
-   * capacitaciones (ver docs/BACKEND_REQUIREMENTS_V4.md, P2). En cuanto
-   * exista, `solicitud/nueva.tsx` puede reemplazar el catálogo fijo
-   * `REQUEST_TYPE_OPTIONS` por esta respuesta sin cambiar la UI del wizard.
+   * `GET /api/v1/solicitudes/configuracion` — catálogo real de tipos +
+   * reglas de formulario (`requires_dates`/`allows_attachments`/
+   * `attachment_required`), derivado de `App\Enums\TipoSolicitudInterna` en
+   * el backend. `solicitud/nueva.tsx` lo usa como fuente de verdad; el
+   * catálogo local `REQUEST_TYPE_OPTIONS` solo aporta ícono/descripción
+   * (cosmético) y sirve de respaldo mientras esta consulta carga.
    */
   async getConfiguracion(): Promise<SolicitudTipoConfig[]> {
     const response = await apiClient.get('/solicitudes/configuracion');

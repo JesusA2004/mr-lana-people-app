@@ -1,9 +1,11 @@
+import { Ionicons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Image } from 'expo-image';
 import * as SecureStore from 'expo-secure-store';
+import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { z } from 'zod';
 
@@ -22,6 +24,7 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginScreen() {
+  const router = useRouter();
   const login = useAuthStore((state) => state.login);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -130,6 +133,26 @@ export default function LoginScreen() {
               style={styles.submitButton}
             />
           </View>
+
+          <View style={styles.qrBlock}>
+            <View style={styles.qrDivider}>
+              <View style={styles.qrDividerLine} />
+              <Text style={styles.qrDividerText}>o</Text>
+              <View style={styles.qrDividerLine} />
+            </View>
+            <Text style={styles.qrTitle}>¿Aún no tienes cuenta?</Text>
+            <Text style={styles.qrSubtitle}>
+              Si Recursos Humanos ya te entregó un código QR, escanéalo para comenzar tu registro.
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Escanear código QR de incorporación"
+              onPress={() => router.push('/(auth)/escanear-qr')}
+              style={({ pressed }) => [styles.qrButton, pressed && styles.qrButtonPressed]}>
+              <Ionicons name="qr-code-outline" size={20} color={Colors.primaryDark} />
+              <Text style={styles.qrButtonText}>Escanear código QR</Text>
+            </Pressable>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -197,5 +220,59 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     marginTop: Spacing.sm,
+  },
+  qrBlock: {
+    gap: Spacing.sm,
+    alignItems: 'center',
+  },
+  qrDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    alignSelf: 'stretch',
+    marginBottom: Spacing.xs,
+  },
+  qrDividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: Colors.border,
+  },
+  qrDividerText: {
+    fontSize: FontSize.xs,
+    color: Colors.textMuted,
+    fontWeight: '700',
+  },
+  qrTitle: {
+    fontSize: FontSize.md,
+    fontWeight: '800',
+    color: Colors.text,
+    textAlign: 'center',
+  },
+  qrSubtitle: {
+    fontSize: FontSize.sm,
+    color: Colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  qrButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    alignSelf: 'stretch',
+    minHeight: 48,
+    borderRadius: Radius.md,
+    borderWidth: 1.5,
+    borderColor: Colors.primarySoft,
+    backgroundColor: Colors.primarySoft,
+    marginTop: Spacing.xs,
+  },
+  qrButtonPressed: {
+    opacity: 0.85,
+  },
+  qrButtonText: {
+    fontSize: FontSize.md,
+    fontWeight: '700',
+    color: Colors.primaryDark,
   },
 });

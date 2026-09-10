@@ -1,16 +1,23 @@
 {
   "expo": {
-    "name": "mr-lana-people-app",
+    "name": "MR. LANA PEOPLE",
     "slug": "mr-lana-people-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "mrlanapeopleapp",
     "userInterfaceStyle": "automatic",
+
     "ios": {
       "bundleIdentifier": "com.mrlana.people",
-      "buildNumber": "1"
+      "buildNumber": "1",
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "associatedDomains": ["applinks:people.mr-lana.com"]
     },
+
     "android": {
       "package": "com.mrlana.people",
       "versionCode": 1,
@@ -19,14 +26,25 @@
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [{ "scheme": "https", "host": "people.mr-lana.com", "pathPrefix": "/incorporacion/qr" }],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
+
     "web": {
       "output": "static",
       "favicon": "./assets/images/brand/logo-mark.png"
     },
+
     "plugins": [
       "expo-router",
+
       [
         "expo-splash-screen",
         {
@@ -35,9 +53,13 @@
           "imageWidth": 96
         }
       ],
+
       "expo-secure-store",
+
       "expo-status-bar",
+
       "@react-native-community/datetimepicker",
+
       [
         "expo-notifications",
         {
@@ -45,6 +67,7 @@
           "color": "#4CB838"
         }
       ],
+
       [
         "expo-image-picker",
         {
@@ -53,19 +76,32 @@
           "microphonePermission": false
         }
       ],
+
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "MR. LANA PEOPLE necesita acceso a tu cámara para leer el código QR que te entregó Recursos Humanos.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": true
+        }
+      ],
+
       [
         "expo-build-properties",
         {
           "android": {
-            "usesCleartextTraffic": true
+            "usesCleartextTraffic": false
           }
         }
       ]
     ],
+
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
     },
+
     "extra": {
       "router": {},
       "eas": {

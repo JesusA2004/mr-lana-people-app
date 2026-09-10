@@ -14,14 +14,7 @@ export const notificacionesApi = {
     return extractData<NotificationItem>(response.data);
   },
 
-  /**
-   * `POST /api/v1/notificaciones/leer-todas` — endpoint sugerido, todavía
-   * NO existe en capacitaciones (ver docs/BACKEND_REQUIREMENTS_V4.md). Se
-   * deja implementado del lado de la app para que "Marcar todas como
-   * leídas" funcione en cuanto el backend lo agregue; hasta entonces
-   * responde 404 y quien la use debe manejarlo sin romper la UI (ver
-   * `useMarkAllNotificacionesLeidas`).
-   */
+  /** `POST /api/v1/notificaciones/leer-todas` — `App\Http\Controllers\Api\V1\NotificacionController::marcarTodasLeidas`. */
   async markAllAsRead(): Promise<void> {
     await apiClient.post('/notificaciones/leer-todas');
   },

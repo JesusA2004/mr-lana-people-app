@@ -8,13 +8,17 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { bindQueryClientToNetworkStatus, queryClient } from '@/api/queryClient';
 import { AppErrorBoundary } from '@/components/AppErrorBoundary';
 import { ErrorState } from '@/components/ErrorState';
+import { ForceUpdateScreen } from '@/components/ForceUpdateScreen';
 import { MaintenanceScreen } from '@/components/MaintenanceScreen';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { ToastHost } from '@/components/ToastHost';
+import { UpdateBanner } from '@/components/UpdateBanner';
 import { IS_API_URL_CONFIGURED } from '@/constants/config';
+import { useAppConfig } from '@/hooks/queries/useAppRelease';
 import { useNotificationResponseRouting } from '@/hooks/useNotificationResponseRouting';
 import { usePushRegistration } from '@/hooks/usePushRegistration';
 import { useAuthStore } from '@/store/authStore';
+import { useMaintenanceStore } from '@/store/maintenanceStore';
 import { useOnboardingStore } from '@/store/onboardingStore';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -29,6 +33,23 @@ function SplashScreenController() {
       SplashScreen.hide();
     }
   }, [isInitializing, isOnboardingLoading]);
+
+  return null;
+}
+
+/**
+ * Consulta `GET /api/v1/app/config` (público, sin sesión) al iniciar la app
+ * — AGENTS.md sección 38/58 — y sincroniza `MaintenanceScreen` con
+ * `maintenance`/`message` sin esperar a que alguna otra request falle con
+ * 503. Vive fuera de `RootNavigator` para correr incluso antes de login.
+ */
+function AppConfigController() {
+  const { data: config } = useAppConfig();
+  const setMaintenanceActive = useMaintenanceStore((state) => state.setActive);
+
+  useEffect(() => {
+    if (config) setMaintenanceActive(config.maintenance, config.message);
+  }, [config, setMaintenanceActive]);
 
   return null;
 }
@@ -70,6 +91,7 @@ function RootNavigator() {
 
 export default function RootLayout() {
   const restoreSession = useAuthStore((state) => state.restoreSession);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const loadOnboarding = useOnboardingStore((state) => state.load);
 
   useEffect(() => {
@@ -93,12 +115,15 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <StatusBar style="dark" />
         <SplashScreenController />
+        <AppConfigController />
         <AppErrorBoundary>
           <RootNavigator />
         </AppErrorBoundary>
         <ToastHost />
         <OfflineBanner />
+        <UpdateBanner enabled={isAuthenticated} />
         <MaintenanceScreen />
+        <ForceUpdateScreen enabled />
       </SafeAreaProvider>
     </QueryClientProvider>
   );

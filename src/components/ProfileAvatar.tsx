@@ -15,29 +15,21 @@ export interface ProfileAvatarProps {
 }
 
 /**
- * Cadena de prioridad de foto de perfil (AGENTS.md):
- *   1. foto_url_api (autenticada con el Bearer token de la sesión)
- *   2. foto_url (heredada, sesión web — normalmente falla desde la app)
- *   3. avatar ilustrado de desarrollo (`SHOW_DEMO_PROFILE_PHOTO`, nunca en producción)
- *   4. iniciales
+ * Cadena de prioridad de foto de perfil (AGENTS.md sección 43):
+ *   1. foto_url_api / foto_url — el backend real (`GET /colaborador/foto`,
+ *      streaming) manda la URL autenticada bajo el campo `foto_url` mismo
+ *      (`Api\V1\ColaboradorController`, backend móvil v5) — ambos campos se
+ *      tratan igual, siempre con el Bearer token de la sesión, porque
+ *      cualquiera de los dos puede apuntar a esa ruta protegida.
+ *   2. avatar ilustrado de desarrollo (`SHOW_DEMO_PROFILE_PHOTO`, nunca en producción)
+ *   3. iniciales
  */
 export function ProfileAvatar({ name, fotoUrlApi, fotoUrl, size = 56, ringColor }: ProfileAvatarProps) {
   const token = useAuthStore((state) => state.token);
+  const uri = fotoUrlApi ?? fotoUrl;
 
-  if (fotoUrlApi) {
-    return (
-      <Avatar
-        name={name}
-        uri={fotoUrlApi}
-        headers={token ? { Authorization: `Bearer ${token}` } : undefined}
-        size={size}
-        ringColor={ringColor}
-      />
-    );
-  }
-
-  if (fotoUrl) {
-    return <Avatar name={name} uri={fotoUrl} size={size} ringColor={ringColor} />;
+  if (uri) {
+    return <Avatar name={name} uri={uri} headers={token ? { Authorization: `Bearer ${token}` } : undefined} size={size} ringColor={ringColor} />;
   }
 
   if (SHOW_DEMO_PROFILE_PHOTO) {

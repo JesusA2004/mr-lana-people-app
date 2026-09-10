@@ -70,6 +70,16 @@ export function getValidationErrors(error: unknown): Record<string, string[]> | 
   return normalizeError(error).validationErrors;
 }
 
+/** true si el error es un 404 real de Axios — usado por endpoints donde "no existe hoy" es un estado válido (ej. sin felicitación de cumpleaños). */
+export function isNotFoundError(error: unknown): boolean {
+  return isAxiosError(error) && error.response?.status === 404;
+}
+
+/** true si el error es un 409/422 de "esta información cambió mientras tanto" — doble aprobación RH concurrente (AGENTS.md sección 65). */
+export function isConcurrencyConflict(error: unknown): boolean {
+  return isAxiosError(error) && (error.response?.status === 409 || error.response?.status === 422);
+}
+
 /** Log técnico para desarrollo. Nunca debe recibir tokens ni contraseñas. */
 export function logError(context: string, error: unknown): void {
   if (__DEV__) {

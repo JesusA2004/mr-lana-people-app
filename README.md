@@ -1,11 +1,20 @@
-# MR. LANA PEOPLE — App móvil de colaboradores
+# MR. LANA PEOPLE — App móvil
 
-Aplicación móvil interna (Expo + React Native + TypeScript) para que los
-colaboradores de **MR. LANA** consulten su perfil, vacaciones, solicitudes y
-notificaciones. Es **solo un cliente** de la API del backend Laravel del
-proyecto [`capacitaciones`](https://github.com/JesusA2004/capacitaciones):
-no implementa lógica de Recursos Humanos, no calcula saldos ni aprueba nada
-por su cuenta — todo dato viene de la API.
+Aplicación móvil empresarial única (Expo + React Native + TypeScript) para
+**MR. LANA**: la misma cuenta sirve tanto para la experiencia de colaborador
+("Mi espacio" — perfil, expediente, vacaciones, solicitudes, notificaciones,
+cumpleaños) como, si tiene capacidad real, para Gestión RH (dashboard,
+bandeja unificada de pendientes, solicitudes/vacaciones/documentos/
+incorporaciones, expedientes, directorio de colaboradores). Es **solo un
+cliente** de la API del backend Laravel del proyecto
+[`capacitaciones`](https://github.com/JesusA2004/capacitaciones): no
+implementa lógica de Recursos Humanos, no calcula saldos ni decide permisos
+ni acciones por su cuenta — todo dato y toda regla de negocio vienen de la
+API (ver AGENTS.md, sección "Regla de oro").
+
+Documentación adicional: `docs/BUILD_AND_TEST_FINAL.md` (build y plan de
+pruebas completo) y `docs/BACKEND_GAPS_FINAL.md` (discrepancias reales
+pendientes del lado backend).
 
 ## Requisitos
 
@@ -106,34 +115,64 @@ ni en App Store.
 > Estas credenciales son solo para pruebas manuales contra el backend; no
 > están hardcodeadas en ningún lugar de la app.
 
-| Rol          | Correo                       | Contraseña          |
-| ------------ | ----------------------------- | -------------------- |
-| Colaborador  | `colaborador1@mrlana.test`    | `Capacitacion2026!`  |
-| Colaborador  | `colaborador2@mrlana.test`    | `Capacitacion2026!`  |
-| RH (solo web)| `rh.admin@mrlana.test`        | `Capacitacion2026!`  |
+| Rol                  | Correo                       | Contraseña           |
+| -------------------- | ----------------------------- | -------------------- |
+| Colaborador          | `colaborador1@mrlana.test`    | `Capacitacion2026!`  |
+| Colaborador          | `colaborador2@mrlana.test`    | `Capacitacion2026!`  |
+| RH (web + app móvil) | `rh.admin@mrlana.test`        | `Capacitacion2026!`  |
 
-La app móvil está pensada **exclusivamente para colaboradores** — el rol de
-RH se usa solo desde el backend web para verificar el flujo end-to-end.
+Cualquier cuenta con capacidad RH real (permiso `rh.pendientes.ver` en el
+backend) puede iniciar sesión en la misma app y elegir la experiencia
+Gestión RH desde el selector que aparece la primera vez, o cambiar después
+desde Configuración → "Cambiar a Gestión RH".
 
 ## Endpoints consumidos
 
-Todos bajo `EXPO_PUBLIC_API_URL` (que ya incluye `/api/v1`):
+Todos bajo `EXPO_PUBLIC_API_URL` (que ya incluye `/api/v1`). Contrato
+completo y verificado contra el código fuente real del backend en
+`docs/API_MOVIL.md`, `docs/RH_MOBILE_API.md`, `docs/BACKEND_MOBILE_V5.md` y
+`docs/PUSH_NOTIFICATIONS.md` de `capacitaciones`.
 
 - **Auth:** `POST /login`, `POST /logout`, `GET /me`
-- **Colaborador:** `GET /colaborador/perfil`, `GET /colaborador/dashboard`,
-  `GET /colaborador/vacaciones`, `GET /colaborador/solicitudes`,
-  `POST /colaborador/solicitudes`, `GET /colaborador/notificaciones`
+- **Bootstrap/config:** `GET /mobile/bootstrap`, `GET /app/config`,
+  `GET /app/releases/latest`, `GET /app/releases`
+- **Dispositivos (push):** `POST /dispositivos/push-token`,
+  `DELETE /dispositivos/push-token`
+- **Colaborador:** `GET /colaborador/perfil`, `GET /colaborador/foto`,
+  `GET /colaborador/dashboard`, `GET /colaborador/vacaciones`,
+  `GET /colaborador/solicitudes`, `POST /colaborador/solicitudes`,
+  `GET /colaborador/notificaciones`, `GET /colaborador/incorporacion`,
+  `POST /colaborador/incorporacion/documentos/{tipo}/subir`,
+  `POST /colaborador/incorporacion/documentos/{documento}/solicitar-cambio`,
+  `GET /colaborador/cumpleanos/felicitacion-actual[/imagen]`
 - **Vacaciones:** `GET /vacaciones/saldo`, `GET /vacaciones/solicitudes`,
   `POST /vacaciones/solicitudes`
 - **Solicitudes:** `GET /solicitudes`, `POST /solicitudes`,
-  `GET /solicitudes/{solicitud}`
+  `GET /solicitudes/{solicitud}`, `GET /solicitudes/configuracion`,
+  `POST /solicitudes/{solicitud}/adjuntos`
 - **Notificaciones:** `GET /notificaciones`,
-  `POST /notificaciones/{notificacion}/leer`
+  `POST /notificaciones/{notificacion}/leer`,
+  `POST /notificaciones/leer-todas`
+- **Incorporación por QR (público, sin sesión):**
+  `GET /incorporacion/invitaciones/{token}/validar`,
+  `GET /incorporacion/invitaciones/{token}/fases`,
+  `POST /incorporacion/invitaciones/{token}/registrar`
+- **Gestión RH** (todos bajo `/rh`, requieren capacidad real):
+  `GET dashboard`, `GET pendientes`,
+  `GET|POST solicitudes[/{id}/aprobar|rechazar|correccion]`,
+  `GET|POST vacaciones[/{id}/aprobar|rechazar]`,
+  `GET|POST documentos[/{id}/ver|aprobar|rechazar]`,
+  `GET|POST incorporaciones[/{id}/aprobar|rechazar]`,
+  `GET colaboradores[/{id}]`,
+  `GET expedientes[/{colaborador}]`,
+  `GET expedientes/{colaborador}/documentos/{documento}/ver`,
+  `POST expedientes/{colaborador}/documentos/{documento}/{aprobar|rechazar|autorizar-cambio}`,
+  `POST expedientes/{colaborador}/{aprobar|rechazar}-incorporacion`
 
 Las pantallas de Vacaciones y Solicitudes usan los namespaces dedicados
 (`/vacaciones/*`, `/solicitudes/*`); los endpoints bajo `/colaborador/*`
-para esos mismos dominios están implementados y disponibles en
-`src/api/colaborador.ts` por si el backend los prioriza más adelante.
+para esos mismos dominios también están implementados en
+`src/api/colaborador.ts` (usados por el Dashboard).
 
 ## Seguridad
 
@@ -152,32 +191,35 @@ necesidad de `metro.config.js`); el resto del código vive en `src/`.
 
 ```
 src/
-├── app/                      # Rutas (Expo Router)
-│   ├── _layout.tsx           # Root layout: splash, restauración de sesión, Stack.Protected
-│   ├── +not-found.tsx
+├── app/                       # Rutas (Expo Router)
+│   ├── _layout.tsx            # Root layout: splash, sesión, app/config, actualización obligatoria
+│   ├── incorporacion/qr/[token].tsx   # Pantalla pública de registro por QR
 │   ├── (auth)/
-│   │   ├── _layout.tsx
-│   │   └── login.tsx
-│   └── (app)/                 # Protegido: solo accesible con sesión iniciada
-│       ├── _layout.tsx
-│       ├── (tabs)/
-│       │   ├── _layout.tsx
-│       │   ├── index.tsx      # Dashboard
-│       │   ├── solicitudes.tsx
-│       │   ├── vacaciones.tsx
-│       │   └── perfil.tsx
-│       ├── solicitud/
-│       │   ├── nueva.tsx
-│       │   └── [id].tsx
+│   │   ├── login.tsx
+│   │   └── escanear-qr.tsx    # Scanner QR real (expo-camera)
+│   └── (app)/                 # Protegido: solo con sesión iniciada
+│       ├── _layout.tsx        # Decide Mi espacio vs. Gestión RH (Stack.Protected)
+│       ├── cumpleanos.tsx
+│       ├── (tabs)/            # Mi espacio: Inicio/Expediente/Solicitudes/Vacaciones/Perfil
+│       ├── rh/                # Gestión RH (segmento real, no grupo — rutas bajo /rh)
+│       │   ├── (tabs)/        # Inicio/Pendientes/Colaboradores/Notificaciones/Perfil
+│       │   ├── solicitudes/[id].tsx
+│       │   ├── vacaciones/[id].tsx
+│       │   ├── documentos/[id].tsx
+│       │   ├── incorporaciones/[colaborador].tsx
+│       │   ├── colaboradores/[id].tsx
+│       │   └── expedientes/[colaborador]/documentos/[documento].tsx
+│       ├── solicitud/{nueva,[id]}.tsx
 │       ├── notificaciones.tsx
-│       └── configuracion.tsx  # Cerrar sesión
+│       └── configuracion.tsx  # Cambiar de experiencia, cerrar sesión
 │
-├── api/                       # Un archivo por dominio + client.ts central
-├── components/                 # Button, Card, AppHeader, StatusBadge, etc.
+├── api/                        # Un archivo por dominio + client.ts central; api/rh/* para Gestión RH
+├── components/                 # Button, Card, WorkflowTimeline, SecureDocumentViewer, etc.
 ├── constants/                  # colors.ts (sistema de diseño), config.ts
-├── store/                      # authStore.ts (Zustand)
-├── types/                      # Tipos TypeScript por dominio
-└── utils/                      # dates.ts, formatters.ts, errors.ts
+├── hooks/queries/               # React Query por dominio (useRh*, useBirthday, useAppRelease...)
+├── store/                       # authStore, experienceStore (Mi espacio/Gestión RH), etc.
+├── types/                       # Tipos TypeScript por dominio
+└── utils/                       # dates.ts, formatters.ts, errors.ts, parseIncorporacionQr.ts...
 ```
 
 ## Stack técnico
@@ -195,25 +237,28 @@ Los colores de marca (`src/constants/colors.ts`) y los logos
 `resources/css/app.css` y `public/images/`) para mantener consistencia
 entre la web y la app móvil.
 
+## Scheme y deep links
+
+Scheme definitivo de la app: **`mrlanapeopleapp`** (`app.json` →
+`expo.scheme`). El QR de incorporación que genera RH codifica la liga web
+universal `https://people.mr-lana.com/incorporacion/qr/{token}` — la app la
+acepta directo (`src/utils/parseIncorporacionQr.ts`), junto con
+`mrlanapeopleapp://incorporacion/qr/{token}` y, por compatibilidad
+temporal, el scheme legado `mrlanapeople://...`. Para que la liga `https://`
+abra la app directo (App Links/Universal Links) en vez de solo el
+navegador, falta que el backend publique los archivos de verificación de
+dominio — ver `docs/BACKEND_GAPS_FINAL.md`, G1.
+
 ## Notas / pendientes conocidos con el backend
 
-- **Foto de perfil:** `perfil.foto_url` puede apuntar a una ruta protegida
-  por sesión web (NAS) que no acepta Bearer token. La app **no** intenta
-  resolver rutas internas del NAS: usa `foto_url_api` si el backend llega a
-  exponerla (idealmente una URL firmada temporal) y, si no hay foto válida
-  o falla la carga, muestra un avatar con iniciales — nunca rompe Dashboard
-  ni Perfil.
-- **Nombres de campo:** los tipos en `src/types/` modelan los nombres de
-  campo más probables (snake_case/español) como opcionales, con lectura
-  defensiva vía `pickString`/`pickNumber`/`pickBoolean`
-  (`src/utils/formatters.ts`). Si el backend real usa otros nombres, solo
-  hay que ajustar las listas de claves en esas llamadas — no hay que tocar
-  la UI.
-- **Envoltura de respuesta:** se asume el patrón estándar de Laravel API
-  Resources, `{ data: ... }` (`extractData` en `src/api/client.ts`). Si
-  algún endpoint devuelve la forma sin envolver, `extractData` ya lo
-  soporta también.
+Ver `docs/BACKEND_GAPS_FINAL.md` para el detalle completo y accionable
+(formato endpoint/request/response/problema/cambio mínimo). Resumen:
 
-Verificar estos supuestos contra respuestas reales del backend (con Laravel
-corriendo) es el primer paso recomendado antes de dar por cerrada la
-integración.
+- **G1** — App Links sin archivos de verificación de dominio publicados.
+- **G2** — Sin landing web pública para quien escanea el QR sin la app instalada.
+- **G3** — RH no puede ver el contenido de los adjuntos de una solicitud (solo el nombre).
+- **G4** — Sin API móvil RH de cumpleaños (el push `rh_cumpleanos` cae en Notificaciones RH).
+
+Ninguno de estos bloquea el uso normal de lo demás hoy — cada uno fue
+construido con manejo explícito (404/permiso ausente/acción oculta), nunca
+un botón roto.

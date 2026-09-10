@@ -7,6 +7,7 @@ import { queryClient } from '@/api/queryClient';
 import { AUTH_TOKEN_KEY, DEVICE_NAME } from '@/constants/config';
 import { revokeCurrentPushToken } from '@/services/pushNotifications';
 import { useAppLockStore } from '@/store/appLockStore';
+import { useExperienceStore } from '@/store/experienceStore';
 import type { AuthUser } from '@/types/auth';
 import { logError } from '@/utils/errors';
 
@@ -44,6 +45,9 @@ export const useAuthStore = create<AuthState>((set) => {
     queryClient.clear();
     // No dejar el auto-lock (V3 sección 46) esperando un desbloqueo que ya no aplica.
     useAppLockStore.getState().reset();
+    // No filtrar la experiencia (Mi espacio/Gestión RH) elegida por esta
+    // cuenta a la siguiente que inicie sesión en el mismo dispositivo.
+    void useExperienceStore.getState().reset();
   }
 
   // Cualquier 401 de cualquier endpoint autenticado expulsa la sesión.

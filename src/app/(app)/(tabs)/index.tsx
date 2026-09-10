@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AnimatedProgressBar } from '@/components/AnimatedProgressBar';
+import { BirthdayHeroCard } from '@/components/BirthdayHeroCard';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
@@ -16,6 +17,7 @@ import { RequestCard } from '@/components/RequestCard';
 import { SkeletonBlock, SkeletonCardList } from '@/components/SkeletonBlock';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 import { MascotMessages } from '@/constants/mascotMessages';
+import { useBirthdayGreeting } from '@/hooks/queries/useBirthday';
 import { useDashboard } from '@/hooks/queries/useDashboard';
 import { useIncorporacion } from '@/hooks/queries/useIncorporacion';
 import type { Solicitud } from '@/types/request';
@@ -34,6 +36,7 @@ export default function DashboardScreen() {
 
   const { data, isLoading, isError, error, refetch, isRefetching } = useDashboard();
   const incorporacion = useIncorporacion();
+  const birthday = useBirthdayGreeting(true);
 
   const perfil = data?.perfil;
   const nombre = joinName(perfil?.nombre, perfil?.apellidos);
@@ -163,6 +166,12 @@ export default function DashboardScreen() {
           <ErrorState message={getErrorMessage(error)} onRetry={() => void refetch()} />
         ) : (
           <>
+            {birthday.data ? (
+              <FadeInView index={0}>
+                <BirthdayHeroCard greeting={birthday.data} primerNombre={primerNombre} />
+              </FadeInView>
+            ) : null}
+
             {priorityMascot ? (
               <MascotAssistant
                 message={priorityMascot.message}

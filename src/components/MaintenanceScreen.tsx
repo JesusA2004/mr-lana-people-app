@@ -18,6 +18,7 @@ import { useMaintenanceStore } from '@/store/maintenanceStore';
  */
 export function MaintenanceScreen() {
   const active = useMaintenanceStore((state) => state.active);
+  const message = useMaintenanceStore((state) => state.message);
   const setActive = useMaintenanceStore((state) => state.setActive);
   const [retrying, setRetrying] = useState(false);
 
@@ -38,7 +39,7 @@ export function MaintenanceScreen() {
     <SafeAreaView style={styles.container}>
       <MascotAvatar orientation="right" size="lg" />
       <Text style={styles.title}>Estamos realizando mantenimiento</Text>
-      <Text style={styles.message}>El servicio de MR. LANA PEOPLE está temporalmente fuera. Vuelve a intentarlo en unos minutos.</Text>
+      <Text style={styles.message}>{message ?? 'El servicio de MR. LANA PEOPLE está temporalmente fuera. Vuelve a intentarlo en unos minutos.'}</Text>
       <Button title="Reintentar" onPress={handleRetry} loading={retrying} disabled={retrying} fullWidth={false} style={styles.button} />
     </SafeAreaView>
   );
