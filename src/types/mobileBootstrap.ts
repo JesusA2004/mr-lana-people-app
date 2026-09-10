@@ -50,7 +50,14 @@ export interface MobileBootstrapFeatures {
   push: boolean;
   rh_mobile: boolean;
   maintenance: boolean;
-  [key: string]: boolean;
+  /**
+   * Feature flag de la felicitación de cumpleaños (hero del Dashboard,
+   * `/cumpleanos`, celebración automática). Opcional en el tipo porque el
+   * backend puede no mandarlo todavía — ausente se trata como habilitado
+   * (ver `isFeatureEnabled`, fail-open), nunca como apagado por accidente.
+   */
+  cumpleanos?: boolean;
+  [key: string]: boolean | undefined;
 }
 
 export interface MobileBootstrapCounts {

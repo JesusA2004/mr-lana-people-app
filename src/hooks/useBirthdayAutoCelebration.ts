@@ -2,6 +2,7 @@ import * as SecureStore from 'expo-secure-store';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
 
+import { useAuthStore } from '@/store/authStore';
 import type { BirthdayGreeting } from '@/types/birthday';
 import { birthdaySeenStorageKey } from '@/utils/birthday';
 import { logError } from '@/utils/errors';
@@ -16,17 +17,18 @@ import { logError } from '@/utils/errors';
  */
 export function useBirthdayAutoCelebration(greeting: BirthdayGreeting | null | undefined): void {
   const router = useRouter();
+  const userId = useAuthStore((state) => state.user?.id ?? null);
   const triggeredForId = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!greeting) return undefined;
+    if (!greeting || userId === null) return undefined;
     if (triggeredForId.current === greeting.id) return undefined;
 
     let cancelled = false;
 
     (async () => {
       try {
-        const key = birthdaySeenStorageKey(greeting.id);
+        const key = birthdaySeenStorageKey(userId, greeting.id);
         const seen = await SecureStore.getItemAsync(key);
         if (cancelled || seen === 'true') return;
 
@@ -41,5 +43,5 @@ export function useBirthdayAutoCelebration(greeting: BirthdayGreeting | null | u
     return () => {
       cancelled = true;
     };
-  }, [greeting, router]);
+  }, [greeting, router, userId]);
 }

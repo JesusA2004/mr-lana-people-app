@@ -20,9 +20,11 @@ import { MascotMessages } from '@/constants/mascotMessages';
 import { useBirthdayGreeting } from '@/hooks/queries/useBirthday';
 import { useDashboard } from '@/hooks/queries/useDashboard';
 import { useIncorporacion } from '@/hooks/queries/useIncorporacion';
+import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import type { Solicitud } from '@/types/request';
 import { getErrorMessage } from '@/utils/errors';
 import { getGreeting } from '@/utils/dates';
+import { isFeatureEnabled } from '@/utils/featureFlags';
 import { joinName, pluralize } from '@/utils/formatters';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -36,7 +38,14 @@ export default function DashboardScreen() {
 
   const { data, isLoading, isError, error, refetch, isRefetching } = useDashboard();
   const incorporacion = useIncorporacion();
-  const birthday = useBirthdayGreeting(true);
+  // Mismo queryKey/staleTime que `(app)/_layout.tsx` — lectura de caché.
+  // AGENTS.md sección 16: la card de cumpleaños y el acceso rápido a
+  // Vacaciones no deben mostrarse cuando el backend apaga esos features.
+  const bootstrap = useMobileBootstrap(true);
+  const cumpleanosEnabled = isFeatureEnabled(bootstrap.data?.features, 'cumpleanos');
+  const vacacionesEnabled = isFeatureEnabled(bootstrap.data?.features, 'vacaciones');
+  const incorporacionEnabled = isFeatureEnabled(bootstrap.data?.features, 'incorporacion');
+  const birthday = useBirthdayGreeting(cumpleanosEnabled);
 
   const perfil = data?.perfil;
   const nombre = joinName(perfil?.nombre, perfil?.apellidos);
@@ -232,16 +241,18 @@ export default function DashboardScreen() {
             </FadeInView>
 
             <View style={styles.statGrid}>
-              <FadeInView index={1} style={styles.statFlex}>
-                <StatTile
-                  icon="airplane-outline"
-                  label="Días disponibles"
-                  value={typeof diasDisponibles === 'number' ? diasDisponibles : '—'}
-                  caption={diasEnSolicitud > 0 ? `${diasEnSolicitud} en solicitud` : undefined}
-                  highlight
-                  onPress={() => router.push('/(app)/(tabs)/vacaciones')}
-                />
-              </FadeInView>
+              {vacacionesEnabled ? (
+                <FadeInView index={1} style={styles.statFlex}>
+                  <StatTile
+                    icon="airplane-outline"
+                    label="Días disponibles"
+                    value={typeof diasDisponibles === 'number' ? diasDisponibles : '—'}
+                    caption={diasEnSolicitud > 0 ? `${diasEnSolicitud} en solicitud` : undefined}
+                    highlight
+                    onPress={() => router.push('/(app)/(tabs)/vacaciones')}
+                  />
+                </FadeInView>
+              ) : null}
               <FadeInView index={2} style={styles.statFlex}>
                 <StatTile
                   icon="document-text-outline"
@@ -256,8 +267,12 @@ export default function DashboardScreen() {
             <Text style={styles.sectionTitle}>Accesos rápidos</Text>
             <View style={styles.quickGrid}>
               <QuickAction icon="add-circle-outline" label="Nueva solicitud" onPress={() => router.push('/solicitud/nueva')} />
-              <QuickAction icon="airplane-outline" label="Vacaciones" onPress={() => router.push('/(app)/(tabs)/vacaciones')} />
-              <QuickAction icon="briefcase-outline" label="Mi incorporación" onPress={() => router.push('/incorporacion')} />
+              {vacacionesEnabled ? (
+                <QuickAction icon="airplane-outline" label="Vacaciones" onPress={() => router.push('/(app)/(tabs)/vacaciones')} />
+              ) : null}
+              {incorporacionEnabled ? (
+                <QuickAction icon="briefcase-outline" label="Mi incorporación" onPress={() => router.push('/incorporacion')} />
+              ) : null}
               <QuickAction icon="help-buoy-outline" label="Ayuda" onPress={() => router.push('/ayuda')} />
             </View>
 

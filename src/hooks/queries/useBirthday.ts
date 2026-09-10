@@ -1,11 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
 
-import { apiClient } from '@/api/client';
 import { cumpleanosApi } from '@/api/cumpleanos';
 import { queryKeys } from '@/api/queryKeys';
+import { API_URL } from '@/constants/config';
 import { useAuthStore } from '@/store/authStore';
-import { logError } from '@/utils/errors';
 
 /** `null` = hoy no es cumpleaños del colaborador autenticado (404 real, no un error). */
 export function useBirthdayGreeting(enabled: boolean) {
@@ -17,67 +15,25 @@ export function useBirthdayGreeting(enabled: boolean) {
   });
 }
 
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  for (let i = 0; i < bytes.byteLength; i += 1) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
+export interface BirthdayImageSource {
+  uri: string;
+  headers: Record<string, string>;
 }
 
 /**
- * Descarga la imagen de felicitación como `data:` URI usando el Bearer
- * token de la sesión (streaming autenticado, `GET
- * /colaborador/cumpleanos/felicitacion-actual/imagen`) — un `<Image
- * source={{ uri }}>` normal no puede mandar el header Authorization en
- * todos los casos de caché nativo, así que se resuelve a base64 una sola
- * vez y se reutiliza mientras el componente esté montado.
+ * Fuente autenticada de la imagen de felicitación para `<Image>` de
+ * expo-image (AGENTS.md sección 33/corrección de bug real): expo-image
+ * ~57 soporta `headers` en `source` para pedir imágenes remotas con
+ * Authorization Bearer de forma nativa — ya no se descarga a mano con
+ * `responseType: 'arraybuffer'` ni se convierte byte a byte a base64 en JS
+ * (esa conversión sí generaba un pico de memoria real con una imagen
+ * 1080x1350, además de duplicar el archivo completo dos veces en memoria:
+ * el `ArrayBuffer` y el string base64 resultante). No se descarga ningún
+ * archivo temporal ni se persiste nada — el token nunca viaja en la URL,
+ * solo en el header, y no hay nada que limpiar al cerrar sesión.
  */
-export function useBirthdayImage(enabled: boolean) {
+export function useBirthdayImageSource(enabled: boolean): BirthdayImageSource | null {
   const token = useAuthStore((state) => state.token);
-  const [uri, setUri] = useState<string | null>(null);
-  const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
-
-  useEffect(() => {
-    let cancelled = false;
-
-    // Todo el `setState` se difiere a un callback (nunca directo en el
-    // cuerpo del efecto) para no encadenar renders síncronos.
-    const timer = setTimeout(() => {
-      if (cancelled) return;
-
-      if (!enabled || !token) {
-        setStatus('idle');
-        setUri(null);
-        return;
-      }
-
-      setStatus('loading');
-      void (async () => {
-        try {
-          const response = await apiClient.get(cumpleanosApi.imagenPath(), {
-            responseType: 'arraybuffer',
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (cancelled) return;
-          const contentType = (response.headers?.['content-type'] as string | undefined) ?? 'image/jpeg';
-          const base64 = arrayBufferToBase64(response.data as ArrayBuffer);
-          setUri(`data:${contentType};base64,${base64}`);
-          setStatus('ready');
-        } catch (error) {
-          if (cancelled) return;
-          logError('useBirthdayImage', error);
-          setStatus('error');
-        }
-      })();
-    }, 0);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [enabled, token]);
-
-  return { uri, status };
+  if (!enabled || !token) return null;
+  return { uri: `${API_URL}${cumpleanosApi.imagenPath()}`, headers: { Authorization: `Bearer ${token}` } };
 }

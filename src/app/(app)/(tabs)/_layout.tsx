@@ -5,7 +5,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TabIcon } from '@/components/TabIcon';
 import { Colors } from '@/constants/colors';
 import { useIncorporacion } from '@/hooks/queries/useIncorporacion';
+import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useSolicitudes } from '@/hooks/queries/useSolicitudes';
+import { isFeatureEnabled } from '@/utils/featureFlags';
 
 const TAB_BAR_BASE_HEIGHT = 64;
 const ICON_SIZE = 23;
@@ -19,6 +21,12 @@ export default function TabsLayout() {
   // requests nuevos si ya hay datos frescos.
   const incorporacion = useIncorporacion();
   const solicitudes = useSolicitudes();
+  // Mismo queryKey/staleTime que `(app)/_layout.tsx` — lectura de caché, no
+  // dispara un fetch nuevo. AGENTS.md sección 16: el tab de Vacaciones (y su
+  // ruta profunda, ver `Tabs.Protected`) se apaga si el backend desactiva
+  // `features.vacaciones` — no basta con ocultar la card del home.
+  const bootstrap = useMobileBootstrap(true);
+  const vacacionesEnabled = isFeatureEnabled(bootstrap.data?.features, 'vacaciones');
 
   const expedientePendientes = incorporacion.data?.progreso.pendientes ?? 0;
   const solicitudesConCorreccion = useMemo(
@@ -84,15 +92,17 @@ export default function TabsLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="vacaciones"
-        options={{
-          title: 'Vacaciones',
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name={focused ? 'airplane' : 'airplane-outline'} color={color} focused={focused} size={ICON_SIZE} />
-          ),
-        }}
-      />
+      <Tabs.Protected guard={vacacionesEnabled}>
+        <Tabs.Screen
+          name="vacaciones"
+          options={{
+            title: 'Vacaciones',
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon name={focused ? 'airplane' : 'airplane-outline'} color={color} focused={focused} size={ICON_SIZE} />
+            ),
+          }}
+        />
+      </Tabs.Protected>
       <Tabs.Screen
         name="perfil"
         options={{

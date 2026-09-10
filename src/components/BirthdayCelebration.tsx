@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -10,7 +11,7 @@ import { MascotAvatar } from './mascot/MascotAvatar';
 import { SkeletonBlock } from './SkeletonBlock';
 
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
-import { useBirthdayImage } from '@/hooks/queries/useBirthday';
+import { useBirthdayImageSource } from '@/hooks/queries/useBirthday';
 import type { BirthdayGreeting } from '@/types/birthday';
 
 export interface BirthdayCelebrationProps {
@@ -29,7 +30,8 @@ export interface BirthdayCelebrationProps {
  */
 export function BirthdayCelebration({ greeting, nombre, onClose }: BirthdayCelebrationProps) {
   const router = useRouter();
-  const { uri, status } = useBirthdayImage(true);
+  const imageSource = useBirthdayImageSource(true);
+  const [imageStatus, setImageStatus] = useState<'loading' | 'ready' | 'error'>(imageSource ? 'loading' : 'error');
 
   const handleClose = () => {
     if (onClose) {
@@ -68,21 +70,27 @@ export function BirthdayCelebration({ greeting, nombre, onClose }: BirthdayCeleb
         {greeting.frase ? <Text style={styles.phrase}>&ldquo;{greeting.frase}&rdquo;</Text> : null}
 
         <View style={styles.cardWrapper}>
-          {status === 'loading' ? (
-            <SkeletonBlock height={220} radius={Radius.xl} />
-          ) : status === 'ready' && uri ? (
+          {imageSource && imageStatus !== 'error' ? (
             <Image
-              source={{ uri }}
+              source={{ uri: imageSource.uri, headers: imageSource.headers }}
               style={styles.cardImage}
               contentFit="contain"
+              onLoad={() => setImageStatus('ready')}
+              onError={() => setImageStatus('error')}
               accessibilityLabel="Tarjeta de felicitación de cumpleaños de MR. LANA"
             />
-          ) : (
+          ) : null}
+          {imageStatus === 'loading' ? (
+            <View style={styles.cardImageOverlay}>
+              <SkeletonBlock height={220} radius={Radius.xl} />
+            </View>
+          ) : null}
+          {imageStatus === 'error' ? (
             <View style={styles.cardFallback}>
               <Ionicons name="gift-outline" size={40} color={Colors.primaryDark} />
               <Text style={styles.cardFallbackText}>MR. LANA PEOPLE te desea un gran día</Text>
             </View>
-          )}
+          ) : null}
         </View>
 
         <Text style={styles.brand}>MR. LANA</Text>
@@ -141,11 +149,19 @@ const styles = StyleSheet.create({
   cardWrapper: {
     width: '100%',
     marginTop: Spacing.lg,
+    position: 'relative',
   },
   cardImage: {
     width: '100%',
     height: 260,
     borderRadius: Radius.xl,
+  },
+  cardImageOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   cardFallback: {
     width: '100%',

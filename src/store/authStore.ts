@@ -8,8 +8,9 @@ import { AUTH_TOKEN_KEY, DEVICE_NAME } from '@/constants/config';
 import { revokeCurrentPushToken } from '@/services/pushNotifications';
 import { useAppLockStore } from '@/store/appLockStore';
 import { useExperienceStore } from '@/store/experienceStore';
+import { clearPendingPushNavigation } from '@/store/pendingNavigationStore';
 import type { AuthUser } from '@/types/auth';
-import { logError } from '@/utils/errors';
+import { logError, normalizeError } from '@/utils/errors';
 
 interface AuthState {
   token: string | null;
@@ -48,6 +49,10 @@ export const useAuthStore = create<AuthState>((set) => {
     // No filtrar la experiencia (Mi espacio/Gestión RH) elegida por esta
     // cuenta a la siguiente que inicie sesión en el mismo dispositivo.
     void useExperienceStore.getState().reset();
+    // Una navegación pendiente de un push (AGENTS.md sección 11/13) que
+    // nunca se resolvió no debe sobrevivir a un logout ni disparar en la
+    // sesión de la siguiente cuenta.
+    clearPendingPushNavigation();
   }
 
   // Cualquier 401 de cualquier endpoint autenticado expulsa la sesión.
@@ -102,6 +107,25 @@ export const useAuthStore = create<AuthState>((set) => {
         set({ token: storedToken, user, isAuthenticated: true, isInitializing: false });
       } catch (error) {
         logError('authStore.restoreSession', error);
+
+        // Bug corregido: antes CUALQUIER falla de `/me` (incluida una sin
+        // conexión, timeout, o el backend caído/503) cerraba la sesión y
+        // borraba el token guardado — un colaborador que abriera la app sin
+        // internet quedaba deslogeado aunque su sesión siguiera siendo
+        // válida. Solo un token realmente inválido (401, o cualquier otra
+        // respuesta real del servidor que no sea un problema transitorio)
+        // debe limpiar la sesión; un error de red/servidor solo debe dejar
+        // a la persona sin entrar todavía, reintentando con el mismo token
+        // la próxima vez que haya conexión.
+        const { status, isNetworkError } = normalizeError(error);
+        const isTransient = isNetworkError || (status !== undefined && status >= 500);
+
+        if (isTransient) {
+          setAuthToken(null);
+          set({ isAuthenticated: false, isInitializing: false });
+          return;
+        }
+
         await clearPersistedToken();
         clearSessionState();
         set({ isInitializing: false });

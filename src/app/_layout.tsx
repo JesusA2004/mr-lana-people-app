@@ -92,13 +92,25 @@ function RootNavigator() {
 export default function RootLayout() {
   const restoreSession = useAuthStore((state) => state.restoreSession);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isInitializing = useAuthStore((state) => state.isInitializing);
+  const userId = useAuthStore((state) => state.user?.id ?? null);
   const loadOnboarding = useOnboardingStore((state) => state.load);
 
   useEffect(() => {
     void restoreSession();
-    void loadOnboarding();
     return bindQueryClientToNetworkStatus();
-  }, [restoreSession, loadOnboarding]);
+  }, [restoreSession]);
+
+  useEffect(() => {
+    // El onboarding es POR USUARIO (bug corregido: la llave era global y
+    // dos colaboradores en el mismo teléfono se heredaban el onboarding
+    // entre sí, sección 7) — se vuelve a leer cada vez que cambia el
+    // usuario autenticado (login, restoreSession, registro por QR, logout),
+    // nunca una sola vez al montar la app. Mientras `isInitializing` sigue
+    // true todavía no sabemos si hay usuario o no.
+    if (isInitializing) return;
+    void loadOnboarding(userId);
+  }, [isInitializing, userId, loadOnboarding]);
 
   if (!IS_API_URL_CONFIGURED) {
     // Error técnico claro: sin EXPO_PUBLIC_API_URL la app no puede funcionar (ver .env.example).

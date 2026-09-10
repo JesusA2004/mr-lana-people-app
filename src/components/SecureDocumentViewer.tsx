@@ -55,11 +55,12 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose }: S
   useEffect(() => {
     let cancelled = false;
     let localFile: File | null = null;
+    const controller = new AbortController();
 
     (async () => {
       setStatus('loading');
       try {
-        const response = await apiClient.get(path, { responseType: 'arraybuffer' });
+        const response = await apiClient.get(path, { responseType: 'arraybuffer', signal: controller.signal });
         if (cancelled) return;
 
         const contentType = (response.headers?.['content-type'] as string | undefined) ?? 'application/octet-stream';
@@ -81,6 +82,11 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose }: S
 
     return () => {
       cancelled = true;
+      // Si el componente se desmonta (o `path` cambia) a media descarga, no
+      // tiene sentido seguir bajando un documento que ya nadie va a ver —
+      // libera la conexión/memoria de inmediato en vez de dejar que
+      // termine en segundo plano (AGENTS.md: "requests sin cancelar").
+      controller.abort();
       try {
         localFile?.delete();
       } catch {

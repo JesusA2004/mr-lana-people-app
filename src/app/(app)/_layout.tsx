@@ -1,16 +1,18 @@
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { queryClient } from '@/api/queryClient';
 import { queryKeys } from '@/api/queryKeys';
 import { colaboradorApi } from '@/api/colaborador';
 import { incorporacionApi } from '@/api/incorporacion';
 import { BiometricEnrollPrimer } from '@/components/BiometricEnrollPrimer';
+import { ErrorState } from '@/components/ErrorState';
 import { ExperienceSelectorPrimer } from '@/components/ExperienceSelectorPrimer';
 import { LockScreen } from '@/components/LockScreen';
 import { PrivacyOverlay } from '@/components/PrivacyOverlay';
 import { PushPermissionPrimer } from '@/components/PushPermissionPrimer';
+import { Colors } from '@/constants/colors';
 import { useAppPrivacyProtection } from '@/hooks/useAppPrivacyProtection';
 import { useBackgroundPrivacy } from '@/hooks/useBackgroundPrivacy';
 import { useBirthdayAutoCelebration } from '@/hooks/useBirthdayAutoCelebration';
@@ -19,7 +21,10 @@ import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useNotificationBadgeSync } from '@/hooks/queries/useNotificaciones';
 import { useAppLockStore } from '@/store/appLockStore';
 import { useExperienceStore } from '@/store/experienceStore';
+import { usePendingNavigationStore } from '@/store/pendingNavigationStore';
 import { canUseRhExperience } from '@/utils/capabilities';
+import { getErrorMessage } from '@/utils/errors';
+import { isFeatureEnabled } from '@/utils/featureFlags';
 
 /**
  * Este layout SOLO se monta cuando `isAuthenticated` es verdadero (ver
@@ -42,10 +47,18 @@ export default function AppLayout() {
 
   const bootstrap = useMobileBootstrap(true);
   const experience = useExperienceStore((state) => state.experience);
+  const isExperienceLoading = useExperienceStore((state) => state.isLoading);
   const loadExperience = useExperienceStore((state) => state.load);
 
-  const birthday = useBirthdayGreeting(true);
-  useBirthdayAutoCelebration(birthday.data);
+  // AGENTS.md sección 16 ("feature flags... las rutas profundas también
+  // deben manejarlo"): mientras el bootstrap no ha resuelto se asume
+  // habilitado (fail-open, ver `isFeatureEnabled`) para no ocultar nada de
+  // golpe antes de tiempo.
+  const cumpleanosEnabled = isFeatureEnabled(bootstrap.data?.features, 'cumpleanos');
+  const incorporacionEnabled = isFeatureEnabled(bootstrap.data?.features, 'incorporacion');
+
+  const birthday = useBirthdayGreeting(cumpleanosEnabled);
+  useBirthdayAutoCelebration(cumpleanosEnabled ? birthday.data : null);
 
   useEffect(() => {
     void loadExperience();
@@ -60,7 +73,37 @@ export default function AppLayout() {
     void queryClient.prefetchQuery({ queryKey: queryKeys.incorporacion, queryFn: incorporacionApi.get });
   }, []);
 
-  const canUseRh = bootstrap.data ? canUseRhExperience(bootstrap.data.capabilities, bootstrap.data.features) : false;
+  // AGENTS.md sección 4 (bug corregido): antes el árbol de colaborador se
+  // mostraba como adelanto mientras `experienceStore` todavía leía
+  // SecureStore o el bootstrap (capabilities/features) seguía en vuelo — un
+  // RH cuya última experiencia elegida era "Gestión RH" veía un flash "Mi
+  // espacio → Gestión RH" cada vez que abría la app. Ahora NO se monta
+  // ningún árbol de navegación definitivo (ni colaborador ni RH) hasta que
+  // ambos terminaron de resolver la primera vez.
+  const stillResolving = isExperienceLoading || bootstrap.isLoading;
+
+  if (stillResolving) {
+    return (
+      <View style={styles.centerFlex}>
+        <ActivityIndicator color={Colors.primary} />
+      </View>
+    );
+  }
+
+  if (!bootstrap.data) {
+    // No debería ocurrir (enabled siempre true, éxito implica data), pero
+    // nunca renderizar el árbol de navegación con capabilities a medias.
+    return (
+      <View style={styles.centerFlex}>
+        <ErrorState message={getErrorMessage(bootstrap.error)} onRetry={() => void bootstrap.refetch()} />
+      </View>
+    );
+  }
+
+  // Autoridad final: si capabilities/features ya NO ofrecen RH (permiso
+  // retirado, feature flag apagado), se fuerza la experiencia colaborador
+  // sin importar qué haya elegido esta cuenta antes — `canUseRh &&` manda.
+  const canUseRh = canUseRhExperience(bootstrap.data.capabilities, bootstrap.data.features);
   const showRhTree = canUseRh && experience === 'rh';
 
   return (
@@ -74,7 +117,9 @@ export default function AppLayout() {
           />
           <Stack.Screen name="solicitud/[id]" />
           <Stack.Screen name="expediente/[tipoId]" />
-          <Stack.Screen name="incorporacion" />
+          <Stack.Protected guard={incorporacionEnabled}>
+            <Stack.Screen name="incorporacion" />
+          </Stack.Protected>
         </Stack.Protected>
 
         <Stack.Protected guard={showRhTree}>
@@ -82,7 +127,9 @@ export default function AppLayout() {
         </Stack.Protected>
 
         {/* Compartidas entre Mi espacio y Gestión RH — nunca duplicar login ni crear otro token al cambiar de experiencia. */}
-        <Stack.Screen name="cumpleanos" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Protected guard={cumpleanosEnabled}>
+          <Stack.Screen name="cumpleanos" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+        </Stack.Protected>
         <Stack.Screen name="notificaciones" />
         <Stack.Screen name="configuracion" />
         <Stack.Screen name="ayuda" />
@@ -94,12 +141,44 @@ export default function AppLayout() {
       <PushPermissionPrimer />
       <BiometricEnrollPrimer />
       <ExperienceSelectorPrimer />
+      <PendingPushNavigationController showRhTree={showRhTree} />
     </View>
   );
+}
+
+/**
+ * Ejecuta la navegación que `useNotificationResponseRouting` solo encoló
+ * (AGENTS.md sección 11/12: "no debe intentar router.push antes de que la
+ * ruta RH exista/montada", igual para cold start). Vive aquí, DENTRO del
+ * `return` que ya montó el árbol correcto (`showRhTree` resuelto, nunca
+ * mientras `stillResolving`), así que cuando este componente se monta la
+ * ruta destino YA existe — sin `setTimeout` mágicos, solo espera a que
+ * `showRhTree` coincida con la experiencia que pide la navegación
+ * pendiente (o navega de inmediato si la ruta es compartida).
+ */
+function PendingPushNavigationController({ showRhTree }: { showRhTree: boolean }) {
+  const router = useRouter();
+  const pending = usePendingNavigationStore((state) => state.pending);
+  const clearPendingPushNavigation = usePendingNavigationStore((state) => state.clearPendingPushNavigation);
+
+  useEffect(() => {
+    if (!pending) return;
+    if (pending.experience !== null && (pending.experience === 'rh') !== showRhTree) return;
+    router.push(pending.route as never);
+    clearPendingPushNavigation();
+  }, [pending, showRhTree, router, clearPendingPushNavigation]);
+
+  return null;
 }
 
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
+  },
+  centerFlex: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.background,
   },
 });
