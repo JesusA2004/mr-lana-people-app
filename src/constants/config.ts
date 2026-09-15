@@ -18,6 +18,15 @@ if (!IS_API_URL_CONFIGURED && __DEV__) {
 
 export const API_URL = rawApiUrl ?? '';
 
+/**
+ * Portal RH web — destino de los procesos que a propósito NO se llevaron a
+ * móvil (finiquitos, headcount, matriz comercial, configuración de formatos,
+ * reclutamiento completo, reportes). Se abre en el navegador del sistema,
+ * SIN token ni credenciales en la URL: el usuario inicia sesión ahí aparte.
+ * Ver `src/utils/openRhWeb.ts`.
+ */
+export const RH_WEB_URL = process.env.EXPO_PUBLIC_RH_WEB_URL?.trim() || 'https://people.mr-lana.com';
+
 export const APP_NAME = 'MR. LANA PEOPLE';
 export const DEVICE_NAME = 'app-movil';
 export const REQUEST_TIMEOUT_MS = 15000;

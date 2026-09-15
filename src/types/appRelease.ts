@@ -21,6 +21,19 @@ export interface AppConfig {
   force_update: boolean;
   message?: string | null;
   features: Record<string, boolean> | null;
+  /** Descarga directa del APK de Android, `null` si no hay release con archivo. */
+  download_url?: string | null;
+  /** Página pública `/app` del portal. */
+  update_url?: string | null;
+  /**
+   * Distribución iOS. El backend manda ambos `null` hasta que exista un
+   * release publicado con esos campos — nunca se hardcodea una URL de
+   * TestFlight/App Store en la app.
+   */
+  ios?: {
+    install_url?: string | null;
+    store_url?: string | null;
+  } | null;
 }
 
 export type AppReleasePlatform = 'ios' | 'android';
@@ -39,7 +52,18 @@ export interface AppRelease {
   platform: AppReleasePlatform;
   version: string;
   build_number: RawBuildNumber;
-  download_url: string;
+  /**
+   * Descarga directa del archivo (APK de Android). `AppReleaseController::paraApi`
+   * la manda `null` cuando el release no tiene archivo — que es justo el
+   * caso de iOS. Antes se tipaba como `string` a secas, lo que hacía creer
+   * que siempre venía: en iOS dejaba la pantalla de actualización sin a
+   * dónde ir. Usa `resolveReleaseUrl()` en vez de leerla directo.
+   */
+  download_url: string | null;
+  /** Instalación fuera de tienda (TestFlight/ad-hoc en iOS). `null` hasta que exista. */
+  install_url?: string | null;
+  /** Ficha en App Store / Play Store. `null` hasta que exista. */
+  store_url?: string | null;
   file_size?: number | null;
   sha256?: string | null;
   changelog?: string | null;

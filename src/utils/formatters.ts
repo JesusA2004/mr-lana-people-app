@@ -7,16 +7,30 @@
  * incluye (ya vienen traducidos) y usar estas funciones solo como respaldo.
  */
 
+/**
+ * Espejo LITERAL de `TipoSolicitudInterna::etiqueta()` — 17 casos. Ojo: las
+ * claves son `prestamo` y `solicitud_general` (antes la app usaba
+ * `prestamo_interno`/`general`, que nunca existieron en el backend y hacían
+ * que esas solicitudes se mostraran con el slug crudo).
+ */
 const REQUEST_TYPE_LABELS: Record<string, string> = {
+  vacaciones: 'Vacaciones',
   permiso_con_goce: 'Permiso con goce de sueldo',
   permiso_sin_goce: 'Permiso sin goce de sueldo',
+  permiso_tiempo: 'Permiso por tiempo (horas)',
+  salida_temprano: 'Salida temprano',
+  llegada_tarde: 'Llegada tarde',
   incapacidad: 'Incapacidad',
   constancia_laboral: 'Constancia laboral',
   actualizacion_datos: 'Actualización de datos',
   actualizacion_bancaria: 'Actualización bancaria',
   reposicion_documental: 'Reposición documental',
-  prestamo_interno: 'Préstamo interno',
-  general: 'Solicitud general',
+  prestamo: 'Préstamo interno',
+  baja_colaborador: 'Baja de colaborador',
+  permiso_especial_cumpleanos: 'Permiso especial: cumpleaños',
+  permiso_especial_paternidad: 'Permiso especial: paternidad',
+  permiso_especial_fallecimiento: 'Permiso especial: fallecimiento',
+  solicitud_general: 'Solicitud general',
 };
 
 const REQUEST_STATUS_LABELS: Record<string, string> = {
@@ -123,4 +137,21 @@ export function slugifyFilename(value: string): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
   return slug || 'documento';
+}
+
+/**
+ * Formato monetario MXN para mostrar (nunca para enviar): el payload de
+ * `monto_solicitado` viaja como número limpio, sin separadores ni símbolo.
+ */
+export function formatCurrencyMXN(value: number | undefined | null): string {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '—';
+  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 2 }).format(value);
+}
+
+/** Quita todo lo que no sea dígito o punto decimal — entrada de `MoneyField`. */
+export function parseCurrencyInput(value: string): number | undefined {
+  const cleaned = value.replace(/[^0-9.]/g, '');
+  if (cleaned === '') return undefined;
+  const numeric = Number(cleaned);
+  return Number.isFinite(numeric) ? numeric : undefined;
 }

@@ -20,8 +20,11 @@ export const queryKeys = {
   rhPendientes: (params: Record<string, unknown> = {}) => ['rh', 'pendientes', params] as const,
   rhSolicitudes: (params: Record<string, unknown> = {}) => ['rh', 'solicitudes', params] as const,
   rhSolicitud: (id: string | number) => ['rh', 'solicitudes', String(id)] as const,
+  /** @deprecated Bandeja RH legacy (`solicitudes_vacaciones`) — ver `src/api/rh/vacaciones.ts`. */
   rhVacaciones: (params: Record<string, unknown> = {}) => ['rh', 'vacaciones', params] as const,
+  /** @deprecated Igual que arriba. */
   rhVacacion: (id: string | number) => ['rh', 'vacaciones', String(id)] as const,
+  rhVacantes: (params: Record<string, unknown> = {}) => ['rh', 'vacantes', params] as const,
   rhDocumentos: (params: Record<string, unknown> = {}) => ['rh', 'documentos', params] as const,
   rhDocumento: (id: string | number) => ['rh', 'documentos', String(id)] as const,
   rhIncorporaciones: (params: Record<string, unknown> = {}) => ['rh', 'incorporaciones', params] as const,

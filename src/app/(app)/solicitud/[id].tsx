@@ -1,40 +1,55 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/AppHeader';
+import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
 import { MascotAssistant } from '@/components/mascot/MascotAssistant';
+import { RequestStatusTimeline } from '@/components/RequestStatusTimeline';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 import { MascotMessages } from '@/constants/mascotMessages';
-import { useSolicitud } from '@/hooks/queries/useSolicitudes';
+import { useCancelSolicitud, useSolicitud } from '@/hooks/queries/useSolicitudes';
+import { toast } from '@/store/toastStore';
+import { canCancelSolicitud } from '@/types/request';
 import { formatDateLong, formatDateTime } from '@/utils/dates';
-import { getDevErrorDetail, getErrorMessage } from '@/utils/errors';
-import { humanizeRequestType } from '@/utils/formatters';
+import { getDevErrorDetail, getErrorMessage, logError } from '@/utils/errors';
+import { formatCurrencyMXN, humanizeRequestType } from '@/utils/formatters';
+import { haptics } from '@/utils/haptics';
 
 /**
- * `App\Http\Resources\Api\V1\SolicitudInternaResource` (ver capacitaciones)
- * solo serializa los campos planos de la solicitud: no expone adjuntos,
- * documentos generados por RH ni bitácora de historial todavía, y
- * `Api\V1\SolicitudController` no tiene rutas de cancelar ni adjuntar. Esta
- * pantalla solo muestra lo que el backend realmente devuelve.
+ * Detalle de una solicitud propia.
+ *
+ * `SolicitudInternaResource` todavía serializa solo los campos planos: no
+ * incluye los adjuntos ni la bitácora de historial, aunque
+ * `SolicitudController::show()` sí los cargue en memoria (gap D-1 de
+ * `docs/BACKEND_SYNC_2026_09_15.md`). Esta pantalla muestra únicamente lo
+ * que el backend devuelve de verdad — nunca inventa una lista de adjuntos.
+ *
+ * Lo que sí ya existe y se usa aquí: `POST /solicitudes/{id}/cancelar`.
  */
 export default function SolicitudDetalleScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const [confirmVisible, setConfirmVisible] = useState(false);
 
   const { data: solicitud, isLoading, isError, error, refetch } = useSolicitud(id);
+  const cancelMutation = useCancelSolicitud();
 
   const hasDateRange = Boolean(solicitud?.fecha_inicio || solicitud?.fecha_fin);
+  const puedeCancelar = canCancelSolicitud(solicitud);
 
   interface DetailItem {
     icon: keyof typeof Ionicons.glyphMap;
     label: string;
     value?: string | null;
   }
+
+  const monto = typeof solicitud?.monto_solicitado === 'number' ? solicitud.monto_solicitado : undefined;
 
   const allDetails: DetailItem[] = [
     { icon: 'chatbox-ellipses-outline', label: 'Motivo', value: solicitud?.motivo },
@@ -49,9 +64,33 @@ export default function SolicitudDetalleScreen() {
             .join(' — ')
         : undefined,
     },
+    // Estos dos solo aparecen si el backend los serializa algún día; si no,
+    // el filtro de abajo los descarta sin dejar una fila vacía.
+    { icon: 'cash-outline', label: 'Monto solicitado', value: monto !== undefined ? formatCurrencyMXN(monto) : undefined },
     { icon: 'time-outline', label: 'Última revisión', value: solicitud?.revisado_en ? formatDateTime(solicitud.revisado_en) : undefined },
   ];
   const details = allDetails.filter((item) => Boolean(item.value));
+
+  const handleCancel = () => {
+    if (!id) return;
+    setConfirmVisible(false);
+
+    cancelMutation.mutate(id, {
+      onSuccess: (result) => {
+        haptics.success();
+        toast.success(result.message ?? 'Cancelamos tu solicitud.');
+      },
+      onError: (cancelError) => {
+        logError('solicitudes.cancelar', cancelError);
+        haptics.warning();
+        // 403 (el estado ya no lo permite) / 422: el backend manda el
+        // mensaje exacto y la app lo muestra tal cual, sin reinterpretarlo.
+        toast.error(getErrorMessage(cancelError));
+        // Aunque falle, el estado real pudo haber cambiado: refrescar.
+        void refetch();
+      },
+    });
+  };
 
   return (
     <View style={styles.container}>
@@ -74,6 +113,10 @@ export default function SolicitudDetalleScreen() {
               </View>
               {solicitud.folio ? <Text style={styles.folio}>Folio {solicitud.folio}</Text> : null}
               {solicitud.creada_en ? <Text style={styles.date}>{formatDateLong(solicitud.creada_en)}</Text> : null}
+            </Card>
+
+            <Card>
+              <RequestStatusTimeline estado={solicitud.estado} estadoEtiqueta={solicitud.estado_etiqueta} />
             </Card>
 
             {solicitud.estado === 'requiere_correccion' && solicitud.motivo_rechazo ? (
@@ -105,9 +148,39 @@ export default function SolicitudDetalleScreen() {
                 ))}
               </Card>
             ) : null}
+
+            {puedeCancelar ? (
+              <Button
+                title="Cancelar solicitud"
+                variant="danger"
+                leftIcon="close-circle-outline"
+                loading={cancelMutation.isPending}
+                disabled={cancelMutation.isPending}
+                onPress={() => setConfirmVisible(true)}
+              />
+            ) : null}
           </>
         ) : null}
       </ScrollView>
+
+      <Modal visible={confirmVisible} transparent animationType="fade" onRequestClose={() => setConfirmVisible(false)}>
+        <View style={styles.backdrop}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            accessibilityRole="button"
+            accessibilityLabel="Cerrar"
+            onPress={() => setConfirmVisible(false)}
+          />
+          <View style={styles.sheet}>
+            <Text style={styles.sheetTitle}>¿Cancelar esta solicitud?</Text>
+            <Text style={styles.sheetBody}>
+              Recursos Humanos dejará de revisarla y no se puede reabrir. Si la necesitas, tendrás que crear una nueva.
+            </Text>
+            <Button title="Sí, cancelar" variant="danger" onPress={handleCancel} />
+            <Button title="Mejor no" variant="ghost" onPress={() => setConfirmVisible(false)} />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -198,5 +271,27 @@ const styles = StyleSheet.create({
     fontSize: FontSize.md,
     color: Colors.text,
     marginTop: 2,
+  },
+  backdrop: {
+    flex: 1,
+    backgroundColor: Colors.overlay,
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: Radius.lg,
+    borderTopRightRadius: Radius.lg,
+    padding: Spacing.lg,
+    gap: Spacing.md,
+  },
+  sheetTitle: {
+    fontSize: FontSize.xl,
+    fontWeight: '800',
+    color: Colors.text,
+  },
+  sheetBody: {
+    fontSize: FontSize.sm,
+    color: Colors.textMuted,
+    lineHeight: 20,
   },
 });

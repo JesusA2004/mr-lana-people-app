@@ -30,7 +30,14 @@ export default function RhLayout() {
     <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
       <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
       <Stack.Screen name="solicitudes/[id]" />
+      {/* Ruta LEGACY: ya no se enlaza desde ninguna pantalla nueva, pero
+          `RhPendientesService` sigue devolviendo pendientes con `tipo:
+          "vacaciones"` mientras queden registros de `solicitudes_vacaciones`
+          sin cerrar — si RH toca uno, la ruta tiene que existir (sección
+          18). Una vacación creada por la app nueva llega a
+          `solicitudes/[id]`. */}
       <Stack.Screen name="vacaciones/[id]" />
+      <Stack.Screen name="vacantes/index" />
       <Stack.Screen name="documentos/[id]" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
       <Stack.Screen name="incorporaciones/[colaborador]" />
       <Stack.Screen name="colaboradores/[id]" />

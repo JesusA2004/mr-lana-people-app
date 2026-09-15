@@ -123,3 +123,18 @@ export function evaluateUpdate(latest: AppRelease | null | undefined, configForc
     mandatory: isNewer && (latest.minimum_required || configForceUpdate),
   };
 }
+
+/**
+ * A dónde mandar al usuario para actualizar. Android baja el APK directo
+ * (`download_url`); iOS todavía no tiene archivo propio, así que el backend
+ * manda `install_url` (TestFlight/ad-hoc) o `store_url` cuando existan.
+ *
+ * `download_url` puede llegar `null` — `AppReleaseController::paraApi` solo
+ * la llena si el release tiene archivo. Devolver `null` aquí significa "no
+ * hay a dónde ir": quien llama NO debe bloquear la app con una pantalla de
+ * actualización sin salida (ver `ForceUpdateScreen`).
+ */
+export function resolveReleaseUrl(release: AppRelease | null | undefined): string | null {
+  if (!release) return null;
+  return release.download_url || release.install_url || release.store_url || null;
+}

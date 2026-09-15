@@ -17,6 +17,7 @@ import {
   isBelowMinimumVersion,
   resolveMinimumBuildForPlatform,
   resolveMinimumVersionForPlatform,
+  resolveReleaseUrl,
 } from '@/utils/appVersion';
 import { logError } from '@/utils/errors';
 
@@ -26,10 +27,10 @@ export interface ForceUpdateScreenProps {
 
 /**
  * Pantalla bloqueante de actualización obligatoria (AGENTS.md sección 41).
- * Solo bloquea cuando hay una `download_url` real que ofrecer — nunca deja
- * al usuario atrapado sin salida (sección 41: "sin URL válida"). Comparación
- * SIEMPRE por `build_number`/versión numérica, nunca por string simple
- * (sección 39).
+ * Solo bloquea cuando hay una URL de actualización real que ofrecer (el APK
+ * de Android, o `install_url`/`store_url` en iOS) — nunca deja al usuario
+ * atrapado sin salida (sección 41: "sin URL válida"). Comparación SIEMPRE
+ * por `build_number`/versión numérica, nunca por string simple (sección 39).
  *
  * Prioridad frente a `MaintenanceScreen` (AGENTS.md sección 10): si el
  * backend está en mantenimiento, esa pantalla manda — no tiene sentido
@@ -46,7 +47,11 @@ export function ForceUpdateScreen({ enabled }: ForceUpdateScreenProps) {
   const belowMinimumVersion = isBelowMinimumVersion(getCurrentAppVersion(), resolveMinimumVersionForPlatform(config));
   const belowMinimumBuild = isBelowMinimumBuild(getCurrentBuildNumber(), resolveMinimumBuildForPlatform(config));
   const shouldBlock = !maintenanceActive && (mandatory || belowMinimumVersion || belowMinimumBuild);
-  const hasValidUpdateUrl = Boolean(release?.download_url);
+  // iOS no tiene APK: `download_url` llega null y la salida real es
+  // `install_url`/`store_url`. `resolveReleaseUrl` elige la que exista, así
+  // que la pantalla ya no queda sin botón en iOS (secciones 52/53).
+  const updateUrl = resolveReleaseUrl(release);
+  const hasValidUpdateUrl = Boolean(updateUrl);
 
   useEffect(() => {
     if (shouldBlock && !hasValidUpdateUrl && __DEV__) {
@@ -54,7 +59,7 @@ export function ForceUpdateScreen({ enabled }: ForceUpdateScreenProps) {
       // obligatoria pero no hay release/URL válida, la app sigue
       // funcionando normal — esto solo se avisa en DEV para que se note el
       // hueco de datos del lado del backend.
-      console.warn('[ForceUpdateScreen] Actualización obligatoria pedida por el backend pero sin release/download_url válida — no se bloquea.');
+      console.warn('[ForceUpdateScreen] Actualización obligatoria pedida por el backend pero sin release ni URL de actualización válida — no se bloquea.');
     }
   }, [shouldBlock, hasValidUpdateUrl]);
 
@@ -72,7 +77,7 @@ export function ForceUpdateScreen({ enabled }: ForceUpdateScreenProps) {
   const handleUpdate = async () => {
     setOpening(true);
     try {
-      await Linking.openURL(release.download_url);
+      await Linking.openURL(updateUrl as string);
     } catch (error) {
       logError('ForceUpdateScreen.handleUpdate', error);
     } finally {

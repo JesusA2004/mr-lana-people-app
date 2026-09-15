@@ -11,7 +11,20 @@ export interface RhVacacionesParams {
   page?: number;
 }
 
-/** `GET/POST /api/v1/rh/vacaciones[/{id}/aprobar|rechazar]`. */
+/**
+ * @deprecated BANDEJA RH LEGACY — fuera de la navegación nueva.
+ *
+ * `/api/v1/rh/vacaciones/*` revisa la tabla legacy `solicitudes_vacaciones`.
+ * Una solicitud de vacaciones creada por la app nueva NUNCA aparece aquí:
+ * vive en `solicitudes_internas` y se aprueba/rechaza con `rhSolicitudesApi`
+ * (`POST /api/v1/rh/solicitudes/{id}/aprobar`).
+ *
+ * Se conserva sin borrar porque la bandeja unificada del backend
+ * (`RhPendientesService::vacaciones()`) sigue devolviendo pendientes con
+ * `tipo: "vacaciones"` mientras existan registros legacy sin cerrar — si RH
+ * toca uno de esos, `rh/vacaciones/[id]` tiene que poder resolverlo. Ningún
+ * flujo nuevo debe apuntar aquí. Ver `docs/BACKEND_SYNC_2026_09_15.md`.
+ */
 export const rhVacacionesApi = {
   async list(params: RhVacacionesParams = {}): Promise<PaginatedResponse<RhVacacion>> {
     const response = await apiClient.get('/rh/vacaciones', { params });

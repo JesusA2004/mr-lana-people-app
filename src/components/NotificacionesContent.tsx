@@ -15,32 +15,11 @@ import { MascotMessages } from '@/constants/mascotMessages';
 import { useMarkAllNotificacionesLeidas, useMarkNotificacionLeida, useNotificaciones } from '@/hooks/queries/useNotificaciones';
 import { toast } from '@/store/toastStore';
 import type { NotificationItem } from '@/types/notification';
+import { resolveResourceRoute } from '@/utils/appLinks';
 import { getErrorMessage, logError } from '@/utils/errors';
+import { notificationStyle } from '@/utils/notificationStyle';
 
 type Tab = 'todas' | 'no_leidas';
-
-const ICON_BY_TYPE: Record<string, keyof typeof Ionicons.glyphMap> = {
-  solicitud: 'document-text-outline',
-  vacaciones: 'airplane-outline',
-  documento: 'folder-open-outline',
-  expediente: 'folder-open-outline',
-  incorporacion: 'person-add-outline',
-  cumpleanos: 'gift-outline',
-  documento_laboral: 'briefcase-outline',
-  rh_solicitud: 'document-text-outline',
-  rh_vacaciones: 'airplane-outline',
-  rh_documento: 'folder-open-outline',
-  rh_incorporacion: 'person-add-outline',
-  rh_pendiente: 'checkbox-outline',
-  rh_cumpleanos: 'gift-outline',
-  rh_extraccion_documento: 'sparkles-outline',
-  formato_disponible: 'document-attach-outline',
-};
-
-function iconFor(tipo?: string | null): keyof typeof Ionicons.glyphMap {
-  if (!tipo) return 'notifications-outline';
-  return ICON_BY_TYPE[tipo] ?? 'notifications-outline';
-}
 
 function startOfDay(date: Date): Date {
   const copy = new Date(date);
@@ -98,14 +77,22 @@ export function NotificacionesContent({ showBack = false }: NotificacionesConten
       });
     }
 
-    // Navegación al recurso relacionado solo cuando el backend entrega una
-    // ruta interna reconocible (ver AGENTS.md sección 29); nunca se adivina.
-    if (item.url && item.url.startsWith('/')) {
-      try {
-        router.push(item.url as never);
-      } catch (navError) {
-        logError('notificaciones.navigate', navError);
-      }
+    // El backend ahora manda `data.{type,resource_id}` justo para que la app
+    // navegue NATIVAMENTE, con el mismo resolver que usa el push
+    // (`resolveResourceRoute`). `url` es la ruta del portal WEB y no sirve
+    // para expo-router — solo se usa como respaldo si resulta ser una ruta
+    // interna. Un tipo desconocido no rompe nada: cae en el centro de
+    // notificaciones, nunca en una ruta inexistente (secciones 25/55).
+    const route =
+      resolveResourceRoute({ type: item.data?.type ?? item.tipo ?? undefined, resource_id: item.data?.resource_id ?? undefined }) ??
+      (item.url && item.url.startsWith('/') ? item.url : null);
+
+    if (!route) return;
+
+    try {
+      router.push(route as never);
+    } catch (navError) {
+      logError('notificaciones.navigate', navError);
     }
   };
 
@@ -151,11 +138,15 @@ export function NotificacionesContent({ showBack = false }: NotificacionesConten
         renderSectionFooter={() => <View style={{ height: Spacing.md }} />}
         renderItem={({ item, index }) => {
           const read = Boolean(item.leida);
+          // Emoji y color los manda el backend (paleta cerrada). La app ya no
+          // mantiene un ícono propio por tipo: uno nuevo se ve bien sin
+          // tocar la app (secciones 20/54/55).
+          const style = notificationStyle(item);
           return (
             <FadeInView index={index}>
               <PressableScale haptic={false} onPress={() => handlePress(item)} style={[styles.item, !read && styles.itemUnread] as object}>
-                <View style={[styles.iconWrapper, !read && styles.iconWrapperUnread]}>
-                  <Ionicons name={iconFor(item.tipo)} size={18} color={!read ? Colors.primaryDark : Colors.textMuted} />
+                <View style={[styles.iconWrapper, { backgroundColor: read ? Colors.surfaceMuted : style.background }]}>
+                  <Text style={styles.emoji}>{style.emoji}</Text>
                 </View>
                 <View style={styles.itemBody}>
                   <Text style={[styles.itemTitle, !read && styles.itemTitleUnread]}>{item.titulo || 'Notificación'}</Text>
@@ -273,8 +264,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconWrapperUnread: {
-    backgroundColor: Colors.surface,
+  emoji: {
+    fontSize: 18,
   },
   itemBody: {
     flex: 1,

@@ -1,9 +1,12 @@
 /**
- * Confirmado contra backend real (App\Services\Vacaciones\VacacionesService::saldo
- * y App\Http\Requests\Vacaciones\StoreSolicitudVacacionesRequest).
- * Importante: el campo es `dias_usados` (no `dias_utilizados`), y crear una
- * solicitud EXIGE `dias_solicitados` (entero) además del rango de fechas —
- * si no se manda, el backend responde 422.
+ * Saldo de vacaciones — `App\Services\Vacaciones\VacacionesService::saldo()`,
+ * expuesto por el endpoint legacy `GET /api/v1/vacaciones/saldo`
+ * (excepción de solo lectura documentada en `src/api/vacaciones.ts`).
+ * El campo es `dias_usados`, no `dias_utilizados`.
+ *
+ * El saldo suma los días de la tabla legacy Y los de las solicitudes
+ * unificadas `tipo=vacaciones`, así que es la cifra correcta aunque la app
+ * ya no cree nada en el módulo legacy.
  */
 export interface VacationBalance {
   antiguedad_anios?: number;
@@ -16,6 +19,13 @@ export interface VacationBalance {
   [key: string]: unknown;
 }
 
+/**
+ * @deprecated Forma de la tabla legacy `solicitudes_vacaciones`
+ * (`SolicitudVacacionesResource`). La app ya no lista ni crea vacaciones por
+ * ahí: la pantalla "Mis vacaciones" filtra `Solicitud` con
+ * `tipo === 'vacaciones'`. Se conserva solo para la bandeja RH legacy
+ * (`rhVacacionesApi`), que puede seguir recibiendo registros históricos.
+ */
 export interface VacationRequest {
   id: number | string;
   fecha_inicio?: string;
@@ -26,12 +36,4 @@ export interface VacationRequest {
   comentario?: string;
   created_at?: string;
   [key: string]: unknown;
-}
-
-export interface CreateVacationRequestPayload {
-  fecha_inicio: string;
-  fecha_fin: string;
-  /** Requerido por el backend (StoreSolicitudVacacionesRequest::rules). */
-  dias_solicitados: number;
-  comentario?: string;
 }

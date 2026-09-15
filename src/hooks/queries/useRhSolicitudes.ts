@@ -43,3 +43,17 @@ export function useRhSolicitudCorreccion() {
     onSuccess: () => invalidateRhQueries(queryClient),
   });
 }
+
+/**
+ * `PATCH .../estado` — solo para "tomar" (`en_revision`) y "cerrar"
+ * (`cerrada`). Aprobar/rechazar/corrección siguen usando sus mutaciones
+ * dedicadas de arriba.
+ */
+export function useRhSolicitudEstado() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, estado, comentario }: { id: string | number; estado: 'en_revision' | 'cerrada'; comentario?: string }) =>
+      rhSolicitudesApi.actualizarEstado(id, estado, comentario),
+    onSuccess: () => invalidateRhQueries(queryClient),
+  });
+}

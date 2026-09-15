@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 import { useAppConfig, useLatestAppRelease } from '@/hooks/queries/useAppRelease';
-import { evaluateUpdate } from '@/utils/appVersion';
+import { evaluateUpdate, resolveReleaseUrl } from '@/utils/appVersion';
 import { logError } from '@/utils/errors';
 
 export interface UpdateBannerProps {
@@ -30,9 +30,14 @@ export function UpdateBanner({ enabled }: UpdateBannerProps) {
   const { updateAvailable, mandatory } = evaluateUpdate(release, config?.force_update ?? false);
   if (!updateAvailable || mandatory) return null;
 
+  // En iOS el release no trae APK: la salida es `install_url`/`store_url`.
+  // Sin ninguna URL no tiene sentido invitar a actualizar.
+  const updateUrl = resolveReleaseUrl(release);
+  if (!updateUrl) return null;
+
   const handleUpdate = async () => {
     try {
-      await Linking.openURL(release.download_url);
+      await Linking.openURL(updateUrl);
     } catch (error) {
       logError('UpdateBanner.handleUpdate', error);
     }

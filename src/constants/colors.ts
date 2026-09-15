@@ -40,6 +40,15 @@ export const Colors = {
   neutral: '#6B7280',
   neutralSoft: '#EEF0F1',
 
+  /**
+   * Acento de celebración (cumpleaños, felicitaciones). Existe para poder
+   * traducir el color `celebracion` de la paleta cerrada de notificaciones
+   * (`NotificacionesService::ESTILOS`) a un token propio, en vez de pintar
+   * el hexadecimal que manda el backend.
+   */
+  celebration: '#D4457F',
+  celebrationSoft: '#FCE7F0',
+
   overlay: 'rgba(17, 17, 17, 0.5)',
   white: '#FFFFFF',
   black: '#111111',

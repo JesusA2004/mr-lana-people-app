@@ -6,6 +6,7 @@ import {
   normalizeBuildNumber,
   resolveMinimumBuildForPlatform,
   resolveMinimumVersionForPlatform,
+  resolveReleaseUrl,
 } from '../appVersion';
 
 import type { AppConfig, AppRelease } from '@/types/appRelease';
@@ -185,5 +186,33 @@ describe('evaluateUpdate', () => {
 
   it('build_number inválido (no numérico) no bloquea', () => {
     expect(evaluateUpdate({ ...baseRelease, build_number: 'no-es-un-numero' })).toEqual({ updateAvailable: false, mandatory: false });
+  });
+});
+
+describe('resolveReleaseUrl', () => {
+  const base = { platform: 'android' as const, version: '1.2.0', build_number: 12, minimum_required: false };
+
+  it('Android usa el APK directo', () => {
+    expect(resolveReleaseUrl({ ...base, download_url: 'https://people.mr-lana.com/app/descargar/android' })).toBe(
+      'https://people.mr-lana.com/app/descargar/android',
+    );
+  });
+
+  it('iOS cae en install_url cuando no hay archivo que descargar', () => {
+    expect(
+      resolveReleaseUrl({ ...base, platform: 'ios', download_url: null, install_url: 'https://testflight.apple.com/join/abc' }),
+    ).toBe('https://testflight.apple.com/join/abc');
+  });
+
+  it('iOS cae en store_url si tampoco hay install_url', () => {
+    expect(
+      resolveReleaseUrl({ ...base, platform: 'ios', download_url: null, install_url: null, store_url: 'https://apps.apple.com/app/id123' }),
+    ).toBe('https://apps.apple.com/app/id123');
+  });
+
+  it('sin ninguna URL devuelve null — quien llama NO debe bloquear la app', () => {
+    expect(resolveReleaseUrl({ ...base, platform: 'ios', download_url: null })).toBeNull();
+    expect(resolveReleaseUrl(null)).toBeNull();
+    expect(resolveReleaseUrl(undefined)).toBeNull();
   });
 });

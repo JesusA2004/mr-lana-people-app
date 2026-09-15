@@ -15,6 +15,8 @@ export type PushResourceType =
   | 'cumpleanos'
   | 'notificacion'
   | 'documento_laboral'
+  /** Baja de colaborador (`NotificacionesService::ESTILOS['baja']`). */
+  | 'baja'
   // RH / aprobadores
   | 'rh_solicitud'
   | 'rh_documento'
@@ -47,4 +49,14 @@ export interface PushNotificationData {
    * un `reason` desconocido.
    */
   reason?: string;
+  /**
+   * Estado al que pasó el recurso (`solicitud`/`rh_solicitud`): el backend
+   * lo incluye en el payload del push de cambio de solicitud. La app lo
+   * conserva como metadato opcional — sirve para saber que el detalle ya
+   * cambió y refrescarlo, nunca para decidir permisos ni para pintar el
+   * estado sin releerlo del servidor (sección 21).
+   */
+  estado?: string;
+  /** Color hexadecimal de referencia del backend. La app usa su propio token; ver `src/utils/notificationStyle.ts`. */
+  color?: string;
 }

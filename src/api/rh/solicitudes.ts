@@ -38,4 +38,19 @@ export const rhSolicitudesApi = {
   async solicitarCorreccion(id: number | string, motivo: string): Promise<void> {
     await apiClient.post(`/rh/solicitudes/${id}/correccion`, { motivo });
   },
+
+  /**
+   * `PATCH /api/v1/rh/solicitudes/{id}/estado` — cambio de estado unificado,
+   * el mismo destino que el tablero Kanban de la web
+   * (`Rh\SolicitudController::actualizarEstado` → `moverEnTablero()`).
+   *
+   * La app NO implementa un Kanban: solo usa este endpoint para los dos
+   * movimientos que `aprobar`/`rechazar`/`correccion` no cubren —
+   * `en_revision` (tomar la solicitud) y `cerrada` (darla por concluida).
+   * Aprobar y rechazar siguen yendo por sus rutas dedicadas, nunca por
+   * aquí, para no duplicar el flujo (sección 17).
+   */
+  async actualizarEstado(id: number | string, estado: 'en_revision' | 'cerrada', comentario?: string): Promise<void> {
+    await apiClient.patch(`/rh/solicitudes/${id}/estado`, comentario ? { estado, comentario } : { estado });
+  },
 };

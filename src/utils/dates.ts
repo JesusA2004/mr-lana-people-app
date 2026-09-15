@@ -61,13 +61,19 @@ export function isValidDateString(value?: string | null): boolean {
 }
 
 /**
- * Días naturales entre dos fechas, ambas incluidas (3 al 3 = 1 día, 3 al 5 =
- * 3 días). El backend exige `dias_solicitados` como entero al crear una
- * solicitud de vacaciones (ver StoreSolicitudVacacionesRequest); esta es la
- * única fuente de ese cálculo en la app — no se recalcula distinto por
- * pantalla. Es una cuenta de días naturales simple: el backend es quien
- * valida reglas de negocio (días hábiles, festivos, etc.) si aplican.
+ * Inverso de `toApiDateString`: "2026-09-15" → Date local. Se construye con
+ * el constructor de 3 argumentos a propósito — `new Date("2026-09-15")` se
+ * interpreta como UTC y en México puede retroceder un día. Devuelve
+ * `undefined` para cualquier valor que no sea una fecha ISO corta válida.
  */
+export function fromApiDateString(value?: string | null): Date | undefined {
+  if (!value) return undefined;
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (!match) return undefined;
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
 /** "Buenos días" / "Buenas tardes" / "Buenas noches" según la hora local del dispositivo. */
 export function getGreeting(date: Date = new Date()): string {
   const hour = date.getHours();
@@ -76,6 +82,14 @@ export function getGreeting(date: Date = new Date()): string {
   return 'Buenas noches';
 }
 
+/**
+ * Días naturales entre dos fechas, ambas incluidas (3 al 3 = 1 día, 3 al 5 =
+ * 3 días). Es una ESTIMACIÓN de apoyo para la UX: quien decide cuántos días
+ * cuesta una solicitud y si alcanza el saldo es el backend
+ * (`SolicitudesService::crear()` valida contra `VacacionesService::saldo()`).
+ * La app la usa para prellenar `dias_solicitados` y para el resumen; nunca
+ * como autoridad.
+ */
 export function diffInDaysInclusive(start: Date, end: Date): number {
   const MS_PER_DAY = 24 * 60 * 60 * 1000;
   const startUtc = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());

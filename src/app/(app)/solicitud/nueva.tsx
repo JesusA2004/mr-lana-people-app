@@ -1,70 +1,37 @@
-import { zodResolver } from '@hookform/resolvers/zod';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Controller, useForm, useWatch } from 'react-hook-form';
 import { BackHandler, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInRight, FadeOutLeft } from 'react-native-reanimated';
-import { z } from 'zod';
 
 import { solicitudesApi } from '@/api/solicitudes';
 import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { ErrorState } from '@/components/ErrorState';
 import { ExitConfirmSheet } from '@/components/ExitConfirmSheet';
-import { Input } from '@/components/Input';
+import { DynamicRequestField } from '@/components/forms/DynamicRequestField';
 import { MascotBubble } from '@/components/mascot/MascotBubble';
 import { PermissionPrimerSheet, type PermissionPrimerKind } from '@/components/PermissionPrimerSheet';
 import { PressableScale } from '@/components/PressableScale';
+import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { Stepper } from '@/components/Stepper';
 import { SuccessCheck } from '@/components/SuccessCheck';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 import { MascotMessages } from '@/constants/mascotMessages';
-import { useSolicitudesConfiguracion } from '@/hooks/queries/useSolicitudesConfiguracion';
+import { requestFieldCopy, requestTypePresentation, SPECIAL_LEAVE_COPY } from '@/constants/requestTypes';
+import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useCreateSolicitud } from '@/hooks/queries/useSolicitudes';
+import { useSolicitudesConfiguracion } from '@/hooks/queries/useSolicitudesConfiguracion';
+import { useVacacionesSaldo } from '@/hooks/queries/useVacaciones';
 import { toast } from '@/store/toastStore';
-import { REQUEST_TYPES_WITH_DATE_RANGE, type RequestType, type Solicitud } from '@/types/request';
-import { formatDateLong, isDateBefore, toApiDateString } from '@/utils/dates';
+import type { KnownRequestType, Solicitud, SolicitudTipoConfig } from '@/types/request';
+import { diffInDaysInclusive, formatDateLong, fromApiDateString } from '@/utils/dates';
 import { getErrorMessage, getValidationErrors, logError } from '@/utils/errors';
 import { haptics } from '@/utils/haptics';
-
-interface RequestTypeOption {
-  tipo: RequestType;
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  description: string;
-}
-
-/** Catálogo cosmético (ícono/descripción) confirmado contra App\Enums\TipoSolicitudInterna — las reglas reales (fechas/adjuntos) vienen de `solicitudesApi.getConfiguracion()`. */
-const REQUEST_TYPE_OPTIONS: RequestTypeOption[] = [
-  { tipo: 'permiso_con_goce', icon: 'checkmark-done-outline', label: 'Permiso con goce', description: 'Solicita ausencia manteniendo tu sueldo.' },
-  { tipo: 'permiso_sin_goce', icon: 'exit-outline', label: 'Permiso sin goce', description: 'Solicita una ausencia sin percepción salarial.' },
-  { tipo: 'incapacidad', icon: 'medkit-outline', label: 'Incapacidad', description: 'Registra una incapacidad médica.' },
-  { tipo: 'constancia_laboral', icon: 'document-text-outline', label: 'Constancia laboral', description: 'Solicita una constancia emitida por RH.' },
-  { tipo: 'actualizacion_datos', icon: 'person-outline', label: 'Actualización de datos', description: 'Solicita cambios en tu información.' },
-  { tipo: 'actualizacion_bancaria', icon: 'card-outline', label: 'Actualización bancaria', description: 'Actualiza tus datos de pago.' },
-  { tipo: 'reposicion_documental', icon: 'reader-outline', label: 'Reposición documental', description: 'Solicita apoyo con documentación.' },
-  { tipo: 'prestamo_interno', icon: 'cash-outline', label: 'Préstamo interno', description: 'Solicita un préstamo interno.' },
-  { tipo: 'general', icon: 'chatbubble-ellipses-outline', label: 'Solicitud general', description: '¿Necesitas algo diferente? Escríbenos.' },
-];
-
-const schema = z
-  .object({
-    tipo: z.string().min(1, 'Selecciona un tipo de solicitud'),
-    motivo: z.string().min(1, 'Cuéntanos el motivo de tu solicitud').max(2000),
-    observaciones: z.string().max(2000).optional(),
-    fechaInicio: z.date().optional(),
-    fechaFin: z.date().optional(),
-  })
-  .refine((data) => !data.fechaFin || !data.fechaInicio || !isDateBefore(data.fechaFin, data.fechaInicio), {
-    message: 'La fecha de fin no puede ser anterior a la fecha de inicio',
-    path: ['fechaFin'],
-  });
-
-type FormValues = z.infer<typeof schema>;
+import { buildCreatePayload, findTipoConfig, visibleRequestTypes, type DynamicFormValues } from '@/utils/solicitudesConfig';
 
 interface PickedFile {
   uri: string;
@@ -75,69 +42,139 @@ interface PickedFile {
 
 const MAX_ATTACHMENT_MB = 20;
 
+/**
+ * Wizard ÚNICO de "Nueva solicitud" — vacaciones incluidas.
+ *
+ * El formulario se construye recorriendo `campos[]` de
+ * `GET /api/v1/solicitudes/configuracion`: no hay un formulario hardcodeado
+ * por tipo ni una lista local de tipos. Si el backend agrega un tipo o un
+ * campo, aparece aquí sin tocar la app (secciones 5/6/7 del encargo).
+ *
+ * `?tipo=vacaciones` lo usa la pantalla "Mis vacaciones" para entrar directo
+ * al paso de información sin duplicar un segundo formulario (sección 3).
+ */
 export default function NuevaSolicitudScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ tipo?: string }>();
-  const [step, setStep] = useState(0);
+
+  const configuracion = useSolicitudesConfiguracion();
+  const bootstrap = useMobileBootstrap(true);
+  const createMutation = useCreateSolicitud();
+
+  const tipos = useMemo(
+    () => visibleRequestTypes(configuracion.data, bootstrap.data?.user.permissions),
+    [configuracion.data, bootstrap.data?.user.permissions],
+  );
+
+  const [selectedTipo, setSelectedTipo] = useState<string>(params.tipo ?? '');
+  const [values, setValues] = useState<DynamicFormValues>({});
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
-  const [sentSolicitud, setSentSolicitud] = useState<Solicitud | null>(null);
-  const [exitConfirmVisible, setExitConfirmVisible] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [selectedEmployeeName, setSelectedEmployeeName] = useState<string | undefined>();
+  const [step, setStep] = useState(params.tipo ? 1 : 0);
   const [attachments, setAttachments] = useState<PickedFile[]>([]);
   const [permissionPrimer, setPermissionPrimer] = useState<{ kind: PermissionPrimerKind; blocked: boolean } | null>(null);
-  const createMutation = useCreateSolicitud();
-  const { data: configuracion } = useSolicitudesConfiguracion();
+  const [exitConfirmVisible, setExitConfirmVisible] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [unconfirmed, setUnconfirmed] = useState(false);
+  const [sentSolicitud, setSentSolicitud] = useState<Solicitud | null>(null);
 
-  const {
-    control,
-    handleSubmit,
-    setValue,
-    trigger,
-    formState: { errors },
-  } = useForm<FormValues>({
-    resolver: zodResolver(schema),
-    defaultValues: { tipo: params.tipo ?? '', motivo: '', observaciones: '', fechaInicio: undefined, fechaFin: undefined },
-  });
+  const config = findTipoConfig(tipos, selectedTipo);
+  const presentation = requestTypePresentation(selectedTipo);
 
-  const formValues = useWatch({ control });
-  const selectedTipo = formValues.tipo ?? '';
-  const selectedConfig = configuracion?.find((item) => item.tipo === selectedTipo);
-  // Mientras la configuración remota carga, el catálogo local de tipos con
-  // rango de fechas sigue siendo un respaldo 100% funcional (AGENTS.md
-  // sección 45) — nunca bloquea el wizard.
-  const needsDateRange = selectedConfig ? selectedConfig.requires_dates : REQUEST_TYPES_WITH_DATE_RANGE.includes(selectedTipo as RequestType);
-  const allowsAttachments = selectedConfig?.allows_attachments ?? false;
-  const attachmentRequired = selectedConfig?.attachment_required ?? false;
-  const selectedOption = REQUEST_TYPE_OPTIONS.find((option) => option.tipo === selectedTipo);
-  const [activePicker, setActivePicker] = useState<'inicio' | 'fin' | null>(null);
+  // El saldo solo importa para vacaciones; se consulta siempre (es barato y
+  // suele estar en caché por la pantalla de Vacaciones) pero solo se pinta
+  // cuando el tipo elegido lo necesita.
+  const saldoQuery = useVacacionesSaldo();
+  const diasDisponibles = saldoQuery.data?.dias_disponibles;
+  const esVacaciones = selectedTipo === 'vacaciones';
 
   const stepKeys = useMemo(
-    () => ['tipo', 'informacion', ...(allowsAttachments ? (['adjuntos'] as const) : []), 'revisar'] as const,
-    [allowsAttachments],
+    () => ['tipo', 'informacion', ...(config?.permite_adjuntos ? (['adjuntos'] as const) : []), 'revisar'] as const,
+    [config?.permite_adjuntos],
   );
   const stepLabels = useMemo(
-    () => ['Tipo', 'Información', ...(allowsAttachments ? ['Adjuntos'] : []), 'Revisar'],
-    [allowsAttachments],
+    () => ['Tipo', 'Información', ...(config?.permite_adjuntos ? ['Adjuntos'] : []), 'Revisar'],
+    [config?.permite_adjuntos],
   );
-  // Si el tipo cambia y el paso "Adjuntos" deja de existir (o aparece), el
-  // índice se acota en el propio render — nunca queda apuntando fuera de
-  // rango sin necesidad de sincronizarlo con un efecto.
   const clampedStep = Math.min(step, stepKeys.length - 1);
   const currentStepKey = stepKeys[clampedStep];
 
-  const fechasResumen = useMemo(
-    () =>
-      [formValues.fechaInicio, formValues.fechaFin]
-        .filter((date): date is Date => Boolean(date))
-        .map((date) => formatDateLong(toApiDateString(date)))
-        .join(' — '),
-    [formValues.fechaInicio, formValues.fechaFin],
-  );
+  /**
+   * Estimación de días para vacaciones: se prellena `dias_solicitados` en
+   * cuanto hay rango, pero el colaborador puede corregirlo y el backend es
+   * quien valida contra el saldo real.
+   */
+  const estimatedDays = useMemo(() => {
+    const inicio = fromApiDateString(typeof values.fecha_inicio === 'string' ? values.fecha_inicio : undefined);
+    const fin = fromApiDateString(typeof values.fecha_fin === 'string' ? values.fecha_fin : undefined);
+    if (!inicio || !fin || fin < inicio) return undefined;
+    return diffInDaysInclusive(inicio, fin);
+  }, [values.fecha_inicio, values.fecha_fin]);
 
-  const goNext = async () => {
+  const setValue = (name: string, value: string | number | undefined) => {
+    setValues((current) => {
+      const next = { ...current, [name]: value };
+
+      // Prellenado de `dias_solicitados` al completar el rango: se hace aquí,
+      // al capturar la fecha, y no en un efecto — así no hay un render extra
+      // en cascada. Solo se rellena si el campo sigue vacío: si el
+      // colaborador ya escribió un número, manda el suyo.
+      if (config?.requiere_dias && (name === 'fecha_inicio' || name === 'fecha_fin') && next.dias_solicitados === undefined) {
+        const inicio = fromApiDateString(typeof next.fecha_inicio === 'string' ? next.fecha_inicio : undefined);
+        const fin = fromApiDateString(typeof next.fecha_fin === 'string' ? next.fecha_fin : undefined);
+        if (inicio && fin && fin >= inicio) next.dias_solicitados = diffInDaysInclusive(inicio, fin);
+      }
+
+      return next;
+    });
+
+    setFieldErrors((current) => {
+      if (!current[name]) return current;
+      const next = { ...current };
+      delete next[name];
+      return next;
+    });
+  };
+
+  const selectTipo = (clave: string) => {
+    if (clave === selectedTipo) return;
+    // Cambiar de tipo cambia los campos: arrastrar valores de otro tipo solo
+    // produciría un 422 con claves que este tipo ni pide.
+    setSelectedTipo(clave);
+    setValues({});
+    setFieldErrors({});
+    setSelectedEmployeeName(undefined);
+    setAttachments([]);
+    setFormError(null);
+  };
+
+  /** Validación de presencia únicamente — las reglas de negocio las manda el backend. */
+  const validateInformacion = (): boolean => {
+    if (!config) return false;
+    const errors: Record<string, string> = {};
+
+    for (const campo of config.campos) {
+      if (!campo.required) continue;
+      const value = values[campo.name];
+      if (value === undefined || value === null || String(value).trim() === '') {
+        errors[campo.name] = `${requestFieldCopy(campo.name).label} es obligatorio`;
+      }
+    }
+
+    const inicio = fromApiDateString(typeof values.fecha_inicio === 'string' ? values.fecha_inicio : undefined);
+    const fin = fromApiDateString(typeof values.fecha_fin === 'string' ? values.fecha_fin : undefined);
+    if (inicio && fin && fin < inicio) {
+      errors.fecha_fin = 'La fecha de fin no puede ser anterior a la fecha de inicio';
+    }
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const goNext = () => {
     if (currentStepKey === 'tipo') {
-      const valid = await trigger('tipo');
-      if (!valid) {
+      if (!config) {
         haptics.warning();
         toast.warning('Selecciona un tipo de solicitud para continuar.');
         return;
@@ -146,9 +183,7 @@ export default function NuevaSolicitudScreen() {
       return;
     }
     if (currentStepKey === 'informacion') {
-      const fields: (keyof FormValues)[] = needsDateRange ? ['motivo', 'fechaInicio', 'fechaFin'] : ['motivo'];
-      const valid = await trigger(fields);
-      if (!valid) {
+      if (!validateInformacion()) {
         haptics.warning();
         return;
       }
@@ -156,16 +191,11 @@ export default function NuevaSolicitudScreen() {
       return;
     }
     if (currentStepKey === 'adjuntos') {
-      if (attachmentRequired && attachments.length === 0) {
-        haptics.warning();
-        toast.warning('Este tipo de solicitud requiere al menos un adjunto.');
-        return;
-      }
       setStep((current) => current + 1);
     }
   };
 
-  const hasUnsavedChanges = Boolean(formValues.tipo) || Boolean(formValues.motivo?.trim());
+  const hasUnsavedChanges = Boolean(selectedTipo) || Object.values(values).some((value) => value !== undefined && value !== '');
 
   const goBack = () => {
     if (step === 0) {
@@ -180,10 +210,7 @@ export default function NuevaSolicitudScreen() {
   };
 
   useEffect(() => {
-    // Botón físico "atrás" de Android: mismo criterio que el back del
-    // header — nunca perder el formulario por un back accidental. El
-    // swipe-to-dismiss de iOS ya está desactivado para esta ruta
-    // (`gestureEnabled: false` en `(app)/_layout.tsx`).
+    // Botón físico "atrás" de Android: mismo criterio que el back del header.
     if (Platform.OS !== 'android' || sentSolicitud) return undefined;
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
       goBack();
@@ -275,26 +302,21 @@ export default function NuevaSolicitudScreen() {
     setAttachments((current) => current.filter((_, i) => i !== index));
   };
 
-  const onSubmit = async (values: FormValues) => {
+  const onSubmit = async () => {
+    if (!config || submitting) return;
     setFormError(null);
     setSubmitting(true);
+
     try {
-      // Flujo transaccional (AGENTS.md sección 45): crear primero → obtener
-      // id → adjuntar cada archivo. Un fallo parcial de adjuntos NUNCA
-      // pierde la solicitud ya creada — solo se avisa al usuario.
-      const solicitud = await createMutation.mutateAsync({
-        tipo: values.tipo,
-        motivo: values.motivo.trim(),
-        observaciones: values.observaciones?.trim() || undefined,
-        fecha_inicio: values.fechaInicio ? toApiDateString(values.fechaInicio) : undefined,
-        fecha_fin: values.fechaFin ? toApiDateString(values.fechaFin) : undefined,
-      });
+      // Transaccional: crear primero → obtener id → adjuntar. Un fallo de
+      // adjuntos nunca pierde la solicitud ya creada.
+      const solicitud = await createMutation.mutateAsync(buildCreatePayload(config, values));
 
       if (attachments.length > 0) {
         let failedCount = 0;
         for (const file of attachments) {
           try {
-            // Subidas en orden, no en paralelo, para no saturar la conexión del colaborador.
+            // En orden, no en paralelo, para no saturar la conexión.
             await solicitudesApi.addAttachment(solicitud.id, file);
           } catch (attachmentError) {
             failedCount += 1;
@@ -314,16 +336,36 @@ export default function NuevaSolicitudScreen() {
     } catch (error) {
       logError('solicitudes.create', error);
       const validation = getValidationErrors(error);
-      const firstValidationMessage = validation ? Object.values(validation)[0]?.[0] : undefined;
-      setFormError(firstValidationMessage ?? getErrorMessage(error));
+
+      if (validation) {
+        // El backend responde 422 con las claves EXACTAS del payload, así
+        // que cada mensaje se puede anclar a su campo.
+        const mapped: Record<string, string> = {};
+        for (const [key, messages] of Object.entries(validation)) {
+          const first = messages?.[0];
+          if (first) mapped[key] = first;
+        }
+        setFieldErrors(mapped);
+        setFormError(Object.values(mapped)[0] ?? getErrorMessage(error));
+        setStep(stepKeys.indexOf('informacion'));
+        return;
+      }
+
+      // Timeout/red caída DESPUÉS del POST: el servidor pudo haberla creado.
+      // Nunca se reintenta solo — eso duplicaría la solicitud (sección 43).
+      if (isInconclusive(error)) {
+        setUnconfirmed(true);
+        return;
+      }
+
+      setFormError(getErrorMessage(error));
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (sentSolicitud) {
-    return <SuccessScreen solicitud={sentSolicitud} />;
-  }
+  if (sentSolicitud) return <SuccessScreen solicitud={sentSolicitud} />;
+  if (unconfirmed) return <UnconfirmedScreen />;
 
   return (
     <View style={styles.container}>
@@ -338,90 +380,79 @@ export default function NuevaSolicitudScreen() {
           <Animated.View key="step-tipo" entering={FadeInRight.duration(240)} exiting={FadeOutLeft.duration(160)} style={styles.stepBlock}>
             <MascotBubble message={MascotMessages.wizardTipo} />
             <Text style={styles.title}>¿Qué necesitas solicitar?</Text>
-            {errors.tipo ? (
-              <View style={styles.inlineErrorBanner}>
-                <Ionicons name="alert-circle" size={16} color={Colors.danger} />
-                <Text style={styles.inlineErrorText}>{errors.tipo.message}</Text>
+
+            {configuracion.isLoading ? (
+              <View style={{ gap: Spacing.md }}>
+                <SkeletonBlock height={72} radius={Radius.lg} />
+                <SkeletonBlock height={72} radius={Radius.lg} />
+                <SkeletonBlock height={72} radius={Radius.lg} />
               </View>
-            ) : null}
-            <View style={styles.typeList}>
-              {REQUEST_TYPE_OPTIONS.map((option) => {
-                const active = selectedTipo === option.tipo;
-                return (
-                  <PressableScale
-                    key={option.tipo}
-                    onPress={() => setValue('tipo', option.tipo, { shouldValidate: true })}
-                    style={[styles.typeCard, active && styles.typeCardActive] as object}>
-                    <View style={[styles.typeIcon, active && styles.typeIconActive]}>
-                      <Ionicons name={option.icon} size={22} color={active ? Colors.white : Colors.primaryDark} />
-                    </View>
-                    <View style={styles.typeText}>
-                      <Text style={styles.typeLabel}>{option.label}</Text>
-                      <Text style={styles.typeDescription}>{option.description}</Text>
-                    </View>
-                    {active ? <Ionicons name="checkmark-circle" size={22} color={Colors.primary} /> : null}
-                  </PressableScale>
-                );
-              })}
-            </View>
+            ) : configuracion.isError ? (
+              <ErrorState message={getErrorMessage(configuracion.error)} onRetry={() => void configuracion.refetch()} />
+            ) : tipos.length === 0 ? (
+              <Text style={styles.stepHelper}>Tu empresa todavía no tiene tipos de solicitud habilitados.</Text>
+            ) : (
+              <View style={styles.typeList}>
+                {tipos.map((tipo) => (
+                  <TypeCard key={tipo.clave} tipo={tipo} active={selectedTipo === tipo.clave} onPress={() => selectTipo(tipo.clave)} />
+                ))}
+              </View>
+            )}
           </Animated.View>
         ) : null}
 
-        {currentStepKey === 'informacion' ? (
+        {currentStepKey === 'informacion' && config ? (
           <Animated.View key="step-informacion" entering={FadeInRight.duration(240)} exiting={FadeOutLeft.duration(160)} style={styles.stepBlock}>
             <MascotBubble message={MascotMessages.wizardMotivo} orientation="left" />
-            <Text style={styles.title}>{selectedOption?.label ?? 'Cuéntanos más'}</Text>
+            <Text style={styles.title}>{config.nombre}</Text>
 
-            <Controller
-              control={control}
-              name="motivo"
-              render={({ field: { value, onChange, onBlur } }) => (
-                <Input
-                  label="Motivo"
-                  placeholder="Describe brevemente tu solicitud"
-                  value={value}
-                  onChangeText={onChange}
-                  onBlur={onBlur}
-                  error={errors.motivo?.message}
-                  multiline
-                  style={styles.multilineInput}
-                />
-              )}
-            />
+            {SPECIAL_LEAVE_COPY[config.clave as KnownRequestType] ? (
+              <View style={styles.noteBanner}>
+                <Ionicons name="information-circle-outline" size={18} color={Colors.primaryDark} />
+                <Text style={styles.noteText}>{SPECIAL_LEAVE_COPY[config.clave as KnownRequestType]}</Text>
+              </View>
+            ) : null}
 
-            <Controller
-              control={control}
-              name="observaciones"
-              render={({ field: { value, onChange, onBlur } }) => (
-                <Input
-                  label="Observaciones (opcional)"
-                  placeholder="Detalle adicional para Recursos Humanos"
-                  value={value}
-                  onChangeText={onChange}
-                  onBlur={onBlur}
-                  multiline
-                  style={styles.multilineInputSmall}
-                />
-              )}
-            />
+            {esVacaciones ? (
+              <View style={styles.balanceBanner}>
+                <Ionicons name="airplane-outline" size={18} color={Colors.primaryDark} />
+                <Text style={styles.balanceText}>
+                  {typeof diasDisponibles === 'number'
+                    ? `Tienes ${diasDisponibles} ${diasDisponibles === 1 ? 'día disponible' : 'días disponibles'}. Recursos Humanos valida el saldo final.`
+                    : 'Recursos Humanos valida tu saldo disponible al revisar la solicitud.'}
+                </Text>
+              </View>
+            ) : null}
 
-            {needsDateRange ? (
-              <>
-                <Controller
-                  control={control}
-                  name="fechaInicio"
-                  render={({ field: { value } }) => (
-                    <DateField label="Fecha de inicio" value={value} onPress={() => setActivePicker('inicio')} error={errors.fechaInicio?.message} />
-                  )}
+            {config.requiere_horario ? (
+              <View style={styles.noteBanner}>
+                <Ionicons name="time-outline" size={18} color={Colors.primaryDark} />
+                {/* El backend solo pide `fecha_inicio` para los tipos por horas
+                    (no hay campo de hora en `tiposConFormulario`), así que la
+                    hora exacta se acuerda en el motivo — la app no inventa un
+                    campo que la API rechazaría (sección 8). */}
+                <Text style={styles.noteText}>Indica el horario exacto dentro del motivo: el formato oficial se genera con ese detalle.</Text>
+              </View>
+            ) : null}
+
+            <View style={styles.fieldList}>
+              {config.campos.map((campo) => (
+                <DynamicRequestField
+                  key={campo.name}
+                  campo={campo}
+                  value={values[campo.name]}
+                  onChange={(value) => setValue(campo.name, value)}
+                  error={fieldErrors[campo.name]}
+                  selectedEmployeeName={selectedEmployeeName}
+                  onSelectEmployee={(_id, nombre) => setSelectedEmployeeName(nombre)}
                 />
-                <Controller
-                  control={control}
-                  name="fechaFin"
-                  render={({ field: { value } }) => (
-                    <DateField label="Fecha de fin" value={value} onPress={() => setActivePicker('fin')} error={errors.fechaFin?.message} />
-                  )}
-                />
-              </>
+              ))}
+            </View>
+
+            {config.requiere_dias && estimatedDays !== undefined ? (
+              <Text style={styles.stepHelper}>
+                Estimamos {estimatedDays} {estimatedDays === 1 ? 'día' : 'días'} naturales en ese rango.
+              </Text>
             ) : null}
           </Animated.View>
         ) : null}
@@ -430,7 +461,9 @@ export default function NuevaSolicitudScreen() {
           <Animated.View key="step-adjuntos" entering={FadeInRight.duration(240)} exiting={FadeOutLeft.duration(160)} style={styles.stepBlock}>
             <Text style={styles.title}>Adjuntos</Text>
             <Text style={styles.stepHelper}>
-              {attachmentRequired ? 'Este tipo de solicitud requiere al menos un archivo.' : 'Puedes adjuntar evidencia si lo necesitas (opcional).'}
+              {selectedTipo === 'incapacidad'
+                ? 'Adjunta tu certificado o incapacidad. Solo Recursos Humanos puede verlo.'
+                : 'Puedes adjuntar evidencia si lo necesitas (opcional).'}
             </Text>
 
             <View style={styles.attachmentPickRow}>
@@ -466,22 +499,27 @@ export default function NuevaSolicitudScreen() {
           </Animated.View>
         ) : null}
 
-        {currentStepKey === 'revisar' ? (
+        {currentStepKey === 'revisar' && config ? (
           <Animated.View key="step-revisar" entering={FadeInRight.duration(240)} exiting={FadeOutLeft.duration(160)} style={styles.stepBlock}>
             <MascotBubble message={MascotMessages.wizardRevision} />
             <Text style={styles.title}>Revisa tu solicitud</Text>
 
             <Card style={{ gap: Spacing.md }}>
-              <SummaryRow icon="pricetag-outline" label="Tipo" value={selectedOption?.label ?? '—'} />
-              <SummaryRow icon="chatbox-ellipses-outline" label="Motivo" value={formValues.motivo || '—'} />
-              {formValues.observaciones ? <SummaryRow icon="reader-outline" label="Observaciones" value={formValues.observaciones} /> : null}
-              {needsDateRange ? <SummaryRow icon="calendar-outline" label="Fechas" value={fechasResumen || '—'} /> : null}
-              {allowsAttachments ? (
+              <SummaryRow icon={presentation.icon} label="Tipo" value={config.nombre} />
+              {config.campos.map((campo) => (
+                <SummaryRow
+                  key={campo.name}
+                  icon="ellipse-outline"
+                  label={requestFieldCopy(campo.name).label}
+                  value={summaryValue(campo.name, values[campo.name], selectedEmployeeName)}
+                />
+              ))}
+              {config.permite_adjuntos ? (
                 <SummaryRow icon="attach-outline" label="Adjuntos" value={attachments.length > 0 ? `${attachments.length} archivo(s)` : 'Ninguno'} />
               ) : null}
             </Card>
 
-            <PressableScale haptic={false} onPress={() => setStep(0)} style={styles.editRow}>
+            <PressableScale haptic={false} onPress={() => setStep(stepKeys.indexOf('informacion'))} style={styles.editRow}>
               <Ionicons name="create-outline" size={16} color={Colors.primaryDark} />
               <Text style={styles.editText}>Editar</Text>
             </PressableScale>
@@ -495,32 +533,13 @@ export default function NuevaSolicitudScreen() {
         <Button
           title={currentStepKey === 'revisar' ? 'Enviar solicitud' : 'Siguiente'}
           rightIcon={currentStepKey === 'revisar' ? undefined : 'arrow-forward'}
-          onPress={currentStepKey === 'revisar' ? handleSubmit(onSubmit) : () => void goNext()}
+          onPress={currentStepKey === 'revisar' ? () => void onSubmit() : goNext}
           loading={submitting}
-          disabled={submitting}
+          // Mientras el POST está en vuelo el botón queda inerte: doble toque
+          // = doble solicitud (sección 43).
+          disabled={submitting || (currentStepKey === 'tipo' && !config)}
         />
       </View>
-
-      {activePicker ? (
-        <Controller
-          control={control}
-          name={activePicker === 'inicio' ? 'fechaInicio' : 'fechaFin'}
-          render={({ field: { value, onChange } }) => (
-            <DateTimePicker
-              value={value ?? new Date()}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'inline' : 'default'}
-              onChange={(event, selectedDate) => {
-                if (Platform.OS !== 'ios') setActivePicker(null);
-                if (event.type === 'set' && selectedDate) onChange(selectedDate);
-              }}
-            />
-          )}
-        />
-      ) : null}
-      {activePicker && Platform.OS === 'ios' ? (
-        <Button title="Listo" onPress={() => setActivePicker(null)} variant="ghost" style={styles.doneButton} />
-      ) : null}
 
       <PermissionPrimerSheet
         visible={Boolean(permissionPrimer)}
@@ -539,6 +558,36 @@ export default function NuevaSolicitudScreen() {
         }}
       />
     </View>
+  );
+}
+
+/** ¿El error dejó la solicitud en un estado desconocido (timeout/red) en vez de un rechazo claro del servidor? */
+function isInconclusive(error: unknown): boolean {
+  const candidate = error as { response?: unknown } | null | undefined;
+  return !candidate?.response;
+}
+
+function summaryValue(name: string, value: string | number | undefined, employeeName?: string): string {
+  if (value === undefined || value === null || value === '') return '—';
+  if (name === 'colaborador_objetivo_id') return employeeName ?? `#${value}`;
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return formatDateLong(value);
+  return String(value);
+}
+
+function TypeCard({ tipo, active, onPress }: { tipo: SolicitudTipoConfig; active: boolean; onPress: () => void }) {
+  const presentation = requestTypePresentation(tipo.clave);
+
+  return (
+    <PressableScale onPress={onPress} style={[styles.typeCard, active && styles.typeCardActive] as object}>
+      <View style={[styles.typeIcon, active && styles.typeIconActive]}>
+        <Ionicons name={presentation.icon} size={22} color={active ? Colors.white : Colors.primaryDark} />
+      </View>
+      <View style={styles.typeText}>
+        <Text style={styles.typeLabel}>{tipo.nombre}</Text>
+        <Text style={styles.typeDescription}>{presentation.description}</Text>
+      </View>
+      {active ? <Ionicons name="checkmark-circle" size={22} color={Colors.primary} /> : null}
+    </PressableScale>
   );
 }
 
@@ -569,6 +618,33 @@ function SuccessScreen({ solicitud }: { solicitud: Solicitud }) {
   );
 }
 
+/**
+ * El POST salió pero nunca llegó la respuesta. Reenviar automáticamente
+ * crearía un duplicado, así que la app se detiene y manda al usuario a
+ * revisar su lista antes de volver a intentar (sección 43).
+ */
+function UnconfirmedScreen() {
+  const router = useRouter();
+
+  return (
+    <View style={styles.successContainer}>
+      <View style={styles.successBody}>
+        <View style={styles.unconfirmedIcon}>
+          <Ionicons name="help-circle-outline" size={56} color={Colors.warning} />
+        </View>
+        <Text style={styles.successTitle}>No pudimos confirmar el envío</Text>
+        <Text style={styles.successSubtitle}>
+          No pudimos confirmar si la solicitud fue enviada. Actualiza tu lista antes de volver a intentarlo.
+        </Text>
+      </View>
+
+      <View style={styles.successActions}>
+        <Button title="Ver mis solicitudes" leftIcon="list-outline" onPress={() => router.replace('/(app)/(tabs)/solicitudes')} />
+      </View>
+    </View>
+  );
+}
+
 function SummaryRow({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
   return (
     <View style={styles.summaryRow}>
@@ -583,89 +659,26 @@ function SummaryRow({ icon, label, value }: { icon: keyof typeof Ionicons.glyphM
   );
 }
 
-function DateField({
-  label,
-  value,
-  onPress,
-  error,
-}: {
-  label: string;
-  value?: Date;
-  onPress: () => void;
-  error?: string;
-}) {
-  return (
-    <View style={{ gap: Spacing.xs }}>
-      <Text style={styles.dateLabel}>{label}</Text>
-      <PressableScale haptic={false} onPress={onPress} style={[styles.dateInput, error && styles.dateInputError] as object}>
-        <Ionicons name="calendar-outline" size={18} color={Colors.textMuted} />
-        <Text style={styles.dateValue}>{value ? formatDateLong(toApiDateString(value)) : 'Selecciona una fecha'}</Text>
-      </PressableScale>
-      {error ? <Text style={styles.formError}>{error}</Text> : null}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  stepperWrapper: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.md,
-  },
-  content: {
-    padding: Spacing.lg,
-    paddingTop: 0,
-    gap: Spacing.lg,
-    paddingBottom: Spacing.xxxl,
-  },
-  stepBlock: {
-    gap: Spacing.lg,
-  },
-  title: {
-    fontSize: FontSize.xl,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  stepHelper: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
-    marginTop: -Spacing.md,
-  },
-  inlineErrorBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    backgroundColor: Colors.dangerSoft,
-    borderRadius: Radius.md,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-  },
-  inlineErrorText: {
-    flex: 1,
-    fontSize: FontSize.sm,
-    fontWeight: '700',
-    color: Colors.danger,
-  },
-  typeList: {
-    gap: Spacing.sm,
-  },
+  container: { flex: 1, backgroundColor: Colors.background },
+  stepperWrapper: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.md },
+  content: { padding: Spacing.lg, paddingTop: 0, paddingBottom: Spacing.xxl, gap: Spacing.lg },
+  stepBlock: { gap: Spacing.lg },
+  title: { fontSize: FontSize.xxl, fontWeight: '800', color: Colors.text },
+  stepHelper: { fontSize: FontSize.sm, color: Colors.textMuted },
+  fieldList: { gap: Spacing.lg },
+  typeList: { gap: Spacing.md },
   typeCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
-    backgroundColor: Colors.surface,
+    padding: Spacing.md,
     borderRadius: Radius.lg,
+    backgroundColor: Colors.surface,
     borderWidth: 1.5,
     borderColor: Colors.border,
-    padding: Spacing.md,
   },
-  typeCardActive: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primarySoft,
-  },
+  typeCardActive: { borderColor: Colors.primary, backgroundColor: Colors.primarySoft },
   typeIcon: {
     width: 44,
     height: 44,
@@ -674,174 +687,85 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  typeIconActive: {
-    backgroundColor: Colors.primary,
-  },
-  typeText: {
-    flex: 1,
-  },
-  typeLabel: {
-    fontSize: FontSize.md,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  typeDescription: {
-    fontSize: FontSize.xs,
-    color: Colors.textMuted,
-    marginTop: 2,
-  },
-  multilineInput: {
-    minHeight: 110,
-    textAlignVertical: 'top',
-    paddingTop: Spacing.sm,
-  },
-  multilineInputSmall: {
-    minHeight: 70,
-    textAlignVertical: 'top',
-    paddingTop: Spacing.sm,
-  },
-  dateLabel: {
-    fontSize: FontSize.sm,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  dateInput: {
+  typeIconActive: { backgroundColor: Colors.primary },
+  typeText: { flex: 1 },
+  typeLabel: { fontSize: FontSize.md, fontWeight: '700', color: Colors.text },
+  typeDescription: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: 2 },
+  noteBanner: {
     flexDirection: 'row',
-    alignItems: 'center',
     gap: Spacing.sm,
-    minHeight: 52,
-    paddingHorizontal: Spacing.md,
+    padding: Spacing.md,
     borderRadius: Radius.md,
-    borderWidth: 1.5,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.primarySoft,
+    alignItems: 'flex-start',
   },
-  dateInputError: {
-    borderColor: Colors.danger,
-  },
-  dateValue: {
-    fontSize: FontSize.md,
-    color: Colors.text,
-  },
-  attachmentPickRow: {
+  noteText: { flex: 1, fontSize: FontSize.xs, color: Colors.text, lineHeight: 18 },
+  balanceBanner: {
     flexDirection: 'row',
     gap: Spacing.sm,
+    padding: Spacing.md,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.infoSoft,
+    alignItems: 'flex-start',
   },
+  balanceText: { flex: 1, fontSize: FontSize.xs, color: Colors.text, lineHeight: 18 },
+  attachmentPickRow: { flexDirection: 'row', gap: Spacing.sm },
   attachmentPickButton: {
     flex: 1,
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    gap: Spacing.xs,
     paddingVertical: Spacing.md,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surface,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
   },
-  attachmentPickLabel: {
-    fontSize: FontSize.xs,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  attachmentList: {
-    gap: Spacing.sm,
-  },
+  attachmentPickLabel: { fontSize: FontSize.xs, fontWeight: '700', color: Colors.primaryDark },
+  attachmentList: { gap: Spacing.sm },
   attachmentRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    backgroundColor: Colors.surface,
+    padding: Spacing.md,
     borderRadius: Radius.md,
+    backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: Colors.border,
-    padding: Spacing.sm,
   },
-  attachmentName: {
-    flex: 1,
-    fontSize: FontSize.sm,
-    color: Colors.text,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
+  attachmentName: { flex: 1, fontSize: FontSize.sm, color: Colors.text },
+  summaryRow: { flexDirection: 'row', gap: Spacing.md, alignItems: 'flex-start' },
   summaryIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: Radius.sm,
+    width: 32,
+    height: 32,
+    borderRadius: Radius.md,
     backgroundColor: Colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  summaryText: {
-    flex: 1,
-  },
-  summaryLabel: {
-    fontSize: FontSize.xs,
-    color: Colors.textMuted,
-    fontWeight: '700',
-  },
-  summaryValue: {
-    fontSize: FontSize.md,
-    color: Colors.text,
-    marginTop: 2,
-  },
-  editRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
-  },
-  editText: {
-    fontSize: FontSize.sm,
-    fontWeight: '700',
-    color: Colors.primaryDark,
-  },
-  formError: {
-    fontSize: FontSize.xs,
-    color: Colors.danger,
-    fontWeight: '600',
-  },
+  summaryText: { flex: 1 },
+  summaryLabel: { fontSize: FontSize.xs, color: Colors.textMuted, fontWeight: '600' },
+  summaryValue: { fontSize: FontSize.md, color: Colors.text, marginTop: 2 },
+  editRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, alignSelf: 'flex-start' },
+  editText: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.primaryDark },
+  formError: { fontSize: FontSize.sm, color: Colors.danger, fontWeight: '600' },
   footer: {
     padding: Spacing.lg,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.surface,
   },
-  doneButton: {
-    margin: Spacing.lg,
-  },
-  successContainer: {
-    flex: 1,
-    backgroundColor: Colors.background,
-    justifyContent: 'space-between',
-    padding: Spacing.xl,
-    paddingTop: Spacing.xxxl,
-  },
-  successBody: {
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  successTitle: {
-    fontSize: FontSize.xxl,
-    fontWeight: '800',
-    color: Colors.text,
-    marginTop: Spacing.sm,
-  },
-  successSubtitle: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
-    textAlign: 'center',
-  },
-  successFolio: {
-    fontSize: FontSize.xs,
-    fontWeight: '700',
-    color: Colors.primaryDark,
-    backgroundColor: Colors.primarySoft,
+  successContainer: { flex: 1, backgroundColor: Colors.background, justifyContent: 'space-between', padding: Spacing.lg },
+  successBody: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.md },
+  successTitle: { fontSize: FontSize.xxl, fontWeight: '800', color: Colors.text, textAlign: 'center' },
+  successSubtitle: { fontSize: FontSize.sm, color: Colors.textMuted, textAlign: 'center', paddingHorizontal: Spacing.lg },
+  successFolio: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.primaryDark },
+  successActions: { gap: Spacing.md },
+  unconfirmedIcon: {
+    width: 104,
+    height: 104,
     borderRadius: Radius.full,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 4,
-  },
-  successActions: {
-    gap: Spacing.md,
+    backgroundColor: Colors.warningSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

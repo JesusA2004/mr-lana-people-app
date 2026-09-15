@@ -12,9 +12,12 @@ implementa lógica de Recursos Humanos, no calcula saldos ni decide permisos
 ni acciones por su cuenta — todo dato y toda regla de negocio vienen de la
 API (ver AGENTS.md, sección "Regla de oro").
 
-Documentación adicional: `docs/BUILD_AND_TEST_FINAL.md` (build y plan de
-pruebas completo) y `docs/BACKEND_GAPS_FINAL.md` (discrepancias reales
-pendientes del lado backend).
+Documentación adicional: **`docs/BACKEND_SYNC_2026_09_15.md`** (contratos
+reales, bugs corregidos y gaps vigentes — la fuente de verdad),
+`docs/PRUEBAS_FISICAS_2026_09_15.md` (checklist en dispositivo) y
+`docs/BUILD_AND_TEST_FINAL.md` (build y plan de pruebas). `docs/BACKEND_GAPS_FINAL.md`
+y `docs/BACKEND_REQUIREMENTS_V4.md` quedaron **superados**: describen
+contratos que ya no corresponden al backend actual.
 
 ## Requisitos
 
@@ -145,11 +148,14 @@ completo y verificado contra el código fuente real del backend en
   `POST /colaborador/incorporacion/documentos/{tipo}/subir`,
   `POST /colaborador/incorporacion/documentos/{documento}/solicitar-cambio`,
   `GET /colaborador/cumpleanos/felicitacion-actual[/imagen]`
-- **Vacaciones:** `GET /vacaciones/saldo`, `GET /vacaciones/solicitudes`,
-  `POST /vacaciones/solicitudes`
-- **Solicitudes:** `GET /solicitudes`, `POST /solicitudes`,
-  `GET /solicitudes/{solicitud}`, `GET /solicitudes/configuracion`,
-  `POST /solicitudes/{solicitud}/adjuntos`
+- **Vacaciones:** `GET /vacaciones/saldo` — y **nada más**. El resto del
+  namespace `/vacaciones/*` es legacy (tabla `solicitudes_vacaciones`): toda
+  vacación nueva se crea como solicitud unificada `tipo: "vacaciones"`. Ver
+  `docs/BACKEND_SYNC_2026_09_15.md`, sección C.
+- **Solicitudes (unificadas — el centro de la app):** `GET /solicitudes`,
+  `POST /solicitudes`, `GET /solicitudes/{solicitud}`,
+  `GET /solicitudes/configuracion`, `POST /solicitudes/{solicitud}/adjuntos`,
+  `POST /solicitudes/{solicitud}/cancelar`
 - **Notificaciones:** `GET /notificaciones`,
   `POST /notificaciones/{notificacion}/leer`,
   `POST /notificaciones/leer-todas`
@@ -160,7 +166,9 @@ completo y verificado contra el código fuente real del backend en
 - **Gestión RH** (todos bajo `/rh`, requieren capacidad real):
   `GET dashboard`, `GET pendientes`,
   `GET|POST solicitudes[/{id}/aprobar|rechazar|correccion]`,
-  `GET|POST vacaciones[/{id}/aprobar|rechazar]`,
+  `PATCH solicitudes/{id}/estado`,
+  `GET vacantes` (solo lectura),
+  `GET|POST vacaciones[/{id}/aprobar|rechazar]` *(legacy, fuera de la navegación nueva)*,
   `GET|POST documentos[/{id}/ver|aprobar|rechazar]`,
   `GET|POST incorporaciones[/{id}/aprobar|rechazar]`,
   `GET colaboradores[/{id}]`,
@@ -169,9 +177,9 @@ completo y verificado contra el código fuente real del backend en
   `POST expedientes/{colaborador}/documentos/{documento}/{aprobar|rechazar|autorizar-cambio}`,
   `POST expedientes/{colaborador}/{aprobar|rechazar}-incorporacion`
 
-Las pantallas de Vacaciones y Solicitudes usan los namespaces dedicados
-(`/vacaciones/*`, `/solicitudes/*`); los endpoints bajo `/colaborador/*`
-para esos mismos dominios también están implementados en
+"Mis vacaciones" ya **no** es un módulo aparte: es `/solicitudes` filtrado por
+`tipo=vacaciones`, más el saldo leído del endpoint legacy. Los endpoints bajo
+`/colaborador/*` para esos mismos dominios siguen implementados en
 `src/api/colaborador.ts` (usados por el Dashboard).
 
 ## Seguridad
@@ -204,7 +212,8 @@ src/
 │       ├── rh/                # Gestión RH (segmento real, no grupo — rutas bajo /rh)
 │       │   ├── (tabs)/        # Inicio/Pendientes/Colaboradores/Notificaciones/Perfil
 │       │   ├── solicitudes/[id].tsx
-│       │   ├── vacaciones/[id].tsx
+│       │   ├── vacantes/index.tsx     # Solo lectura (gestión = Portal RH web)
+│       │   ├── vacaciones/[id].tsx    # LEGACY: sin enlace en la navegación nueva
 │       │   ├── documentos/[id].tsx
 │       │   ├── incorporaciones/[colaborador].tsx
 │       │   ├── colaboradores/[id].tsx
@@ -251,14 +260,18 @@ dominio — ver `docs/BACKEND_GAPS_FINAL.md`, G1.
 
 ## Notas / pendientes conocidos con el backend
 
-Ver `docs/BACKEND_GAPS_FINAL.md` para el detalle completo y accionable
-(formato endpoint/request/response/problema/cambio mínimo). Resumen:
+Ver **`docs/BACKEND_SYNC_2026_09_15.md`, sección D** para el detalle completo
+y accionable. Resumen de los gaps vigentes:
 
-- **G1** — App Links sin archivos de verificación de dominio publicados.
-- **G2** — Sin landing web pública para quien escanea el QR sin la app instalada.
-- **G3** — RH no puede ver el contenido de los adjuntos de una solicitud (solo el nombre).
-- **G4** — Sin API móvil RH de cumpleaños (el push `rh_cumpleanos` cae en Notificaciones RH).
+- **D-1** — `SolicitudInternaResource` no serializa adjuntos ni historial, aunque `show()` los cargue.
+- **D-2** — `tiposConFormulario()` no emite `fecha_efectiva` ni `tipo_baja`, que el FormRequest sí exige.
+- **D-3** — Sin endpoint que exponga el catálogo `TipoBaja`.
+- **D-4** — El saldo de vacaciones vive fuera del módulo unificado.
+- **D-5** — `acciones_permitidas` no cubre `marcar_en_revision`/`cerrar`, y no existe para el colaborador.
+- **D-6** — Sin campos de hora para los permisos por horas.
+- **D-7** — `features` no incluye los módulos nuevos (formatos, vacantes, organigrama, OCR).
+- **D-8** — No existe API de documentos laborales (módulo oculto fail-closed).
 
-Ninguno de estos bloquea el uso normal de lo demás hoy — cada uno fue
-construido con manejo explícito (404/permiso ausente/acción oculta), nunca
-un botón roto.
+Ninguno bloquea el uso normal de lo demás: cada uno se rodea con manejo
+explícito (permiso ausente, módulo oculto, campo suplido y documentado),
+nunca un botón roto ni una pantalla que responda 404.

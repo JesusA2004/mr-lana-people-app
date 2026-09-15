@@ -31,6 +31,13 @@ export function resolveResourceRoute(data: PushNotificationData): string | null 
       return '/cumpleanos';
     case 'notificacion':
       return '/notificaciones';
+    case 'baja':
+      // Aviso sensible (`NotificacionesService::ESTILOS` lo pinta en rojo).
+      // La app abre la solicitud de baja relacionada cuando el backend manda
+      // el id, y si no, el centro de notificaciones — NUNCA agrega detalle
+      // sensible propio: se muestra exactamente lo que el backend envió
+      // (sección 22).
+      return data.resource_id ? `/solicitud/${data.resource_id}` : '/notificaciones';
     case 'documento_laboral':
       // "Documentos laborales" del colaborador (AGENTS.md de este encargo,
       // sección 19-22) — distinto de `documento` (expediente), que es lo

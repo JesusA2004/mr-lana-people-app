@@ -90,3 +90,26 @@ describe('experienceForPushType', () => {
     expect(experienceForPushType(undefined)).toBeNull();
   });
 });
+
+describe('notificaciones/push de la sincronización 2026-09-15', () => {
+  it('"baja" abre la solicitud relacionada cuando hay resource_id', () => {
+    expect(resolveResourceRoute({ type: 'baja', resource_id: 184 })).toBe('/solicitud/184');
+  });
+
+  it('"baja" sin resource_id cae en el centro de notificaciones, nunca en una ruta inventada', () => {
+    expect(resolveResourceRoute({ type: 'baja', resource_id: null })).toBe('/notificaciones');
+  });
+
+  it('"baja" es un aviso del colaborador, no de la experiencia RH', () => {
+    expect(experienceForPushType('baja')).toBe('colaborador');
+  });
+
+  it('un push de solicitud con "estado" sigue resolviendo al detalle exacto', () => {
+    expect(resolveResourceRoute({ type: 'solicitud', resource_id: 184, estado: 'aprobada' })).toBe('/solicitud/184');
+  });
+
+  it('un tipo desconocido no resuelve ruta (quien llama decide el respaldo), sin lanzar', () => {
+    expect(resolveResourceRoute({ type: 'modulo_futuro', resource_id: 9 })).toBeNull();
+    expect(resolveResourceRoute({})).toBeNull();
+  });
+});

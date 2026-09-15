@@ -9,12 +9,28 @@ import type { PushNotificationData } from '@/types/pushNotification';
 import { experienceForPushType, resolveResourceRoute } from '@/utils/appLinks';
 import { supportsRemotePush } from '@/utils/runtime';
 
-/** Cachés que cualquier push (colaborador o RH) puede haber invalidado — barato refrescarlas todas. */
-function invalidateAfterPush(): void {
+/**
+ * Cachés que cualquier push (colaborador o RH) puede haber invalidado —
+ * barato refrescarlas todas.
+ *
+ * Con `data` se afina: un push de `solicitud`/`rh_solicitud` trae además
+ * `estado`, señal de que ESE detalle cambió, así que se invalida también la
+ * lista de solicitudes y el detalle concreto — al abrirlo se ve el estado
+ * nuevo, no el que estaba en caché (sección 21). Las vacaciones comparten
+ * caché con las solicitudes (son el mismo recurso unificado), así que el
+ * saldo también se refresca.
+ */
+function invalidateAfterPush(data?: PushNotificationData): void {
   void queryClient.invalidateQueries({ queryKey: queryKeys.notificaciones });
   void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
   void queryClient.invalidateQueries({ queryKey: queryKeys.bootstrap });
   void queryClient.invalidateQueries({ queryKey: rhQueryKeyPrefix });
+
+  if (data?.type === 'solicitud' || data?.type === 'vacaciones' || data?.type === 'baja') {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.solicitudes });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.vacacionesSaldo });
+    if (data.resource_id) void queryClient.invalidateQueries({ queryKey: queryKeys.solicitud(data.resource_id) });
+  }
 }
 
 /**
@@ -63,7 +79,7 @@ export function useNotificationResponseRouting(enabled: boolean): void {
         const data = (notification.request.content.data ?? {}) as PushNotificationData;
         const route = resolveResourceRoute(data);
 
-        invalidateAfterPush();
+        invalidateAfterPush(data);
 
         toast.info(
           body ? `${title}: ${body}` : title,
@@ -79,7 +95,7 @@ export function useNotificationResponseRouting(enabled: boolean): void {
       responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
         const data = (response.notification.request.content.data ?? {}) as PushNotificationData;
         const route = resolveResourceRoute(data);
-        invalidateAfterPush();
+        invalidateAfterPush(data);
         queueNavigation(data, route ?? '/notificaciones');
       });
 
@@ -91,7 +107,7 @@ export function useNotificationResponseRouting(enabled: boolean): void {
         const data = (lastResponse.notification.request.content.data ?? {}) as PushNotificationData;
         const route = resolveResourceRoute(data);
         if (route) {
-          invalidateAfterPush();
+          invalidateAfterPush(data);
           queueNavigation(data, route);
         }
       }

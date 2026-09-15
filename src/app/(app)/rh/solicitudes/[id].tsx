@@ -12,33 +12,75 @@ import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
 import { WorkflowTimeline } from '@/components/WorkflowTimeline';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
-import { useRhSolicitud, useRhSolicitudAprobar, useRhSolicitudCorreccion, useRhSolicitudRechazar } from '@/hooks/queries/useRhSolicitudes';
+import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
+import {
+  useRhSolicitud,
+  useRhSolicitudAprobar,
+  useRhSolicitudCorreccion,
+  useRhSolicitudEstado,
+  useRhSolicitudRechazar,
+} from '@/hooks/queries/useRhSolicitudes';
 import { toast } from '@/store/toastStore';
+import { hasPermission } from '@/utils/capabilities';
 import { formatDateLong, formatDateTime } from '@/utils/dates';
 import { getErrorMessage, isConcurrencyConflict, logError } from '@/utils/errors';
 import { humanizeRequestType } from '@/utils/formatters';
 import { haptics } from '@/utils/haptics';
+import { openRhWeb } from '@/utils/openRhWeb';
 import { canApprove, canReject, canRequestCorrection } from '@/utils/rhActions';
+import { blockedApprovalReason, type BlockedApproval } from '@/utils/rhBlockedActions';
 
 /**
- * Detalle de solicitud RH (AGENTS.md sección 9): folio, tipo, estado,
- * colaborador, fechas, motivo, observaciones, adjuntos, workflow, historial
- * y SOLO las acciones que trae `acciones_permitidas`.
+ * Detalle de solicitud RH: folio, tipo, estado, colaborador, fechas, motivo,
+ * adjuntos, workflow, historial y SOLO las acciones que trae
+ * `acciones_permitidas` (aprobar/rechazar/solicitar_correccion).
+ *
+ * Una solicitud tipo `vacaciones` se ve y se resuelve AQUÍ, como cualquier
+ * otra: la bandeja legacy `rh/vacaciones` quedó fuera de la navegación
+ * nueva (sección 18).
+ *
+ * "Tomar" (`en_revision`) y "Cerrar" (`cerrada`) usan
+ * `PATCH .../estado`. `WorkflowService` todavía no las anuncia en
+ * `acciones_permitidas` (gap D-5 de `docs/BACKEND_SYNC_2026_09_15.md`), así
+ * que se ofrecen replicando EXACTAMENTE el mapa estado→permiso de
+ * `Rh\SolicitudController::actualizarEstado()` — nunca un movimiento libre
+ * de tablero. El backend sigue siendo la autoridad final (403/422).
  */
 export default function RhSolicitudDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: solicitud, isLoading, isError, error, refetch, isRefetching } = useRhSolicitud(id);
+  const bootstrap = useMobileBootstrap(true);
   const aprobar = useRhSolicitudAprobar();
   const rechazar = useRhSolicitudRechazar();
   const correccion = useRhSolicitudCorreccion();
+  const estadoMutation = useRhSolicitudEstado();
   const [modal, setModal] = useState<'rechazar' | 'correccion' | null>(null);
+  const [blocked, setBlocked] = useState<BlockedApproval | null>(null);
 
-  const pending = aprobar.isPending || rechazar.isPending || correccion.isPending;
+  const pending = aprobar.isPending || rechazar.isPending || correccion.isPending || estadoMutation.isPending;
+
+  const permissions = bootstrap.data?.user.permissions;
+  // Espejo de `actualizarEstado()`: `en_revision` exige la habilidad
+  // `revisar`; `cerrada`, la habilidad `cerrar`.
+  const puedeTomar = solicitud?.estado === 'enviada' && hasPermission(permissions, 'solicitudes.revisar');
+  const puedeCerrar = solicitud?.estado === 'aprobada' && hasPermission(permissions, 'solicitudes.cerrar');
 
   function handleActionError(err: unknown) {
     logError('rhSolicitud.accion', err);
     haptics.error();
+
+    // Los 422 dirigidos de una baja (falta evidencia / falta finiquito) NO
+    // son un conflicto de concurrencia: traen la instrucción exacta de qué
+    // falta y hay que mostrarla tal cual, antes de caer en el mensaje
+    // genérico de "ya fue atendida".
+    const blocker = blockedApprovalReason(err);
+    if (blocker) {
+      setBlocked(blocker);
+      void refetch();
+      return;
+    }
+
     if (isConcurrencyConflict(err)) {
       toast.error('Esta solicitud ya fue atendida. Actualizamos la información.');
       void refetch();
@@ -46,6 +88,20 @@ export default function RhSolicitudDetailScreen() {
     }
     toast.error(getErrorMessage(err));
   }
+
+  const handleEstado = (estado: 'en_revision' | 'cerrada') => {
+    if (!id) return;
+    estadoMutation.mutate(
+      { id, estado },
+      {
+        onSuccess: () => {
+          haptics.success();
+          toast.success(estado === 'en_revision' ? 'Tomaste esta solicitud para revisión.' : 'Solicitud cerrada.');
+        },
+        onError: handleActionError,
+      },
+    );
+  };
 
   const handleAprobar = () => {
     if (!id) return;
@@ -131,6 +187,25 @@ export default function RhSolicitudDetailScreen() {
               </Text>
             </Card>
 
+            {blocked ? (
+              <Card style={styles.blockedCard}>
+                <View style={styles.blockedHeader}>
+                  <Ionicons name="alert-circle" size={18} color={Colors.warning} />
+                  <Text style={styles.blockedTitle}>No se puede aprobar todavía</Text>
+                </View>
+                <Text style={styles.fieldValue}>{blocked.message}</Text>
+                {blocked.webPath ? (
+                  <Button
+                    title={blocked.webCtaLabel ?? 'Abrir Portal RH'}
+                    variant="outline"
+                    leftIcon="open-outline"
+                    onPress={() => void openRhWeb(blocked.webPath)}
+                  />
+                ) : null}
+                <Button title="Entendido" variant="ghost" onPress={() => setBlocked(null)} />
+              </Card>
+            ) : null}
+
             {solicitud.fecha_inicio || solicitud.fecha_fin ? (
               <Card style={styles.fieldCard}>
                 <FieldRow icon="calendar-outline" label="Fechas" value={formatDateRange(solicitud.fecha_inicio, solicitud.fecha_fin)} />
@@ -182,6 +257,31 @@ export default function RhSolicitudDetailScreen() {
                   </View>
                 ))}
               </Card>
+            ) : null}
+
+            {puedeTomar || puedeCerrar ? (
+              <View style={styles.actions}>
+                {puedeTomar ? (
+                  <Button
+                    title="Marcar en revisión"
+                    variant="outline"
+                    leftIcon="eye-outline"
+                    onPress={() => handleEstado('en_revision')}
+                    disabled={pending}
+                    style={styles.actionButton}
+                  />
+                ) : null}
+                {puedeCerrar ? (
+                  <Button
+                    title="Cerrar solicitud"
+                    variant="outline"
+                    leftIcon="lock-closed-outline"
+                    onPress={() => handleEstado('cerrada')}
+                    disabled={pending}
+                    style={styles.actionButton}
+                  />
+                ) : null}
+              </View>
             ) : null}
 
             {canApprove(solicitud.acciones_permitidas) || canReject(solicitud.acciones_permitidas) || canRequestCorrection(solicitud.acciones_permitidas) ? (
@@ -313,6 +413,21 @@ const styles = StyleSheet.create({
   rejectionCard: {
     backgroundColor: Colors.dangerSoft,
     borderColor: Colors.dangerSoft,
+  },
+  blockedCard: {
+    backgroundColor: Colors.warningSoft,
+    borderColor: Colors.warningSoft,
+    gap: Spacing.sm,
+  },
+  blockedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  blockedTitle: {
+    fontSize: FontSize.sm,
+    fontWeight: '800',
+    color: Colors.warning,
   },
   attachmentRow: {
     flexDirection: 'row',

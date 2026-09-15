@@ -16,9 +16,11 @@ import { useRhCumpleanosInfinite } from '@/hooks/queries/useRhCumpleanos';
 import { useRhDashboard } from '@/hooks/queries/useRhDashboard';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useAuthStore } from '@/store/authStore';
+import { hasPermission } from '@/utils/capabilities';
 import { getErrorMessage } from '@/utils/errors';
 import { isExperimentalFeatureEnabled, isFeatureEnabled, isOrganigramaEnabled } from '@/utils/featureFlags';
 import { joinName } from '@/utils/formatters';
+import { openRhWeb } from '@/utils/openRhWeb';
 import { rhPendienteDetailRoute } from '@/utils/rhRoutes';
 
 const HEADER_TOP_EXTRA = 20;
@@ -45,6 +47,12 @@ export default function RhDashboardScreen() {
   const formatosEnabled = isExperimentalFeatureEnabled(bootstrap.data?.features, 'formatos');
   const extractionEnabled = isExperimentalFeatureEnabled(bootstrap.data?.features, 'document_extraction');
   const organigramaEnabled = isOrganigramaEnabled(bootstrap.data?.features, bootstrap.data?.user.permissions);
+  // Vacantes: el endpoint real ya existe y funciona, pero `mobile/bootstrap`
+  // no manda un feature flag para este módulo. Se usa el MISMO permiso que
+  // protege el endpoint en el backend (`vacantes.ver`, ver
+  // `Rh\VacanteController::index`): ni fail-open ciego, ni fail-closed sobre
+  // algo que sí sirve.
+  const vacantesEnabled = hasPermission(bootstrap.data?.user.permissions, 'vacantes.ver');
 
   const cumpleanosHoy = useRhCumpleanosInfinite({ periodo: 'hoy' }, cumpleanosEnabled);
   const hoyCount = cumpleanosHoy.data?.pages[0]?.meta.hoy ?? 0;
@@ -79,12 +87,31 @@ export default function RhDashboardScreen() {
           <ErrorState message={getErrorMessage(error)} onRetry={() => void refetch()} />
         ) : !data ? null : (
           <>
+            {/* "Vacaciones" YA NO es un mosaico propio. El backend sigue
+                devolviendo `resumen.vacaciones` por compatibilidad, pero ese
+                contador es de la tabla LEGACY `solicitudes_vacaciones`: una
+                vacación creada por la app nueva cuenta dentro de
+                `resumen.solicitudes`. Mostrar los dos lado a lado hacía leer
+                el mismo trabajo como dos bandejas distintas (sección 35). */}
             <View style={styles.statGrid}>
               <StatTile label="Pendientes" value={data.resumen.pendientes_total} highlight onPress={() => router.push('/(app)/rh/(tabs)/pendientes')} />
               <StatTile label="Solicitudes" value={data.resumen.solicitudes} onPress={() => router.push('/(app)/rh/(tabs)/pendientes')} />
-              <StatTile label="Vacaciones" value={data.resumen.vacaciones} onPress={() => router.push('/(app)/rh/(tabs)/pendientes')} />
               <StatTile label="Documentos" value={data.resumen.documentos} onPress={() => router.push('/(app)/rh/(tabs)/pendientes')} />
+              <StatTile label="Incorporaciones" value={data.resumen.incorporaciones} onPress={() => router.push('/(app)/rh/(tabs)/pendientes')} />
             </View>
+
+            {data.resumen.vacaciones > 0 ? (
+              <Card onPress={() => router.push('/(app)/rh/(tabs)/pendientes')} style={styles.legacyCard}>
+                <Ionicons name="airplane-outline" size={20} color={Colors.textMuted} />
+                <View style={styles.ocrTextColumn}>
+                  <Text style={styles.ocrTitle}>
+                    {data.resumen.vacaciones} {data.resumen.vacaciones === 1 ? 'vacación anterior' : 'vacaciones anteriores'} por cerrar
+                  </Text>
+                  <Text style={styles.ocrSubtitle}>Las vacaciones nuevas llegan dentro de Solicitudes.</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+              </Card>
+            ) : null}
 
             {extractionEnabled && extractionsPending ? (
               <Card onPress={() => router.push('/(app)/rh/(tabs)/pendientes')} style={styles.ocrCard}>
@@ -112,23 +139,40 @@ export default function RhDashboardScreen() {
               </Card>
             ) : null}
 
-            {formatosEnabled || cumpleanosEnabled || organigramaEnabled ? (
-              <>
-                <Text style={styles.sectionTitle}>Acciones rápidas</Text>
-                <View style={styles.quickGrid}>
-                  <QuickAction icon="search-outline" label="Buscar colaborador" onPress={() => router.push('/(app)/rh/(tabs)/colaboradores')} />
-                  {formatosEnabled ? (
-                    <QuickAction icon="document-text-outline" label="Formatos" onPress={() => router.push('/(app)/rh/formatos' as never)} />
-                  ) : null}
-                  {cumpleanosEnabled ? (
-                    <QuickAction icon="gift-outline" label="Cumpleaños" onPress={() => router.push('/(app)/rh/cumpleanos' as never)} />
-                  ) : null}
-                  {organigramaEnabled ? (
-                    <QuickAction icon="git-network-outline" label="Organización" onPress={() => router.push('/(app)/rh/organizacion' as never)} />
-                  ) : null}
-                </View>
-              </>
-            ) : null}
+            <Text style={styles.sectionTitle}>Acciones rápidas</Text>
+            <View style={styles.quickGrid}>
+              <QuickAction icon="search-outline" label="Buscar colaborador" onPress={() => router.push('/(app)/rh/(tabs)/colaboradores')} />
+              {/* Vacantes en modo consulta: gestionar una vacante sigue
+                  siendo del Portal RH web (sección 23). */}
+              {vacantesEnabled ? (
+                <QuickAction icon="briefcase-outline" label="Vacantes" onPress={() => router.push('/(app)/rh/vacantes' as never)} />
+              ) : null}
+              {formatosEnabled ? (
+                <QuickAction icon="document-text-outline" label="Formatos" onPress={() => router.push('/(app)/rh/formatos' as never)} />
+              ) : null}
+              {cumpleanosEnabled ? (
+                <QuickAction icon="gift-outline" label="Cumpleaños" onPress={() => router.push('/(app)/rh/cumpleanos' as never)} />
+              ) : null}
+              {organigramaEnabled ? (
+                <QuickAction icon="git-network-outline" label="Organización" onPress={() => router.push('/(app)/rh/organizacion' as never)} />
+              ) : null}
+            </View>
+
+            {/*
+             * Administración pesada (finiquitos, headcount, matriz comercial,
+             * reclutamiento completo, reportes, configuración de formatos):
+             * NO se replica en móvil a propósito (secciones 24/34/56). No es
+             * un error ni un "próximamente" — es un proceso que se completa
+             * en el portal, y el camino queda a la vista.
+             */}
+            <PressableScale onPress={() => void openRhWeb()} style={styles.webCta}>
+              <Ionicons name="open-outline" size={18} color={Colors.primaryDark} />
+              <View style={styles.ocrTextColumn}>
+                <Text style={styles.ocrTitle}>Abrir Portal RH</Text>
+                <Text style={styles.ocrSubtitle}>Finiquitos, headcount, reportes y configuración se completan ahí.</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+            </PressableScale>
 
             <Text style={styles.sectionTitle}>Urgentes</Text>
             {data.urgentes.length === 0 ? (
@@ -289,6 +333,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
+  },
+  legacyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.surfaceMuted,
+    borderColor: Colors.border,
+  },
+  webCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    padding: Spacing.lg,
+    borderRadius: Radius.lg,
+    backgroundColor: Colors.surface,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
   },
   ocrTextColumn: {
     flex: 1,

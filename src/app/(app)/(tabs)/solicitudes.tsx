@@ -13,37 +13,61 @@ import { RequestCard } from '@/components/RequestCard';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 import { MascotMessages } from '@/constants/mascotMessages';
+import { requestFamily, type RequestFamily } from '@/constants/requestTypes';
 import { useSolicitudesInfinite } from '@/hooks/queries/useSolicitudes';
 import type { RequestStatus, Solicitud } from '@/types/request';
 import { getErrorMessage } from '@/utils/errors';
 import { humanizeRequestStatus } from '@/utils/formatters';
 
-const FILTERS: { label: string; value: RequestStatus | 'todas' }[] = [
+/**
+ * Filtros por FAMILIA de tipo (sección 48). Vacaciones aparece aquí como una
+ * familia más porque ya es una solicitud unificada: la pantalla "Mis
+ * vacaciones" es la misma lista con este filtro fijo, no otro módulo.
+ */
+const FAMILY_FILTERS: { label: string; value: RequestFamily | 'todas' }[] = [
   { label: 'Todas', value: 'todas' },
+  { label: 'Vacaciones', value: 'vacaciones' },
+  { label: 'Permisos', value: 'permisos' },
+  { label: 'Incapacidades', value: 'incapacidades' },
+  { label: 'Préstamos', value: 'prestamos' },
+  { label: 'Otras', value: 'otras' },
+];
+
+const STATUS_FILTERS: { label: string; value: RequestStatus | 'todos' }[] = [
+  { label: 'Cualquier estado', value: 'todos' },
   { label: humanizeRequestStatus('enviada'), value: 'enviada' },
   { label: humanizeRequestStatus('en_revision'), value: 'en_revision' },
   { label: humanizeRequestStatus('requiere_correccion'), value: 'requiere_correccion' },
   { label: humanizeRequestStatus('aprobada'), value: 'aprobada' },
   { label: humanizeRequestStatus('rechazada'), value: 'rechazada' },
+  { label: humanizeRequestStatus('cancelada'), value: 'cancelada' },
 ];
 
 function matchesSearch(solicitud: Solicitud, query: string): boolean {
   if (!query) return true;
-  const haystack = `${solicitud.folio ?? ''} ${solicitud.tipo_etiqueta ?? solicitud.tipo ?? ''}`.toLowerCase();
+  const haystack = `${solicitud.folio ?? ''} ${solicitud.tipo_etiqueta ?? solicitud.tipo ?? ''} ${solicitud.motivo ?? ''}`.toLowerCase();
   return haystack.includes(query.toLowerCase());
 }
 
 export default function SolicitudesScreen() {
   const router = useRouter();
   const { data, isLoading, isError, error, refetch, isRefetching, fetchNextPage, hasNextPage, isFetchingNextPage } = useSolicitudesInfinite();
-  const [filter, setFilter] = useState<RequestStatus | 'todas'>('todas');
+  const [family, setFamily] = useState<RequestFamily | 'todas'>('todas');
+  const [estado, setEstado] = useState<RequestStatus | 'todos'>('todos');
   const [search, setSearch] = useState('');
 
   const solicitudes = useMemo(() => data?.pages.flatMap((page) => page.data) ?? [], [data]);
   const filtered = useMemo(
-    () => solicitudes.filter((item) => (filter === 'todas' || item.estado === filter) && matchesSearch(item, search)),
-    [solicitudes, filter, search],
+    () =>
+      solicitudes.filter(
+        (item) =>
+          (family === 'todas' || requestFamily(item.tipo) === family) &&
+          (estado === 'todos' || item.estado === estado) &&
+          matchesSearch(item, search),
+      ),
+    [solicitudes, family, estado, search],
   );
+  const hasActiveFilter = family !== 'todas' || estado !== 'todos' || Boolean(search);
 
   return (
     <View style={styles.container}>
@@ -80,21 +104,38 @@ export default function SolicitudesScreen() {
       ) : null}
 
       {!isLoading && solicitudes.length > 0 ? (
-        <FlatList
-          horizontal
-          data={FILTERS}
-          keyExtractor={(item) => item.value}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterRow}
-          renderItem={({ item }) => (
-            <PressableScale
-              haptic={false}
-              onPress={() => setFilter(item.value)}
-              style={[styles.filterChip, filter === item.value && styles.filterChipActive] as object}>
-              <Text style={[styles.filterLabel, filter === item.value && styles.filterLabelActive]}>{item.label}</Text>
-            </PressableScale>
-          )}
-        />
+        <>
+          <FlatList
+            horizontal
+            data={FAMILY_FILTERS}
+            keyExtractor={(item) => item.value}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterRow}
+            renderItem={({ item }) => (
+              <PressableScale
+                haptic={false}
+                onPress={() => setFamily(item.value)}
+                style={[styles.filterChip, family === item.value && styles.filterChipActive] as object}>
+                <Text style={[styles.filterLabel, family === item.value && styles.filterLabelActive]}>{item.label}</Text>
+              </PressableScale>
+            )}
+          />
+          <FlatList
+            horizontal
+            data={STATUS_FILTERS}
+            keyExtractor={(item) => item.value}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterRow}
+            renderItem={({ item }) => (
+              <PressableScale
+                haptic={false}
+                onPress={() => setEstado(item.value)}
+                style={[styles.statusChip, estado === item.value && styles.statusChipActive] as object}>
+                <Text style={[styles.statusLabel, estado === item.value && styles.statusLabelActive]}>{item.label}</Text>
+              </PressableScale>
+            )}
+          />
+        </>
       ) : null}
 
       <FlatList
@@ -127,7 +168,7 @@ export default function SolicitudesScreen() {
             <SkeletonCardList count={4} />
           ) : isError ? (
             <ErrorState message={getErrorMessage(error)} onRetry={() => void refetch()} />
-          ) : filter === 'todas' && !search ? (
+          ) : !hasActiveFilter ? (
             <MascotAssistant
               message={MascotMessages.todoTranquilo}
               type="tip"
@@ -208,6 +249,25 @@ const styles = StyleSheet.create({
   },
   filterLabelActive: {
     color: Colors.white,
+  },
+  statusChip: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.surfaceMuted,
+    marginRight: Spacing.sm,
+  },
+  statusChipActive: {
+    backgroundColor: Colors.primarySoft,
+  },
+  statusLabel: {
+    fontSize: FontSize.xs,
+    fontWeight: '600',
+    color: Colors.textMuted,
+  },
+  statusLabelActive: {
+    color: Colors.primaryDark,
+    fontWeight: '800',
   },
   listContent: {
     padding: Spacing.lg,

@@ -1,3 +1,12 @@
+> **⚠️ DOCUMENTO SUPERADO — 2026-09-15.**
+> La fuente de verdad de contratos es ahora
+> [`BACKEND_SYNC_2026_09_15.md`](./BACKEND_SYNC_2026_09_15.md), auditado
+> contra `capacitaciones@6e5a912`. Varios contratos descritos aquí
+> (`requires_dates`, `allows_attachments`, `attachment_required`,
+> `prestamo_interno`, `general`) **nunca existieron** en este backend, y el
+> módulo de vacaciones ya se unificó. Se conserva solo como historia de la
+> auditoría del 2026-09-10.
+
 # Discrepancias reales entre la app y `capacitaciones` (backend)
 
 **NO se modificó `capacitaciones` desde esta sesión** (fuera de alcance
