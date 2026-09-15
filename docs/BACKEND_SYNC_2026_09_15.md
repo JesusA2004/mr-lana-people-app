@@ -276,3 +276,163 @@ inicia sesión ahí por su cuenta.
 Aun siendo web-only, **RH sí recibe el aviso en la app**: toda notificación o
 push llega al centro de notificaciones y navega al detalle móvil cuando
 existe, o al propio centro cuando no. Nunca a una ruta rota.
+
+---
+
+## G. SINCRONIZACIÓN a1e8546 — 2026-09-15 (segunda pasada)
+
+Delta real entre `6e5a912` (sync anterior) y `a1e8546620411c14da1030be879783a18e7554ca`,
+5 commits del backend. Auditado con `git diff 6e5a912..a1e8546` sobre el
+repo completo, no solo los archivos que el encargo señaló.
+
+**Hallazgo principal: `routes/api.php` tiene diff CERO.** Ningún
+controlador, Resource, ni Service bajo `App\Http\Controllers\Api\V1\*`
+cambió una sola línea. Todo el delta es: (a) lógica de negocio interna que
+la API móvil no expone todavía, y (b) el portal web (Inertia/Vue). Esto
+importa para no sobre-construir: varias piezas de este encargo pedían
+preparar la app para datos que, confirmado contra el código, el backend
+ni siquiera calcula para el móvil todavía.
+
+### G.1 — IMPLEMENTADO (código nuevo en esta pasada)
+
+- **Formatos oficiales por solicitud — tipos + UI preparada.** Nuevos
+  `SolicitudDocumentoGenerado`, `SolicitudFormatoOficial`,
+  `DocumentoOficialStatus` en `src/types/request.ts`, más
+  `SolicitudFormatoOficialCard` en el detalle del colaborador. Protegidos
+  100% por presencia real (`documentos_generados?.length`,
+  `formatos_oficiales?.length`) — hoy ninguno de los dos llega, así que el
+  componente devuelve `null` y no cambia nada visible.
+- **Secciones condicionales del detalle propio** ("Archivos enviados",
+  "Seguimiento detallado"): ahora leen `solicitud.adjuntos`/
+  `solicitud.historial` si existen. Siguen sin aparecer hasta que el
+  Resource los mande (gap D-1, sin cambios).
+- **Seguridad RH para solicitudes complejas.** Nuevos
+  `puedeAprobarSolicitudComplejaMovil()`/`esSolicitudCompleja()` en
+  `src/utils/rhActions.ts`: "Aprobar" se oculta en el detalle RH para
+  `prestamo` (falta `monto_solicitado`) y `baja_colaborador` (falta
+  `colaborador_objetivo`/`fecha_efectiva`/`tipo_baja`), con el banner
+  "Esta solicitud requiere revisión completa en Portal RH" + botón directo
+  a `rh/solicitudes/{id}` en el portal. Ver/Rechazar/Pedir corrección
+  siguen intactos, gobernados solo por `acciones_permitidas` como siempre.
+  Deja de bloquear solo, sin tocar código, en cuanto el Resource mande esos
+  campos.
+- **Campos RH preparados** (`dias_solicitados`, `monto_solicitado`,
+  `plazo_meses`, `fecha_efectiva`, `tipo_baja`, `colaborador_objetivo`) en
+  `RhSolicitud` + una tarjeta "Detalles de la solicitud" en el detalle RH
+  que solo dibuja las filas presentes.
+- **Bug real corregido — filtro de vacantes.** `EstadoVacante` es nuevo en
+  este delta (6 casos: `abierta`, `en_reclutamiento`, `con_candidatos`,
+  `en_revision`, `cubierta`, `cancelada`). El filtro de
+  `rh/vacantes/index.tsx` usaba un valor `en_proceso` que nunca existió —
+  bug propio de la sincronización anterior, no del backend. Corregido a
+  los 6 valores reales.
+- **Bug real corregido — visor de documentos (`SecureDocumentViewer`).**
+  Tres fixes independientes, secciones 8/9/10 del encargo:
+  1. Un archivo válido pero no previsualizable (DOCX, o cualquier binario
+     no reconocido) cortaba con `return` antes de `setFileUri()`: el
+     archivo quedaba bien descargado en disco pero la UI nunca lo sabía,
+     así que "Guardar o compartir" jamás aparecía. Ahora `fileUri` se fija
+     siempre que la descarga tuvo éxito (tamaño mayor a cero), y el estado
+     `unsupported` solo decide si se previsualiza, no si se puede
+     compartir. Se agregó detección de DOCX (firma ZIP `PK\x03\x04`) en
+     `sniffFileType` para que la extensión al compartir sea la correcta.
+  2. La copia con nombre legible para `Sharing.shareAsync` nunca se
+     borraba — quedaba viviendo en `Paths.cache` indefinidamente. Ahora se
+     borra en el `finally` de `handleSaveOrShare`.
+  3. La referencia al archivo temporal (`downloadedFile`) solo se
+     guardaba después de que `downloadAsync()` resolviera — si el
+     componente se desmontaba a mitad de una descarga larga,
+     `controller.abort()` cortaba la transferencia pero el archivo parcial
+     en disco no tenía quién lo borrara. Ahora se guarda la referencia
+     antes de iniciar la descarga.
+
+### G.2 — BACKEND DISPONIBLE / APP ACTUALIZADA (lógica nueva, sin contrato móvil aún)
+
+- **`EstadoSolicitudInterna::puedeTransicionarA()`**: mapa de transiciones
+  válidas, ahora aplicado dentro de `cambiarEstado()` antes de escribir
+  cualquier cambio de estado. Verificado contra los movimientos que la app
+  ya hace (`enviada→en_revision`, `aprobada→cerrada`, aprobar/rechazar/
+  corrección): los cuatro siguen siendo transiciones válidas — cero
+  cambios de código necesarios, la app nunca pedía un movimiento que
+  ahora se prohíba.
+- **Documento oficial automático al aprobar**
+  (`SolicitudFormatoOficialService::generarSiAplica()`, disparado en
+  `cambiarEstado()` para `vacaciones`, `permiso_con_goce`,
+  `permiso_sin_goce`, `permiso_tiempo`, `salida_temprano`,
+  `llegada_tarde`, `prestamo` y `baja_colaborador`). Ver G.1 para la
+  preparación de tipos/UI.
+
+### G.3 — BACKEND WEB-ONLY (confirmado, sin acción móvil)
+
+- El único controlador tocado para exponer esto (`documentoOficial`,
+  `officialFormatGenerations`) es `App\Http\Controllers\Rh\
+  SolicitudController` — el controlador web (Inertia), no
+  `Api\V1\Rh\SolicitudController`. Configurar/subir el PDF firmado sigue
+  siendo exclusivo del Portal RH.
+- `EstadoVacante::puedeTransicionarA()` y el nuevo bloqueo de
+  `VacantePolicy::delete()` para vacantes automáticas son del tablero
+  Kanban web de vacantes — el endpoint móvil (`GET /rh/vacantes`) sigue
+  siendo de solo lectura, sin tocar.
+
+### G.4 — API MÓVIL FALTANTE (gaps confirmados, algunos ya documentados, otros nuevos)
+
+- **D-9 (nuevo).** `Api\V1\SolicitudController::show()` (colaborador) no
+  serializa `documentos_generados` ni `formatos_oficiales` — por eso
+  `SolicitudFormatoOficialCard` no dibuja nada hoy. Cuando se agregue,
+  debe respetar exactamente la forma de `SolicitudDocumentoGenerado`/
+  `SolicitudFormatoOficial` en `src/types/request.ts` (o avisar si difiere,
+  para ajustar el normalizador).
+- **D-10 (nuevo).** `Api\V1\Rh\SolicitudController::show()` no serializa
+  `dias_solicitados`, `monto_solicitado`, `plazo_meses`,
+  `colaborador_objetivo`, `fecha_efectiva` ni `tipo_baja` — por eso
+  "Aprobar" queda bloqueado en móvil para préstamo y baja de colaborador
+  (ver G.1). Es el gap de mayor prioridad de esta pasada: sin él, RH no
+  puede resolver esos dos tipos completos desde el celular.
+- **D-1 a D-8**: sin cambios, siguen vigentes tal cual la sección D de
+  arriba.
+
+### G.5 — LEGACY
+
+- Sin cambios: `/vacaciones/*` (salvo `saldo`) y `/rh/vacaciones/*` siguen
+  deprecados exactamente como se documentó en la sección C.
+
+### G.6 — Realtime / Reverb: NO implementado (justificación)
+
+`POST /api/v1/broadcasting/auth` sigue existiendo (sin cambios) y el canal
+`App.Models.User.{id}` sigue registrado en `routes/channels.php`. Pero:
+
+1. Cero eventos de backend implementan `ShouldBroadcast`
+   (`grep -rl ShouldBroadcast app/Events app/Notifications` sin
+   resultados). Conectar un cliente WebSocket a un canal donde el backend
+   nunca publica nada no es "preparar infraestructura": es código muerto
+   que nunca va a recibir un mensaje.
+2. `config('broadcasting.default')` cae en `null` si la variable de
+   entorno `BROADCAST_CONNECTION` no está definida en el servidor — no
+   hay forma de confirmar desde este repo si Reverb está corriendo en
+   producción, ni sus credenciales (no existen variables `EXPO_PUBLIC_
+   REVERB_*` en `.env.example` de la app móvil).
+3. Adivinar nombres de evento/payload para "estar listos" sería inventar
+   un contrato que no existe — exactamente lo que este encargo pide evitar
+   en cada sección.
+
+**Decisión:** no se agregó ninguna dependencia ni cliente WebSocket. Queda
+como mejora futura: el día que el backend implemente al menos un evento
+`ShouldBroadcast` real (p. ej. `SolicitudActualizada`) y publique las
+credenciales de Reverb, un cliente WebSocket nativo (el `WebSocket`
+global de React Native — sin pusher-js ni laravel-echo, cero dependencias
+nuevas, cero módulos nativos) puede escuchar `App.Models.User.{id}` en
+foreground e invalidar las mismas queries que ya invalida
+`invalidateAfterPush()`. Push sigue siendo la única señal en
+background/app cerrada, sin cambios.
+
+### G.7 — App Links / QR / documentos laborales: reconfirmado sin cambios
+
+- Cero diff en controladores de incorporación/QR, y `public/.well-known/`
+  sigue sin `assetlinks.json` ni `apple-app-site-association` — el gap G1
+  de `docs/BACKEND_GAPS_FINAL.md` sigue vigente tal cual.
+- Ninguna ruta `/colaborador/documentos-laborales` existe todavía — el
+  módulo sigue oculto fail-closed, sin cambios de código.
+- Ninguna notificación/push nueva relacionada con formatos oficiales
+  (búsqueda sobre `app/Notifications/Mobile/*.php` no encontró nada) — el
+  fallback de `formato_disponible` (ya soportado) y el centro de
+  notificaciones siguen siendo el único camino.

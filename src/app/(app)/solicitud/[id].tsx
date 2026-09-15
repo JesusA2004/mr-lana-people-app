@@ -10,6 +10,7 @@ import { ErrorState } from '@/components/ErrorState';
 import { MascotAssistant } from '@/components/mascot/MascotAssistant';
 import { RequestStatusTimeline } from '@/components/RequestStatusTimeline';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
+import { SolicitudFormatoOficialCard } from '@/components/SolicitudFormatoOficialCard';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 import { MascotMessages } from '@/constants/mascotMessages';
@@ -29,6 +30,13 @@ import { haptics } from '@/utils/haptics';
  * `SolicitudController::show()` sí los cargue en memoria (gap D-1 de
  * `docs/BACKEND_SYNC_2026_09_15.md`). Esta pantalla muestra únicamente lo
  * que el backend devuelve de verdad — nunca inventa una lista de adjuntos.
+ *
+ * Sincronización 2026-09-15: las secciones "Documentos de tu solicitud",
+ * "Archivos enviados" y "Seguimiento detallado" están preparadas para
+ * cuando el Resource los mande, pero se protegen con la presencia real del
+ * payload (`solicitud.documentos_generados?.length`,
+ * `solicitud.adjuntos?.length`, `solicitud.historial?.length`) — hoy
+ * ninguna se dibuja porque ninguno de esos campos llega todavía.
  *
  * Lo que sí ya existe y se usa aquí: `POST /solicitudes/{id}/cancelar`.
  */
@@ -144,6 +152,45 @@ export default function SolicitudDetalleScreen() {
                       <Text style={styles.detailLabel}>{item.label}</Text>
                       <Text style={styles.detailValue}>{item.value}</Text>
                     </View>
+                  </View>
+                ))}
+              </Card>
+            ) : null}
+
+            {/* Preparación forward-compatible (sección 2/3): se dibuja sola
+                el día que el Resource mande documentos_generados/
+                formatos_oficiales — hoy no manda ninguno de los dos. */}
+            <SolicitudFormatoOficialCard solicitud={solicitud} />
+
+            {solicitud.adjuntos && solicitud.adjuntos.length > 0 ? (
+              <Card>
+                <Text style={styles.sectionTitle}>Archivos enviados</Text>
+                {solicitud.adjuntos.map((adjunto, index) => (
+                  <View
+                    key={adjunto.id}
+                    style={[styles.detailRow, index === solicitud.adjuntos!.length - 1 && styles.detailRowLast]}>
+                    <View style={styles.detailIcon}>
+                      <Ionicons name="document-attach-outline" size={16} color={Colors.primaryDark} />
+                    </View>
+                    <Text style={styles.detailValue} numberOfLines={1}>
+                      {adjunto.nombre}
+                    </Text>
+                  </View>
+                ))}
+              </Card>
+            ) : null}
+
+            {solicitud.historial && solicitud.historial.length > 0 ? (
+              <Card>
+                <Text style={styles.sectionTitle}>Seguimiento detallado</Text>
+                {solicitud.historial.map((entrada, index) => (
+                  <View
+                    key={`${entrada.fecha}-${index}`}
+                    style={[styles.historyRow, index === solicitud.historial!.length - 1 && styles.detailRowLast]}>
+                    <Text style={styles.historyAction}>{entrada.accion}</Text>
+                    {entrada.usuario ? <Text style={styles.historyMeta}>{entrada.usuario}</Text> : null}
+                    <Text style={styles.historyMeta}>{formatDateTime(entrada.fecha)}</Text>
+                    {entrada.comentario ? <Text style={styles.historyComment}>{entrada.comentario}</Text> : null}
                   </View>
                 ))}
               </Card>
@@ -269,6 +316,35 @@ const styles = StyleSheet.create({
   },
   detailValue: {
     fontSize: FontSize.md,
+    color: Colors.text,
+    marginTop: 2,
+  },
+  sectionTitle: {
+    fontSize: FontSize.xs,
+    fontWeight: '800',
+    color: Colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: Spacing.sm,
+  },
+  historyRow: {
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.divider,
+    paddingBottom: Spacing.sm,
+    marginBottom: Spacing.sm,
+    gap: 2,
+  },
+  historyAction: {
+    fontSize: FontSize.sm,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  historyMeta: {
+    fontSize: FontSize.xs,
+    color: Colors.textMuted,
+  },
+  historyComment: {
+    fontSize: FontSize.sm,
     color: Colors.text,
     marginTop: 2,
   },

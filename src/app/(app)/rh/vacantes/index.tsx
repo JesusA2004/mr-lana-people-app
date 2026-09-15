@@ -28,10 +28,18 @@ import { openRhWeb } from '@/utils/openRhWeb';
  *
  * Tampoco es un tab principal: se llega desde Inicio → Vacantes.
  */
+/**
+ * Espejo LITERAL de `App\Enums\EstadoVacante` (6 casos, confirmado el
+ * 2026-09-15 contra `capacitaciones@a1e8546`). `en_proceso` NUNCA existió —
+ * bug de esta sincronización: el filtro se armó a mano en vez de leer el
+ * enum real y quedaba silenciosamente incompleto.
+ */
 const ESTADO_FILTERS: { label: string; value: string | 'todos' }[] = [
   { label: 'Todas', value: 'todos' },
   { label: 'Abiertas', value: 'abierta' },
-  { label: 'En proceso', value: 'en_proceso' },
+  { label: 'En reclutamiento', value: 'en_reclutamiento' },
+  { label: 'Con candidatos', value: 'con_candidatos' },
+  { label: 'En revisión', value: 'en_revision' },
   { label: 'Cubiertas', value: 'cubierta' },
   { label: 'Canceladas', value: 'cancelada' },
 ];

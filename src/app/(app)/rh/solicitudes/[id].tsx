@@ -24,10 +24,10 @@ import { toast } from '@/store/toastStore';
 import { hasPermission } from '@/utils/capabilities';
 import { formatDateLong, formatDateTime } from '@/utils/dates';
 import { getErrorMessage, isConcurrencyConflict, logError } from '@/utils/errors';
-import { humanizeRequestType } from '@/utils/formatters';
+import { formatCurrencyMXN, humanizeRequestType } from '@/utils/formatters';
 import { haptics } from '@/utils/haptics';
-import { openRhWeb } from '@/utils/openRhWeb';
-import { canApprove, canReject, canRequestCorrection } from '@/utils/rhActions';
+import { openRhWeb, rhWebSolicitudPath } from '@/utils/openRhWeb';
+import { canApprove, canReject, canRequestCorrection, esSolicitudCompleja, puedeAprobarSolicitudComplejaMovil } from '@/utils/rhActions';
 import { blockedApprovalReason, type BlockedApproval } from '@/utils/rhBlockedActions';
 
 /**
@@ -45,6 +45,16 @@ import { blockedApprovalReason, type BlockedApproval } from '@/utils/rhBlockedAc
  * que se ofrecen replicando EXACTAMENTE el mapa estado→permiso de
  * `Rh\SolicitudController::actualizarEstado()` — nunca un movimiento libre
  * de tablero. El backend sigue siendo la autoridad final (403/422).
+ *
+ * Sincronización 2026-09-15: préstamo y baja de colaborador son
+ * "solicitudes complejas" — el Resource móvil de RH todavía no manda
+ * `monto_solicitado`/`plazo_meses` ni `colaborador_objetivo`/
+ * `fecha_efectiva`/`tipo_baja` (confirmado contra `capacitaciones@a1e8546`:
+ * el controlador móvil no cambió). Aprobar a ciegas un monto o una baja que
+ * ni siquiera se puede leer es un riesgo real, así que "Aprobar" se oculta
+ * para esos dos tipos y se ofrece completar la revisión en el Portal RH
+ * (ver `puedeAprobarSolicitudComplejaMovil`). Ver/Rechazar/Pedir corrección
+ * siguen intactos.
  */
 export default function RhSolicitudDetailScreen() {
   const router = useRouter();
@@ -226,6 +236,62 @@ export default function RhSolicitudDetailScreen() {
               </Card>
             ) : null}
 
+            {/* Sección 14: solo aparece si el Resource realmente manda
+                alguno de estos campos — nunca se dibuja una fila vacía ni
+                se asume un valor por el tipo de la solicitud. */}
+            {solicitud.dias_solicitados !== undefined ||
+            solicitud.monto_solicitado !== undefined ||
+            solicitud.plazo_meses !== undefined ||
+            solicitud.fecha_efectiva ||
+            solicitud.tipo_baja ||
+            solicitud.colaborador_objetivo ? (
+              <Card style={styles.fieldCard}>
+                <Text style={styles.fieldLabel}>Detalles de la solicitud</Text>
+                {solicitud.dias_solicitados !== undefined ? (
+                  <FieldRow icon="calendar-number-outline" label="Días solicitados" value={String(solicitud.dias_solicitados)} />
+                ) : null}
+                {solicitud.monto_solicitado !== undefined ? (
+                  <FieldRow
+                    icon="cash-outline"
+                    label="Monto solicitado"
+                    value={formatCurrencyMXN(
+                      typeof solicitud.monto_solicitado === 'number' ? solicitud.monto_solicitado : Number(solicitud.monto_solicitado),
+                    )}
+                  />
+                ) : null}
+                {solicitud.plazo_meses !== undefined ? (
+                  <FieldRow icon="hourglass-outline" label="Plazo" value={`${solicitud.plazo_meses} meses`} />
+                ) : null}
+                {solicitud.colaborador_objetivo ? (
+                  <FieldRow icon="person-remove-outline" label="Colaborador a dar de baja" value={solicitud.colaborador_objetivo.nombre} />
+                ) : null}
+                {solicitud.fecha_efectiva ? (
+                  <FieldRow icon="calendar-outline" label="Fecha efectiva" value={formatDateLong(solicitud.fecha_efectiva)} />
+                ) : null}
+                {solicitud.tipo_baja ? <FieldRow icon="information-circle-outline" label="Tipo de baja" value={solicitud.tipo_baja} /> : null}
+              </Card>
+            ) : null}
+
+            {esSolicitudCompleja(solicitud.tipo) && !puedeAprobarSolicitudComplejaMovil(solicitud) ? (
+              <Card style={styles.blockedCard}>
+                <View style={styles.blockedHeader}>
+                  <Ionicons name="shield-checkmark-outline" size={18} color={Colors.warning} />
+                  <Text style={styles.blockedTitle}>Esta solicitud requiere revisión completa en Portal RH</Text>
+                </View>
+                <Text style={styles.fieldValue}>
+                  {solicitud.tipo === 'prestamo'
+                    ? 'La app móvil todavía no muestra el monto y el plazo completos de este préstamo.'
+                    : 'La app móvil todavía no muestra el colaborador, la fecha efectiva y el tipo de baja completos.'}
+                </Text>
+                <Button
+                  title="Abrir Portal RH"
+                  variant="outline"
+                  leftIcon="open-outline"
+                  onPress={() => void openRhWeb(rhWebSolicitudPath(solicitud.id))}
+                />
+              </Card>
+            ) : null}
+
             {solicitud.adjuntos.length > 0 ? (
               <Card style={styles.fieldCard}>
                 <Text style={styles.fieldLabel}>Adjuntos</Text>
@@ -284,25 +350,35 @@ export default function RhSolicitudDetailScreen() {
               </View>
             ) : null}
 
-            {canApprove(solicitud.acciones_permitidas) || canReject(solicitud.acciones_permitidas) || canRequestCorrection(solicitud.acciones_permitidas) ? (
-              <View style={styles.actions}>
-                {canRequestCorrection(solicitud.acciones_permitidas) ? (
-                  <Button
-                    title="Pedir corrección"
-                    variant="outline"
-                    onPress={() => setModal('correccion')}
-                    disabled={pending}
-                    style={styles.actionButton}
-                  />
-                ) : null}
-                {canReject(solicitud.acciones_permitidas) ? (
-                  <Button title="Rechazar" variant="danger" onPress={() => setModal('rechazar')} disabled={pending} style={styles.actionButton} />
-                ) : null}
-                {canApprove(solicitud.acciones_permitidas) ? (
-                  <Button title="Aprobar" onPress={handleAprobar} loading={aprobar.isPending} disabled={pending} style={styles.actionButton} />
-                ) : null}
-              </View>
-            ) : null}
+            {(() => {
+              // La seguridad de préstamo/baja nunca depende de
+              // `acciones_permitidas` (el backend todavía ni sabe que la
+              // app oculta esto): es una restricción propia de la app
+              // mientras el Resource móvil no mande los campos completos.
+              const puedeAprobarAqui = canApprove(solicitud.acciones_permitidas) && puedeAprobarSolicitudComplejaMovil(solicitud);
+              const hayAcciones = puedeAprobarAqui || canReject(solicitud.acciones_permitidas) || canRequestCorrection(solicitud.acciones_permitidas);
+              if (!hayAcciones) return null;
+
+              return (
+                <View style={styles.actions}>
+                  {canRequestCorrection(solicitud.acciones_permitidas) ? (
+                    <Button
+                      title="Pedir corrección"
+                      variant="outline"
+                      onPress={() => setModal('correccion')}
+                      disabled={pending}
+                      style={styles.actionButton}
+                    />
+                  ) : null}
+                  {canReject(solicitud.acciones_permitidas) ? (
+                    <Button title="Rechazar" variant="danger" onPress={() => setModal('rechazar')} disabled={pending} style={styles.actionButton} />
+                  ) : null}
+                  {puedeAprobarAqui ? (
+                    <Button title="Aprobar" onPress={handleAprobar} loading={aprobar.isPending} disabled={pending} style={styles.actionButton} />
+                  ) : null}
+                </View>
+              );
+            })()}
           </>
         )}
       </ScrollView>

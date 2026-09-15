@@ -16,7 +16,7 @@ import { SkeletonBlock } from './SkeletonBlock';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 import { API_URL } from '@/constants/config';
 import { useAuthStore } from '@/store/authStore';
-import { extensionForSniffedType, sniffFileType } from '@/utils/fileSniff';
+import { extensionForSniffedType, isPreviewableSniffedType, sniffFileType, type SniffedFileType } from '@/utils/fileSniff';
 import { getErrorMessage, logError } from '@/utils/errors';
 import { uniqueTempFileName } from '@/utils/tempFileName';
 
@@ -86,7 +86,7 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
   const [status, setStatus] = useState<ViewerStatus>('loading');
   const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined);
   const [fileUri, setFileUri] = useState<string | null>(null);
-  const [sniffedType, setSniffedType] = useState<'pdf' | 'png' | 'jpeg' | null>(null);
+  const [sniffedType, setSniffedType] = useState<SniffedFileType | null>(null);
   const [sharing, setSharing] = useState(false);
 
   useEffect(() => {
@@ -115,6 +115,14 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
 
         // 2) Descarga real, directo a disco, sin ArrayBuffer completo en JS.
         const tempFile = new File(Paths.cache, uniqueTempFileName('bin'));
+        // Se guarda la referencia ANTES de `downloadAsync()`, no después:
+        // si el componente se desmonta (o `path` cambia) a mitad de la
+        // descarga, `controller.abort()` corta la transferencia pero el
+        // archivo parcial ya escrito en disco seguía sin nadie que lo
+        // borrara — `downloadedFile` solo se asignaba una vez que la
+        // promesa resolvía, y una descarga abortada nunca resuelve. Bug
+        // corregido en la sincronización 2026-09-15 (sección 10).
+        downloadedFile = tempFile;
         const task = File.createDownloadTask(`${API_URL}${path}`, tempFile, {
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
           signal: controller.signal,
@@ -131,21 +139,35 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
         const head = new Uint8Array(await downloaded.slice(0, 8).arrayBuffer());
         const sniffed = sniffFileType(head);
 
-        if (sniffed === 'unknown') {
-          setStatus('unsupported');
-          return;
-        }
-
         // 4) Renombra a la extensión real (necesario para que el WebView
-        // reconozca un PDF local por su extensión).
+        // reconozca un PDF local por su extensión, y para que
+        // "Guardar o compartir" ofrezca la extensión correcta).
         const finalFile = new File(Paths.cache, uniqueTempFileName(extensionForSniffedType(sniffed)));
         await downloaded.move(finalFile);
         downloadedFile = finalFile;
 
         if (cancelled) return;
         setSniffedType(sniffed);
+
+        // Bug corregido en la sincronización 2026-09-15: antes, un tipo no
+        // reconocido (p. ej. un DOCX, que el sniffer no distinguía) cortaba
+        // aquí con `return` ANTES de `setFileUri()` — el archivo quedaba
+        // descargado en disco pero la UI nunca se enteraba, así que
+        // "Guardar o compartir" jamás aparecía para un documento
+        // perfectamente válido.
+        //
+        // El tamaño ya se validó (`size === 0` lanzó arriba) y el HEAD +
+        // la descarga completa tuvieron éxito: un archivo no-vacío que no
+        // es PDF/PNG/JPEG sigue siendo un archivo VÁLIDO, solo que este
+        // visor no sabe dibujarlo (p. ej. DOCX). Estados conceptuales:
+        //   - previewable      → PDF/PNG/JPEG: se dibuja en el visor.
+        //   - downloadable-only → cualquier otro tipo no vacío (DOCX,
+        //     binarios no reconocidos): no se previsualiza, pero SIGUE
+        //     pudiendo guardarse/compartirse si `allowDownload` lo permite.
+        //   - invalid          → 0 bytes/corrupto: ya se descartó arriba,
+        //     nunca llega a tener `fileUri`.
         setFileUri(finalFile.uri);
-        setStatus('ready');
+        setStatus(isPreviewableSniffedType(sniffed) ? 'ready' : 'unsupported');
       } catch (error) {
         if (cancelled) return;
         logError('SecureDocumentViewer', error);
@@ -172,6 +194,12 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
   const handleSaveOrShare = async () => {
     if (!fileUri) return;
     setSharing(true);
+    // Copia con nombre legible para compartir (ver abajo) — solo existe
+    // mientras dura esta función. Se borra en el `finally`, nunca se deja
+    // viviendo en `Paths.cache`: un contrato o recibo no debe quedar en
+    // disco más tiempo del que tarda el sheet de compartir en abrirse
+    // (sección 9 de esta sincronización).
+    let sharedCopy: File | null = null;
     try {
       const available = await Sharing.isAvailableAsync();
       if (!available) {
@@ -195,6 +223,7 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
         try {
           await new File(fileUri).copy(suggested);
           shareUri = suggested.uri;
+          sharedCopy = suggested;
         } catch {
           // Si falla la copia (nombre inválido, etc.), comparte el archivo original.
         }
@@ -204,6 +233,11 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
       logError('SecureDocumentViewer.saveOrShare', error);
     } finally {
       setSharing(false);
+      try {
+        sharedCopy?.delete();
+      } catch {
+        // No crítico: el sistema operativo limpia Paths.cache eventualmente.
+      }
     }
   };
 

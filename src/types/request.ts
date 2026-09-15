@@ -16,6 +16,17 @@
  *      `{ data: [...] }`, y cada tipo usa `requiere_*`/`permite_adjuntos`/
  *      `campos[]` — el contrato viejo (`requires_dates`/`allows_attachments`/
  *      `attachment_required`) nunca existió en este backend.
+ *
+ * Sincronización 2026-09-15 (backend a1e8546): el backend ahora puede
+ * generar automáticamente un "documento oficial" al aprobar una solicitud
+ * (`config/solicitudes.php` + `App\Services\Solicitudes\
+ * SolicitudFormatoOficialService`), para vacaciones/permisos/préstamo/baja.
+ * El endpoint móvil `Api\V1\SolicitudController` (colaborador) NO cambió —
+ * sigue sin serializar nada de esto. Los tipos de abajo
+ * (`SolicitudDocumentoGenerado`/`SolicitudFormatoOficial`) son PREPARACIÓN
+ * forward-compatible: opcionales, y la UI que los consume solo se dibuja
+ * si el backend algún día los manda de verdad (ver
+ * `SolicitudFormatoOficialCard` en la pantalla de detalle).
  */
 
 /** Claves exactas de `App\Enums\TipoSolicitudInterna`. */
@@ -108,10 +119,75 @@ export interface SolicitudTipoConfig {
 }
 
 /**
- * `App\Http\Resources\Api\V1\SolicitudInternaResource` — EXACTAMENTE estos
- * campos. El Resource NO serializa adjuntos ni historial todavía (aunque
- * `SolicitudController::show()` los cargue en memoria): ver gap D-1 en
- * `docs/BACKEND_SYNC_2026_09_15.md`. No leer `solicitud.documentos`.
+ * Ciclo de vida de un documento/formato oficial generado a partir de una
+ * solicitud — espejo conceptual de `App\Enums\EstadoFormatoOficialGeneracion`
+ * (hoy solo `generado`/`firmado` en el backend) más los estados que la UI
+ * necesita distinguir aunque el backend aún no los nombre así
+ * (`no_generado` es simplemente la ausencia del recurso; `pendiente_de_firma`
+ * es "generado y requiere firma pero aún no llega"; `error` es una falla de
+ * generación que el backend registra en log pero todavía no expone).
+ */
+export type DocumentoOficialStatus =
+  | 'no_generado'
+  | 'generado'
+  | 'pendiente_de_firma'
+  | 'firmado'
+  | 'error'
+  | (string & {});
+
+/**
+ * PREPARACIÓN, no contrato confirmado: forma recomendada para un documento
+ * generado por una solicitud (sección 3 del encargo 2026-09-15). El Resource
+ * móvil del colaborador NO manda esto hoy — declarado opcional a propósito.
+ */
+export interface SolicitudDocumentoGenerado {
+  id: number | string;
+  tipo?: string;
+  nombre: string;
+  status: DocumentoOficialStatus;
+  requiere_firma: boolean;
+  firmado: boolean;
+  /** Ruta relativa a la API para abrir en `SecureDocumentViewer` — nunca una URL absoluta con el disco NAS expuesto. */
+  ver_url?: string | null;
+}
+
+/**
+ * PREPARACIÓN, no contrato confirmado: espejo de
+ * `App\Models\OfficialFormatGeneration` para cuando el backend lo exponga
+ * en el Resource del colaborador (hoy solo existe en el detalle web de RH,
+ * ver `Rh\SolicitudController::show()`).
+ */
+export interface SolicitudFormatoOficial {
+  id: number | string;
+  slug: string;
+  estado: DocumentoOficialStatus;
+  requiere_firma: boolean;
+  firmado_at?: string | null;
+}
+
+/** Un archivo que el colaborador adjuntó a su solicitud — ver gap D-1. */
+export interface SolicitudAdjunto {
+  id: number | string;
+  nombre: string;
+}
+
+/** Una entrada de la bitácora de una solicitud — ver gap D-1. */
+export interface SolicitudHistorialEntrada {
+  accion: string;
+  comentario?: string | null;
+  usuario?: string | null;
+  fecha: string;
+}
+
+/**
+ * `App\Http\Resources\Api\V1\SolicitudInternaResource` — 13 campos
+ * confirmados. El Resource NO serializa adjuntos, historial, documentos
+ * generados ni formatos oficiales todavía (aunque `SolicitudController::
+ * show()` cargue `documentos`/`historial` en memoria): ver gap D-1 en
+ * `docs/BACKEND_SYNC_2026_09_15.md`. Todos los campos de abajo son
+ * opcionales EXACTAMENTE por eso — la UI que los usa está protegida por su
+ * presencia real (`if (solicitud.documentos_generados?.length)`), nunca se
+ * asume que existan.
  */
 export interface Solicitud {
   id: number | string;
@@ -133,8 +209,34 @@ export interface Solicitud {
    * encima de `CANCELABLE_REQUEST_STATUSES` sin cambiar una línea.
    */
   acciones_permitidas?: string[];
+  /** Gap D-1: no viene del Resource actual, preparado para cuando exista. */
+  adjuntos?: SolicitudAdjunto[];
+  /** Gap D-1: no viene del Resource actual, preparado para cuando exista. */
+  historial?: SolicitudHistorialEntrada[];
+  /** Sección 2/3 del encargo 2026-09-15: preparación, ver `SolicitudDocumentoGenerado`. */
+  documentos_generados?: SolicitudDocumentoGenerado[];
+  /** Sección 2/3 del encargo 2026-09-15: preparación, ver `SolicitudFormatoOficial`. */
+  formatos_oficiales?: SolicitudFormatoOficial[];
   [key: string]: unknown;
 }
+
+/**
+ * Tipos que el backend puede generar un documento oficial automático para
+ * ellos al aprobar (espejo LITERAL de las claves en `config/solicitudes.php`,
+ * confirmado contra `capacitaciones@a1e8546`). Usado solo para decidir si
+ * vale la pena preguntar por `documentos_generados`/`formatos_oficiales` —
+ * nunca para inventar un documento que no llegó.
+ */
+export const REQUEST_TYPES_WITH_OFFICIAL_FORMAT: readonly KnownRequestType[] = [
+  'vacaciones',
+  'permiso_con_goce',
+  'permiso_sin_goce',
+  'permiso_tiempo',
+  'salida_temprano',
+  'llegada_tarde',
+  'prestamo',
+  'baja_colaborador',
+];
 
 /**
  * Payload de `POST /api/v1/solicitudes` — unión de todo lo que valida

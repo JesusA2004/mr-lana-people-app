@@ -114,6 +114,22 @@ export interface RhSolicitud {
   acciones_permitidas: AllowedAction[];
   workflow: Workflow;
   historial: RhHistorialEntrada[];
+  /**
+   * PREPARACIÓN, no contrato confirmado (sincronización 2026-09-15): campos
+   * que `Api\V1\Rh\SolicitudController::show()` TODAVÍA no serializa
+   * (confirmado contra `capacitaciones@a1e8546` — el controlador móvil no
+   * cambió en esta sincronización), aunque el modelo `SolicitudInterna` sí
+   * los tenga. Necesarios para revisar con seguridad un préstamo o una
+   * baja de colaborador: sin ellos, la app bloquea "Aprobar" para esos dos
+   * tipos y manda a completar la revisión en el Portal RH (ver
+   * `puedeAprobarSolicitudComplejaMovil` en `src/utils/rhActions.ts`).
+   */
+  dias_solicitados?: number;
+  monto_solicitado?: string | number;
+  plazo_meses?: number;
+  fecha_efectiva?: string;
+  tipo_baja?: string;
+  colaborador_objetivo?: RhColaboradorResumen;
   [key: string]: unknown;
 }
 
