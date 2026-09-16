@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "MR. LANA PEOPLE",
+    "name": "Mr. Lana People",
     "slug": "mr-lana-people-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -75,15 +75,15 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "MR. LANA PEOPLE necesita acceso a tus fotos para adjuntar documentos a tu expediente o solicitudes.",
-          "cameraPermission": "MR. LANA PEOPLE necesita acceso a tu cámara para fotografiar documentos de tu expediente o solicitudes.",
+          "photosPermission": "Mr. Lana People necesita acceso a tus fotos para adjuntar documentos a tu expediente o solicitudes.",
+          "cameraPermission": "Mr. Lana People necesita acceso a tu cámara para fotografiar documentos de tu expediente o solicitudes.",
           "microphonePermission": false
         }
       ],
       [
         "expo-camera",
         {
-          "cameraPermission": "MR. LANA PEOPLE necesita acceso a tu cámara para leer el código QR que te entregó Recursos Humanos.",
+          "cameraPermission": "Mr. Lana People necesita acceso a tu cámara para leer el código QR que te entregó Recursos Humanos.",
           "microphonePermission": false,
           "recordAudioAndroid": false,
           "barcodeScannerEnabled": true
