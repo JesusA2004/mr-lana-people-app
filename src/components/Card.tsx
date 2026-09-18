@@ -1,4 +1,6 @@
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+
+import { PressableScale } from './PressableScale';
 
 import { Colors, Radius, Shadow, Spacing } from '@/constants/colors';
 
@@ -9,14 +11,13 @@ export interface CardProps {
   padded?: boolean;
 }
 
+/** Con `onPress`, la tarjeta se siente "premium" (scale + haptic) vía `PressableScale` — mismo feedback táctil que el resto de la app. */
 export function Card({ children, onPress, style, padded = true }: CardProps) {
   if (onPress) {
     return (
-      <Pressable
-        onPress={onPress}
-        style={({ pressed }) => [styles.card, padded && styles.padded, pressed && styles.pressed, style]}>
+      <PressableScale onPress={onPress} style={[styles.card, padded && styles.padded, style]}>
         {children}
-      </Pressable>
+      </PressableScale>
     );
   }
 
@@ -33,8 +34,5 @@ const styles = StyleSheet.create({
   },
   padded: {
     padding: Spacing.lg,
-  },
-  pressed: {
-    opacity: 0.9,
   },
 });

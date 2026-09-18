@@ -6,6 +6,7 @@ import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { AppHeader } from '@/components/AppHeader';
 import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
+import { FadeInView } from '@/components/FadeInView';
 import { MascotAssistant } from '@/components/mascot/MascotAssistant';
 import { PressableScale } from '@/components/PressableScale';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
@@ -86,8 +87,10 @@ export default function DocumentosLaboralesScreen() {
         renderItem={({ item: group }) => (
           <View style={styles.yearGroup}>
             <Text style={styles.yearLabel}>{group.anio}</Text>
-            {group.documentos.map((documento) => (
-              <DocumentRow key={documento.id} documento={documento} onPress={() => openDocument(router, documento)} />
+            {group.documentos.map((documento, index) => (
+              <FadeInView key={documento.id} index={index % 10}>
+                <DocumentRow documento={documento} onPress={() => openDocument(router, documento)} />
+              </FadeInView>
             ))}
           </View>
         )}

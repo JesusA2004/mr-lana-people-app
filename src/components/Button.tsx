@@ -1,7 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Motion } from '@/constants/motion';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
 
@@ -32,6 +36,9 @@ export interface ButtonProps {
  * contenido (texto + íconos) se mantiene en el layout pero invisible
  * (`opacity: 0`) mientras el spinner se dibuja encima, así el botón no
  * "salta" al activarse/desactivarse el loading.
+ *
+ * Feedback de press: mismo scale sutil que `PressableScale` (Motion.scale.pressed),
+ * desactivado con "Reducir movimiento".
  */
 export function Button({
   title,
@@ -44,22 +51,40 @@ export function Button({
   leftIcon,
   rightIcon,
 }: ButtonProps) {
+  'use no memo';
   const isDisabled = disabled || loading;
   const labelColor = LABEL_COLOR[variant];
+  const reducedMotion = useReducedMotion();
+  const scale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+  function handlePressIn() {
+    if (isDisabled || reducedMotion) return;
+    // eslint-disable-next-line react-hooks/immutability -- mutación de shared value de Reanimated, patrón esperado.
+    scale.value = withTiming(Motion.scale.pressed, { duration: Motion.duration.press });
+  }
+
+  function handlePressOut() {
+    if (reducedMotion) return;
+    // eslint-disable-next-line react-hooks/immutability -- mutación de shared value de Reanimated, patrón esperado.
+    scale.value = withTiming(1, { duration: Motion.duration.press });
+  }
 
   return (
-    <Pressable
+    <AnimatedPressable
       accessibilityRole="button"
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
       disabled={isDisabled}
-      style={({ pressed }) => [
+      style={[
         styles.base,
         variantStyles[variant],
         fullWidth && styles.fullWidth,
         isDisabled && styles.disabled,
-        pressed && !isDisabled && styles.pressed,
         style,
+        animatedStyle,
       ]}>
       <View style={[styles.content, loading && styles.contentHidden]}>
         {leftIcon ? <Ionicons name={leftIcon} size={18} color={labelColor} /> : null}
@@ -73,7 +98,7 @@ export function Button({
           <ActivityIndicator color={labelColor} />
         </View>
       ) : null}
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
@@ -87,9 +112,6 @@ const styles = StyleSheet.create({
   },
   fullWidth: {
     alignSelf: 'stretch',
-  },
-  pressed: {
-    opacity: 0.85,
   },
   disabled: {
     opacity: 0.5,

@@ -5,6 +5,7 @@ import { FlatList, RefreshControl, StyleSheet, Text, TextInput, View } from 'rea
 
 import { AppHeader } from '@/components/AppHeader';
 import { ErrorState } from '@/components/ErrorState';
+import { FadeInView } from '@/components/FadeInView';
 import { MascotAssistant } from '@/components/mascot/MascotAssistant';
 import { PressableScale } from '@/components/PressableScale';
 import { RhBirthdayCard } from '@/components/RhBirthdayCard';
@@ -103,15 +104,17 @@ export default function RhCumpleanosListScreen() {
         onEndReached={() => {
           if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
         }}
-        renderItem={({ item }) => (
-          <RhBirthdayCard
-            item={item}
-            onPress={() =>
-              item.greeting_id
-                ? router.push(`/(app)/rh/cumpleanos/${item.greeting_id}` as never)
-                : undefined
-            }
-          />
+        renderItem={({ item, index }) => (
+          <FadeInView index={index % 10}>
+            <RhBirthdayCard
+              item={item}
+              onPress={() =>
+                item.greeting_id
+                  ? router.push(`/(app)/rh/cumpleanos/${item.greeting_id}` as never)
+                  : undefined
+              }
+            />
+          </FadeInView>
         )}
         ListFooterComponent={
           isFetchingNextPage ? (

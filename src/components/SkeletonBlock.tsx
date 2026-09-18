@@ -4,6 +4,7 @@ import Animated, {
   cancelAnimation,
   Easing,
   useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
   withRepeat,
   withTiming,
@@ -18,14 +19,16 @@ export interface SkeletonBlockProps {
   style?: object;
 }
 
-/** Bloque de carga con pulso discreto, usado en los skeletons de las pantallas. */
+/** Bloque de carga con pulso discreto, usado en los skeletons de las pantallas. Estático con "Reducir movimiento". */
 export function SkeletonBlock({ width = '100%', height = 16, radius = Radius.sm, style }: SkeletonBlockProps) {
-  const opacity = useSharedValue(0.5);
+  const reducedMotion = useReducedMotion();
+  const opacity = useSharedValue(reducedMotion ? 0.7 : 0.5);
 
   useEffect(() => {
+    if (reducedMotion) return;
     opacity.value = withRepeat(withTiming(1, { duration: 700, easing: Easing.inOut(Easing.ease) }), -1, true);
     return () => cancelAnimation(opacity);
-  }, [opacity]);
+  }, [opacity, reducedMotion]);
 
   const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
