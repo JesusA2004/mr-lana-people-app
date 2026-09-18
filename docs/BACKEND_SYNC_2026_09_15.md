@@ -436,3 +436,116 @@ background/app cerrada, sin cambios.
   (búsqueda sobre `app/Notifications/Mobile/*.php` no encontró nada) — el
   fallback de `formato_disponible` (ya soportado) y el centro de
   notificaciones siguen siendo el único camino.
+
+---
+
+## H. SINCRONIZACIÓN 59e47b2 — 2026-09-18 (tercera pasada)
+
+Delta real entre `a1e8546` (sync anterior) y `59e47b2` / `234f3d6`
+(`main` de `capacitaciones` al día de hoy), 12 commits del backend en 3 días.
+Auditado con `git diff a1e8546..HEAD -- app/Http/Controllers/Api app/Http/Resources routes/api.php config/`.
+Repo backend **solo consultado, nunca modificado** (encargo explícito: "no
+tocar el back").
+
+**Hallazgo principal: el backend migró la identidad de persona de `User` a
+`Colaborador` en toda la superficie RH de la API móvil** — el mismo
+refactor "canonical: colaborador_id, no user_id" que el equipo aplicó en el
+portal web. 18 archivos bajo `App\Http\Controllers\Api\V1\*` cambiaron.
+
+### H.1 — Route-model binding: los `{colaborador}` ahora son IDs de `Colaborador`, no de `User`
+
+Afecta `GET/POST /rh/expedientes/{colaborador}/*`,
+`GET/POST /rh/incorporaciones/{colaborador}/*`, `GET /rh/colaboradores/{colaborador}`
+y `GET /rh/cumpleanos/{colaborador}/foto`: el parámetro de ruta se resuelve
+ahora contra la tabla `colaboradores`, no `users`.
+
+**Auditado, no requiere cambio de código**: la app siempre pasa el `id` que
+el propio backend le dio en el listado correspondiente de vuelta al mismo
+recurso (`rh/colaboradores/[id].tsx` → `rh/expedientes/${id}`,
+`rh/incorporaciones/[colaborador].tsx` → `rh/expedientes/${colaboradorId}`,
+etc. — ver `rh/expedientes.ts`, `rh/colaboradores.ts`). Como el backend migró
+listado y detalle del mismo recurso juntos, el paso de IDs sigue siendo
+opaco y consistente. Los tipos (`src/types/rh.ts`) ya declaran `id: number`
+sin asumir de qué tabla viene.
+
+### H.2 — Bug real corregido: `usuarios_count` → `colaboradores_count`
+
+`Api\V1\Rh\JerarquiaPuestoController::index()` renombró la clave del
+organigrama. La app seguía leyendo `node.usuarios_count` (siempre
+`undefined`): el badge de personal de cada puesto y el total por rama
+(`countUsuariosEnRama`) mostraban 0 en todos los nodos.
+
+Corregido: `OrganizationPosition.colaboradores_count` en
+`src/types/organization.ts`, `OrganizationTreeNode.tsx`,
+`countColaboradoresEnRama()` en `src/utils/organizationTree.ts` (renombrada
+desde `countUsuariosEnRama`) y sus tests.
+
+### H.3 — Mejora real: mensaje de generación de documento oficial al aprobar
+
+`Api\V1\Rh\SolicitudController::aprobar()` y `::actualizarEstado()` ahora
+arman `message` incluyendo si el PDF oficial (vacaciones/permiso/
+préstamo/baja) se generó o falló (`SolicitudesService::ultimoResultadoDocumentoOficial()`).
+La app descartaba el body entero (`Promise<void>`) y mostraba un toast fijo
+("Solicitud aprobada."), así que RH nunca se enteraba desde el celular si el
+documento falló.
+
+Corregido: `rhSolicitudesApi.aprobar()`/`.actualizarEstado()` devuelven
+`{ message? }` y `rh/solicitudes/[id].tsx` muestra `data.message` con el
+texto fijo como respaldo si el backend no lo manda.
+
+### H.4 — Inconsistencia de backend detectada, no accionable desde la app (documentada, no corregida)
+
+`Api\V1\Rh\SolicitudController::colaboradorResumen()` **no** se migró: sigue
+recibiendo `?User $colaborador` y `'id' => $colaborador->id` sigue siendo el
+id de `User`, mientras que expedientes/colaboradores/incorporaciones/
+documentos/vacaciones ya devuelven `Colaborador.id` en su propio
+`colaborador.id`. También sigue usando `puedeVer()` →
+`AlcanceOrganizacionalService::puedeVerUsuario()` (el mismo patrón legacy
+`user_id` que el encargo web señaló como bug crítico), en vez de
+`puedeVerExpediente()`.
+
+*Impacto real hoy: ninguno.* `RhSolicitud.colaborador.id` en la app
+**solo se pinta** (`rh/solicitudes/[id].tsx`), nunca se usa para navegar a
+otro recurso — no hay forma de que esto rompa algo visible.
+
+*Por qué no se tocó*: es un archivo de `capacitaciones` (fuera de alcance de
+este encargo). Si algún día se agrega una función que salte de una solicitud
+a su expediente completo usando `solicitud.colaborador.id`, **va a apuntar al
+colaborador equivocado** hasta que el backend termine de migrar este
+controlador — dejar esta nota para no repetir la investigación.
+
+### H.5 — Reconfirmado: préstamos, recibos de nómina, candidatos y campañas siguen siendo 100% web-only
+
+`routes/api.php` tiene diff CERO desde `a1e8546`. Los modelos/controladores
+nuevos de este período (`Prestamo`, `PrestamoMovimiento`, `ReciboNomina` —
+commit "recibo de nomina simple" — y los enums de reclutamiento
+`CanalReclutamiento`/`FuenteCandidato`/`EstadoCandidato` ampliado) viven
+solo en `App\Http\Controllers\Rh\*` (Inertia) y `resources/js/pages/Rh/*`.
+**No hay ningún endpoint `Api\V1\*` para ninguno de los cuatro** — no hay
+nada que la app móvil pueda consumir todavía. Sección F de este documento
+(web-only) se mantiene igual; no se agregó ninguna pantalla nueva para
+simular datos que el backend no expone.
+
+### H.6 — Cambios de backend sin efecto de contrato en la app (auditados, sin acción)
+
+- `AuthController::login()`: ahora valida `Colaborador::estatus` (no
+  `User::estatus`) y bloquea si `acceso_bloqueado_en !== null`; también
+  escribe `ultimo_acceso`. La respuesta JSON no cambió de forma — el manejo
+  de error genérico de la app ya cubre el nuevo mensaje.
+- `ColaboradorController::perfil/foto/dashboard`: `foto_path` ahora se lee
+  desde `Colaborador`, no `User`. Misma ruta (`/colaborador/foto`), mismo
+  campo de salida (`foto_url`) — sin cambios en la app.
+- `ColaboradorCumpleanosController`: cuentas sin colaborador enlazado ahora
+  devuelven `{data: null}`/404 en vez de un fatal error — la app ya trataba
+  "sin cumpleaños hoy" como ausencia de datos.
+- `IncorporacionController` (colaborador propio): misma forma de respuesta,
+  solo cambió de dónde lee internamente el colaborador.
+- Claves JSON de `email`/`correo` (Rh\ColaboradorController,
+  Rh\ExpedienteController): el nombre de la clave en el JSON **no cambió**,
+  solo el atributo PHP interno (`->email` → `->correo_personal`) — cero
+  impacto en los tipos de la app.
+
+### H.7 — Estado de la app tras esta pasada
+
+`npx tsc --noEmit`, `npx jest` (203/203) y `npx expo lint` limpios después
+de H.2 y H.3.

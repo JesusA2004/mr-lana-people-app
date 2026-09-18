@@ -56,10 +56,10 @@ export function OrganizationTreeNode({ node, depth = 0, defaultExpanded = depth 
           ) : null}
         </View>
 
-        {node.usuarios_count > 0 ? (
+        {node.colaboradores_count > 0 ? (
           <View style={styles.countBadge}>
             <Ionicons name="person" size={11} color={Colors.primaryDark} />
-            <Text style={styles.countText}>{node.usuarios_count}</Text>
+            <Text style={styles.countText}>{node.colaboradores_count}</Text>
           </View>
         ) : null}
         {node.vacantes_abiertas_count > 0 ? (

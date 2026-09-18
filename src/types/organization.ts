@@ -8,6 +8,10 @@
  * en el cliente, ver `utils/organizationTree.ts`. Representa PUESTOS, no
  * colaboradores individuales (sección 69: nunca renderizar miles de
  * colaboradores a la vez).
+ *
+ * Re-auditado 2026-09-18: el backend migró la identidad de persona de
+ * `User` a `Colaborador` (ver `capacitaciones@59e47b2`) y con eso renombró
+ * `usuarios_count` a `colaboradores_count` en este endpoint.
  */
 export interface OrganizationPosition {
   id: number;
@@ -18,7 +22,7 @@ export interface OrganizationPosition {
   puesto_superior?: string | null;
   tipo_puesto?: string | null;
   activo: boolean;
-  usuarios_count: number;
+  colaboradores_count: number;
   vacantes_abiertas_count: number;
 }
 

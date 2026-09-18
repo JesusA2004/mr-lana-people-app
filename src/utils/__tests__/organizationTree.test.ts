@@ -1,4 +1,4 @@
-import { buildOrganizationTree, countUsuariosEnRama } from '../organizationTree';
+import { buildOrganizationTree, countColaboradoresEnRama } from '../organizationTree';
 
 import type { OrganizationPosition } from '@/types/organization';
 
@@ -12,7 +12,7 @@ function position(overrides: Partial<OrganizationPosition>): OrganizationPositio
     puesto_superior: null,
     tipo_puesto: null,
     activo: true,
-    usuarios_count: 0,
+    colaboradores_count: 0,
     vacantes_abiertas_count: 0,
     ...overrides,
   };
@@ -51,19 +51,19 @@ describe('buildOrganizationTree', () => {
   });
 });
 
-describe('countUsuariosEnRama', () => {
+describe('countColaboradoresEnRama', () => {
   it('suma el propio nodo más todos sus descendientes', () => {
     const tree = buildOrganizationTree([
-      position({ id: 1, nombre: 'A', puesto_superior_id: null, usuarios_count: 1 }),
-      position({ id: 2, nombre: 'B', puesto_superior_id: 1, usuarios_count: 3 }),
-      position({ id: 3, nombre: 'C', puesto_superior_id: 1, usuarios_count: 2 }),
+      position({ id: 1, nombre: 'A', puesto_superior_id: null, colaboradores_count: 1 }),
+      position({ id: 2, nombre: 'B', puesto_superior_id: 1, colaboradores_count: 3 }),
+      position({ id: 3, nombre: 'C', puesto_superior_id: 1, colaboradores_count: 2 }),
     ]);
 
-    expect(countUsuariosEnRama(tree[0])).toBe(6);
+    expect(countColaboradoresEnRama(tree[0])).toBe(6);
   });
 
   it('un nodo sin hijos solo cuenta lo propio', () => {
-    const tree = buildOrganizationTree([position({ id: 1, usuarios_count: 4 })]);
-    expect(countUsuariosEnRama(tree[0])).toBe(4);
+    const tree = buildOrganizationTree([position({ id: 1, colaboradores_count: 4 })]);
+    expect(countColaboradoresEnRama(tree[0])).toBe(4);
   });
 });

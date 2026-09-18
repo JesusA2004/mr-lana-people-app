@@ -104,9 +104,9 @@ export default function RhSolicitudDetailScreen() {
     estadoMutation.mutate(
       { id, estado },
       {
-        onSuccess: () => {
+        onSuccess: (data) => {
           haptics.success();
-          toast.success(estado === 'en_revision' ? 'Tomaste esta solicitud para revisión.' : 'Solicitud cerrada.');
+          toast.success(data?.message ?? (estado === 'en_revision' ? 'Tomaste esta solicitud para revisión.' : 'Solicitud cerrada.'));
         },
         onError: handleActionError,
       },
@@ -123,9 +123,12 @@ export default function RhSolicitudDetailScreen() {
           aprobar.mutate(
             { id },
             {
-              onSuccess: () => {
+              // El backend puede incluir en `message` si el documento oficial
+              // (PDF de vacaciones/permiso/préstamo/baja) se generó o falló —
+              // mostrarlo tal cual en vez de un texto fijo (ver rh/solicitudes.ts).
+              onSuccess: (data) => {
                 haptics.success();
-                toast.success('Solicitud aprobada.');
+                toast.success(data?.message ?? 'Solicitud aprobada.');
               },
               onError: handleActionError,
             },

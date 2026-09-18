@@ -31,6 +31,6 @@ export function buildOrganizationTree(positions: OrganizationPosition[]): Organi
 }
 
 /** Total de colaboradores en un puesto + todos sus subordinados — usado para el badge del nodo sin tener que sumarlo en cada render. */
-export function countUsuariosEnRama(node: OrganizationNode): number {
-  return node.children.reduce((total, child) => total + countUsuariosEnRama(child), node.usuarios_count);
+export function countColaboradoresEnRama(node: OrganizationNode): number {
+  return node.children.reduce((total, child) => total + countColaboradoresEnRama(child), node.colaboradores_count);
 }

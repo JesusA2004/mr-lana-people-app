@@ -25,8 +25,16 @@ export const rhSolicitudesApi = {
     return extractData<RhSolicitud>(response.data);
   },
 
-  async aprobar(id: number | string, comentario?: string): Promise<void> {
-    await apiClient.post(`/rh/solicitudes/${id}/aprobar`, comentario ? { comentario } : undefined);
+  /**
+   * El backend responde `{ message, data }`, donde `message` puede incluir
+   * si el documento oficial (PDF de vacaciones/permiso/préstamo/baja) se
+   * generó correctamente o falló (`capacitaciones@587fc72`, sección 3 del
+   * encargo 2026-09-15) — se devuelve tal cual para que la pantalla lo
+   * muestre en vez de un texto genérico fijo.
+   */
+  async aprobar(id: number | string, comentario?: string): Promise<{ message?: string }> {
+    const response = await apiClient.post(`/rh/solicitudes/${id}/aprobar`, comentario ? { comentario } : undefined);
+    return response.data as { message?: string };
   },
 
   /** `motivo` es obligatorio — el backend responde 422 sin él. */
@@ -50,7 +58,8 @@ export const rhSolicitudesApi = {
    * Aprobar y rechazar siguen yendo por sus rutas dedicadas, nunca por
    * aquí, para no duplicar el flujo (sección 17).
    */
-  async actualizarEstado(id: number | string, estado: 'en_revision' | 'cerrada', comentario?: string): Promise<void> {
-    await apiClient.patch(`/rh/solicitudes/${id}/estado`, comentario ? { estado, comentario } : { estado });
+  async actualizarEstado(id: number | string, estado: 'en_revision' | 'cerrada', comentario?: string): Promise<{ message?: string }> {
+    const response = await apiClient.patch(`/rh/solicitudes/${id}/estado`, comentario ? { estado, comentario } : { estado });
+    return response.data as { message?: string };
   },
 };
