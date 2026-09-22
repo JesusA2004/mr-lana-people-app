@@ -13,12 +13,20 @@
     },
     "preview": {
       "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://people.mr-lana.com/api/v1",
+        "EXPO_PUBLIC_RH_WEB_URL": "https://people.mr-lana.com"
+      },
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://people.mr-lana.com/api/v1",
+        "EXPO_PUBLIC_RH_WEB_URL": "https://people.mr-lana.com"
+      }
     }
   },
   "submit": {

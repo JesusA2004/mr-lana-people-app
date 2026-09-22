@@ -38,10 +38,27 @@ function SplashScreenController() {
 }
 
 /**
+ * Si por un error de configuración el build no trae la URL de API, el splash
+ * nativo también debe cerrarse. Antes RootLayout retornaba ErrorState ANTES de
+ * montar SplashScreenController, dejando el APK congelado visualmente en el logo
+ * para siempre en builds preview donde EXPO_PUBLIC_API_URL no fue embebida.
+ */
+function ApiConfigurationError() {
+  useEffect(() => {
+    SplashScreen.hide();
+  }, []);
+
+  return (
+    <SafeAreaProvider>
+      <StatusBar style="dark" />
+      <ErrorState message="La app no tiene configurada la conexión con People. Instala una compilación válida o contacta a soporte." />
+    </SafeAreaProvider>
+  );
+}
+
+/**
  * Consulta `GET /api/v1/app/config` (público, sin sesión) al iniciar la app
- * — AGENTS.md sección 38/58 — y sincroniza `MaintenanceScreen` con
- * `maintenance`/`message` sin esperar a que alguna otra request falle con
- * 503. Vive fuera de `RootNavigator` para correr incluso antes de login.
+ * y sincroniza `MaintenanceScreen` con `maintenance`/`message`.
  */
 function AppConfigController() {
   const { data: config } = useAppConfig();
@@ -55,10 +72,9 @@ function AppConfigController() {
 }
 
 /**
- * Enrutador raíz. Usa `Stack.Protected` (patrón recomendado por Expo Router
- * v57 para rutas protegidas) en tres tramos: sin sesión → (auth); con sesión
- * pero onboarding no visto todavía → onboarding; con sesión y onboarding
- * completo → (app). Ver AGENTS.md sección 7: "no mostrar onboarding cada vez".
+ * Enrutador raíz. Usa `Stack.Protected` en tres tramos: sin sesión → auth;
+ * con sesión pero onboarding no visto → onboarding; con sesión y onboarding
+ * completo → app.
  */
 function RootNavigator() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -69,7 +85,6 @@ function RootNavigator() {
   usePushRegistration(isAuthenticated && onboardingCompleted);
   useNotificationResponseRouting(isAuthenticated && onboardingCompleted);
 
-  // El splash nativo sigue visible mientras se restaura sesión/onboarding.
   if (isInitializing || isOnboardingLoading) return null;
 
   const showOnboarding = isAuthenticated && !onboardingCompleted;
@@ -102,24 +117,12 @@ export default function RootLayout() {
   }, [restoreSession]);
 
   useEffect(() => {
-    // El onboarding es POR USUARIO (bug corregido: la llave era global y
-    // dos colaboradores en el mismo teléfono se heredaban el onboarding
-    // entre sí, sección 7) — se vuelve a leer cada vez que cambia el
-    // usuario autenticado (login, restoreSession, registro por QR, logout),
-    // nunca una sola vez al montar la app. Mientras `isInitializing` sigue
-    // true todavía no sabemos si hay usuario o no.
     if (isInitializing) return;
     void loadOnboarding(userId);
   }, [isInitializing, userId, loadOnboarding]);
 
   if (!IS_API_URL_CONFIGURED) {
-    // Error técnico claro: sin EXPO_PUBLIC_API_URL la app no puede funcionar (ver .env.example).
-    return (
-      <SafeAreaProvider>
-        <StatusBar style="dark" />
-        <ErrorState message="Falta configurar EXPO_PUBLIC_API_URL. Copia .env.example a .env, define la URL de la API en tu red local y reinicia Expo." />
-      </SafeAreaProvider>
-    );
+    return <ApiConfigurationError />;
   }
 
   return (
