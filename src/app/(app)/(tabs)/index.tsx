@@ -17,16 +17,22 @@ import { RequestCard } from '@/components/RequestCard';
 import { SkeletonBlock, SkeletonCardList } from '@/components/SkeletonBlock';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 import { MascotMessages } from '@/constants/mascotMessages';
+import { Stepper } from '@/components/Stepper';
 import { useBirthdayGreeting } from '@/hooks/queries/useBirthday';
+import { useDocumentosPendientes, useMiAlta, useMisPrestamos, useMisRecibos } from '@/hooks/queries/useCicloLaboral';
 import { useDashboard } from '@/hooks/queries/useDashboard';
 import { useIncorporacion } from '@/hooks/queries/useIncorporacion';
-import { useLaborDocumentsSummary } from '@/hooks/queries/useLaborDocuments';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
+import { useEquipo, useEquipoPendientes, useTareasConteos } from '@/hooks/queries/useTrabajo';
 import type { Solicitud } from '@/types/request';
+import { ALTA_STEPS, altaColaboradorHint, altaStepIndex, isAltaEnProceso } from '@/utils/alta';
 import { getErrorMessage } from '@/utils/errors';
-import { getGreeting } from '@/utils/dates';
-import { isExperimentalFeatureEnabled, isFeatureEnabled } from '@/utils/featureFlags';
-import { joinName, pluralize } from '@/utils/formatters';
+import { formatDateShort, getGreeting } from '@/utils/dates';
+import { isFeatureEnabled } from '@/utils/featureFlags';
+import { formatCurrencyMXN, joinName, pluralize } from '@/utils/formatters';
+import { prestamoEstadoLabel, prestamoVigente } from '@/utils/loan';
+import { hasAnyPermission, isSelfServiceModuleEnabled } from '@/utils/modules';
+import { reciboPeriodoLabel } from '@/utils/payroll';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const HEADER_TOP_EXTRA = 20;
@@ -46,15 +52,40 @@ export default function DashboardScreen() {
   const cumpleanosEnabled = isFeatureEnabled(bootstrap.data?.features, 'cumpleanos');
   const vacacionesEnabled = isFeatureEnabled(bootstrap.data?.features, 'vacaciones');
   const incorporacionEnabled = isFeatureEnabled(bootstrap.data?.features, 'incorporacion');
-  // Documentos laborales: fail-CLOSED (bug de producto corregido) — sin
-  // backend real todavía (`GET /colaborador/documentos-laborales`), ver
-  // docs/BACKEND_GAPS_FINAL.md.
-  const documentosLaboralesEnabled = isExperimentalFeatureEnabled(bootstrap.data?.features, 'documentos_laborales');
+  // Ciclo laboral (backend 2026-09-22) — API estable, ver `utils/modules.ts`.
+  const features = bootstrap.data?.features;
+  const permissions = bootstrap.data?.user.permissions;
+  const documentosLaboralesEnabled = isSelfServiceModuleEnabled(features, 'documentos_laborales');
+  const recibosEnabled = isSelfServiceModuleEnabled(features, 'recibos');
+  const prestamosEnabled = isSelfServiceModuleEnabled(features, 'prestamos');
+  const contratosEnabled = isSelfServiceModuleEnabled(features, 'contratos');
+  const tareasEnabled = isSelfServiceModuleEnabled(features, 'tareas');
+  const equipoEnabled = isSelfServiceModuleEnabled(features, 'equipo');
+  const evaluacionesEnabled = isSelfServiceModuleEnabled(features, 'evaluaciones');
   const birthday = useBirthdayGreeting(cumpleanosEnabled);
-  const laborDocuments = useLaborDocumentsSummary(documentosLaboralesEnabled);
-  // Nunca inventar el contador: el backend real hoy no manda
-  // `counts.labor_documents_new` — ausente se trata como "sin badge", no como 0 forzado.
-  const laborDocumentsNew = bootstrap.data?.counts.labor_documents_new;
+
+  const alta = useMiAlta();
+  const documentosPendientes = useDocumentosPendientes(documentosLaboralesEnabled);
+  const recibos = useMisRecibos(recibosEnabled);
+  const prestamos = useMisPrestamos(prestamosEnabled);
+  const tareasConteos = useTareasConteos(tareasEnabled);
+  // "Mi equipo" se decide con la jerarquía REAL que devuelve el backend
+  // (subordinados o pendientes), no con el nombre del rol.
+  const equipo = useEquipo(equipoEnabled);
+  const equipoPendientes = useEquipoPendientes(equipoEnabled);
+
+  const estadoAlta = alta.data?.estado_alta ?? null;
+  const altaEnProceso = isAltaEnProceso(estadoAlta);
+  const porFirmar = documentosPendientes.data?.por_firmar.length ?? 0;
+  const tareasAbiertas = tareasConteos.data?.abiertas ?? 0;
+  const reciboReciente = recibos.data?.pages[0]?.data[0] ?? null;
+  const prestamoActivo = prestamoVigente(prestamos.data);
+  const equipoCount = equipo.data?.length ?? 0;
+  const equipoPendientesCount =
+    (equipoPendientes.data?.solicitudes.filter((s) => s.requiere_visto_bueno && !s.visto_bueno).length ?? 0) +
+    (equipoPendientes.data?.evaluaciones.length ?? 0);
+  const esJefe = equipoCount > 0 || equipoPendientesCount > 0;
+  const puedeVerEvaluaciones = evaluacionesEnabled && (esJefe || hasAnyPermission(permissions, ['evaluaciones.ver', 'evaluaciones.autorizar']));
 
   const perfil = data?.perfil;
   const nombre = joinName(perfil?.nombre, perfil?.apellidos);
@@ -85,6 +116,15 @@ export default function DashboardScreen() {
   // 3) aprobación pendiente, 4) solicitud requiere corrección, 5) vacaciones
   // pendientes, 6) notificaciones, 7) resumen normal (sin banner).
   const priorityMascot = useMemo(() => {
+    if (porFirmar > 0) {
+      return {
+        type: 'warning' as const,
+        priority: 'high' as const,
+        message: porFirmar === 1 ? 'Tienes un documento laboral por firmar.' : `Tienes ${porFirmar} documentos laborales por firmar.`,
+        actionLabel: 'Revisar y firmar',
+        onAction: () => router.push('/documentos-laborales'),
+      };
+    }
     if (expedienteStats.rechazados > 0) {
       return {
         type: 'warning' as const,
@@ -144,7 +184,7 @@ export default function DashboardScreen() {
       };
     }
     return null;
-  }, [expedienteStats, expedienteEnRevision, solicitudesRecientes, diasEnSolicitud, noLeidas, router]);
+  }, [porFirmar, expedienteStats, expedienteEnRevision, solicitudesRecientes, diasEnSolicitud, noLeidas, router]);
 
   return (
     <View style={styles.container}>
@@ -173,7 +213,17 @@ export default function DashboardScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={Colors.primary} />
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={() => {
+              void refetch();
+              void alta.refetch();
+              if (documentosLaboralesEnabled) void documentosPendientes.refetch();
+              if (tareasEnabled) void tareasConteos.refetch();
+              if (equipoEnabled) void equipoPendientes.refetch();
+            }}
+            tintColor={Colors.primary}
+          />
         }>
         {isLoading ? (
           <View style={styles.skeletonWrapper}>
@@ -200,6 +250,43 @@ export default function DashboardScreen() {
               />
             ) : null}
 
+            {altaEnProceso && alta.data ? (
+              <FadeInView index={0}>
+                <Card style={styles.expedienteCard}>
+                  <View style={styles.expedienteTitleRow}>
+                    <View style={styles.expedienteIcon}>
+                      <Ionicons name="rocket-outline" size={16} color={Colors.primaryDark} />
+                    </View>
+                    <Text style={styles.expedienteTitle}>Tu alta</Text>
+                  </View>
+                  <Stepper steps={[...ALTA_STEPS]} currentIndex={altaStepIndex(estadoAlta)} />
+                  <Text style={styles.expedienteCaption}>
+                    {alta.data.estado_alta_etiqueta ? `${alta.data.estado_alta_etiqueta}. ` : ''}
+                    {altaColaboradorHint(estadoAlta)}
+                  </Text>
+                  {estadoAlta === 'pendiente_documentos' ? (
+                    <Button
+                      title="Completar expediente"
+                      variant="outline"
+                      rightIcon="arrow-forward"
+                      fullWidth={false}
+                      onPress={() => router.push('/(app)/(tabs)/expediente')}
+                      style={styles.expedienteCta}
+                    />
+                  ) : estadoAlta === 'pendiente_firma' && documentosLaboralesEnabled ? (
+                    <Button
+                      title="Firmar documentos"
+                      variant="outline"
+                      rightIcon="arrow-forward"
+                      fullWidth={false}
+                      onPress={() => router.push('/documentos-laborales')}
+                      style={styles.expedienteCta}
+                    />
+                  ) : null}
+                </Card>
+              </FadeInView>
+            ) : null}
+
             <FadeInView index={0}>
               <Card style={styles.expedienteCard} onPress={() => router.push('/(app)/(tabs)/expediente')}>
                 <View style={styles.expedienteHeaderRow}>
@@ -207,7 +294,7 @@ export default function DashboardScreen() {
                     <View style={styles.expedienteIcon}>
                       <Ionicons name="briefcase" size={16} color={Colors.primaryDark} />
                     </View>
-                    <Text style={styles.expedienteTitle}>Tu incorporación</Text>
+                    <Text style={styles.expedienteTitle}>Tu expediente</Text>
                   </View>
                   {incorporacion.data ? <Text style={styles.expedientePercent}>{Math.round(incorporacion.data.progreso.porcentaje)}%</Text> : null}
                 </View>
@@ -273,23 +360,77 @@ export default function DashboardScreen() {
               </FadeInView>
             </View>
 
-            {documentosLaboralesEnabled && laborDocumentsNew ? (
-              <FadeInView index={0}>
-                <Card style={styles.laborDocsCard} onPress={() => router.push('/documentos-laborales' as never)}>
+            {/* Pendientes por atender: tareas (acciones) — separadas de las
+                notificaciones (avisos), que viven en la campana. */}
+            {tareasEnabled && tareasAbiertas > 0 ? (
+              <FadeInView index={2}>
+                <Card style={styles.laborDocsCard} onPress={() => router.push('/tareas')}>
                   <View style={styles.laborDocsHeaderRow}>
-                    <Text style={styles.laborDocsTitle}>Tus documentos</Text>
+                    <Text style={styles.laborDocsTitle}>Pendientes por atender</Text>
                     <View style={styles.laborDocsBadge}>
                       <Text style={styles.laborDocsBadgeText}>
-                        {laborDocumentsNew} {pluralize(laborDocumentsNew, 'nuevo', 'nuevos')}
+                        {tareasAbiertas} {pluralize(tareasAbiertas, 'tarea', 'tareas')}
                       </Text>
                     </View>
                   </View>
-                  {(laborDocuments.data?.data ?? []).slice(0, 2).map((documento) => (
-                    <Text key={documento.id} style={styles.laborDocsItem} numberOfLines={1}>
-                      {documento.titulo}
-                    </Text>
-                  ))}
-                  <Button title="Ver documentos" variant="outline" fullWidth={false} rightIcon="arrow-forward" style={styles.laborDocsCta} onPress={() => router.push('/documentos-laborales' as never)} />
+                  <Text style={styles.laborDocsItem}>
+                    {tareasConteos.data?.vencidas ? `${tareasConteos.data.vencidas} vencida(s). ` : ''}Toca para ver tu bandeja.
+                  </Text>
+                </Card>
+              </FadeInView>
+            ) : null}
+
+            {equipoEnabled && esJefe ? (
+              <FadeInView index={2}>
+                <Card style={styles.laborDocsCard} onPress={() => router.push('/equipo')}>
+                  <View style={styles.laborDocsHeaderRow}>
+                    <Text style={styles.laborDocsTitle}>Mi equipo</Text>
+                    {equipoPendientesCount > 0 ? (
+                      <View style={styles.laborDocsBadge}>
+                        <Text style={styles.laborDocsBadgeText}>
+                          {equipoPendientesCount} {pluralize(equipoPendientesCount, 'pendiente', 'pendientes')}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <Text style={styles.laborDocsItem}>
+                    {equipoCount} {pluralize(equipoCount, 'colaborador directo', 'colaboradores directos')} · vistos buenos y evaluaciones
+                  </Text>
+                </Card>
+              </FadeInView>
+            ) : null}
+
+            {recibosEnabled && reciboReciente ? (
+              <FadeInView index={3}>
+                <Card
+                  style={styles.laborDocsCard}
+                  onPress={() => router.push({ pathname: '/recibos/[id]', params: { id: String(reciboReciente.id) } })}>
+                  <View style={styles.laborDocsHeaderRow}>
+                    <Text style={styles.laborDocsTitle}>Último recibo</Text>
+                    <Text style={styles.expedientePercent}>{formatCurrencyMXN(reciboReciente.neto)}</Text>
+                  </View>
+                  <Text style={styles.laborDocsItem}>
+                    {reciboPeriodoLabel(reciboReciente)}
+                    {reciboReciente.fecha_pago ? ` · pago ${formatDateShort(reciboReciente.fecha_pago)}` : ''}
+                  </Text>
+                  <Text style={styles.expedienteCaption}>Recibo interno de nómina · no fiscal</Text>
+                </Card>
+              </FadeInView>
+            ) : null}
+
+            {prestamosEnabled && prestamoActivo ? (
+              <FadeInView index={3}>
+                <Card
+                  style={styles.laborDocsCard}
+                  onPress={() => router.push({ pathname: '/prestamos/[id]', params: { id: String(prestamoActivo.id) } })}>
+                  <View style={styles.laborDocsHeaderRow}>
+                    <Text style={styles.laborDocsTitle}>Préstamo</Text>
+                    <Text style={styles.laborDocsItem}>{prestamoEstadoLabel(prestamoActivo.estado)}</Text>
+                  </View>
+                  <Text style={styles.laborDocsItem}>
+                    Autorizado {formatCurrencyMXN(prestamoActivo.monto_autorizado)}
+                    {prestamoActivo.saldo_informativo !== null ? ` · saldo administrativo ${formatCurrencyMXN(prestamoActivo.saldo_informativo)}` : ''}
+                  </Text>
                 </Card>
               </FadeInView>
             ) : null}
@@ -297,14 +438,23 @@ export default function DashboardScreen() {
             <Text style={styles.sectionTitle}>Accesos rápidos</Text>
             <View style={styles.quickGrid}>
               <QuickAction icon="add-circle-outline" label="Nueva solicitud" onPress={() => router.push('/solicitud/nueva')} />
-              {vacacionesEnabled ? (
-                <QuickAction icon="airplane-outline" label="Vacaciones" onPress={() => router.push('/(app)/(tabs)/vacaciones')} />
-              ) : null}
-              {incorporacionEnabled ? (
-                <QuickAction icon="briefcase-outline" label="Mi incorporación" onPress={() => router.push('/incorporacion')} />
-              ) : null}
               {documentosLaboralesEnabled ? (
-                <QuickAction icon="folder-outline" label="Documentos laborales" onPress={() => router.push('/documentos-laborales' as never)} />
+                <QuickAction
+                  icon="folder-outline"
+                  label={porFirmar > 0 ? `Documentos (${porFirmar} por firmar)` : 'Documentos laborales'}
+                  onPress={() => router.push('/documentos-laborales')}
+                />
+              ) : null}
+              {recibosEnabled ? <QuickAction icon="receipt-outline" label="Mis recibos" onPress={() => router.push('/recibos')} /> : null}
+              {contratosEnabled ? <QuickAction icon="document-text-outline" label="Mis contratos" onPress={() => router.push('/contratos')} /> : null}
+              {prestamosEnabled ? <QuickAction icon="cash-outline" label="Mis préstamos" onPress={() => router.push('/prestamos')} /> : null}
+              {puedeVerEvaluaciones ? (
+                <QuickAction icon="clipboard-outline" label="Evaluaciones" onPress={() => router.push('/evaluaciones')} />
+              ) : tareasEnabled ? (
+                <QuickAction icon="checkbox-outline" label="Tareas" onPress={() => router.push('/tareas')} />
+              ) : null}
+              {incorporacionEnabled && altaEnProceso ? (
+                <QuickAction icon="briefcase-outline" label="Mi incorporación" onPress={() => router.push('/incorporacion')} />
               ) : null}
               <QuickAction icon="help-buoy-outline" label="Ayuda" onPress={() => router.push('/ayuda')} />
             </View>
@@ -576,12 +726,6 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     color: Colors.textMuted,
     fontWeight: '600',
-  },
-  laborDocsCta: {
-    marginTop: Spacing.xs,
-    alignSelf: 'flex-start',
-    minHeight: 40,
-    paddingHorizontal: Spacing.md,
   },
   list: {
     gap: Spacing.md,

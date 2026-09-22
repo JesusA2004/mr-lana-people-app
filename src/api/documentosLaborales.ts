@@ -1,41 +1,46 @@
-import { apiClient } from './client';
+import { apiClient, extractData } from './client';
+import { normalizeLaborDocument } from './normalizers/laborDocument';
 
-import type { PaginatedResponse } from '@/types/api';
-import type { LaborDocument, LaborDocumentType } from '@/types/laborDocument';
+import type { LaborDocument } from '@/types/laborDocument';
+import { normalizePaginated, type Paginated } from '@/utils/normalize';
 
 export interface DocumentosLaboralesParams {
-  tipo?: LaborDocumentType;
-  anio?: number;
+  /** Único filtro real del autoservicio: `pendientes_firma`. */
+  estado?: 'pendientes_firma';
   page?: number;
 }
 
 /**
- * `GET /api/v1/colaborador/documentos-laborales[...]` — GAP DE BACKEND: no
- * existe todavía en capacitaciones (confirmado contra `routes/api.php`, sin
- * controlador de "documentos laborales" — distinto del expediente, que es
- * lo que el colaborador ENTREGA a RH; esto es lo que la EMPRESA le entrega
- * a él: contrato, recibos de nómina, constancias). Cliente implementado
- * completo contra el contrato acordado (AGENTS.md de este encargo,
- * secciones 19-22) — ver `docs/BACKEND_GAPS_FINAL.md`.
+ * Documentos laborales PROPIOS del colaborador (contratos, comprobantes,
+ * recibos internos, documentos de préstamo...) —
+ * `App\Http\Controllers\Api\V1\CicloLaboralColaboradorController` en
+ * capacitaciones (backend 2026-09-22). El colaborador sale SIEMPRE de la
+ * sesión; los recursos por id pasan por `GeneratedDocumentPolicy`.
+ *
+ * No existe `GET /colaborador/documentos-laborales/{id}`: el detalle se
+ * arma con el mismo objeto del listado (ver `useLaborDocument`).
  */
 export const documentosLaboralesApi = {
-  async list(params: DocumentosLaboralesParams = {}): Promise<PaginatedResponse<LaborDocument>> {
+  async list(params: DocumentosLaboralesParams = {}): Promise<Paginated<LaborDocument>> {
     const response = await apiClient.get('/colaborador/documentos-laborales', { params });
-    return response.data as PaginatedResponse<LaborDocument>;
+    return normalizePaginated(response.data, normalizeLaborDocument);
   },
 
-  /** Visor seguro autenticado (Bearer) — solo el documento propio, ver `SecureDocumentViewer`. */
-  verPath(id: number | string): string {
-    return `/colaborador/documentos-laborales/${id}/ver`;
-  },
-
-  /** Descarga autenticada — solo se ofrece en UI cuando `puede_descargar` es `true`. */
+  /** Streaming autenticado (Bearer) para `SecureDocumentViewer` — nunca una URL pública. */
   descargarPath(id: number | string): string {
     return `/colaborador/documentos-laborales/${id}/descargar`;
   },
 
-  /** Opcional (sección 67): si el backend no implementa esta ruta, el `catch` de quien la llama simplemente no actualiza ningún contador — nunca se inventa una autoridad local. */
-  async marcarVisto(id: number | string): Promise<void> {
-    await apiClient.post(`/colaborador/documentos-laborales/${id}/visto`);
+  /**
+   * Aceptación / firma digital (`acepto=true` es obligatorio en backend,
+   * `accepted`). Solo el titular y solo en `pendiente_firma_colaborador`;
+   * el backend registra fecha, IP, user agent y hash del PDF aceptado.
+   */
+  async firmar(id: number | string, comentario?: string | null): Promise<LaborDocument> {
+    const response = await apiClient.post(`/colaborador/documentos-laborales/${id}/firmar`, {
+      acepto: true,
+      ...(comentario ? { comentario } : {}),
+    });
+    return normalizeLaborDocument(extractData<unknown>(response.data));
   },
 };

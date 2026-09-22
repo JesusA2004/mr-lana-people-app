@@ -18,7 +18,8 @@ export interface StepperProps {
  * en la transición de contenido entre pasos, no en el indicador.
  */
 export function Stepper({ steps, currentIndex }: StepperProps) {
-  const percent = steps.length > 1 ? (currentIndex / (steps.length - 1)) * 100 : 100;
+  // `currentIndex >= steps.length` = todos completos (ej. alta ya activa).
+  const percent = steps.length > 1 ? Math.min(100, (currentIndex / (steps.length - 1)) * 100) : 100;
 
   return (
     <View style={styles.container}>

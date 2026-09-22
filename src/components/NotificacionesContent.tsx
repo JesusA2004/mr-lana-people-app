@@ -15,7 +15,8 @@ import { MascotMessages } from '@/constants/mascotMessages';
 import { useMarkAllNotificacionesLeidas, useMarkNotificacionLeida, useNotificaciones } from '@/hooks/queries/useNotificaciones';
 import { toast } from '@/store/toastStore';
 import type { NotificationItem } from '@/types/notification';
-import { resolveResourceRoute } from '@/utils/appLinks';
+import { experienceForPushType, resolveResourceRoute } from '@/utils/appLinks';
+import { openCrossExperienceRoute } from '@/utils/crossNavigation';
 import { getErrorMessage, logError } from '@/utils/errors';
 import { notificationStyle } from '@/utils/notificationStyle';
 
@@ -83,14 +84,21 @@ export function NotificacionesContent({ showBack = false }: NotificacionesConten
     // para expo-router — solo se usa como respaldo si resulta ser una ruta
     // interna. Un tipo desconocido no rompe nada: cae en el centro de
     // notificaciones, nunca en una ruta inexistente (secciones 25/55).
-    const route =
-      resolveResourceRoute({ type: item.data?.type ?? item.tipo ?? undefined, resource_id: item.data?.resource_id ?? undefined }) ??
-      (item.url && item.url.startsWith('/') ? item.url : null);
+    const type = item.data?.type ?? item.tipo ?? undefined;
+    const resolved = resolveResourceRoute({ type, resource_id: item.data?.resource_id ?? undefined });
 
-    if (!route) return;
+    if (resolved) {
+      // Puede vivir en el otro árbol (ej. RH en Mi espacio toca un aviso de
+      // documento laboral por archivar): mismo mecanismo que el tap de push.
+      openCrossExperienceRoute(resolved, experienceForPushType(type));
+      return;
+    }
+
+    const fallback = item.url && item.url.startsWith('/') ? item.url : null;
+    if (!fallback) return;
 
     try {
-      router.push(route as never);
+      router.push(fallback as never);
     } catch (navError) {
       logError('notificaciones.navigate', navError);
     }

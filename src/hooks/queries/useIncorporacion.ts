@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 
 import { documentosApi, type UploadDocumentoParams } from '@/api/documentos';
 import { incorporacionApi } from '@/api/incorporacion';
@@ -12,16 +12,27 @@ export function useIncorporacion() {
   });
 }
 
-/** Subir/reemplazar un documento invalida incorporación y dashboard (ambos derivan del mismo checklist). */
+/**
+ * Subir/reemplazar un documento invalida incorporación, dashboard y el
+ * estado documental del ciclo laboral (`/colaborador/expediente`,
+ * `/colaborador/alta`, `/colaborador/documentos-pendientes`): el backend
+ * recalcula el estado del alta con cada cambio de documento.
+ */
+function invalidateExpediente(queryClient: QueryClient): void {
+  void queryClient.invalidateQueries({ queryKey: queryKeys.incorporacion });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.miExpediente });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.miAlta });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.documentosPendientes });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.tareas });
+}
+
 export function useUploadDocumento() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (params: UploadDocumentoParams) => documentosApi.upload(params),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.incorporacion });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
-    },
+    onSuccess: () => invalidateExpediente(queryClient),
   });
 }
 
@@ -30,8 +41,6 @@ export function useSolicitarCambioDocumento() {
 
   return useMutation({
     mutationFn: (documentTypeId: number) => documentosApi.solicitarCambio(documentTypeId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.incorporacion });
-    },
+    onSuccess: () => invalidateExpediente(queryClient),
   });
 }

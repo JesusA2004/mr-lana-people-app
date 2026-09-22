@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/AppHeader';
+import { PrestamoDecision } from '@/components/ciclo/PrestamoDecision';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
@@ -293,6 +294,16 @@ export default function RhSolicitudDetailScreen() {
                   onPress={() => void openRhWeb(rhWebSolicitudPath(solicitud.id))}
                 />
               </Card>
+            ) : null}
+
+            {solicitud.tipo === 'prestamo' && hasPermission(permissions, 'prestamos.autorizar') ? (
+              <PrestamoDecision
+                solicitudId={Number(solicitud.id)}
+                estado={solicitud.estado}
+                bloqueado={!puedeAprobarSolicitudComplejaMovil(solicitud)}
+                montoSolicitado={typeof solicitud.monto_solicitado === 'number' ? solicitud.monto_solicitado : null}
+                onDone={() => void refetch()}
+              />
             ) : null}
 
             {solicitud.adjuntos.length > 0 ? (

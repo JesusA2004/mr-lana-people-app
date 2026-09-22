@@ -1,47 +1,78 @@
-import { useMemo } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useMemo, useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppHeader } from '@/components/AppHeader';
+import { FilterChips } from '@/components/ciclo/FilterChips';
 import { ErrorState } from '@/components/ErrorState';
 import { MascotAssistant } from '@/components/mascot/MascotAssistant';
 import { OrganizationTreeNode } from '@/components/OrganizationTreeNode';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { Colors, Radius, Spacing } from '@/constants/colors';
+import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
+import { useRhOrganigramaPersonas } from '@/hooks/queries/useRhCicloLaboral';
 import { useRhOrganizacion } from '@/hooks/queries/useRhOrganizacion';
-import { buildOrganizationTree } from '@/utils/organizationTree';
 import { getErrorMessage } from '@/utils/errors';
+import { isOrganigramaEnabled } from '@/utils/featureFlags';
+import { isRhModuleEnabled } from '@/utils/modules';
+import { buildOrganizationTree, personaToTreeView, puestoToTreeView } from '@/utils/organizationTree';
+
+type Vista = 'personas' | 'puestos';
 
 /**
- * Organigrama de puestos, solo lectura (AGENTS.md de este encargo, sección
- * 24/56): árbol vertical expandible, no un organigrama horizontal ni edición
- * de jerarquía desde móvil. Backend real: `GET /rh/jerarquia-puestos`
- * (confirmado contra el código fuente, lista plana con `puesto_superior_id`).
+ * Organigrama, solo lectura: árbol vertical expandible (una sola
+ * implementación, `OrganizationTreeNode`) con dos fuentes reales:
+ *  - Personas: `GET /rh/organigrama` (`JerarquiaColaboradorService`,
+ *    permiso `organigrama.ver`, alcance por sucursal) — jefe → subordinados.
+ *  - Puestos: `GET /rh/jerarquia-puestos` (permiso `puestos.administrar`).
+ * Cada vista aparece solo con su permiso real.
  */
 export default function RhOrganizacionScreen() {
   const router = useRouter();
-  const { data, isLoading, isError, error, refetch } = useRhOrganizacion(true);
-  const tree = useMemo(() => (data ? buildOrganizationTree(data) : []), [data]);
+  const bootstrap = useMobileBootstrap(true);
+  const personasEnabled = isRhModuleEnabled(bootstrap.data?.features, bootstrap.data?.user.permissions, 'organigrama_personas');
+  const puestosEnabled = isOrganigramaEnabled(bootstrap.data?.features, bootstrap.data?.user.permissions);
+  const [vista, setVista] = useState<Vista>(personasEnabled ? 'personas' : 'puestos');
+
+  const personas = useRhOrganigramaPersonas({}, personasEnabled && vista === 'personas');
+  const puestos = useRhOrganizacion(puestosEnabled && vista === 'puestos');
+  const query = vista === 'personas' ? personas : puestos;
+
+  const tree = useMemo(
+    () => (vista === 'personas' ? (personas.data ?? []).map(personaToTreeView) : buildOrganizationTree(puestos.data ?? []).map(puestoToTreeView)),
+    [vista, personas.data, puestos.data],
+  );
+
+  const opciones = [
+    ...(personasEnabled ? [{ value: 'personas' as Vista, label: 'Personas' }] : []),
+    ...(puestosEnabled ? [{ value: 'puestos' as Vista, label: 'Puestos' }] : []),
+  ];
 
   return (
     <View style={styles.container}>
       <AppHeader title="Organización" subtitle="Solo lectura" showBack onBackPress={() => router.back()} />
+      {opciones.length > 1 ? <FilterChips options={opciones} value={vista} onChange={setVista} /> : null}
 
       <ScrollView contentContainerStyle={styles.content}>
-        {isLoading ? (
+        {query.isLoading ? (
           <View style={{ gap: Spacing.sm }}>
             <SkeletonBlock height={40} radius={Radius.md} />
             <SkeletonBlock height={40} radius={Radius.md} />
             <SkeletonBlock height={40} radius={Radius.md} />
           </View>
-        ) : isError ? (
-          <ErrorState message={getErrorMessage(error)} onRetry={() => void refetch()} />
+        ) : query.isError ? (
+          <ErrorState message={getErrorMessage(query.error)} onRetry={() => void query.refetch()} />
         ) : tree.length === 0 ? (
-          <MascotAssistant message="Todavía no hay puestos configurados." type="tip" dismissible={false} />
+          <MascotAssistant message={vista === 'personas' ? 'No hay colaboradores en tu alcance.' : 'Todavía no hay puestos configurados.'} type="tip" dismissible={false} />
         ) : (
           <View style={styles.treeCard}>
             {tree.map((node) => (
-              <OrganizationTreeNode key={node.id} node={node} depth={0} />
+              <OrganizationTreeNode
+                key={node.key}
+                node={node}
+                depth={0}
+                onOpen={vista === 'personas' ? (n) => router.push(`/(app)/rh/colaboradores/${n.targetId}` as never) : undefined}
+              />
             ))}
           </View>
         )}

@@ -2,11 +2,11 @@ import { useEffect } from 'react';
 
 import { queryClient } from '@/api/queryClient';
 import { queryKeys, rhQueryKeyPrefix } from '@/api/queryKeys';
-import { useExperienceStore } from '@/store/experienceStore';
-import { setPendingPushNavigation } from '@/store/pendingNavigationStore';
 import { toast } from '@/store/toastStore';
 import type { PushNotificationData } from '@/types/pushNotification';
 import { experienceForPushType, resolveResourceRoute } from '@/utils/appLinks';
+import { openCrossExperienceRoute } from '@/utils/crossNavigation';
+import { pushCicloKeys } from '@/utils/pushInvalidation';
 import { supportsRemotePush } from '@/utils/runtime';
 
 /**
@@ -31,6 +31,11 @@ function invalidateAfterPush(data?: PushNotificationData): void {
     void queryClient.invalidateQueries({ queryKey: queryKeys.vacacionesSaldo });
     if (data.resource_id) void queryClient.invalidateQueries({ queryKey: queryKeys.solicitud(data.resource_id) });
   }
+
+  // Ciclo laboral: cada push nuevo trae una tarea asociada casi siempre.
+  for (const queryKey of pushCicloKeys(data?.type)) {
+    void queryClient.invalidateQueries({ queryKey });
+  }
 }
 
 /**
@@ -44,12 +49,7 @@ function invalidateAfterPush(data?: PushNotificationData): void {
  * ruta RH exista/montada").
  */
 function queueNavigation(data: PushNotificationData, route: string): void {
-  const target = experienceForPushType(data.type);
-  if (target) {
-    const current = useExperienceStore.getState().experience;
-    if (current !== target) void useExperienceStore.getState().setExperience(target);
-  }
-  setPendingPushNavigation({ route, experience: target });
+  openCrossExperienceRoute(route, experienceForPushType(data.type));
 }
 
 /**

@@ -12,7 +12,25 @@ import { formatDateShort } from '@/utils/dates';
 export interface DocumentCardProps {
   documento: DocumentoIncorporacion;
   onPress: () => void;
+  /**
+   * Detalle adicional del estado documental real (`/colaborador/expediente`,
+   * backend 2026-09-22): categoría, versión y motivo de rechazo. Opcional
+   * para no romper usos existentes.
+   */
+  estado?: { categoria?: string | null; version?: number | null; motivo_rechazo?: string | null } | null;
 }
+
+const CATEGORIA_LABEL: Record<string, string> = {
+  personales: 'Personales',
+  contratos: 'Contratos',
+  vacaciones: 'Vacaciones',
+  permisos: 'Permisos',
+  prestamos: 'Préstamos',
+  actas: 'Actas',
+  nomina_interna: 'Nómina interna',
+  baja_finiquito: 'Baja y finiquito',
+  otros: 'Otros',
+};
 
 /**
  * Tarjeta de documento — ícono propio por tipo (`DocumentTypeIcon`, sirve de
@@ -23,14 +41,22 @@ export interface DocumentCardProps {
  * (NSS)") NUNCA comparten fila con el badge de estado — así no se
  * desbordan del ancho de pantalla en ningún tamaño de letra/dispositivo.
  */
-export function DocumentCard({ documento, onPress }: DocumentCardProps) {
+export function DocumentCard({ documento, onPress, estado }: DocumentCardProps) {
+  const motivo = documento.motivo_rechazo ?? estado?.motivo_rechazo;
+  const rechazado = documento.estado === 'rechazado' || documento.estado === 'requiere_correccion' || documento.estado === 'vencido';
+  const meta = [
+    documento.obligatorio ? 'Obligatorio' : 'Opcional',
+    estado?.categoria ? CATEGORIA_LABEL[estado.categoria] ?? estado.categoria : null,
+    estado?.version ? `Versión ${estado.version}` : null,
+  ].filter(Boolean);
+
   return (
-    <PressableScale onPress={onPress} style={styles.card}>
+    <PressableScale onPress={onPress} style={styles.card} accessibilityLabel={`${documento.nombre}, ${documento.estado}`}>
       <View style={styles.topRow}>
         <DocumentTypeIcon clave={documento.tipo} size={44} />
         <View style={styles.infoColumn}>
           <Text style={styles.name}>{documento.nombre}</Text>
-          {documento.obligatorio ? <Text style={styles.requiredTag}>Requerido</Text> : null}
+          <Text style={styles.requiredTag}>{meta.join(' · ')}</Text>
         </View>
         <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} style={styles.chevron} />
       </View>
@@ -39,11 +65,32 @@ export function DocumentCard({ documento, onPress }: DocumentCardProps) {
         <DocumentStatusBadge status={documento.estado} />
         {documento.fecha_subida ? <Text style={styles.dateText}>{formatDateShort(documento.fecha_subida)}</Text> : null}
       </View>
+
+      {rechazado && motivo ? (
+        <View style={styles.rejection}>
+          <Ionicons name="alert-circle" size={14} color={Colors.danger} />
+          <Text style={styles.rejectionText}>{motivo}</Text>
+        </View>
+      ) : null}
     </PressableScale>
   );
 }
 
 const styles = StyleSheet.create({
+  rejection: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    backgroundColor: Colors.dangerSoft,
+    borderRadius: Radius.md,
+    padding: Spacing.sm,
+  },
+  rejectionText: {
+    flex: 1,
+    fontSize: FontSize.xs,
+    fontWeight: '600',
+    color: Colors.danger,
+  },
   card: {
     gap: Spacing.sm,
     backgroundColor: Colors.surface,

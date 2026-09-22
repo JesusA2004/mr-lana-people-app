@@ -114,7 +114,7 @@ export default function RhVacantesScreen() {
         }
         renderItem={({ item, index }) => (
           <FadeInView index={index}>
-            <VacanteCard vacante={item} />
+            <VacanteCard vacante={item} onPress={() => router.push(`/(app)/rh/vacantes/${item.id}` as never)} />
           </FadeInView>
         )}
         ListFooterComponent={
@@ -145,11 +145,11 @@ export default function RhVacantesScreen() {
   );
 }
 
-function VacanteCard({ vacante }: { vacante: RhVacante }) {
+function VacanteCard({ vacante, onPress }: { vacante: RhVacante; onPress: () => void }) {
   const meta = [vacante.departamento, vacante.sucursal].filter(Boolean).join(' · ');
 
   return (
-    <Card style={styles.card}>
+    <Card style={styles.card} onPress={onPress}>
       <View style={styles.cardHeader}>
         <Text style={styles.cardTitle} numberOfLines={2}>
           {vacante.puesto ?? 'Puesto sin nombre'}

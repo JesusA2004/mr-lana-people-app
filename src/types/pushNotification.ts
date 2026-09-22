@@ -26,6 +26,17 @@ export type PushResourceType =
   | 'rh_cumpleanos'
   | 'rh_extraccion_documento'
   | 'formato_disponible'
+  // Ciclo laboral (backend 2026-09-22) — emitidos por `NotificadorRhService::notificar()`
+  | 'documento_firma_pendiente'
+  | 'recibo_nomina'
+  | 'prestamo_autorizado'
+  | 'expediente_incompleto'
+  | 'alta_activada'
+  | 'visto_bueno_pendiente'
+  | 'evaluacion_pendiente'
+  | 'evaluacion_devuelta'
+  | 'evaluacion_capturada'
+  | 'contrato_por_vencer'
   | (string & {});
 
 export interface PushNotificationData {
@@ -59,4 +70,8 @@ export interface PushNotificationData {
   estado?: string;
   /** Color hexadecimal de referencia del backend. La app usa su propio token; ver `src/utils/notificationStyle.ts`. */
   color?: string;
+  /** Ciclo laboral: `class_basename` del objeto (`GeneratedDocument`, `EvaluacionPeriodoPrueba`, ...). Informativo. */
+  related_type?: string | null;
+  /** Ciclo laboral: acción esperada (`firmar_documento`, `capturar_evaluacion`, `visto_bueno`...). Informativo. */
+  accion?: string | null;
 }

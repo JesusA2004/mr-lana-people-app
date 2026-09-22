@@ -12,6 +12,8 @@ import { MascotAssistant } from '@/components/mascot/MascotAssistant';
 import { SkeletonBlock, SkeletonCardList } from '@/components/SkeletonBlock';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 import { MascotMessages } from '@/constants/mascotMessages';
+import { StatusBadge } from '@/components/StatusBadge';
+import { useMiExpediente } from '@/hooks/queries/useCicloLaboral';
 import { useIncorporacion } from '@/hooks/queries/useIncorporacion';
 import type { DocumentoIncorporacion } from '@/types/document';
 import { getDevErrorDetail, getErrorMessage } from '@/utils/errors';
@@ -25,8 +27,18 @@ import { pluralize } from '@/utils/formatters';
 export default function ExpedienteScreen() {
   const router = useRouter();
   const { data, isLoading, isError, error, refetch, isRefetching } = useIncorporacion();
+  // Estado documental REAL (backend 2026-09-22): "completo" = obligatorios
+  // APROBADOS, no solo cargados. La carga sigue usando el checklist de
+  // incorporación (que es donde vive la autorización de subir/cambiar).
+  const estadoReal = useMiExpediente();
+  const documental = estadoReal.data?.expediente;
 
   const documentos = useMemo(() => data?.documentos ?? [], [data]);
+  const estadoPorTipo = useMemo(
+    () => new Map((documental?.documentos ?? []).map((doc) => [doc.document_type_id, doc])),
+    [documental],
+  );
+  const porcentaje = documental?.porcentaje ?? data?.progreso.porcentaje ?? 0;
 
   return (
     <View style={styles.container}>
@@ -34,7 +46,16 @@ export default function ExpedienteScreen() {
 
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={Colors.primary} />}>
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={() => {
+              void refetch();
+              void estadoReal.refetch();
+            }}
+            tintColor={Colors.primary}
+          />
+        }>
         {isLoading ? (
           <View style={{ gap: Spacing.lg }}>
             <SkeletonBlock height={140} radius={Radius.lg} />
@@ -48,14 +69,34 @@ export default function ExpedienteScreen() {
               <Card style={styles.heroCard}>
                 <View style={styles.heroHeader}>
                   <Text style={styles.heroTitle}>Expediente</Text>
-                  <Text style={styles.heroPercent}>{Math.round(data.progreso.porcentaje)}%</Text>
+                  <Text style={styles.heroPercent}>{Math.round(porcentaje)}%</Text>
                 </View>
-                <AnimatedProgressBar percent={data.progreso.porcentaje} height={10} />
-                <Text style={styles.heroCaption}>
-                  {data.progreso.aprobados} de {data.progreso.total} {pluralize(data.progreso.total, 'documento completo', 'documentos completos')}
-                </Text>
+                <AnimatedProgressBar percent={porcentaje} height={10} />
+                {documental ? (
+                  <>
+                    <Text style={styles.heroCaption}>
+                      {documental.aprobados} de {documental.requeridos} obligatorios aprobados · {documental.entregados}{' '}
+                      {pluralize(documental.entregados, 'entregado', 'entregados')}
+                    </Text>
+                    <View style={styles.statusRow}>
+                      <StatusBadge
+                        status={documental.completo ? 'aprobado' : documental.rechazados > 0 ? 'requiere_correccion' : 'en_revision'}
+                        label={documental.completo ? 'Expediente completo' : documental.faltantes > 0 ? `${documental.faltantes} faltante(s)` : 'En revisión'}
+                      />
+                      {estadoReal.data?.estado_alta_etiqueta ? <StatusBadge status="enviada" label={`Alta: ${estadoReal.data.estado_alta_etiqueta}`} /> : null}
+                    </View>
+                  </>
+                ) : (
+                  <Text style={styles.heroCaption}>
+                    {data.progreso.aprobados} de {data.progreso.total} {pluralize(data.progreso.total, 'documento completo', 'documentos completos')}
+                  </Text>
+                )}
               </Card>
             </FadeInView>
+
+            {estadoReal.data?.expediente_cerrado ? (
+              <MascotAssistant message="Tu expediente está cerrado. Si necesitas algo, contacta a Recursos Humanos." type="info" dismissible={false} />
+            ) : null}
 
             {data.progreso.rechazados > 0 ? (
               <MascotAssistant
@@ -71,16 +112,21 @@ export default function ExpedienteScreen() {
               <MascotAssistant message={MascotMessages.documentosPendientes(data.progreso.pendientes)} type="tip" />
             ) : data.progreso.en_revision > 0 ? (
               <MascotAssistant message={MascotMessages.pendienteAprobacion} type="info" />
-            ) : data.progreso.porcentaje >= 100 ? (
+            ) : (documental ? documental.completo : data.progreso.porcentaje >= 100) ? (
               <MascotAssistant message={MascotMessages.expedienteCompleto} type="success" />
             ) : null}
 
             <FadeInView index={1}>
               <View style={styles.statsRow}>
-                <StatChip label="Pendientes" value={data.progreso.pendientes} color={Colors.textMuted} background={Colors.neutralSoft} />
-                <StatChip label="En revisión" value={data.progreso.en_revision} color={Colors.warning} background={Colors.warningSoft} />
-                <StatChip label="Aprobados" value={data.progreso.aprobados} color={Colors.success} background={Colors.successSoft} />
-                <StatChip label="Rechazados" value={data.progreso.rechazados} color={Colors.danger} background={Colors.dangerSoft} />
+                <StatChip
+                  label="Faltantes"
+                  value={documental?.faltantes ?? data.progreso.pendientes}
+                  color={Colors.textMuted}
+                  background={Colors.neutralSoft}
+                />
+                <StatChip label="En revisión" value={documental?.en_revision ?? data.progreso.en_revision} color={Colors.warning} background={Colors.warningSoft} />
+                <StatChip label="Aprobados" value={documental?.aprobados ?? data.progreso.aprobados} color={Colors.success} background={Colors.successSoft} />
+                <StatChip label="Rechazados" value={documental?.rechazados ?? data.progreso.rechazados} color={Colors.danger} background={Colors.dangerSoft} />
               </View>
             </FadeInView>
 
@@ -90,6 +136,7 @@ export default function ExpedienteScreen() {
                 <FadeInView key={documento.id} index={index + 2}>
                   <DocumentCard
                     documento={documento}
+                    estado={estadoPorTipo.get(documento.id)}
                     onPress={() => router.push({ pathname: '/expediente/[tipoId]', params: { tipoId: String(documento.id) } })}
                   />
                 </FadeInView>
@@ -138,6 +185,11 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xxl,
     fontWeight: '800',
     color: Colors.primaryDark,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
   },
   heroCaption: {
     fontSize: FontSize.xs,

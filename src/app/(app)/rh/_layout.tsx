@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { isExperimentalFeatureEnabled, isFeatureEnabled, isOrganigramaEnabled } from '@/utils/featureFlags';
+import { isRhModuleEnabled, type RhModule } from '@/utils/modules';
 
 /**
  * Stack de la experiencia "Gestión RH" (AGENTS.md sección 5): tabs propios
@@ -24,7 +25,10 @@ export default function RhLayout() {
   // real del backend queda oculto hasta que `mobile/bootstrap` mande
   // `features.formatos: true` explícito, ver docs/BACKEND_GAPS_FINAL.md.
   const formatosEnabled = isExperimentalFeatureEnabled(bootstrap.data?.features, 'formatos');
-  const organigramaEnabled = isOrganigramaEnabled(bootstrap.data?.features, bootstrap.data?.user.permissions);
+  const permissions = bootstrap.data?.user.permissions;
+  const features = bootstrap.data?.features;
+  const moduloOn = (module: RhModule) => isRhModuleEnabled(features, permissions, module);
+  const organigramaEnabled = isOrganigramaEnabled(features, permissions) || moduloOn('organigrama_personas');
 
   return (
     <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
@@ -56,6 +60,48 @@ export default function RhLayout() {
 
       <Stack.Protected guard={organigramaEnabled}>
         <Stack.Screen name="organizacion/index" />
+      </Stack.Protected>
+
+      {/* Ciclo laboral (backend 2026-09-22): cada ruta profunda protegida
+          con el MISMO permiso que exige su endpoint (`utils/modules.ts`). */}
+      <Stack.Protected guard={moduloOn('vacantes')}>
+        <Stack.Screen name="vacantes/[id]" />
+      </Stack.Protected>
+      <Stack.Protected guard={moduloOn('documentos_laborales')}>
+        <Stack.Screen name="documentos-laborales/index" />
+        <Stack.Screen name="documentos-laborales/[id]" />
+      </Stack.Protected>
+      <Stack.Protected guard={moduloOn('contratos')}>
+        <Stack.Screen name="contratos/por-vencer" />
+      </Stack.Protected>
+      <Stack.Protected guard={moduloOn('cierres')}>
+        <Stack.Screen name="cierres/index" />
+        <Stack.Screen name="cierres/[id]" />
+        <Stack.Screen name="cierres/nuevo" />
+      </Stack.Protected>
+      <Stack.Protected guard={moduloOn('recibos')}>
+        <Stack.Screen name="recibos/index" />
+        <Stack.Screen name="recibos/[id]" />
+        <Stack.Screen name="recibos/importar" />
+        <Stack.Screen name="recibos/nuevo" />
+      </Stack.Protected>
+      <Stack.Protected guard={moduloOn('prestamos')}>
+        <Stack.Screen name="prestamos/index" />
+        <Stack.Screen name="prestamos/[id]" />
+      </Stack.Protected>
+      <Stack.Protected guard={moduloOn('actas')}>
+        <Stack.Screen name="actas/index" />
+        <Stack.Screen name="actas/[id]" />
+        <Stack.Screen name="actas/editar" />
+      </Stack.Protected>
+      <Stack.Protected guard={moduloOn('plantilla')}>
+        <Stack.Screen name="plantilla" />
+      </Stack.Protected>
+      <Stack.Protected guard={moduloOn('indicadores')}>
+        <Stack.Screen name="indicadores" />
+      </Stack.Protected>
+      <Stack.Protected guard={moduloOn('plantillas_documentales')}>
+        <Stack.Screen name="plantillas-documentales" />
       </Stack.Protected>
     </Stack>
   );

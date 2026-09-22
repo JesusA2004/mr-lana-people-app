@@ -80,10 +80,45 @@ export function resolveResourceRoute(data: PushNotificationData): string | null 
       // `documento_generado_id` todavía, cae elegantemente en la lista.
       return '/(app)/rh/formatos';
 
+    // ---- Ciclo laboral (backend 2026-09-22, `NotificadorRhService::notificar()`):
+    // `resource_id` = id del objeto relacionado (`related_type` en el payload).
+    case 'documento_firma_pendiente':
+      return data.resource_id ? `/documentos-laborales/${data.resource_id}` : '/documentos-laborales';
+    case 'recibo_nomina':
+      return data.resource_id ? `/recibos/${data.resource_id}` : '/recibos';
+    case 'prestamo_autorizado':
+      return data.resource_id ? `/prestamos/${data.resource_id}` : '/prestamos';
+    case 'expediente_incompleto':
+      return '/(app)/(tabs)/expediente';
+    case 'alta_activada':
+      return '/(app)/(tabs)';
+    case 'visto_bueno_pendiente':
+      return '/equipo';
+    case 'evaluacion_pendiente':
+    case 'evaluacion_devuelta':
+    case 'evaluacion_capturada':
+      return data.resource_id ? `/evaluaciones/${data.resource_id}` : '/evaluaciones';
+    case 'contrato_por_vencer':
+      return '/(app)/rh/contratos/por-vencer';
+
     default:
       return null;
   }
 }
+
+/**
+ * Tipos cuya pantalla es COMPARTIDA por ambas experiencias (existe en Mi
+ * espacio y en Gestión RH): tocar el push NO cambia de experiencia.
+ * Evaluaciones/Mi equipo los usan jefes que pueden estar en cualquiera de
+ * las dos, y RH/Dirección autoriza evaluaciones desde la misma pantalla.
+ */
+const SHARED_PUSH_TYPES = new Set<PushResourceType>([
+  'notificacion',
+  'visto_bueno_pendiente',
+  'evaluacion_pendiente',
+  'evaluacion_devuelta',
+  'evaluacion_capturada',
+]);
 
 const RH_PUSH_TYPES = new Set<PushResourceType>([
   'rh_solicitud',
@@ -94,6 +129,7 @@ const RH_PUSH_TYPES = new Set<PushResourceType>([
   'rh_cumpleanos',
   'rh_extraccion_documento',
   'formato_disponible',
+  'contrato_por_vencer',
 ]);
 
 /**
@@ -105,5 +141,6 @@ const RH_PUSH_TYPES = new Set<PushResourceType>([
  */
 export function experienceForPushType(type?: PushResourceType): Experience | null {
   if (!type) return null;
+  if (SHARED_PUSH_TYPES.has(type)) return null;
   return RH_PUSH_TYPES.has(type) ? 'rh' : 'colaborador';
 }

@@ -5,14 +5,16 @@ import { StyleSheet, Text, View } from 'react-native';
 import { PressableScale } from './PressableScale';
 
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
-import type { OrganizationNode } from '@/types/organization';
+import type { OrganizationTreeView } from '@/utils/organizationTree';
 
 export interface OrganizationTreeNodeProps {
-  node: OrganizationNode;
+  node: OrganizationTreeView;
   /** Profundidad para la indentación — la raíz empieza en 0. */
   depth?: number;
   /** Los primeros dos niveles abren solados por default; el resto arranca colapsado (AGENTS.md de este encargo, sección 69: "lazy expand", nunca 3,000 nodos de golpe). */
   defaultExpanded?: boolean;
+  /** Toque en un nodo hoja con `targetId` (ej. abrir el detalle del colaborador). */
+  onOpen?: (node: OrganizationTreeView) => void;
 }
 
 const INDENT_PER_LEVEL = 18;
@@ -21,19 +23,23 @@ const INDENT_PER_LEVEL = 18;
  * Nodo recursivo del organigrama (sección 24/69): vertical, indentado, con
  * líneas guía — nunca un organigrama horizontal de 7 columnas en 360px. Solo
  * renderiza los hijos de un nodo cuando ese nodo está expandido, así que un
- * árbol de miles de puestos nunca se monta completo de una vez.
+ * árbol de miles de nodos nunca se monta completo de una vez.
+ *
+ * Única implementación de organigrama de la app: sirve para PUESTOS
+ * (`puestoToTreeView`) y para PERSONAS (`personaToTreeView`).
  */
-export function OrganizationTreeNode({ node, depth = 0, defaultExpanded = depth < 1 }: OrganizationTreeNodeProps) {
+export function OrganizationTreeNode({ node, depth = 0, defaultExpanded = depth < 1, onOpen }: OrganizationTreeNodeProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const hasChildren = node.children.length > 0;
+  const canOpen = !hasChildren && node.targetId !== undefined && !!onOpen;
 
   return (
     <View>
       <PressableScale
         haptic={false}
-        accessibilityRole={hasChildren ? 'button' : undefined}
-        accessibilityLabel={`${node.nombre}${hasChildren ? (expanded ? ', contraer' : ', expandir') : ''}`}
-        onPress={hasChildren ? () => setExpanded((value) => !value) : undefined}
+        accessibilityRole={hasChildren || canOpen ? 'button' : undefined}
+        accessibilityLabel={`${node.title}${hasChildren ? (expanded ? ', contraer' : ', expandir') : ''}`}
+        onPress={hasChildren ? () => setExpanded((value) => !value) : canOpen ? () => onOpen?.(node) : undefined}
         style={[styles.row, { paddingLeft: Spacing.lg + depth * INDENT_PER_LEVEL }]}>
         {depth > 0 ? <View style={styles.guideLine} /> : null}
 
@@ -46,31 +52,32 @@ export function OrganizationTreeNode({ node, depth = 0, defaultExpanded = depth 
         </View>
 
         <View style={styles.textColumn}>
-          <Text style={[styles.nombre, !node.activo && styles.inactivo]} numberOfLines={1}>
-            {node.nombre}
+          <Text style={[styles.nombre, node.muted && styles.inactivo]} numberOfLines={1}>
+            {node.title}
           </Text>
-          {node.departamento ? (
+          {node.subtitle ? (
             <Text style={styles.meta} numberOfLines={1}>
-              {node.departamento}
+              {node.subtitle}
             </Text>
           ) : null}
         </View>
 
-        {node.colaboradores_count > 0 ? (
+        {node.count !== undefined && node.count > 0 ? (
           <View style={styles.countBadge}>
             <Ionicons name="person" size={11} color={Colors.primaryDark} />
-            <Text style={styles.countText}>{node.colaboradores_count}</Text>
+            <Text style={styles.countText}>{node.count}</Text>
           </View>
         ) : null}
-        {node.vacantes_abiertas_count > 0 ? (
+        {node.warning ? (
           <View style={styles.vacanteBadge}>
-            <Text style={styles.vacanteText}>{node.vacantes_abiertas_count} vac.</Text>
+            <Text style={styles.vacanteText}>{node.warning}</Text>
           </View>
         ) : null}
+        {canOpen ? <Ionicons name="chevron-forward" size={14} color={Colors.textMuted} /> : null}
       </PressableScale>
 
       {expanded && hasChildren
-        ? node.children.map((child) => <OrganizationTreeNode key={child.id} node={child} depth={depth + 1} />)
+        ? node.children.map((child) => <OrganizationTreeNode key={child.key} node={child} depth={depth + 1} onOpen={onOpen} />)
         : null}
     </View>
   );
@@ -81,6 +88,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
+    minHeight: 48,
     paddingVertical: Spacing.sm + 2,
     paddingRight: Spacing.lg,
     borderBottomWidth: 1,

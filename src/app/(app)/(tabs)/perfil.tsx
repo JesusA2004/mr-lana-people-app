@@ -13,7 +13,10 @@ import { SecurityWatermark } from '@/components/SecurityWatermark';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 import { useIncorporacion } from '@/hooks/queries/useIncorporacion';
+import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { usePerfil } from '@/hooks/queries/usePerfil';
+import { useEquipo } from '@/hooks/queries/useTrabajo';
+import { isSelfServiceModuleEnabled } from '@/utils/modules';
 import { formatDateLong } from '@/utils/dates';
 import { getErrorMessage } from '@/utils/errors';
 import { joinName } from '@/utils/formatters';
@@ -22,6 +25,8 @@ export default function PerfilScreen() {
   const router = useRouter();
   const { data: perfil, isLoading, isError, error, refetch, isRefetching } = usePerfil();
   const incorporacion = useIncorporacion();
+  const bootstrap = useMobileBootstrap(true);
+  const equipo = useEquipo(isSelfServiceModuleEnabled(bootstrap.data?.features, 'equipo'));
 
   const nombre = joinName(perfil?.nombre, perfil?.apellidos) ?? perfil?.nombre_completo;
   const watermarkLabel = [nombre, perfil?.numero_empleado ? `EMP-${perfil.numero_empleado}` : null].filter(Boolean).join(' · ');
@@ -53,6 +58,25 @@ export default function PerfilScreen() {
     { icon: 'mail-outline', label: 'Correo', value: perfil?.correo },
   ];
   const personalFilled = personalFields.filter((field) => Boolean(field.value));
+
+  const features = bootstrap.data?.features;
+  const esJefe = (equipo.data?.length ?? 0) > 0;
+  type PerfilLink = { route: string; icon: keyof typeof Ionicons.glyphMap; title: string; caption: string };
+  const links = ([
+    isSelfServiceModuleEnabled(features, 'jerarquia') && { route: '/jerarquia', icon: 'git-network-outline', title: 'Mi jerarquía', caption: 'Jefe inmediato, gerente y estructura' },
+    isSelfServiceModuleEnabled(features, 'documentos_laborales') && {
+      route: '/documentos-laborales',
+      icon: 'folder-outline',
+      title: 'Documentos laborales',
+      caption: 'Contratos, comprobantes y firmas',
+    },
+    isSelfServiceModuleEnabled(features, 'contratos') && { route: '/contratos', icon: 'document-text-outline', title: 'Mis contratos', caption: 'Vigencia y tipo de contrato' },
+    isSelfServiceModuleEnabled(features, 'recibos') && { route: '/recibos', icon: 'receipt-outline', title: 'Mis recibos', caption: 'Recibos internos de nómina (no fiscales)' },
+    isSelfServiceModuleEnabled(features, 'prestamos') && { route: '/prestamos', icon: 'cash-outline', title: 'Mis préstamos', caption: 'Préstamos autorizados y documentos' },
+    isSelfServiceModuleEnabled(features, 'tareas') && { route: '/tareas', icon: 'checkbox-outline', title: 'Tareas', caption: 'Pendientes por atender' },
+    esJefe && isSelfServiceModuleEnabled(features, 'equipo') && { route: '/equipo', icon: 'people-outline', title: 'Mi equipo', caption: 'Vistos buenos y evaluaciones' },
+    { route: '/ayuda', icon: 'help-buoy-outline', title: 'Ayuda', caption: 'Preguntas frecuentes y contacto' },
+  ] as (PerfilLink | false)[]).filter((link): link is PerfilLink => link !== false);
 
   return (
     <View style={styles.container}>
@@ -141,7 +165,31 @@ export default function PerfilScreen() {
               </Card>
             </FadeInView>
 
+            {/* Ciclo laboral (backend 2026-09-22): accesos sin convertir cada módulo en tab. */}
             <FadeInView index={5}>
+              <Card padded={false}>
+                {links.map((link, index) => (
+                  <PressableScale
+                    key={link.route}
+                    haptic={false}
+                    accessibilityRole="button"
+                    accessibilityLabel={link.title}
+                    onPress={() => router.push(link.route as never)}
+                    style={[styles.menuRow, index === links.length - 1 && styles.menuRowLast] as object}>
+                    <View style={styles.linkIcon}>
+                      <Ionicons name={link.icon} size={20} color={Colors.primaryDark} />
+                    </View>
+                    <View style={styles.linkText}>
+                      <Text style={styles.linkTitle}>{link.title}</Text>
+                      <Text style={styles.linkCaption}>{link.caption}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+                  </PressableScale>
+                ))}
+              </Card>
+            </FadeInView>
+
+            <FadeInView index={6}>
               <Button
                 title="Solicitar actualización de datos"
                 variant="outline"
@@ -269,6 +317,19 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: Colors.divider,
+  },
+  menuRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    minHeight: 56,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.divider,
+  },
+  menuRowLast: {
+    borderBottomWidth: 0,
   },
   rowLast: {
     borderBottomWidth: 0,

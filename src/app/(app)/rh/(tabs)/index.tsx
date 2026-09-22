@@ -13,8 +13,12 @@ import { RhPendienteCard } from '@/components/RhPendienteCard';
 import { SkeletonBlock, SkeletonCardList } from '@/components/SkeletonBlock';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 import { useRhCumpleanosInfinite } from '@/hooks/queries/useRhCumpleanos';
+import { ModuleGrid, ModuleTile } from '@/components/ciclo/ModuleTile';
 import { useRhDashboard } from '@/hooks/queries/useRhDashboard';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
+import { useRhContratosPorVencer, useRhDocumentosLaboralesPendientes } from '@/hooks/queries/useRhCicloLaboral';
+import { useTareasConteos } from '@/hooks/queries/useTrabajo';
+import { isRhModuleEnabled, type RhModule } from '@/utils/modules';
 import { useAuthStore } from '@/store/authStore';
 import { hasPermission } from '@/utils/capabilities';
 import { getErrorMessage } from '@/utils/errors';
@@ -53,6 +57,33 @@ export default function RhDashboardScreen() {
   // `Rh\VacanteController::index`): ni fail-open ciego, ni fail-closed sobre
   // algo que sí sirve.
   const vacantesEnabled = hasPermission(bootstrap.data?.user.permissions, 'vacantes.ver');
+
+  const permissions = bootstrap.data?.user.permissions;
+  const features = bootstrap.data?.features;
+  const moduloOn = (module: RhModule) => isRhModuleEnabled(features, permissions, module);
+  const organigramaPersonasEnabled = moduloOn('organigrama_personas');
+  const tareas = useTareasConteos(true);
+  const tareasCount = tareas.data?.abiertas ?? 0;
+  const docsPendientes = useRhDocumentosLaboralesPendientes(moduloOn('documentos_laborales'));
+  // Badge = etapas que RH opera (la firma del colaborador no es acción de RH).
+  const docsPendientesTotal = docsPendientes.data
+    ? docsPendientes.data.imprimir + docsPendientes.data.firma_fisica + docsPendientes.data.enviar + docsPendientes.data.recibir + docsPendientes.data.escanear
+    : undefined;
+  const porVencer = useRhContratosPorVencer(30, moduloOn('contratos'));
+
+  type Modulo = { route: string; icon: keyof typeof Ionicons.glyphMap; label: string; badge?: number };
+  const modulos = ([
+    moduloOn('documentos_laborales') && { route: '/(app)/rh/documentos-laborales', icon: 'folder-outline', label: 'Documentos laborales', badge: docsPendientesTotal },
+    moduloOn('contratos') && { route: '/(app)/rh/contratos/por-vencer', icon: 'hourglass-outline', label: 'Contratos por vencer', badge: porVencer.data?.contratos.length },
+    moduloOn('evaluaciones') && { route: '/evaluaciones', icon: 'clipboard-outline', label: 'Evaluaciones' },
+    moduloOn('cierres') && { route: '/(app)/rh/cierres', icon: 'exit-outline', label: 'Cierres y finiquitos' },
+    moduloOn('recibos') && { route: '/(app)/rh/recibos', icon: 'receipt-outline', label: 'Recibos internos' },
+    moduloOn('prestamos') && { route: '/(app)/rh/prestamos', icon: 'cash-outline', label: 'Préstamos' },
+    moduloOn('actas') && { route: '/(app)/rh/actas', icon: 'reader-outline', label: 'Actas' },
+    moduloOn('plantilla') && { route: '/(app)/rh/plantilla', icon: 'grid-outline', label: 'Plantilla y cobertura' },
+    moduloOn('indicadores') && { route: '/(app)/rh/indicadores', icon: 'stats-chart-outline', label: 'Indicadores' },
+    moduloOn('plantillas_documentales') && { route: '/(app)/rh/plantillas-documentales', icon: 'documents-outline', label: 'Plantillas documentales' },
+  ] as (Modulo | false)[]).filter((m): m is Modulo => m !== false);
 
   const cumpleanosHoy = useRhCumpleanosInfinite({ periodo: 'hoy' }, cumpleanosEnabled);
   const hoyCount = cumpleanosHoy.data?.pages[0]?.meta.hoy ?? 0;
@@ -139,6 +170,33 @@ export default function RhDashboardScreen() {
               </Card>
             ) : null}
 
+            {tareasCount > 0 ? (
+              <Card onPress={() => router.push('/tareas')} style={styles.ocrCard}>
+                <Ionicons name="checkbox-outline" size={20} color={Colors.primaryDark} />
+                <View style={styles.ocrTextColumn}>
+                  <Text style={styles.ocrTitle}>Bandeja de tareas</Text>
+                  <Text style={styles.ocrSubtitle}>
+                    {tareasCount} {tareasCount === 1 ? 'tarea abierta' : 'tareas abiertas'}
+                    {tareas.data?.vencidas ? ` · ${tareas.data.vencidas} vencida(s)` : ''}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+              </Card>
+            ) : null}
+
+            {/* Ciclo laboral (backend 2026-09-22): cada módulo aparece SOLO con
+                el permiso real que exige su endpoint (`utils/modules.ts`). */}
+            {modulos.length > 0 ? (
+              <>
+                <Text style={styles.sectionTitle}>Ciclo laboral</Text>
+                <ModuleGrid>
+                  {modulos.map((modulo) => (
+                    <ModuleTile key={modulo.route} icon={modulo.icon} label={modulo.label} badge={modulo.badge} onPress={() => router.push(modulo.route as never)} />
+                  ))}
+                </ModuleGrid>
+              </>
+            ) : null}
+
             <Text style={styles.sectionTitle}>Acciones rápidas</Text>
             <View style={styles.quickGrid}>
               <QuickAction icon="search-outline" label="Buscar colaborador" onPress={() => router.push('/(app)/rh/(tabs)/colaboradores')} />
@@ -153,23 +211,22 @@ export default function RhDashboardScreen() {
               {cumpleanosEnabled ? (
                 <QuickAction icon="gift-outline" label="Cumpleaños" onPress={() => router.push('/(app)/rh/cumpleanos' as never)} />
               ) : null}
-              {organigramaEnabled ? (
+              {organigramaEnabled || organigramaPersonasEnabled ? (
                 <QuickAction icon="git-network-outline" label="Organización" onPress={() => router.push('/(app)/rh/organizacion' as never)} />
               ) : null}
             </View>
 
             {/*
-             * Administración pesada (finiquitos, headcount, matriz comercial,
-             * reclutamiento completo, reportes, configuración de formatos):
-             * NO se replica en móvil a propósito (secciones 24/34/56). No es
-             * un error ni un "próximamente" — es un proceso que se completa
-             * en el portal, y el camino queda a la vista.
+             * Lo que sigue siendo del portal web: alta de colaboradores (no
+             * hay catálogos de sucursal/puesto en la API móvil), carga de
+             * plantillas DOCX, reportes y configuración. No es un error ni un
+             * "próximamente" — el camino queda a la vista.
              */}
             <PressableScale onPress={() => void openRhWeb()} style={styles.webCta}>
               <Ionicons name="open-outline" size={18} color={Colors.primaryDark} />
               <View style={styles.ocrTextColumn}>
                 <Text style={styles.ocrTitle}>Abrir Portal RH</Text>
-                <Text style={styles.ocrSubtitle}>Finiquitos, headcount, reportes y configuración se completan ahí.</Text>
+                <Text style={styles.ocrSubtitle}>Alta de colaboradores, plantillas DOCX, reportes y configuración se completan ahí.</Text>
               </View>
               <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
             </PressableScale>

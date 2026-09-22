@@ -12,8 +12,9 @@ implementa lógica de Recursos Humanos, no calcula saldos ni decide permisos
 ni acciones por su cuenta — todo dato y toda regla de negocio vienen de la
 API (ver AGENTS.md, sección "Regla de oro").
 
-Documentación adicional: **`docs/BACKEND_SYNC_2026_09_15.md`** (contratos
-reales, bugs corregidos y gaps vigentes — la fuente de verdad),
+Documentación adicional: **`docs/MOBILE_BACKEND_SYNC_2026_09_22.md`** (ciclo laboral
+completo: endpoints, permisos, feature flags, push y gaps reales — **la fuente de verdad vigente**),
+`docs/BACKEND_SYNC_2026_09_15.md` (histórico, marcado como superado donde contradiga),
 `docs/PRUEBAS_FISICAS_2026_09_15.md` (checklist en dispositivo) y
 `docs/BUILD_AND_TEST_FINAL.md` (build y plan de pruebas). `docs/BACKEND_GAPS_FINAL.md`
 y `docs/BACKEND_REQUIREMENTS_V4.md` quedaron **superados**: describen
@@ -156,6 +157,15 @@ completo y verificado contra el código fuente real del backend en
   `POST /solicitudes`, `GET /solicitudes/{solicitud}`,
   `GET /solicitudes/configuracion`, `POST /solicitudes/{solicitud}/adjuntos`,
   `POST /solicitudes/{solicitud}/cancelar`
+- **Ciclo laboral (autoservicio, 22/09):** `GET /colaborador/alta|expediente|documentos-pendientes|contratos|jerarquia`,
+  `GET /colaborador/documentos-laborales[/{id}/descargar]`, `POST /colaborador/documentos-laborales/{id}/firmar`,
+  `GET /colaborador/recibos[/{id}[/pdf]]`, `GET /colaborador/prestamos[/{id}]`
+- **Jefe / evaluaciones / tareas:** `GET /equipo`, `GET /equipo/pendientes`, `POST /equipo/solicitudes/{id}/visto-bueno`,
+  `GET|POST /evaluaciones[/{id}[/capturar|autorizar|devolver]]`, `GET /tareas`, `POST /tareas/{id}/leer|resolver`
+- **RH ciclo laboral:** `/rh/colaboradores/{id}/alta|activar|jerarquia|contratos|cierres|recibos|actas`,
+  `/rh/documentos-laborales*`, `/rh/contratos/por-vencer`, `/rh/cierres*`, `/rh/recibos*`, `/rh/prestamos*`,
+  `/rh/solicitudes/{id}/prestamo/autorizar|rechazar`, `/rh/actas*`, `/rh/plantilla/cobertura`, `/rh/indicadores`,
+  `/rh/organigrama`, `/rh/vacantes/{id}`, `GET /rh/plantillas-documentales` (detalle en el doc del 22/09)
 - **Notificaciones:** `GET /notificaciones`,
   `POST /notificaciones/{notificacion}/leer`,
   `POST /notificaciones/leer-todas`
@@ -256,9 +266,11 @@ acepta directo (`src/utils/parseIncorporacionQr.ts`), junto con
 temporal, el scheme legado `mrlanapeople://...`. Para que la liga `https://`
 abra la app directo (App Links/Universal Links) en vez de solo el
 navegador, falta que el backend publique los archivos de verificación de
-dominio — ver `docs/BACKEND_GAPS_FINAL.md`, G1.
+dominio — ver `docs/MOBILE_BACKEND_SYNC_2026_09_22.md`, G-7.
 
 ## Notas / pendientes conocidos con el backend
+
+> **Actualizado 22/09/2026:** los gaps vigentes del ciclo laboral (G-1 a G-8: acceso de Dirección/Jurídico a Gestión RH, catálogos para el alta, monto del préstamo en el detalle RH, detalle de documento del colaborador, App Links…) están en `docs/MOBILE_BACKEND_SYNC_2026_09_22.md`, sección 6. **D-8 quedó resuelto**: la API de documentos laborales ya existe y el módulo está habilitado.
 
 Ver **`docs/BACKEND_SYNC_2026_09_15.md`, sección D** para el detalle completo
 y accionable. Resumen de los gaps vigentes:

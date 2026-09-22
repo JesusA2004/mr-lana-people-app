@@ -1,3 +1,5 @@
+> ⚠️ **SUPERADO (22/09/2026).** Este documento describe el backend anterior y contiene afirmaciones que ya no son ciertas (p. ej. "documentos laborales no existe"). La fuente vigente es [`MOBILE_BACKEND_SYNC_2026_09_22.md`](./MOBILE_BACKEND_SYNC_2026_09_22.md).
+
 # Sincronización móvil ↔ backend — 2026-09-15
 
 Auditoría completa de `mr-lana-people-app` contra `JesusA2004/capacitaciones@main`

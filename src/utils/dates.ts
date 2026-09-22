@@ -3,8 +3,19 @@
  * Ninguna pantalla debe formatear fechas por su cuenta.
  */
 
+const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
+
 function parseDate(value?: string | null): Date | null {
   if (!value) return null;
+  // Bug corregido (sync 2026-09-22): el backend manda fechas de calendario
+  // como `YYYY-MM-DD` (fecha de pago, vencimiento de contrato, periodos).
+  // `new Date('2026-09-22')` las interpreta como medianoche UTC y en México
+  // (UTC-6) se pintaban un día ANTES. Una fecha sin hora es fecha local.
+  const dateOnly = DATE_ONLY.exec(value);
+  if (dateOnly) {
+    const date = new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]));
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
 }

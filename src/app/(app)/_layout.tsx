@@ -24,7 +24,8 @@ import { useExperienceStore } from '@/store/experienceStore';
 import { usePendingNavigationStore } from '@/store/pendingNavigationStore';
 import { canUseRhExperience } from '@/utils/capabilities';
 import { getErrorMessage } from '@/utils/errors';
-import { isExperimentalFeatureEnabled, isFeatureEnabled } from '@/utils/featureFlags';
+import { isFeatureEnabled } from '@/utils/featureFlags';
+import { isSelfServiceModuleEnabled } from '@/utils/modules';
 
 /**
  * Este layout SOLO se monta cuando `isAuthenticated` es verdadero (ver
@@ -56,11 +57,18 @@ export default function AppLayout() {
   // golpe antes de tiempo — módulos CORE ya existentes.
   const cumpleanosEnabled = isFeatureEnabled(bootstrap.data?.features, 'cumpleanos');
   const incorporacionEnabled = isFeatureEnabled(bootstrap.data?.features, 'incorporacion');
-  // Documentos laborales es un módulo EXPERIMENTAL sin backend real todavía
-  // (`GET /colaborador/documentos-laborales` sigue sin existir, ver
-  // docs/BACKEND_GAPS_FINAL.md) — fail-CLOSED: ausente = oculto, nunca
-  // mostrar un módulo que solo puede responder 404.
-  const documentosLaboralesEnabled = isExperimentalFeatureEnabled(bootstrap.data?.features, 'documentos_laborales');
+  // Ciclo laboral (backend 2026-09-22): API estable protegida por Policy —
+  // visible salvo que el backend mande el feature explícito en `false`
+  // (ver `utils/modules.ts` y docs/MOBILE_BACKEND_SYNC_2026_09_22.md).
+  const features = bootstrap.data?.features;
+  const documentosLaboralesEnabled = isSelfServiceModuleEnabled(features, 'documentos_laborales');
+  const contratosEnabled = isSelfServiceModuleEnabled(features, 'contratos');
+  const recibosEnabled = isSelfServiceModuleEnabled(features, 'recibos');
+  const prestamosEnabled = isSelfServiceModuleEnabled(features, 'prestamos');
+  const jerarquiaEnabled = isSelfServiceModuleEnabled(features, 'jerarquia');
+  const equipoEnabled = isSelfServiceModuleEnabled(features, 'equipo');
+  const evaluacionesEnabled = isSelfServiceModuleEnabled(features, 'evaluaciones');
+  const tareasEnabled = isSelfServiceModuleEnabled(features, 'tareas');
 
   const birthday = useBirthdayGreeting(cumpleanosEnabled);
   useBirthdayAutoCelebration(cumpleanosEnabled ? birthday.data : null);
@@ -127,7 +135,21 @@ export default function AppLayout() {
           </Stack.Protected>
           <Stack.Protected guard={documentosLaboralesEnabled}>
             <Stack.Screen name="documentos-laborales/index" />
-            <Stack.Screen name="documentos-laborales/[id]" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
+            <Stack.Screen name="documentos-laborales/[id]" />
+          </Stack.Protected>
+          <Stack.Protected guard={contratosEnabled}>
+            <Stack.Screen name="contratos" />
+          </Stack.Protected>
+          <Stack.Protected guard={recibosEnabled}>
+            <Stack.Screen name="recibos/index" />
+            <Stack.Screen name="recibos/[id]" />
+          </Stack.Protected>
+          <Stack.Protected guard={prestamosEnabled}>
+            <Stack.Screen name="prestamos/index" />
+            <Stack.Screen name="prestamos/[id]" />
+          </Stack.Protected>
+          <Stack.Protected guard={jerarquiaEnabled}>
+            <Stack.Screen name="jerarquia" />
           </Stack.Protected>
         </Stack.Protected>
 
@@ -138,6 +160,18 @@ export default function AppLayout() {
         {/* Compartidas entre Mi espacio y Gestión RH — nunca duplicar login ni crear otro token al cambiar de experiencia. */}
         <Stack.Protected guard={cumpleanosEnabled}>
           <Stack.Screen name="cumpleanos" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+        </Stack.Protected>
+        {/* Jefe / evaluaciones / bandeja: compartidas — un jefe o RH/Dirección
+            las usa desde cualquiera de las dos experiencias. */}
+        <Stack.Protected guard={equipoEnabled}>
+          <Stack.Screen name="equipo" />
+        </Stack.Protected>
+        <Stack.Protected guard={evaluacionesEnabled}>
+          <Stack.Screen name="evaluaciones/index" />
+          <Stack.Screen name="evaluaciones/[id]" />
+        </Stack.Protected>
+        <Stack.Protected guard={tareasEnabled}>
+          <Stack.Screen name="tareas" />
         </Stack.Protected>
         <Stack.Screen name="notificaciones" />
         <Stack.Screen name="configuracion" />
@@ -150,7 +184,7 @@ export default function AppLayout() {
       <PushPermissionPrimer />
       <BiometricEnrollPrimer />
       <ExperienceSelectorPrimer />
-      <PendingPushNavigationController showRhTree={showRhTree} />
+      <PendingPushNavigationController showRhTree={showRhTree} canUseRh={canUseRh} />
     </View>
   );
 }
@@ -165,17 +199,25 @@ export default function AppLayout() {
  * `showRhTree` coincida con la experiencia que pide la navegación
  * pendiente (o navega de inmediato si la ruta es compartida).
  */
-function PendingPushNavigationController({ showRhTree }: { showRhTree: boolean }) {
+function PendingPushNavigationController({ showRhTree, canUseRh }: { showRhTree: boolean; canUseRh: boolean }) {
   const router = useRouter();
   const pending = usePendingNavigationStore((state) => state.pending);
   const clearPendingPushNavigation = usePendingNavigationStore((state) => state.clearPendingPushNavigation);
 
   useEffect(() => {
     if (!pending) return;
+    // Destino en Gestión RH pero la cuenta ya no puede usarla (permiso
+    // retirado o feature apagado): nunca dejar la navegación colgada ni
+    // abrir una ruta desmontada — cae en el centro de notificaciones.
+    if (pending.experience === 'rh' && !canUseRh) {
+      router.push('/notificaciones');
+      clearPendingPushNavigation();
+      return;
+    }
     if (pending.experience !== null && (pending.experience === 'rh') !== showRhTree) return;
     router.push(pending.route as never);
     clearPendingPushNavigation();
-  }, [pending, showRhTree, router, clearPendingPushNavigation]);
+  }, [pending, showRhTree, canUseRh, router, clearPendingPushNavigation]);
 
   return null;
 }

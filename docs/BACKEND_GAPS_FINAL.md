@@ -1,3 +1,5 @@
+> ⚠️ **SUPERADO (22/09/2026).** Este documento describe el backend anterior y contiene afirmaciones que ya no son ciertas (p. ej. "documentos laborales no existe"). La fuente vigente es [`MOBILE_BACKEND_SYNC_2026_09_22.md`](./MOBILE_BACKEND_SYNC_2026_09_22.md).
+
 > **⚠️ DOCUMENTO SUPERADO — 2026-09-15.**
 > La fuente de verdad de contratos es ahora
 > [`BACKEND_SYNC_2026_09_15.md`](./BACKEND_SYNC_2026_09_15.md), auditado
