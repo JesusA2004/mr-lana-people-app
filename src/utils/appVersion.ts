@@ -138,3 +138,12 @@ export function resolveReleaseUrl(release: AppRelease | null | undefined): strin
   if (!release) return null;
   return release.download_url || release.install_url || release.store_url || null;
 }
+
+/** "1.0.0 (12)" — versión legible con build, para Configuración y soporte. */
+export function formatVersionLabel(version: string, build: number): string {
+  return build > 0 ? `${version} (${build})` : version;
+}
+
+export function getCurrentVersionLabel(): string {
+  return formatVersionLabel(getCurrentAppVersion(), getCurrentBuildNumber());
+}

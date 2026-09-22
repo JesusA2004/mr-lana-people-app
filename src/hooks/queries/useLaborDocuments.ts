@@ -3,6 +3,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteD
 import { documentosLaboralesApi, type DocumentosLaboralesParams } from '@/api/documentosLaborales';
 import { queryKeys } from '@/api/queryKeys';
 import type { LaborDocument } from '@/types/laborDocument';
+import { isNotFoundError } from '@/utils/errors';
 import { nextPageOf, type Paginated } from '@/utils/normalize';
 import { invalidateCiclo } from './cicloInvalidate';
 import { retryUnlessClientError, SENSITIVE_MUTATION } from './queryOptions';
@@ -30,36 +31,28 @@ function findInCache(queryClient: ReturnType<typeof useQueryClient>, id: number)
   return undefined;
 }
 
-/** Tope de páginas a recorrer cuando el detalle se abre sin caché (push/tarea): 20 × 20 = 400 documentos propios. */
-const MAX_PAGES_LOOKUP = 20;
-
 /**
- * Detalle de un documento laboral PROPIO. El backend no expone
- * `GET /colaborador/documentos-laborales/{id}` (gap documentado en
- * `docs/MOBILE_BACKEND_SYNC_2026_09_22.md`): se usa el mismo objeto del
- * listado. Primero la caché; si se abrió desde un push/tarea sin caché, se
- * consulta "por firmar" (el caso más común) y luego el listado completo.
+ * Detalle de un documento laboral PROPIO: `GET /colaborador/documentos-laborales/{id}`.
+ * La caché del listado sirve como dato inicial (pantalla instantánea al
+ * venir de la lista) y siempre se revalida contra el backend. Un 404
+ * (cancelado, ajeno, borrado) se traduce a `null` → "Este documento ya no
+ * está disponible", nunca a un error genérico.
  */
 export function useLaborDocument(id: number | undefined) {
   const queryClient = useQueryClient();
   return useQuery({
     queryKey: [...queryKeys.laborDocumentsRoot, 'detail', id ?? 0],
-    enabled: id !== undefined && Number.isFinite(id),
+    enabled: id !== undefined && Number.isFinite(id) && id > 0,
     retry: retryUnlessClientError,
     initialData: () => (id !== undefined ? findInCache(queryClient, id) : undefined),
-    queryFn: async (): Promise<LaborDocument | null> => {
-      const target = id as number;
-      const porFirmar = await documentosLaboralesApi.list({ estado: 'pendientes_firma' });
-      const pending = porFirmar.data.find((doc) => doc.id === target);
-      if (pending) return pending;
-
-      for (let page = 1; page <= MAX_PAGES_LOOKUP; page++) {
-        const result = await documentosLaboralesApi.list({ page });
-        const found = result.data.find((doc) => doc.id === target);
-        if (found) return found;
-        if (result.meta.current_page >= result.meta.last_page) break;
+    initialDataUpdatedAt: 0,
+    queryFn: async ({ signal }): Promise<LaborDocument | null> => {
+      try {
+        return await documentosLaboralesApi.detalle(id as number, signal);
+      } catch (error) {
+        if (isNotFoundError(error)) return null;
+        throw error;
       }
-      return null;
     },
   });
 }
@@ -69,6 +62,10 @@ export function useFirmarDocumentoLaboral() {
   return useMutation({
     ...SENSITIVE_MUTATION,
     mutationFn: ({ id, comentario }: { id: number; comentario?: string | null }) => documentosLaboralesApi.firmar(id, comentario),
-    onSuccess: () => invalidateCiclo(queryClient, { type: 'documento_firmado' }),
+    onSuccess: (documento) => {
+      // La UI refleja de inmediato el estado que confirmó el backend (firmado / pendiente de impresión).
+      queryClient.setQueryData([...queryKeys.laborDocumentsRoot, 'detail', documento.id], documento);
+      invalidateCiclo(queryClient, { type: 'documento_firmado' });
+    },
   });
 }

@@ -18,12 +18,12 @@ export const authApi = {
     return normalizeLoginResponse(response.data);
   },
 
-  async logout(): Promise<void> {
-    await apiClient.post('/logout');
+  async logout(options: { timeout?: number } = {}): Promise<void> {
+    await apiClient.post('/logout', undefined, { timeout: options.timeout });
   },
 
-  async me(): Promise<AuthUser> {
-    const response = await apiClient.get('/me');
+  async me(options: { timeout?: number } = {}): Promise<AuthUser> {
+    const response = await apiClient.get('/me', { timeout: options.timeout });
     return extractData<AuthUser>(response.data);
   },
 };

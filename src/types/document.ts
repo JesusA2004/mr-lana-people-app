@@ -31,6 +31,8 @@ export interface DocumentoIncorporacion {
   puede_subir: boolean;
   puede_reemplazar: boolean;
   puede_solicitar_cambio: boolean;
+  /** Id del archivo vigente (backend 2026-09-22). El push `documento` usa este id como resource_id. */
+  documento_id?: number | null;
   fecha_subida?: string | null;
   fecha_revision?: string | null;
 }

@@ -17,13 +17,19 @@ export interface DocumentosLaboralesParams {
  * capacitaciones (backend 2026-09-22). El colaborador sale SIEMPRE de la
  * sesión; los recursos por id pasan por `GeneratedDocumentPolicy`.
  *
- * No existe `GET /colaborador/documentos-laborales/{id}`: el detalle se
- * arma con el mismo objeto del listado (ver `useLaborDocument`).
+ * Detalle: `GET /colaborador/documentos-laborales/{id}` (backend
+ * 2026-09-22, solo titular; mismo contrato que el listado). Un documento
+ * ajeno, cancelado o en borrador responde 404.
  */
 export const documentosLaboralesApi = {
   async list(params: DocumentosLaboralesParams = {}): Promise<Paginated<LaborDocument>> {
     const response = await apiClient.get('/colaborador/documentos-laborales', { params });
     return normalizePaginated(response.data, normalizeLaborDocument);
+  },
+
+  async detalle(id: number | string, signal?: AbortSignal): Promise<LaborDocument> {
+    const response = await apiClient.get(`/colaborador/documentos-laborales/${id}`, { signal });
+    return normalizeLaborDocument(extractData<unknown>(response.data));
   },
 
   /** Streaming autenticado (Bearer) para `SecureDocumentViewer` — nunca una URL pública. */

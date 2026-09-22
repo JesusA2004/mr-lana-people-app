@@ -15,7 +15,7 @@ export function OfflineBanner() {
 
   return (
     <Animated.View entering={FadeInDown.duration(200)} exiting={FadeOutUp.duration(150)} style={[styles.banner, { paddingTop: insets.top + 6 }]}>
-      <Ionicons name="cloud-offline-outline" size={14} color={Colors.white} />
+      <Ionicons name="cloud-offline-outline" size={14} color={Colors.onInverseSurface} />
       <Text style={styles.text}>Sin conexión</Text>
     </Animated.View>
   );
@@ -29,7 +29,7 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 1100,
     elevation: 1100,
-    backgroundColor: Colors.text,
+    backgroundColor: Colors.inverseSurface,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -37,7 +37,7 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
   },
   text: {
-    color: Colors.white,
+    color: Colors.onInverseSurface,
     fontSize: FontSize.xs,
     fontWeight: '700',
   },

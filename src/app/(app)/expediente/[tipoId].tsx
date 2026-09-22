@@ -20,13 +20,18 @@ import { getErrorMessage, logError } from '@/utils/errors';
 
 export default function DocumentoDetalleScreen() {
   const router = useRouter();
-  const { tipoId } = useLocalSearchParams<{ tipoId: string }>();
+  // `ref=documento`: se abrió desde un push `documento` cuyo resource_id es
+  // el id del ARCHIVO (no del tipo) — ver `utils/appLinks.ts`.
+  const { tipoId, ref } = useLocalSearchParams<{ tipoId: string; ref?: string }>();
   const { data, isLoading, isError, error, refetch } = useIncorporacion();
   const uploadMutation = useUploadDocumento();
   const solicitarCambioMutation = useSolicitarCambioDocumento();
   const [sheetVisible, setSheetVisible] = useState(false);
 
-  const documento = data?.documentos.find((item) => String(item.id) === tipoId);
+  const documento =
+    ref === 'documento'
+      ? data?.documentos.find((item) => item.documento_id !== null && item.documento_id !== undefined && String(item.documento_id) === tipoId)
+      : data?.documentos.find((item) => String(item.id) === tipoId);
 
   const handleUpload = async (file: PickedDocumentFile, onProgress: (percent: number) => void) => {
     if (!documento) return;
@@ -68,7 +73,10 @@ export default function DocumentoDetalleScreen() {
         ) : isError ? (
           <ErrorState message={getErrorMessage(error)} onRetry={() => void refetch()} />
         ) : !documento ? (
-          <ErrorState message="No encontramos este documento en tu expediente." onRetry={() => void refetch()} />
+          <ErrorState
+            message={ref === 'documento' ? 'Este documento ya no está disponible. Puede que lo hayas reemplazado por una versión nueva.' : 'No encontramos este documento en tu expediente.'}
+            onRetry={() => void refetch()}
+          />
         ) : (
           <>
             <Card style={styles.headerCard}>

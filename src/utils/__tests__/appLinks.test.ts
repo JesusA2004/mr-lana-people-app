@@ -1,115 +1,103 @@
-import { experienceForPushType, resolveResourceRoute } from '../appLinks';
+import { experienceForPushType, isPushForCurrentUser, normalizeResourceId, resolveResourceRoute } from '../appLinks';
 
-describe('resolveResourceRoute — colaborador', () => {
-  it('solicitud con id navega al detalle', () => {
-    expect(resolveResourceRoute({ type: 'solicitud', resource_id: 123 })).toBe('/solicitud/123');
+/**
+ * Cada tipo aquí está CONFIRMADO contra un emisor real del backend
+ * (capacitaciones: PushNotifier::aUsuario*, NotificadorRhService::notificar,
+ * DispositivoController::pushPrueba). Si el backend agrega un tipo nuevo, se
+ * agrega aquí junto con su ruta — nunca por adelantado.
+ */
+const CASOS: [type: string, resourceId: number | null, route: string, experience: 'rh' | 'colaborador' | null][] = [
+  ['solicitud', 123, '/solicitud/123', 'colaborador'],
+  ['vacaciones', 9, '/(app)/(tabs)/vacaciones', 'colaborador'],
+  ['documento', 77, '/expediente/77?ref=documento', 'colaborador'],
+  ['incorporacion', 5, '/incorporacion', 'colaborador'],
+  ['cumpleanos', 3, '/cumpleanos', 'colaborador'],
+  ['rh_solicitud', 184, '/(app)/rh/solicitudes/184', 'rh'],
+  ['rh_vacaciones', 12, '/(app)/rh/vacaciones/12', 'rh'],
+  ['rh_documento', 431, '/(app)/rh/documentos/431', 'rh'],
+  ['rh_incorporacion', 20, '/(app)/rh/incorporaciones/20', 'rh'],
+  ['rh_cumpleanos', 42, '/(app)/rh/cumpleanos/42', 'rh'],
+  ['documento_firma_pendiente', 300, '/documentos-laborales/300', 'colaborador'],
+  ['recibo_nomina', 88, '/recibos/88', 'colaborador'],
+  ['prestamo_autorizado', 15, '/prestamos/15', 'colaborador'],
+  ['expediente_incompleto', 7, '/(app)/(tabs)/expediente', 'colaborador'],
+  ['alta_activada', 7, '/(app)/(tabs)', 'colaborador'],
+  ['visto_bueno_pendiente', 44, '/equipo', null],
+  ['evaluacion_pendiente', 61, '/evaluaciones/61', null],
+  ['evaluacion_devuelta', 61, '/evaluaciones/61', null],
+  ['evaluacion_capturada', 61, '/evaluaciones/61', null],
+  ['contrato_por_vencer', 90, '/(app)/rh/contratos/por-vencer', 'rh'],
+];
+
+describe('resolveResourceRoute — tipos reales del backend', () => {
+  it.each(CASOS)('%s (#%s) → %s', (type, resourceId, route) => {
+    expect(resolveResourceRoute({ type, resource_id: resourceId })).toBe(route);
   });
 
-  it('documento sin id cae al tab de expediente', () => {
+  it.each(CASOS)('%s pertenece a la experiencia correcta', (type, _id, _route, experience) => {
+    expect(experienceForPushType(type)).toBe(experience);
+  });
+
+  it('sin resource_id cae en la lista correspondiente, nunca en una ruta con "undefined"', () => {
+    expect(resolveResourceRoute({ type: 'solicitud' })).toBe('/(app)/(tabs)/solicitudes');
     expect(resolveResourceRoute({ type: 'documento' })).toBe('/(app)/(tabs)/expediente');
+    expect(resolveResourceRoute({ type: 'documento_firma_pendiente', resource_id: null })).toBe('/documentos-laborales');
+    expect(resolveResourceRoute({ type: 'recibo_nomina' })).toBe('/recibos');
+    expect(resolveResourceRoute({ type: 'prestamo_autorizado' })).toBe('/prestamos');
+    expect(resolveResourceRoute({ type: 'evaluacion_pendiente' })).toBe('/evaluaciones');
+    expect(resolveResourceRoute({ type: 'rh_solicitud' })).toBe('/(app)/rh/(tabs)/pendientes');
   });
 
-  it('cumpleanos navega a la celebración', () => {
-    expect(resolveResourceRoute({ type: 'cumpleanos' })).toBe('/cumpleanos');
-  });
-
-  it('documento_laboral con id navega al detalle', () => {
-    expect(resolveResourceRoute({ type: 'documento_laboral', resource_id: 300 })).toBe('/documentos-laborales/300');
-  });
-
-  it('documento_laboral sin id cae en la lista', () => {
-    expect(resolveResourceRoute({ type: 'documento_laboral' })).toBe('/documentos-laborales');
-  });
-
-  it('tipo desconocido no navega a ningún lado', () => {
-    expect(resolveResourceRoute({ type: 'algo_nuevo' })).toBeNull();
-  });
-});
-
-describe('resolveResourceRoute — RH', () => {
-  it('rh_solicitud con id navega al detalle RH', () => {
-    expect(resolveResourceRoute({ type: 'rh_solicitud', resource_id: 184 })).toBe('/(app)/rh/solicitudes/184');
-  });
-
-  it('rh_pendiente siempre cae en la bandeja', () => {
-    expect(resolveResourceRoute({ type: 'rh_pendiente' })).toBe('/(app)/rh/(tabs)/pendientes');
-  });
-
-  it('rh_cumpleanos con resource_id navega al detalle de la felicitación', () => {
-    expect(resolveResourceRoute({ type: 'rh_cumpleanos', resource_id: 42 })).toBe('/(app)/rh/cumpleanos/42');
-  });
-
-  it('rh_cumpleanos sin resource_id pero con periodo navega a la bandeja filtrada (excepción documentada: nunca inventar un id)', () => {
+  it('rh_cumpleanos sin resource_id navega por periodo (nunca inventa un id)', () => {
     expect(resolveResourceRoute({ type: 'rh_cumpleanos', resource_id: null, periodo: 'hoy' })).toBe('/(app)/rh/cumpleanos?periodo=hoy');
-  });
-
-  it('rh_cumpleanos sin resource_id ni periodo cae en la bandeja general', () => {
     expect(resolveResourceRoute({ type: 'rh_cumpleanos' })).toBe('/(app)/rh/cumpleanos');
   });
 
-  it('rh_documento sin reason abre el detalle normal', () => {
-    expect(resolveResourceRoute({ type: 'rh_documento', resource_id: 431 })).toBe('/(app)/rh/documentos/431');
+  it('push_test abre Diagnóstico Push (build con herramientas de QA)', () => {
+    // En jest __DEV__ es true → SHOW_DEV_TOOLS.
+    expect(resolveResourceRoute({ type: 'push_test', resource_id: null })).toBe('/dev/diagnostico-push');
+    expect(experienceForPushType('push_test')).toBeNull();
   });
 
-  it('rh_documento con reason=extraction_review abre directo en Análisis automático', () => {
-    expect(resolveResourceRoute({ type: 'rh_documento', resource_id: 431, reason: 'extraction_review' })).toBe(
-      '/(app)/rh/documentos/431?focus=extraccion',
-    );
-  });
-
-  it('rh_documento con un reason desconocido se ignora y abre el detalle normal', () => {
-    expect(resolveResourceRoute({ type: 'rh_documento', resource_id: 431, reason: 'algo_que_no_conocemos' })).toBe(
-      '/(app)/rh/documentos/431',
-    );
-  });
-
-  it('rh_extraccion_documento siempre abre directo en Análisis automático', () => {
-    expect(resolveResourceRoute({ type: 'rh_extraccion_documento', resource_id: 431 })).toBe('/(app)/rh/documentos/431?focus=extraccion');
-  });
-
-  it('formato_disponible cae en la lista de formatos', () => {
-    expect(resolveResourceRoute({ type: 'formato_disponible', resource_id: 155 })).toBe('/(app)/rh/formatos');
-  });
-});
-
-describe('experienceForPushType', () => {
-  it('tipos rh_* pertenecen a la experiencia RH', () => {
-    expect(experienceForPushType('rh_solicitud')).toBe('rh');
-    expect(experienceForPushType('rh_cumpleanos')).toBe('rh');
-    expect(experienceForPushType('rh_extraccion_documento')).toBe('rh');
-    expect(experienceForPushType('formato_disponible')).toBe('rh');
-  });
-
-  it('tipos de colaborador pertenecen a Mi espacio', () => {
-    expect(experienceForPushType('solicitud')).toBe('colaborador');
-    expect(experienceForPushType('cumpleanos')).toBe('colaborador');
-    expect(experienceForPushType('documento_laboral')).toBe('colaborador');
-  });
-
-  it('sin tipo no decide ninguna experiencia', () => {
-    expect(experienceForPushType(undefined)).toBeNull();
-  });
-});
-
-describe('notificaciones/push de la sincronización 2026-09-15', () => {
-  it('"baja" abre la solicitud relacionada cuando hay resource_id', () => {
-    expect(resolveResourceRoute({ type: 'baja', resource_id: 184 })).toBe('/solicitud/184');
-  });
-
-  it('"baja" sin resource_id cae en el centro de notificaciones, nunca en una ruta inventada', () => {
-    expect(resolveResourceRoute({ type: 'baja', resource_id: null })).toBe('/notificaciones');
-  });
-
-  it('"baja" es un aviso del colaborador, no de la experiencia RH', () => {
-    expect(experienceForPushType('baja')).toBe('colaborador');
+  it('tipos no emitidos por el backend no resuelven ruta (quien llama cae en notificaciones)', () => {
+    for (const type of ['perfil', 'notificacion', 'baja', 'documento_laboral', 'rh_pendiente', 'formato_disponible', 'modulo_futuro']) {
+      expect(resolveResourceRoute({ type, resource_id: 9 })).toBeNull();
+      expect(experienceForPushType(type)).toBeNull();
+    }
+    expect(resolveResourceRoute({})).toBeNull();
   });
 
   it('un push de solicitud con "estado" sigue resolviendo al detalle exacto', () => {
     expect(resolveResourceRoute({ type: 'solicitud', resource_id: 184, estado: 'aprobada' })).toBe('/solicitud/184');
   });
+});
 
-  it('un tipo desconocido no resuelve ruta (quien llama decide el respaldo), sin lanzar', () => {
-    expect(resolveResourceRoute({ type: 'modulo_futuro', resource_id: 9 })).toBeNull();
-    expect(resolveResourceRoute({})).toBeNull();
+describe('normalizeResourceId — nunca una ruta armada con datos inválidos', () => {
+  it('acepta enteros positivos como número o string', () => {
+    expect(normalizeResourceId(12)).toBe('12');
+    expect(normalizeResourceId(' 12 ')).toBe('12');
+  });
+
+  it('rechaza vacíos, negativos, decimales y texto con separadores de ruta', () => {
+    for (const raw of [null, undefined, '', 0, -3, 1.5, 'abc', '12/../../perfil', '12?x=1']) {
+      expect(normalizeResourceId(raw as never)).toBeNull();
+    }
+    expect(resolveResourceRoute({ type: 'solicitud', resource_id: '12/../../perfil' })).toBe('/(app)/(tabs)/solicitudes');
+  });
+});
+
+describe('isPushForCurrentUser — cambio de cuenta en el mismo teléfono', () => {
+  it('abre el push del usuario con sesión', () => {
+    expect(isPushForCurrentUser({ type: 'recibo_nomina', user_id: 7 }, 7)).toBe(true);
+    expect(isPushForCurrentUser({ type: 'recibo_nomina', user_id: '7' }, 7)).toBe(true);
+  });
+
+  it('NO abre un push de la cuenta anterior', () => {
+    expect(isPushForCurrentUser({ type: 'recibo_nomina', user_id: 7 }, 8)).toBe(false);
+    expect(isPushForCurrentUser({ type: 'recibo_nomina', user_id: 7 }, null)).toBe(false);
+  });
+
+  it('pushes sin user_id (backend anterior) se aceptan: el backend sigue protegiendo el recurso', () => {
+    expect(isPushForCurrentUser({ type: 'solicitud' }, 8)).toBe(true);
   });
 });

@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { FontSize } from '@/constants/colors';
+import { Colors, FontSize } from '@/constants/colors';
 
 export interface SecurityWatermarkProps {
   /** Texto corto a repetir, ej. "Jesús A. · EMP-1234". Debe identificar a quien está viendo la pantalla, no datos de terceros. */
@@ -56,6 +56,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: FontSize.xs,
     fontWeight: '700',
-    color: 'rgba(17, 17, 17, 0.06)',
+    color: Colors.watermark,
   },
 });

@@ -22,20 +22,36 @@ interface ExperienceState {
  * elegida — el backend nunca decide esto, solo si la opción existe
  * (`capabilities.rh`, ver `useMobileBootstrap`).
  */
+/**
+ * Versión de la última elección explícita. Si `setExperience` ocurre mientras
+ * `load()` todavía lee SecureStore (cold start por un push de Gestión RH), el
+ * valor persistido que llega después NO debe pisar esa elección — antes lo
+ * hacía y la navegación pendiente del push quedaba esperando un árbol que
+ * nunca se montaba.
+ */
+let explicitSelection = 0;
+
 export const useExperienceStore = create<ExperienceState>((set) => ({
   isLoading: true,
   experience: null,
 
   async load() {
+    const selectionAtStart = explicitSelection;
+    let stored: string | null = null;
     try {
-      const stored = await SecureStore.getItemAsync(EXPERIENCE_KEY);
-      set({ experience: stored === 'rh' || stored === 'colaborador' ? stored : null, isLoading: false });
+      stored = await SecureStore.getItemAsync(EXPERIENCE_KEY);
     } catch {
-      set({ experience: null, isLoading: false });
+      stored = null;
     }
+    if (selectionAtStart !== explicitSelection) {
+      set({ isLoading: false });
+      return;
+    }
+    set({ experience: stored === 'rh' || stored === 'colaborador' ? stored : null, isLoading: false });
   },
 
   async setExperience(value) {
+    explicitSelection += 1;
     set({ experience: value });
     try {
       await SecureStore.setItemAsync(EXPERIENCE_KEY, value);
@@ -45,6 +61,8 @@ export const useExperienceStore = create<ExperienceState>((set) => ({
   },
 
   async reset() {
+    // Una lectura en vuelo de la sesión anterior no debe restaurar su experiencia.
+    explicitSelection += 1;
     set({ experience: null });
     try {
       await SecureStore.deleteItemAsync(EXPERIENCE_KEY);

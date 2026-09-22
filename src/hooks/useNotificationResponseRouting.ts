@@ -2,64 +2,84 @@ import { useEffect } from 'react';
 
 import { queryClient } from '@/api/queryClient';
 import { queryKeys, rhQueryKeyPrefix } from '@/api/queryKeys';
+import { configureNotificationHandler } from '@/services/pushNotifications';
+import { useAuthStore } from '@/store/authStore';
+import { usePushDiagnosticsStore } from '@/store/pushDiagnosticsStore';
 import { toast } from '@/store/toastStore';
 import type { PushNotificationData } from '@/types/pushNotification';
-import { experienceForPushType, resolveResourceRoute } from '@/utils/appLinks';
+import { experienceForPushType, isPushForCurrentUser, resolveResourceRoute } from '@/utils/appLinks';
 import { openCrossExperienceRoute } from '@/utils/crossNavigation';
+import { logError } from '@/utils/errors';
 import { pushCicloKeys } from '@/utils/pushInvalidation';
 import { supportsRemotePush } from '@/utils/runtime';
 
 /**
- * Cachés que cualquier push (colaborador o RH) puede haber invalidado —
- * barato refrescarlas todas.
- *
- * Con `data` se afina: un push de `solicitud`/`rh_solicitud` trae además
- * `estado`, señal de que ESE detalle cambió, así que se invalida también la
- * lista de solicitudes y el detalle concreto — al abrirlo se ve el estado
- * nuevo, no el que estaba en caché (sección 21). Las vacaciones comparten
- * caché con las solicitudes (son el mismo recurso unificado), así que el
- * saldo también se refresca.
+ * Respuestas (taps) ya procesadas en este proceso. En cold start la misma
+ * respuesta puede llegar por `getLastNotificationResponseAsync` Y por el
+ * listener; y tras logout → login el efecto vuelve a montarse — sin este
+ * registro se navegaría dos veces (o se abriría el push de la sesión
+ * anterior).
  */
-function invalidateAfterPush(data?: PushNotificationData): void {
+const handledResponses = new Set<string>();
+
+function responseKey(response: { notification: { request: { identifier: string } }; actionIdentifier: string }): string {
+  return `${response.notification.request.identifier}:${response.actionIdentifier}`;
+}
+
+/** Solo para pruebas. */
+export function __resetHandledPushResponses(): void {
+  handledResponses.clear();
+}
+
+/**
+ * Cachés que un push puede haber dejado obsoletas. Un push de `solicitud`
+ * trae `estado`: se invalida también el detalle concreto para que al
+ * abrirlo se vea el estado nuevo, no el de la caché.
+ */
+export function invalidateAfterPush(data?: PushNotificationData): void {
   void queryClient.invalidateQueries({ queryKey: queryKeys.notificaciones });
   void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
   void queryClient.invalidateQueries({ queryKey: queryKeys.bootstrap });
-  void queryClient.invalidateQueries({ queryKey: rhQueryKeyPrefix });
+  if (data?.type?.startsWith('rh_') || data?.type === 'contrato_por_vencer') {
+    void queryClient.invalidateQueries({ queryKey: rhQueryKeyPrefix });
+  }
 
-  if (data?.type === 'solicitud' || data?.type === 'vacaciones' || data?.type === 'baja') {
+  if (data?.type === 'solicitud' || data?.type === 'vacaciones') {
     void queryClient.invalidateQueries({ queryKey: queryKeys.solicitudes });
     void queryClient.invalidateQueries({ queryKey: queryKeys.vacacionesSaldo });
     if (data.resource_id) void queryClient.invalidateQueries({ queryKey: queryKeys.solicitud(data.resource_id) });
   }
+  if (data?.type === 'documento' || data?.type === 'incorporacion') {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.incorporacion });
+  }
 
-  // Ciclo laboral: cada push nuevo trae una tarea asociada casi siempre.
   for (const queryKey of pushCicloKeys(data?.type)) {
     void queryClient.invalidateQueries({ queryKey });
   }
 }
 
 /**
- * Cambia de experiencia si el push pertenece a la otra (AGENTS.md sección
- * 20) y ENCOLA la navegación real — nunca navega aquí mismo. Ni este hook
- * (montado en la raíz, antes de que `(app)/_layout.tsx` siquiera exista) ni
- * el listener de un push en cold start saben si el árbol de navegación
- * (Mi espacio/Gestión RH) que contiene la ruta destino ya está montado —
- * `PendingPushNavigationController` sí lo sabe y es quien navega de verdad
- * (AGENTS.md sección 11/12: "no debe intentar router.push antes de que la
- * ruta RH exista/montada").
+ * Encola la navegación (nunca navega aquí): `PendingPushNavigationController`
+ * en `(app)/_layout.tsx` la ejecuta cuando el árbol correcto (Mi espacio /
+ * Gestión RH) ya está montado — mismo camino para foreground, background y
+ * cold start, sin `setTimeout`.
  */
-function queueNavigation(data: PushNotificationData, route: string): void {
-  openCrossExperienceRoute(route, experienceForPushType(data.type));
+export function openPushTarget(data: PushNotificationData): void {
+  const currentUserId = useAuthStore.getState().user?.id ?? null;
+  if (!isPushForCurrentUser(data, currentUserId)) {
+    // Push de otra cuenta que usó este teléfono antes: no abrir nada suyo.
+    openCrossExperienceRoute('/notificaciones', null);
+    return;
+  }
+  const route = resolveResourceRoute(data);
+  openCrossExperienceRoute(route ?? '/notificaciones', route ? experienceForPushType(data.type) : null);
 }
 
 /**
- * Recepción en foreground (toast interno + refresco de notificaciones/
- * dashboard/RH para que los badges se actualicen, AGENTS.md sección 18) y
- * tap de push (navegación al recurso relacionado + cambio de experiencia si
- * aplica, sección 19/20). `expo-notifications` se importa dinámicamente y
- * solo cuando `supportsRemotePush` es verdadero — nunca a nivel de módulo —
- * para que este hook no arrastre esa dependencia dentro de Expo Go (ver
- * `src/services/pushNotifications.ts`).
+ * Recepción en foreground (toast con "Ver" — sin abrir otra pantalla por
+ * sorpresa) y tap del push (background o cold start → recurso exacto).
+ * `expo-notifications` se importa dinámicamente y solo cuando
+ * `supportsRemotePush` es verdadero (nunca en Expo Go).
  */
 export function useNotificationResponseRouting(enabled: boolean): void {
   useEffect(() => {
@@ -70,46 +90,43 @@ export function useNotificationResponseRouting(enabled: boolean): void {
     let responseSubscription: { remove: () => void } | undefined;
 
     (async () => {
-      const Notifications = await import('expo-notifications');
-      if (cancelled) return;
+      try {
+        const Notifications = await import('expo-notifications');
+        await configureNotificationHandler();
+        if (cancelled) return;
 
-      receivedSubscription = Notifications.addNotificationReceivedListener((notification) => {
-        const title = notification.request.content.title ?? 'Notificación';
-        const body = notification.request.content.body;
-        const data = (notification.request.content.data ?? {}) as PushNotificationData;
-        const route = resolveResourceRoute(data);
+        const handleResponse = (response: Parameters<Parameters<typeof Notifications.addNotificationResponseReceivedListener>[0]>[0]) => {
+          const key = responseKey(response);
+          if (handledResponses.has(key)) return;
+          handledResponses.add(key);
 
-        invalidateAfterPush(data);
-
-        toast.info(
-          body ? `${title}: ${body}` : title,
-          route
-            ? {
-                actionLabel: 'Ver',
-                onAction: () => queueNavigation(data, route),
-              }
-            : undefined,
-        );
-      });
-
-      responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
-        const data = (response.notification.request.content.data ?? {}) as PushNotificationData;
-        const route = resolveResourceRoute(data);
-        invalidateAfterPush(data);
-        queueNavigation(data, route ?? '/notificaciones');
-      });
-
-      // Cold start (AGENTS.md sección 19): si la app estaba completamente
-      // cerrada y el usuario abrió tocando un push, `addNotificationResponseReceivedListener`
-      // no dispara para esa respuesta inicial — hay que pedirla aparte.
-      const lastResponse = await Notifications.getLastNotificationResponseAsync();
-      if (!cancelled && lastResponse) {
-        const data = (lastResponse.notification.request.content.data ?? {}) as PushNotificationData;
-        const route = resolveResourceRoute(data);
-        if (route) {
+          const data = (response.notification.request.content.data ?? {}) as PushNotificationData;
+          usePushDiagnosticsStore.getState().recordPush(data, 'response');
           invalidateAfterPush(data);
-          queueNavigation(data, route);
-        }
+          openPushTarget(data);
+          // Que un re-montaje (logout → login) nunca repita esta respuesta.
+          Notifications.clearLastNotificationResponseAsync().catch(() => {});
+        };
+
+        receivedSubscription = Notifications.addNotificationReceivedListener((notification) => {
+          const title = notification.request.content.title ?? 'Notificación';
+          const body = notification.request.content.body;
+          const data = (notification.request.content.data ?? {}) as PushNotificationData;
+          usePushDiagnosticsStore.getState().recordPush(data, 'foreground');
+          invalidateAfterPush(data);
+
+          const currentUserId = useAuthStore.getState().user?.id ?? null;
+          const canOpen = isPushForCurrentUser(data, currentUserId) && resolveResourceRoute(data) !== null;
+          toast.info(body ? `${title}: ${body}` : title, canOpen ? { actionLabel: 'Ver', onAction: () => openPushTarget(data) } : undefined);
+        });
+
+        responseSubscription = Notifications.addNotificationResponseReceivedListener(handleResponse);
+
+        // Cold start: la app estaba cerrada y se abrió tocando el push.
+        const lastResponse = await Notifications.getLastNotificationResponseAsync();
+        if (!cancelled && lastResponse) handleResponse(lastResponse);
+      } catch (error) {
+        logError('useNotificationResponseRouting', error);
       }
     })();
 

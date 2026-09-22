@@ -1,93 +1,64 @@
+import { SHOW_DEV_TOOLS } from '@/constants/config';
 import type { Experience } from '@/store/experienceStore';
 import type { PushNotificationData, PushResourceType } from '@/types/pushNotification';
 
 /**
- * Único lugar donde se traduce `{ type, resource_id }` (payload de push, ver
- * `capacitaciones/docs/PUSH_NOTIFICATIONS.md`) a una ruta interna de
- * expo-router — no repetir este switch en cada listener/pantalla que reciba
- * push (AGENTS.md sección 17: "mapear rutas push", "parser central").
+ * Único lugar donde se traduce `{ type, resource_id, periodo }` (payload de
+ * push o `data` de una notificación guardada) a una ruta interna de
+ * expo-router. Nunca se construye una ruta a partir de texto humano (título,
+ * mensaje) — solo de campos estructurados.
  *
- * Los deep links por esquema (`mrlanapeopleapp://solicitud/123`,
- * `.../expediente/45`, `.../vacaciones`, `.../incorporacion`) NO necesitan
- * este parser: expo-router ya los enruta automáticamente porque el `path`
- * del link coincide 1:1 con las rutas de archivo — un link con una ruta que
- * no existe cae solo en `src/app/+not-found.tsx` (nunca truena la app).
- * Este helper existe para el caso que expo-router NO puede resolver solo:
- * el payload `data` de un push remoto, que no es una URL.
+ * Tipos CONFIRMADOS contra el backend real (capacitaciones, emisores en
+ * `PushNotifier::aUsuario*` y `NotificadorRhService::notificar()`):
+ *
+ * - Colaborador: solicitud, vacaciones, documento, incorporacion, cumpleanos
+ * - RH/aprobador: rh_solicitud, rh_vacaciones, rh_documento, rh_incorporacion, rh_cumpleanos
+ * - Ciclo laboral: documento_firma_pendiente, recibo_nomina, prestamo_autorizado,
+ *   expediente_incompleto, alta_activada, visto_bueno_pendiente,
+ *   evaluacion_pendiente, evaluacion_devuelta, evaluacion_capturada, contrato_por_vencer
+ * - QA: push_test (POST /dispositivos/push-prueba)
+ *
+ * Un tipo desconocido devuelve `null`: quien llama decide el respaldo (el
+ * centro de notificaciones), nunca se inventa una ruta.
  */
 export function resolveResourceRoute(data: PushNotificationData): string | null {
+  const id = normalizeResourceId(data.resource_id);
+
   switch (data.type) {
     case 'solicitud':
-      return data.resource_id ? `/solicitud/${data.resource_id}` : '/(app)/(tabs)/solicitudes';
+      return id ? `/solicitud/${id}` : '/(app)/(tabs)/solicitudes';
     case 'documento':
-      return data.resource_id ? `/expediente/${data.resource_id}` : '/(app)/(tabs)/expediente';
+      // `resource_id` es el id del ARCHIVO del expediente (no del tipo de
+      // documento): la pantalla lo resuelve con `ref=documento`.
+      return id ? `/expediente/${id}?ref=documento` : '/(app)/(tabs)/expediente';
     case 'vacaciones':
       return '/(app)/(tabs)/vacaciones';
     case 'incorporacion':
       return '/incorporacion';
-    case 'perfil':
-      return '/(app)/(tabs)/perfil';
     case 'cumpleanos':
       return '/cumpleanos';
-    case 'notificacion':
-      return '/notificaciones';
-    case 'baja':
-      // Aviso sensible (`NotificacionesService::ESTILOS` lo pinta en rojo).
-      // La app abre la solicitud de baja relacionada cuando el backend manda
-      // el id, y si no, el centro de notificaciones — NUNCA agrega detalle
-      // sensible propio: se muestra exactamente lo que el backend envió
-      // (sección 22).
-      return data.resource_id ? `/solicitud/${data.resource_id}` : '/notificaciones';
-    case 'documento_laboral':
-      // "Documentos laborales" del colaborador (AGENTS.md de este encargo,
-      // sección 19-22) — distinto de `documento` (expediente), que es lo
-      // que el colaborador ENTREGA a RH.
-      return data.resource_id ? `/documentos-laborales/${data.resource_id}` : '/documentos-laborales';
 
     case 'rh_solicitud':
-      return data.resource_id ? `/(app)/rh/solicitudes/${data.resource_id}` : '/(app)/rh/(tabs)/pendientes';
+      return id ? `/(app)/rh/solicitudes/${id}` : '/(app)/rh/(tabs)/pendientes';
     case 'rh_vacaciones':
-      return data.resource_id ? `/(app)/rh/vacaciones/${data.resource_id}` : '/(app)/rh/(tabs)/pendientes';
+      return id ? `/(app)/rh/vacaciones/${id}` : '/(app)/rh/(tabs)/pendientes';
     case 'rh_incorporacion':
-      return data.resource_id ? `/(app)/rh/incorporaciones/${data.resource_id}` : '/(app)/rh/(tabs)/pendientes';
-    case 'rh_pendiente':
-      return '/(app)/rh/(tabs)/pendientes';
-
+      return id ? `/(app)/rh/incorporaciones/${id}` : '/(app)/rh/(tabs)/pendientes';
     case 'rh_documento':
-      if (!data.resource_id) return '/(app)/rh/(tabs)/pendientes';
-      // `reason: "extraction_review"` (sección 12): abre el documento
-      // directo en la sección "Análisis automático" en vez del detalle
-      // normal. Cualquier otro `reason` (o ninguno) se ignora — nunca
-      // romper por un valor desconocido, siempre abre el documento normal.
-      return data.reason === 'extraction_review'
-        ? `/(app)/rh/documentos/${data.resource_id}?focus=extraccion`
-        : `/(app)/rh/documentos/${data.resource_id}`;
-    case 'rh_extraccion_documento':
-      // Push dedicado (sección 12): siempre abre directo en "Análisis automático".
-      return data.resource_id ? `/(app)/rh/documentos/${data.resource_id}?focus=extraccion` : '/(app)/rh/(tabs)/pendientes';
-
+      return id ? `/(app)/rh/documentos/${id}` : '/(app)/rh/(tabs)/pendientes';
     case 'rh_cumpleanos':
-      // Excepción documentada (`docs/PUSH_NOTIFICATIONS.md`): cuando el
-      // aviso resume varios cumpleaños, `resource_id` es null y el backend
-      // manda `periodo` para navegar a la bandeja en el estado correcto —
-      // nunca se inventa un id.
-      if (data.resource_id) return `/(app)/rh/cumpleanos/${data.resource_id}`;
+      // Cuando el aviso resume varios cumpleaños, `resource_id` es null y el
+      // backend manda `periodo` — nunca se inventa un id.
+      if (id) return `/(app)/rh/cumpleanos/${id}`;
       return data.periodo ? `/(app)/rh/cumpleanos?periodo=${encodeURIComponent(data.periodo)}` : '/(app)/rh/cumpleanos';
 
-    case 'formato_disponible':
-      // Los formatos generados son un módulo de RH (AGENTS.md de este
-      // encargo, secciones 13-18) — sin una pantalla de detalle propia por
-      // `documento_generado_id` todavía, cae elegantemente en la lista.
-      return '/(app)/rh/formatos';
-
-    // ---- Ciclo laboral (backend 2026-09-22, `NotificadorRhService::notificar()`):
-    // `resource_id` = id del objeto relacionado (`related_type` en el payload).
+    // Ciclo laboral: `resource_id` = id del objeto relacionado (`related_type`).
     case 'documento_firma_pendiente':
-      return data.resource_id ? `/documentos-laborales/${data.resource_id}` : '/documentos-laborales';
+      return id ? `/documentos-laborales/${id}` : '/documentos-laborales';
     case 'recibo_nomina':
-      return data.resource_id ? `/recibos/${data.resource_id}` : '/recibos';
+      return id ? `/recibos/${id}` : '/recibos';
     case 'prestamo_autorizado':
-      return data.resource_id ? `/prestamos/${data.resource_id}` : '/prestamos';
+      return id ? `/prestamos/${id}` : '/prestamos';
     case 'expediente_incompleto':
       return '/(app)/(tabs)/expediente';
     case 'alta_activada':
@@ -97,27 +68,40 @@ export function resolveResourceRoute(data: PushNotificationData): string | null 
     case 'evaluacion_pendiente':
     case 'evaluacion_devuelta':
     case 'evaluacion_capturada':
-      return data.resource_id ? `/evaluaciones/${data.resource_id}` : '/evaluaciones';
+      return id ? `/evaluaciones/${id}` : '/evaluaciones';
     case 'contrato_por_vencer':
+      // `resource_id` es el contrato; la bandeja de vencimientos es la vista útil.
       return '/(app)/rh/contratos/por-vencer';
+
+    case 'push_test':
+      return SHOW_DEV_TOOLS ? '/dev/diagnostico-push' : '/notificaciones';
 
     default:
       return null;
   }
 }
 
+/** Solo ids enteros positivos: un id vacío, "abc" o "1/../x" nunca forma parte de una ruta. */
+export function normalizeResourceId(raw: PushNotificationData['resource_id']): string | null {
+  if (typeof raw === 'number') return Number.isInteger(raw) && raw > 0 ? String(raw) : null;
+  if (typeof raw === 'string' && /^\d+$/.test(raw.trim())) {
+    const value = Number.parseInt(raw.trim(), 10);
+    return value > 0 ? String(value) : null;
+  }
+  return null;
+}
+
 /**
- * Tipos cuya pantalla es COMPARTIDA por ambas experiencias (existe en Mi
- * espacio y en Gestión RH): tocar el push NO cambia de experiencia.
- * Evaluaciones/Mi equipo los usan jefes que pueden estar en cualquiera de
- * las dos, y RH/Dirección autoriza evaluaciones desde la misma pantalla.
+ * Tipos cuya pantalla es COMPARTIDA por ambas experiencias: tocar el push NO
+ * cambia de experiencia (jefes y RH/Dirección usan Evaluaciones y Mi equipo
+ * desde cualquiera de las dos).
  */
 const SHARED_PUSH_TYPES = new Set<PushResourceType>([
-  'notificacion',
   'visto_bueno_pendiente',
   'evaluacion_pendiente',
   'evaluacion_devuelta',
   'evaluacion_capturada',
+  'push_test',
 ]);
 
 const RH_PUSH_TYPES = new Set<PushResourceType>([
@@ -125,22 +109,44 @@ const RH_PUSH_TYPES = new Set<PushResourceType>([
   'rh_documento',
   'rh_vacaciones',
   'rh_incorporacion',
-  'rh_pendiente',
   'rh_cumpleanos',
-  'rh_extraccion_documento',
-  'formato_disponible',
   'contrato_por_vencer',
 ]);
 
 /**
  * A qué experiencia (Mi espacio/Gestión RH) pertenece un tipo de push —
- * usado para cambiar automáticamente de modo al tocar la notificación
- * (AGENTS.md sección 20: "RH está en Mi espacio, llega rh_solicitud → al
- * tocar, cambiar a Gestión RH y abrir detalle, y viceversa"). `null` cuando
- * el tipo no aplica (push desconocido, no navega a ningún lado).
+ * usado para cambiar automáticamente de modo al tocar la notificación.
+ * `null` = ruta compartida o tipo desconocido (no cambia de experiencia).
  */
 export function experienceForPushType(type?: PushResourceType): Experience | null {
   if (!type) return null;
   if (SHARED_PUSH_TYPES.has(type)) return null;
-  return RH_PUSH_TYPES.has(type) ? 'rh' : 'colaborador';
+  if (RH_PUSH_TYPES.has(type)) return 'rh';
+  return KNOWN_COLLABORATOR_TYPES.has(type) ? 'colaborador' : null;
+}
+
+const KNOWN_COLLABORATOR_TYPES = new Set<PushResourceType>([
+  'solicitud',
+  'documento',
+  'vacaciones',
+  'incorporacion',
+  'cumpleanos',
+  'documento_firma_pendiente',
+  'recibo_nomina',
+  'prestamo_autorizado',
+  'expediente_incompleto',
+  'alta_activada',
+]);
+
+/**
+ * true si el push pertenece a la cuenta con sesión. El backend incluye
+ * `user_id` (destinatario) en cada push; si el teléfono cambió de cuenta, un
+ * push de la sesión anterior nunca abre datos. Pushes de backends previos
+ * (sin `user_id`) se aceptan: las Policies del backend siguen protegiendo
+ * el recurso (403/404 → "Este elemento ya no está disponible").
+ */
+export function isPushForCurrentUser(data: PushNotificationData, currentUserId: string | number | null | undefined): boolean {
+  if (data.user_id === undefined || data.user_id === null) return true;
+  if (currentUserId === null || currentUserId === undefined) return false;
+  return String(data.user_id) === String(currentUserId);
 }

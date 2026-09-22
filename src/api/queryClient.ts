@@ -1,6 +1,12 @@
 import NetInfo from '@react-native-community/netinfo';
 import { onlineManager, QueryClient } from '@tanstack/react-query';
 
+import { setConnectivityProbe } from '@/utils/errors';
+
+// `normalizeError` distingue "sin internet" de "servidor inalcanzable" con el
+// mismo estado de red que ya usa React Query (NetInfo → onlineManager).
+setConnectivityProbe(() => onlineManager.isOnline());
+
 /**
  * Cliente de @tanstack/react-query. Se adoptó en esta iteración porque la
  * app ya tiene suficientes pantallas dependientes de las mismas fuentes

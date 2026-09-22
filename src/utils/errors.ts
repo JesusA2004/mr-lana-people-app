@@ -17,9 +17,40 @@ export interface NormalizedError {
   isMissingTemplate?: boolean;
   /** Mensaje original del backend cuando `message` es una versión amigable del mismo problema. */
   detail?: string;
+  /** true cuando el dispositivo no tiene conexión (no solo que el servidor no respondió). */
+  isOffline?: boolean;
 }
 
 const FRIENDLY_NETWORK_MESSAGE = 'Tenemos problemas para conectar con el servidor. Inténtalo más tarde.';
+export const OFFLINE_MESSAGE = 'Necesitas conexión para continuar.';
+const TIMEOUT_MESSAGE = 'El servidor tardó demasiado en responder. Inténtalo de nuevo.';
+export const NOT_AVAILABLE_MESSAGE = 'Este elemento ya no está disponible.';
+
+/**
+ * Error propio de la app (no de Axios) con un mensaje YA pensado para el
+ * usuario — p. ej. SecureStore no pudo guardar la sesión. `normalizeError`
+ * lo respeta tal cual en vez de caer en "Ocurrió un error inesperado".
+ */
+export class AppError extends Error {
+  readonly userMessage: string;
+
+  constructor(userMessage: string, options?: { cause?: unknown }) {
+    super(userMessage);
+    this.name = 'AppError';
+    this.userMessage = userMessage;
+    if (options?.cause !== undefined) (this as { cause?: unknown }).cause = options.cause;
+  }
+}
+
+/**
+ * Estado de conectividad conocido por la app (NetInfo → React Query
+ * `onlineManager`, ver `bindQueryClientToNetworkStatus`). Se inyecta para no
+ * acoplar este módulo puro a React Query y poder probarlo.
+ */
+let isDeviceOnline: () => boolean = () => true;
+export function setConnectivityProbe(probe: () => boolean): void {
+  isDeviceOnline = probe;
+}
 
 export const MISSING_TEMPLATE_MESSAGE =
   'Este documento todavía no tiene una plantilla configurada. Solicita a RH o Jurídico que cargue el formato correspondiente.';
@@ -31,6 +62,21 @@ export const MISSING_TEMPLATE_MESSAGE =
  */
 export function isMissingTemplatePayload(errors: Record<string, string[]> | undefined): boolean {
   return !!errors && Array.isArray(errors.plantilla) && errors.plantilla.length > 0;
+}
+
+/**
+ * Mensajes del backend que NO deben llegar al usuario (AGENTS/QA: nunca
+ * "HTTP 422", nombres de clases, "Policy denied", trazas de JS). Los mensajes
+ * de validación del backend ya vienen en español y se muestran tal cual.
+ */
+const TECHNICAL_MESSAGE_PATTERN =
+  /(HTTP\s?\d{3}|Exception|SQLSTATE|Stack trace|This action is unauthorized|Unauthenticated|Policy|No query results for model|Cannot read propert|undefined is not|\bApp\\|GeneratedDocument|Server Error|^Not Found$|^Forbidden$|Too Many Attempts|Route \[)/i;
+
+export function safeBackendMessage(message: unknown): string | undefined {
+  if (typeof message !== 'string') return undefined;
+  const trimmed = message.trim();
+  if (!trimmed || trimmed.length > 400 || TECHNICAL_MESSAGE_PATTERN.test(trimmed)) return undefined;
+  return trimmed;
 }
 
 function isAxiosError(error: unknown): error is AxiosError<ApiErrorPayload> {
@@ -47,8 +93,17 @@ function isAxiosError(error: unknown): error is AxiosError<ApiErrorPayload> {
  * app ni mostrar detalles técnicos.
  */
 export function normalizeError(error: unknown): NormalizedError {
+  if (error instanceof AppError) {
+    return { message: error.userMessage };
+  }
+
   if (isAxiosError(error)) {
     if (!error.response) {
+      // Sin respuesta: distinguir "no hay internet" (acción del usuario:
+      // conectarse) de "el servidor no respondió a tiempo" y de "no llegamos
+      // al servidor" — los tres siguen siendo isNetworkError (nunca 401).
+      if (!isDeviceOnline()) return { message: OFFLINE_MESSAGE, isNetworkError: true, isOffline: true };
+      if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') return { message: TIMEOUT_MESSAGE, isNetworkError: true };
       return { message: FRIENDLY_NETWORK_MESSAGE, isNetworkError: true };
     }
 
@@ -57,10 +112,12 @@ export function normalizeError(error: unknown): NormalizedError {
     switch (status) {
       case 401:
         return { message: 'Tu sesión ha expirado. Vuelve a iniciar sesión.', status };
+      case 400:
+        return { message: 'No pudimos procesar la solicitud. Revisa la información e inténtalo de nuevo.', status };
       case 403:
-        return { message: 'No tienes permisos para realizar esta acción.', status };
+        return { message: safeBackendMessage(data?.message) ?? 'No tienes permiso para realizar esta acción.', status };
       case 404:
-        return { message: 'No se encontró la información solicitada.', status };
+        return { message: safeBackendMessage(data?.message) ?? NOT_AVAILABLE_MESSAGE, status };
       case 409:
         return { message: 'Esta información cambió mientras tanto. Actualiza la pantalla e inténtalo de nuevo.', status };
       case 422:
@@ -75,18 +132,22 @@ export function normalizeError(error: unknown): NormalizedError {
           };
         }
         return {
-          message: data?.message ?? 'Revisa los datos ingresados.',
+          message: safeBackendMessage(data?.message) ?? 'Revisa los datos marcados.',
           status,
           validationErrors: data?.errors,
         };
       case 429:
-        return { message: 'Hiciste demasiadas solicitudes seguidas. Espera un momento e inténtalo de nuevo.', status };
+        return { message: 'Demasiados intentos. Espera un momento e inténtalo de nuevo.', status };
       case 500:
         return { message: 'Ocurrió un error en el servidor. Intenta más tarde.', status };
+      case 502:
+      case 504:
+        return { message: 'El servidor no está respondiendo en este momento. Intenta más tarde.', status };
       case 503:
         return { message: 'Estamos realizando mantenimiento. Intenta de nuevo en unos minutos.', status };
       default:
-        return { message: data?.message ?? 'Ocurrió un error inesperado.', status };
+        if (status >= 500) return { message: 'Ocurrió un error en el servidor. Intenta más tarde.', status };
+        return { message: safeBackendMessage(data?.message) ?? 'Ocurrió un error inesperado.', status };
     }
   }
 
@@ -149,4 +210,14 @@ export function getDevErrorDetail(error: unknown): string | undefined {
 
   if (!method || !url) return undefined;
   return status ? `${method} ${url} → ${status}` : `${method} ${url} → sin respuesta del servidor`;
+}
+
+/**
+ * Fallas que NO dicen nada sobre la validez de la sesión: sin conexión,
+ * timeout, servidor caído (5xx) o limitado (429). Ante estas nunca se borra
+ * un token persistido — solo un 401 real (o un rechazo definitivo) lo hace.
+ */
+export function isTransientError(error: unknown): boolean {
+  const { status, isNetworkError } = normalizeError(error);
+  return Boolean(isNetworkError) || status === 429 || (status !== undefined && status >= 500);
 }

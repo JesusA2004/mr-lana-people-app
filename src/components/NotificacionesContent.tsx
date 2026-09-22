@@ -78,29 +78,21 @@ export function NotificacionesContent({ showBack = false }: NotificacionesConten
       });
     }
 
-    // El backend ahora manda `data.{type,resource_id}` justo para que la app
-    // navegue NATIVAMENTE, con el mismo resolver que usa el push
-    // (`resolveResourceRoute`). `url` es la ruta del portal WEB y no sirve
-    // para expo-router — solo se usa como respaldo si resulta ser una ruta
-    // interna. Un tipo desconocido no rompe nada: cae en el centro de
-    // notificaciones, nunca en una ruta inexistente (secciones 25/55).
+    // Navegación determinista con los campos estructurados del backend
+    // (`data.type/resource_id/periodo`) y el mismo resolver que el push.
+    // `url` es una ruta del portal WEB: nunca se usa para navegar en la app.
+    // Un tipo sin pantalla móvil solo se marca como leído.
     const type = item.data?.type ?? item.tipo ?? undefined;
-    const resolved = resolveResourceRoute({ type, resource_id: item.data?.resource_id ?? undefined });
+    const resolved = resolveResourceRoute({
+      type,
+      resource_id: item.data?.resource_id ?? undefined,
+      periodo: item.data?.periodo ?? undefined,
+    });
 
     if (resolved) {
       // Puede vivir en el otro árbol (ej. RH en Mi espacio toca un aviso de
       // documento laboral por archivar): mismo mecanismo que el tap de push.
       openCrossExperienceRoute(resolved, experienceForPushType(type));
-      return;
-    }
-
-    const fallback = item.url && item.url.startsWith('/') ? item.url : null;
-    if (!fallback) return;
-
-    try {
-      router.push(fallback as never);
-    } catch (navError) {
-      logError('notificaciones.navigate', navError);
     }
   };
 

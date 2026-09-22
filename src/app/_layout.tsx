@@ -1,8 +1,10 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import * as SystemUI from 'expo-system-ui';
+import { useEffect } from 'react';
+import { Appearance } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { bindQueryClientToNetworkStatus, queryClient } from '@/api/queryClient';
@@ -11,8 +13,11 @@ import { ErrorState } from '@/components/ErrorState';
 import { ForceUpdateScreen } from '@/components/ForceUpdateScreen';
 import { MaintenanceScreen } from '@/components/MaintenanceScreen';
 import { OfflineBanner } from '@/components/OfflineBanner';
+import { SessionVerificationScreen } from '@/components/SessionVerificationScreen';
+import { StartupFallback } from '@/components/StartupFallback';
 import { ToastHost } from '@/components/ToastHost';
 import { UpdateBanner } from '@/components/UpdateBanner';
+import { Colors, ColorSchemeAtLaunch } from '@/constants/colors';
 import { IS_API_URL_CONFIGURED } from '@/constants/config';
 import { useAppConfig } from '@/hooks/queries/useAppRelease';
 import { useNotificationResponseRouting } from '@/hooks/useNotificationResponseRouting';
@@ -20,37 +25,69 @@ import { usePushRegistration } from '@/hooks/usePushRegistration';
 import { useAuthStore } from '@/store/authStore';
 import { useMaintenanceStore } from '@/store/maintenanceStore';
 import { useOnboardingStore } from '@/store/onboardingStore';
+import { logError } from '@/utils/errors';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-/** Oculta el splash nativo únicamente cuando restauración de sesión + onboarding terminaron de leerse. */
+// La paleta se resolvió al arrancar (ver `constants/colors.ts`): la UI nativa
+// (Alert, date pickers, teclado) se fija al mismo esquema para que nunca haya
+// diálogos claros sobre pantallas oscuras (o al revés).
+try {
+  Appearance.setColorScheme(ColorSchemeAtLaunch);
+} catch (error) {
+  logError('Appearance.setColorScheme', error);
+}
+SystemUI.setBackgroundColorAsync(Colors.background).catch(() => {});
+
+const STATUS_BAR_STYLE = ColorSchemeAtLaunch === 'dark' ? 'light' : 'dark';
+
+/**
+ * Plazo máximo del splash nativo. La restauración ya tiene sus propios
+ * timeouts (SecureStore 5 s, `/me` 10 s) — este watchdog es la última red:
+ * si algo imprevisto sigue sin resolver, se oculta el splash y se ve
+ * `StartupFallback` (logo + progreso), nunca un logo congelado para siempre.
+ */
+const SPLASH_WATCHDOG_MS = 15000;
+
+function hideSplash(reason: string) {
+  SplashScreen.hideAsync().catch((error: unknown) => logError(`SplashScreen.hide(${reason})`, error));
+}
+
+/** Oculta el splash nativo cuando restauración de sesión + onboarding terminaron de leerse (o al vencer el watchdog). */
 function SplashScreenController() {
   const isInitializing = useAuthStore((state) => state.isInitializing);
   const isOnboardingLoading = useOnboardingStore((state) => state.isLoading);
+  const pendingVerification = useAuthStore((state) => state.pendingVerification);
+  const ready = !isInitializing && (!isOnboardingLoading || pendingVerification);
 
   useEffect(() => {
-    if (!isInitializing && !isOnboardingLoading) {
-      SplashScreen.hide();
-    }
-  }, [isInitializing, isOnboardingLoading]);
+    if (ready) hideSplash('ready');
+  }, [ready]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (__DEV__) console.warn('[Startup] Watchdog: el arranque tardó más de lo esperado; se oculta el splash.');
+      hideSplash('watchdog');
+    }, SPLASH_WATCHDOG_MS);
+    return () => clearTimeout(timer);
+  }, []);
 
   return null;
 }
 
 /**
  * Si por un error de configuración el build no trae la URL de API, el splash
- * nativo también debe cerrarse. Antes RootLayout retornaba ErrorState ANTES de
- * montar SplashScreenController, dejando el APK congelado visualmente en el logo
- * para siempre en builds preview donde EXPO_PUBLIC_API_URL no fue embebida.
+ * nativo también debe cerrarse y mostrar un error entendible (nunca el logo
+ * congelado).
  */
 function ApiConfigurationError() {
   useEffect(() => {
-    SplashScreen.hide();
+    hideSplash('config-error');
   }, []);
 
   return (
     <SafeAreaProvider>
-      <StatusBar style="dark" />
+      <StatusBar style={STATUS_BAR_STYLE} />
       <ErrorState message="La app no tiene configurada la conexión con People. Instala una compilación válida o contacta a soporte." />
     </SafeAreaProvider>
   );
@@ -74,23 +111,28 @@ function AppConfigController() {
 /**
  * Enrutador raíz. Usa `Stack.Protected` en tres tramos: sin sesión → auth;
  * con sesión pero onboarding no visto → onboarding; con sesión y onboarding
- * completo → app.
+ * completo → app. Una sesión guardada que no se pudo verificar por red NO es
+ * "sin sesión": muestra `SessionVerificationScreen` en vez de Login.
  */
 function RootNavigator() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isInitializing = useAuthStore((state) => state.isInitializing);
+  const pendingVerification = useAuthStore((state) => state.pendingVerification);
   const onboardingCompleted = useOnboardingStore((state) => state.completed);
   const isOnboardingLoading = useOnboardingStore((state) => state.isLoading);
 
-  usePushRegistration(isAuthenticated && onboardingCompleted);
-  useNotificationResponseRouting(isAuthenticated && onboardingCompleted);
+  const sessionReady = isAuthenticated && onboardingCompleted && !isOnboardingLoading;
+  usePushRegistration(sessionReady);
+  useNotificationResponseRouting(sessionReady);
 
-  if (isInitializing || isOnboardingLoading) return null;
+  if (isInitializing) return <StartupFallback />;
+  if (pendingVerification) return <SessionVerificationScreen />;
+  if (isOnboardingLoading) return <StartupFallback />;
 
   const showOnboarding = isAuthenticated && !onboardingCompleted;
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors.background } }}>
       <Stack.Protected guard={isAuthenticated && !showOnboarding}>
         <Stack.Screen name="(app)" />
       </Stack.Protected>
@@ -128,7 +170,7 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
-        <StatusBar style="dark" />
+        <StatusBar style={STATUS_BAR_STYLE} />
         <SplashScreenController />
         <AppConfigController />
         <AppErrorBoundary>

@@ -51,3 +51,10 @@ export const AUTO_LOCK_MINUTES = 5;
  * un .env mal copiado.
  */
 export const SHOW_DEMO_PROFILE_PHOTO = __DEV__ && process.env.EXPO_PUBLIC_SHOW_DEMO_PROFILE_PHOTO !== 'false';
+
+/**
+ * Herramientas de QA (Diagnóstico Push, Design QA): siempre en desarrollo y
+ * en el build `preview` (eas.json define EXPO_PUBLIC_DEV_TOOLS=true solo ahí,
+ * para poder probar push en el APK real). NUNCA en `production`.
+ */
+export const SHOW_DEV_TOOLS = __DEV__ || process.env.EXPO_PUBLIC_DEV_TOOLS === 'true';
