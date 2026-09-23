@@ -91,6 +91,30 @@ propia computadora podría hacerlo.
 npx expo start
 ```
 
+## Calidad (lo mismo que corre CI: `.github/workflows/mobile-ci.yml`)
+
+```bash
+npm run typecheck   # tsc --noEmit
+npm run lint        # expo lint
+npm test            # jest
+npm run check       # los tres
+npx expo-doctor
+npx expo export --platform android
+```
+
+## Builds (EAS)
+
+- `preview`: APK interno, `autoIncrement` de build (cada APK es distinguible
+  en Configuración → versión/build) y herramientas QA
+  (`EXPO_PUBLIC_SHOW_DEV_TOOLS=true`: Diagnóstico Push, Design QA).
+- `production`: `autoIncrement`, herramientas QA apagadas (las rutas `/dev/*`
+  ni siquiera se registran).
+- Con `appVersionSource: local`, EAS sube `android.versionCode`/`ios.buildNumber`
+  en `app.json` al compilar: **commitea ese cambio** después de cada build.
+
+Guías: `docs/PUSH_QA.md`, `docs/DEVICE_QA.md`, `docs/UI_UX_SYSTEM.md`,
+`docs/APP_LINKS_SETUP.md`, `docs/FINAL_MOBILE_AUDIT.md`.
+
 Escanea el código QR con la app **Expo Go** (Android) o la cámara (iOS), o
 presiona `a` / `i` en la terminal para abrir un emulador/simulador.
 
@@ -266,7 +290,7 @@ acepta directo (`src/utils/parseIncorporacionQr.ts`), junto con
 temporal, el scheme legado `mrlanapeople://...`. Para que la liga `https://`
 abra la app directo (App Links/Universal Links) en vez de solo el
 navegador, falta que el backend publique los archivos de verificación de
-dominio — ver `docs/MOBILE_BACKEND_SYNC_2026_09_22.md`, G-7.
+dominio con credenciales reales — pasos exactos en `docs/APP_LINKS_SETUP.md`.
 
 ## Notas / pendientes conocidos con el backend
 

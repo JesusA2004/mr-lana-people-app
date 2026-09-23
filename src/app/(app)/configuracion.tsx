@@ -1,25 +1,30 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/AppHeader';
 import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
-import { DevPushTokenTool } from '@/components/DevPushTokenTool';
 import { PressableScale } from '@/components/PressableScale';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { ExperienceSwitchCard } from '@/components/ExperienceSwitchCard';
+import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { SHOW_DEV_TOOLS } from '@/constants/config';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { authenticateWithBiometricsAsync, biometricLabel, getBiometricCapabilityAsync, type BiometricKind } from '@/services/biometricAuth';
-import { getPushPermissionStatusAsync, type PushPermissionSnapshot, registerCurrentPushToken } from '@/services/pushNotifications';
+import {
+  getPushPermissionStatusAsync,
+  openNotificationSettings,
+  type PushPermissionSnapshot,
+  registerCurrentPushToken,
+} from '@/services/pushNotifications';
 import { useAuthStore } from '@/store/authStore';
 import { useBiometricStore } from '@/store/biometricStore';
-import { useExperienceStore } from '@/store/experienceStore';
 import { toast } from '@/store/toastStore';
-import { canUseRhExperience } from '@/utils/capabilities';
+import { getCurrentAppVersion, getCurrentBuildNumber } from '@/utils/appVersion';
+import { canSwitchExperience, experienceAvailability } from '@/utils/experience';
 import { joinName } from '@/utils/formatters';
 
 export default function ConfiguracionScreen() {
@@ -35,19 +40,9 @@ export default function ConfiguracionScreen() {
   const setBiometricEnabled = useBiometricStore((state) => state.setEnabled);
 
   const bootstrap = useMobileBootstrap(true);
-  const experience = useExperienceStore((state) => state.experience);
-  const setExperience = useExperienceStore((state) => state.setExperience);
-  const canUseRh = bootstrap.data ? canUseRhExperience(bootstrap.data.capabilities, bootstrap.data.features) : false;
-  const isInRh = experience === 'rh';
+  const puedeCambiarExperiencia = canSwitchExperience(experienceAvailability(bootstrap.data?.capabilities, bootstrap.data?.features));
 
   const nombre = joinName(user?.nombre, user?.apellidos);
-
-  const handleSwitchExperience = async () => {
-    const target = isInRh ? 'colaborador' : 'rh';
-    await setExperience(target);
-    toast.success(target === 'rh' ? 'Cambiaste a Gestión RH.' : 'Cambiaste a Mi espacio.');
-    router.back();
-  };
 
   const refreshPushStatus = () => void getPushPermissionStatusAsync().then(setPushSnapshot);
 
@@ -74,19 +69,14 @@ export default function ConfiguracionScreen() {
     ]);
   };
 
-  const handlePushRowPress = async () => {
-    if (!pushSnapshot || pushSnapshot.status === 'unsupported' || pushSnapshot.status === 'granted') return;
-    // `canAskAgain` (no `status === 'undetermined'`) es lo que de verdad
-    // decide si el sistema todavía puede mostrar su propio diálogo: en
-    // Android es normal que el primer chequeo llegue como `denied` con
-    // `canAskAgain: true` cuando nunca se le preguntó al colaborador.
-    if (pushSnapshot.canAskAgain) {
-      await registerCurrentPushToken({ promptIfUndetermined: true });
-      refreshPushStatus();
-      return;
-    }
-    // Ya se le preguntó antes y lo negó: el sistema ya no deja re-preguntar desde la app, solo Ajustes.
-    void Linking.openSettings();
+  const pushInfo = describePushSnapshot(pushSnapshot);
+
+  const handleActivatePush = async () => {
+    // `canAskAgain` (no `status === 'undetermined'`) decide si el sistema
+    // todavía puede mostrar su diálogo: en Android el primer chequeo puede
+    // llegar `denied` con `canAskAgain: true`.
+    await registerCurrentPushToken({ promptIfUndetermined: true });
+    refreshPushStatus();
   };
 
   const handleToggleBiometric = async (value: boolean) => {
@@ -104,23 +94,14 @@ export default function ConfiguracionScreen() {
     }
   };
 
-  const pushStatusLabel = !pushSnapshot
-    ? '…'
-    : pushSnapshot.status === 'unsupported'
-      ? 'No disponible en Expo Go'
-      : pushSnapshot.status === 'granted'
-        ? 'Activadas'
-        : pushSnapshot.status === 'denied'
-          ? 'Desactivadas'
-          : 'Sin definir';
-
   const biometricStatusLabel = biometricCapable ? biometricLabel(biometricType) : 'No configurada en este dispositivo';
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <AppHeader title="Configuración" showBack onBackPress={() => router.back()} />
 
-      <View style={styles.content}>
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={styles.sectionLabel}>Cuenta</Text>
         <Card style={styles.userCard}>
           <Avatar name={nombre} size={48} />
           <View style={styles.userInfo}>
@@ -129,27 +110,41 @@ export default function ConfiguracionScreen() {
           </View>
         </Card>
 
-        {canUseRh ? (
+        {puedeCambiarExperiencia ? (
           <>
-            <Text style={styles.sectionLabel}>Cuenta</Text>
-            <Card style={{ gap: 0 }} padded={false}>
-              <SettingRow
-                icon={isInRh ? 'person-outline' : 'briefcase-outline'}
-                label={isInRh ? 'Cambiar a Mi espacio' : 'Cambiar a Gestión RH'}
-                value={isInRh ? 'Gestión RH activa' : 'Mi espacio activo'}
-                onPress={() => void handleSwitchExperience()}
-                last
-              />
-            </Card>
+            <Text style={styles.sectionLabel}>Experiencia</Text>
+            <ExperienceSwitchCard compact />
           </>
         ) : null}
 
         <Text style={styles.sectionLabel}>Notificaciones</Text>
-        <Card style={{ gap: 0 }} padded={false}>
-          <SettingRow icon="notifications-outline" label="Notificaciones push" value={pushStatusLabel} onPress={() => void handlePushRowPress()} last />
+        <Card style={styles.pushCard}>
+          <View style={styles.pushHeader}>
+            <View style={styles.settingIcon}>
+              <Ionicons name={pushInfo.icon} size={18} color={Colors.primaryDark} />
+            </View>
+            <View style={styles.toggleTextColumn}>
+              <Text style={styles.settingLabel}>Notificaciones push</Text>
+              <Text style={[styles.settingValue, { color: pushInfo.color }]}>{pushInfo.label}</Text>
+            </View>
+          </View>
+          {pushInfo.hint ? <Text style={styles.hint}>{pushInfo.hint}</Text> : null}
+          {pushSnapshot && pushSnapshot.status !== 'unsupported' && !(pushSnapshot.status === 'granted' && !pushSnapshot.provisional) ? (
+            <View style={styles.pushActions}>
+              {pushSnapshot.status !== 'granted' && pushSnapshot.canAskAgain ? (
+                <Button title="Activar" leftIcon="notifications-outline" fullWidth={false} style={styles.pushButton} onPress={() => void handleActivatePush()} />
+              ) : null}
+              <Button
+                title="Abrir ajustes"
+                variant="outline"
+                leftIcon="settings-outline"
+                fullWidth={false}
+                style={styles.pushButton}
+                onPress={() => void openNotificationSettings()}
+              />
+            </View>
+          ) : null}
         </Card>
-
-        {__DEV__ ? <DevPushTokenTool /> : null}
 
         <Text style={styles.sectionLabel}>Seguridad</Text>
         <Card style={{ gap: 0 }} padded={false}>
@@ -169,25 +164,73 @@ export default function ConfiguracionScreen() {
               thumbColor={biometricEnabled ? Colors.primary : Colors.surface}
             />
           </View>
-          <SettingRow
-            icon="shield-checkmark-outline"
-            label="Privacidad y protección"
-            value="Ver detalle"
-            onPress={() => router.push('/ayuda')}
-            last
-          />
+          <SettingRow icon="shield-checkmark-outline" label="Privacidad" onPress={() => router.push('/ayuda')} last />
         </Card>
 
-        <Text style={styles.sectionLabel}>Soporte</Text>
+        <Text style={styles.sectionLabel}>Aplicación</Text>
+        <Card style={{ gap: 0 }} padded={false}>
+          <View style={[styles.toggleRow, { borderBottomWidth: 0 }]}>
+            <View style={styles.settingIcon}>
+              <Ionicons name="phone-portrait-outline" size={18} color={Colors.primaryDark} />
+            </View>
+            <View style={styles.toggleTextColumn}>
+              <Text style={styles.settingLabel}>Versión</Text>
+              <Text style={styles.settingValue}>
+                {getCurrentAppVersion()} (build {getCurrentBuildNumber()})
+              </Text>
+            </View>
+          </View>
+        </Card>
+
+        <Text style={styles.sectionLabel}>Ayuda</Text>
         <Card style={{ gap: 0 }} padded={false}>
           <SettingRow icon="sparkles-outline" label="Guía de la app" onPress={() => router.push('/guia')} />
-          <SettingRow icon="help-buoy-outline" label="Ayuda y preguntas frecuentes" onPress={() => router.push('/ayuda')} last />
+          <SettingRow icon="help-buoy-outline" label="Preguntas frecuentes" onPress={() => router.push('/ayuda')} last />
         </Card>
 
+        {SHOW_DEV_TOOLS ? (
+          <>
+            <Text style={styles.sectionLabel}>Herramientas QA</Text>
+            <Card style={{ gap: 0 }} padded={false}>
+              <SettingRow icon="pulse-outline" label="Diagnóstico Push" onPress={() => router.push('/dev/diagnostico-push' as never)} />
+              <SettingRow icon="color-palette-outline" label="Design QA" onPress={() => router.push('/dev/design-qa' as never)} last />
+            </Card>
+          </>
+        ) : null}
+
         <Button title="Cerrar sesión" onPress={handleLogout} variant="danger" loading={loggingOut} disabled={loggingOut} />
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
+}
+
+/**
+ * Estado del permiso en palabras (nunca solo color). iOS "provisional"
+ * entrega en silencio a la bandeja: cuenta como permitido pero se nombra.
+ */
+function describePushSnapshot(snapshot: PushPermissionSnapshot | null): {
+  label: string;
+  hint?: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+} {
+  if (!snapshot) return { label: 'Consultando…', icon: 'notifications-outline', color: Colors.textMuted };
+  if (snapshot.status === 'unsupported') {
+    return { label: 'No disponible aquí', hint: 'Expo Go y la web no reciben push. Usa la app instalada.', icon: 'notifications-off-outline', color: Colors.textMuted };
+  }
+  if (snapshot.status === 'granted' && snapshot.provisional) {
+    return { label: 'Entrega silenciosa', hint: 'Llegan al centro de notificaciones sin sonido ni banner.', icon: 'notifications-outline', color: Colors.warning };
+  }
+  if (snapshot.status === 'granted') return { label: 'Activadas', icon: 'notifications', color: Colors.success };
+  if (snapshot.status === 'denied') {
+    return {
+      label: 'Desactivadas',
+      hint: snapshot.canAskAgain ? 'Actívalas para enterarte de aprobaciones y documentos por firmar.' : 'Las desactivaste en el sistema: actívalas desde Ajustes.',
+      icon: 'notifications-off-outline',
+      color: Colors.danger,
+    };
+  }
+  return { label: 'Sin configurar', hint: 'Actívalas para enterarte de aprobaciones y documentos por firmar.', icon: 'notifications-outline', color: Colors.textMuted };
 }
 
 function SettingRow({
@@ -224,8 +267,35 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   content: {
+    width: '100%',
+    maxWidth: Layout.maxFormWidth,
+    alignSelf: 'center',
     padding: Spacing.lg,
+    paddingBottom: Spacing.xxxl,
     gap: Spacing.lg,
+  },
+  pushCard: {
+    gap: Spacing.md,
+  },
+  pushHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  pushActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  pushButton: {
+    flexGrow: 1,
+    flexBasis: 130,
+    minHeight: 44,
+  },
+  hint: {
+    fontSize: FontSize.xs,
+    color: Colors.textMuted,
+    lineHeight: 17,
   },
   userCard: {
     flexDirection: 'row',

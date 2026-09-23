@@ -13,7 +13,7 @@ import { SecureDocumentViewer } from '@/components/SecureDocumentViewer';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
 import { rhDocumentosApi } from '@/api/rh/documentos';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useRhDocumentExtraction, useRhDocumentExtractionAplicar, useRhDocumentExtractionIgnorar } from '@/hooks/queries/useRhDocumentExtraction';
 import { useRhDocumento, useRhDocumentoAprobar, useRhDocumentoRechazar } from '@/hooks/queries/useRhDocumentos';
@@ -34,6 +34,7 @@ import { isExperimentalFeatureEnabled } from '@/utils/featureFlags';
 import { joinName } from '@/utils/formatters';
 import { haptics } from '@/utils/haptics';
 import { canApprove, canReject } from '@/utils/rhActions';
+import { confirmAction } from '@/utils/confirm';
 
 /** Detalle de documento RH (AGENTS.md sección 11): visor seguro dentro de la app, nunca descarga/comparte. */
 export default function RhDocumentoDetailScreen() {
@@ -198,7 +199,13 @@ export default function RhDocumentoDetailScreen() {
                   onSelect={(field, selection) => setSelections((prev) => ({ ...prev, [field]: selection }))}
                   canAplicar={canAplicar}
                   canIgnorar={canIgnorar}
-                  onAplicar={() => {
+                  onAplicar={async () => {
+                    const ok = await confirmAction({
+                      title: 'Aplicar cambios',
+                      message: 'Los datos seleccionados reemplazarán los del expediente del colaborador.',
+                      confirmLabel: 'Aplicar',
+                    });
+                    if (!ok) return;
                     const extraccion = extraction.data?.extraccion;
                     if (!extraccion?.differences) return;
                     const valores: Partial<Record<ExtractionApplicableField, string>> = {};
@@ -220,12 +227,19 @@ export default function RhDocumentoDetailScreen() {
                       },
                     });
                   }}
-                  onIgnorar={() =>
+                  onIgnorar={async () => {
+                    const ok = await confirmAction({
+                      title: 'Descartar análisis',
+                      message: 'Se descartarán los datos detectados en este documento. El expediente no cambia.',
+                      confirmLabel: 'Descartar',
+                      destructive: true,
+                    });
+                    if (!ok) return;
                     ignorar.mutate(undefined, {
                       onSuccess: () => toast.success('Análisis descartado.'),
                       onError: (err) => toast.error(getErrorMessage(err)),
-                    })
-                  }
+                    });
+                  }}
                   applying={aplicar.isPending}
                   ignoring={ignorar.isPending}
                   hasSelection={Object.values(selections).some((value) => value === 'detected')}
@@ -388,6 +402,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   content: {
+    width: '100%',
+    maxWidth: Layout.maxContentWidth,
+    alignSelf: 'center',
     padding: Spacing.lg,
     gap: Spacing.md,
     paddingBottom: Spacing.xxxl,

@@ -11,7 +11,7 @@ import { MotivoModal } from '@/components/MotivoModal';
 import { SecureDocumentViewer } from '@/components/SecureDocumentViewer';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
 import {
   useRhExpediente,
   useRhExpedienteAprobarDocumento,
@@ -213,6 +213,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   content: {
+    width: '100%',
+    maxWidth: Layout.maxContentWidth,
+    alignSelf: 'center',
     padding: Spacing.lg,
     gap: Spacing.md,
     paddingBottom: Spacing.xxxl,

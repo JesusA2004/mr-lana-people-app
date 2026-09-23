@@ -26,6 +26,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useMaintenanceStore } from '@/store/maintenanceStore';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { logError } from '@/utils/errors';
+import { isSplashReady, resolveStartupView } from '@/utils/startup';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -58,7 +59,7 @@ function SplashScreenController() {
   const isInitializing = useAuthStore((state) => state.isInitializing);
   const isOnboardingLoading = useOnboardingStore((state) => state.isLoading);
   const pendingVerification = useAuthStore((state) => state.pendingVerification);
-  const ready = !isInitializing && (!isOnboardingLoading || pendingVerification);
+  const ready = isSplashReady({ isInitializing, pendingVerification, isOnboardingLoading });
 
   useEffect(() => {
     if (ready) hideSplash('ready');
@@ -125,9 +126,9 @@ function RootNavigator() {
   usePushRegistration(sessionReady);
   useNotificationResponseRouting(sessionReady);
 
-  if (isInitializing) return <StartupFallback />;
-  if (pendingVerification) return <SessionVerificationScreen />;
-  if (isOnboardingLoading) return <StartupFallback />;
+  const view = resolveStartupView({ isInitializing, pendingVerification, isOnboardingLoading });
+  if (view === 'fallback') return <StartupFallback />;
+  if (view === 'session-verification') return <SessionVerificationScreen />;
 
   const showOnboarding = isAuthenticated && !onboardingCompleted;
 

@@ -1,10 +1,5 @@
-import { configuracionResponse, bootstrapGerente, bootstrapResponse } from '../../test/fixtures/backend';
-import {
-  buildCreatePayload,
-  findTipoConfig,
-  normalizeSolicitudesConfiguracion,
-  visibleRequestTypes,
-} from '../solicitudesConfig';
+import { configuracionResponse } from '../../test/fixtures/backend';
+import { buildCreatePayload, creatableRequestTypes, findTipoConfig, normalizeSolicitudesConfiguracion } from '../solicitudesConfig';
 
 describe('normalizeSolicitudesConfiguracion', () => {
   it('lee la envoltura REAL del backend: { tipos: [...] }, nunca { data: [...] }', () => {
@@ -64,60 +59,38 @@ describe('normalizeSolicitudesConfiguracion', () => {
     expect(tipo.campos[0]).toEqual({ name: 'firma', type: 'text', required: true });
   });
 
-  it('completa fecha_efectiva y tipo_baja para la baja, que el backend no emite (gap D-2)', () => {
+  it('descarta campos que el colaborador nunca captura aunque un backend anterior los anuncie', () => {
     const tipos = normalizeSolicitudesConfiguracion(configuracionResponse);
+    const prestamo = findTipoConfig(tipos, 'prestamo');
     const baja = findTipoConfig(tipos, 'baja_colaborador');
 
-    expect(baja?.campos.map((campo) => campo.name)).toEqual([
-      'motivo',
-      'observaciones',
-      'colaborador_objetivo_id',
-      'fecha_efectiva',
-      'tipo_baja',
-    ]);
-  });
-
-  it('no duplica esos campos si el backend empieza a mandarlos', () => {
-    const [baja] = normalizeSolicitudesConfiguracion({
-      tipos: [
-        {
-          clave: 'baja_colaborador',
-          nombre: 'Baja de colaborador',
-          requiere_colaborador_objetivo: true,
-          campos: [
-            { name: 'colaborador_objetivo_id', type: 'select', required: true },
-            { name: 'fecha_efectiva', type: 'date', required: true },
-            { name: 'tipo_baja', type: 'select', required: true },
-          ],
-        },
-      ],
-    });
-
-    expect(baja.campos.filter((campo) => campo.name === 'tipo_baja')).toHaveLength(1);
+    expect(prestamo?.campos.map((campo) => campo.name)).not.toContain('plazo_meses');
+    expect(baja?.campos.map((campo) => campo.name)).not.toContain('colaborador_objetivo_id');
   });
 });
 
-describe('visibleRequestTypes', () => {
-  it('oculta baja_colaborador a un colaborador sin solicitudes.bajas.crear', () => {
+describe('creatableRequestTypes — un colaborador NO solicita bajas', () => {
+  it('nunca ofrece baja_colaborador, sin importar permisos', () => {
     const tipos = normalizeSolicitudesConfiguracion(configuracionResponse);
-    const visibles = visibleRequestTypes(tipos, bootstrapResponse.user.permissions);
+    const claves = creatableRequestTypes(tipos).map((tipo) => tipo.clave);
 
-    expect(visibles.map((tipo) => tipo.clave)).not.toContain('baja_colaborador');
-    expect(visibles).toHaveLength(4);
+    expect(claves).not.toContain('baja_colaborador');
+    expect(claves).toEqual(['vacaciones', 'permiso_tiempo', 'prestamo', 'solicitud_general']);
   });
 
-  it('la muestra a quien sí tiene el permiso', () => {
-    const tipos = normalizeSolicitudesConfiguracion(configuracionResponse);
-    const visibles = visibleRequestTypes(tipos, bootstrapGerente.user.permissions);
+  it('tampoco ofrece un tipo nuevo que pida colaborador objetivo (baja con otro nombre)', () => {
+    const tipos = normalizeSolicitudesConfiguracion({
+      tipos: [
+        { clave: 'terminacion_laboral', nombre: 'Terminación laboral', requiere_colaborador_objetivo: true, campos: [] },
+        { clave: 'solicitud_general', nombre: 'General', campos: [] },
+      ],
+    });
 
-    expect(visibles.map((tipo) => tipo.clave)).toContain('baja_colaborador');
+    expect(creatableRequestTypes(tipos).map((tipo) => tipo.clave)).toEqual(['solicitud_general']);
   });
 
-  it('sin permisos cargados todavía, tampoco la muestra (fail-closed)', () => {
-    const tipos = normalizeSolicitudesConfiguracion(configuracionResponse);
-
-    expect(visibleRequestTypes(tipos, undefined).map((tipo) => tipo.clave)).not.toContain('baja_colaborador');
-    expect(visibleRequestTypes(undefined, undefined)).toEqual([]);
+  it('sin catálogo devuelve lista vacía', () => {
+    expect(creatableRequestTypes(undefined)).toEqual([]);
   });
 });
 
@@ -155,12 +128,11 @@ describe('buildCreatePayload', () => {
     expect(payload).toEqual({ tipo: 'solicitud_general', motivo: 'Necesito ayuda' });
   });
 
-  it('manda el monto del préstamo como número limpio, no como texto con formato', () => {
+  it('préstamo: solo monto (número limpio) y motivo — nunca plazo', () => {
     const config = findTipoConfig(tipos, 'prestamo')!;
     const payload = buildCreatePayload(config, { motivo: 'Gastos médicos', monto_solicitado: '$1,500.50', plazo_meses: '12' });
 
-    expect(payload.monto_solicitado).toBe(1500.5);
-    expect(payload.plazo_meses).toBe(12);
+    expect(payload).toEqual({ tipo: 'prestamo', motivo: 'Gastos médicos', monto_solicitado: 1500.5 });
   });
 
   it('omite los campos opcionales vacíos en vez de mandar cadenas vacías', () => {
@@ -170,21 +142,9 @@ describe('buildCreatePayload', () => {
     expect(payload).not.toHaveProperty('observaciones');
   });
 
-  it('para la baja incluye colaborador_objetivo_id numérico, fecha_efectiva y tipo_baja', () => {
+  it('la baja no se puede armar desde el autoservicio', () => {
     const config = findTipoConfig(tipos, 'baja_colaborador')!;
-    const payload = buildCreatePayload(config, {
-      motivo: 'Renuncia voluntaria',
-      colaborador_objetivo_id: 42,
-      fecha_efectiva: '2026-10-31',
-      tipo_baja: 'renuncia',
-    });
 
-    expect(payload).toEqual({
-      tipo: 'baja_colaborador',
-      motivo: 'Renuncia voluntaria',
-      colaborador_objetivo_id: 42,
-      fecha_efectiva: '2026-10-31',
-      tipo_baja: 'renuncia',
-    });
+    expect(() => buildCreatePayload(config, { motivo: 'Renuncia' })).toThrow();
   });
 });

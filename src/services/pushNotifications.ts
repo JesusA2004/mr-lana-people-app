@@ -42,8 +42,14 @@ let inFlightRegistration: Promise<PushRegistrationResult> | null = null;
 
 type NotificationsModule = typeof import('expo-notifications');
 
+/**
+ * Carga perezosa: el módulo nativo solo se evalúa la primera vez que se
+ * necesita (nunca en Expo Go, ver `supportsRemotePush`). `require` en vez de
+ * `import()` para que Jest pueda cargarlo; en Metro ambos son equivalentes.
+ */
 async function loadNotifications(): Promise<NotificationsModule> {
-  return import('expo-notifications');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return require('expo-notifications') as NotificationsModule;
 }
 
 /**
@@ -170,6 +176,7 @@ async function registerOnce(options: RegisterPushTokenOptions): Promise<PushRegi
     if (!isPermissionUsable(state)) return { status: 'no_permission' };
 
     const projectId = resolveEasProjectId();
+    diagnostics.setProjectId(projectId);
     if (!projectId) {
       const message = 'Este build no trae el projectId de EAS (app.json → extra.eas.projectId).';
       diagnostics.setError(message);
@@ -283,6 +290,24 @@ export async function openNotificationSettings(): Promise<void> {
     logError('openNotificationSettings.intent', error);
   }
   await Linking.openSettings();
+}
+
+/**
+ * Re-registra el token cuando el sistema lo ROTA (FCM/APNs pueden cambiarlo
+ * sin aviso). Devuelve la función para cancelar la suscripción. No lanza.
+ */
+export async function subscribeToPushTokenRotation(): Promise<() => void> {
+  if (!supportsRemotePush) return () => {};
+  try {
+    const Notifications = await loadNotifications();
+    const subscription = Notifications.addPushTokenListener(() => {
+      void registerCurrentPushToken();
+    });
+    return () => subscription.remove();
+  } catch (error) {
+    logError('subscribeToPushTokenRotation', error);
+    return () => {};
+  }
 }
 
 /** Dispara el push de prueba del backend (solo a los dispositivos de la propia cuenta). */

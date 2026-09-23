@@ -10,7 +10,7 @@ import { MotivoModal } from '@/components/MotivoModal';
 import { PressableScale } from '@/components/PressableScale';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
 import { useRhExpediente, useRhExpedienteAprobarIncorporacion, useRhExpedienteRechazarIncorporacion } from '@/hooks/queries/useRhExpedientes';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { toast } from '@/store/toastStore';
@@ -170,6 +170,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   content: {
+    width: '100%',
+    maxWidth: Layout.maxContentWidth,
+    alignSelf: 'center',
     padding: Spacing.lg,
     gap: Spacing.md,
     paddingBottom: Spacing.xxxl,

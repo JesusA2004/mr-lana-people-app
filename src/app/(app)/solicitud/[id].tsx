@@ -8,11 +8,12 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
 import { MascotAssistant } from '@/components/mascot/MascotAssistant';
+import { StepTimeline } from '@/components/ciclo/StepTimeline';
 import { RequestStatusTimeline } from '@/components/RequestStatusTimeline';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { SolicitudFormatoOficialCard } from '@/components/SolicitudFormatoOficialCard';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
 import { MascotMessages } from '@/constants/mascotMessages';
 import { useCancelSolicitud, useSolicitud } from '@/hooks/queries/useSolicitudes';
 import { toast } from '@/store/toastStore';
@@ -21,6 +22,7 @@ import { formatDateLong, formatDateTime } from '@/utils/dates';
 import { getDevErrorDetail, getErrorMessage, logError } from '@/utils/errors';
 import { formatCurrencyMXN, humanizeRequestType } from '@/utils/formatters';
 import { haptics } from '@/utils/haptics';
+import { loanStagesToTimeline } from '@/utils/loanRequest';
 
 /**
  * Detalle de una solicitud propia.
@@ -57,7 +59,8 @@ export default function SolicitudDetalleScreen() {
     value?: string | null;
   }
 
-  const monto = typeof solicitud?.monto_solicitado === 'number' ? solicitud.monto_solicitado : undefined;
+  const montoRaw = solicitud?.prestamo?.monto_solicitado ?? solicitud?.monto_solicitado;
+  const monto = typeof montoRaw === 'number' && Number.isFinite(montoRaw) ? montoRaw : undefined;
 
   const allDetails: DetailItem[] = [
     { icon: 'chatbox-ellipses-outline', label: 'Motivo', value: solicitud?.motivo },
@@ -72,8 +75,7 @@ export default function SolicitudDetalleScreen() {
             .join(' — ')
         : undefined,
     },
-    // Estos dos solo aparecen si el backend los serializa algún día; si no,
-    // el filtro de abajo los descarta sin dejar una fila vacía.
+    // Solo aparecen si el backend los manda; el filtro descarta filas vacías.
     { icon: 'cash-outline', label: 'Monto solicitado', value: monto !== undefined ? formatCurrencyMXN(monto) : undefined },
     { icon: 'time-outline', label: 'Última revisión', value: solicitud?.revisado_en ? formatDateTime(solicitud.revisado_en) : undefined },
   ];
@@ -124,7 +126,12 @@ export default function SolicitudDetalleScreen() {
             </Card>
 
             <Card>
-              <RequestStatusTimeline estado={solicitud.estado} estadoEtiqueta={solicitud.estado_etiqueta} />
+              {/* Préstamo: avance real calculado por el backend (visto bueno → RH → firma). */}
+              {solicitud.prestamo?.etapas.length ? (
+                <StepTimeline items={loanStagesToTimeline(solicitud.prestamo.etapas)} />
+              ) : (
+                <RequestStatusTimeline estado={solicitud.estado} estadoEtiqueta={solicitud.estado_etiqueta} />
+              )}
             </Card>
 
             {solicitud.estado === 'requiere_correccion' && solicitud.motivo_rechazo ? (
@@ -238,6 +245,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   content: {
+    width: '100%',
+    maxWidth: Layout.maxContentWidth,
+    alignSelf: 'center',
     padding: Spacing.lg,
     gap: Spacing.lg,
     paddingBottom: Spacing.xxxl,

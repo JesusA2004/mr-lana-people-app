@@ -10,6 +10,8 @@ export type PushPermissionState = 'granted' | 'provisional' | 'denied' | 'undete
 export interface LastPushReceived {
   type: string | null;
   resourceId: string | null;
+  relatedType: string | null;
+  accion: string | null;
   at: string;
   /** `foreground` (llegó con la app abierta) o `response` (la persona la tocó). */
   via: 'foreground' | 'response';
@@ -24,10 +26,13 @@ interface PushDiagnosticsState {
   lastError: string | null;
   lastPushReceived: LastPushReceived | null;
   setPermission: (permission: PushPermissionState) => void;
+  setProjectId: (projectId: string | null) => void;
   setRegistered: (token: string, projectId: string) => void;
   setError: (message: string | null) => void;
   recordPush: (data: PushNotificationData | undefined, via: LastPushReceived['via']) => void;
   loadPersisted: () => Promise<void>;
+  /** "Limpiar diagnóstico local": borra historial (error, último push, fecha) SIN olvidar el token (se necesita para revocarlo al cerrar sesión). */
+  clearDiagnostics: () => void;
   reset: () => void;
 }
 
@@ -48,6 +53,8 @@ export const usePushDiagnosticsStore = create<PushDiagnosticsState>((set) => ({
 
   setPermission: (permission) => set({ permission }),
 
+  setProjectId: (projectId) => set({ projectId }),
+
   setRegistered: (token, projectId) => {
     const at = new Date().toISOString();
     set({ token, projectId, lastRegisteredAt: at, lastError: null });
@@ -61,6 +68,8 @@ export const usePushDiagnosticsStore = create<PushDiagnosticsState>((set) => ({
       lastPushReceived: {
         type: typeof data?.type === 'string' ? data.type : null,
         resourceId: data?.resource_id !== undefined && data?.resource_id !== null ? String(data.resource_id) : null,
+        relatedType: typeof data?.related_type === 'string' ? data.related_type : null,
+        accion: typeof data?.accion === 'string' ? data.accion : null,
         at: new Date().toISOString(),
         via,
       },
@@ -73,6 +82,11 @@ export const usePushDiagnosticsStore = create<PushDiagnosticsState>((set) => ({
     } catch {
       // Diagnóstico no crítico.
     }
+  },
+
+  clearDiagnostics: () => {
+    set({ lastRegisteredAt: null, lastError: null, lastPushReceived: null });
+    void SecureStore.deleteItemAsync(LAST_REGISTERED_AT_KEY).catch(() => {});
   },
 
   reset: () => {

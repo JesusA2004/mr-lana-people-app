@@ -12,11 +12,12 @@ import { DocumentUploadSheet, type PickedDocumentFile } from '@/components/Docum
 import { ErrorState } from '@/components/ErrorState';
 import { MascotAssistant } from '@/components/mascot/MascotAssistant';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
 import { useIncorporacion, useSolicitarCambioDocumento, useUploadDocumento } from '@/hooks/queries/useIncorporacion';
 import { toast } from '@/store/toastStore';
 import { formatDateLong, formatDateTime } from '@/utils/dates';
 import { getErrorMessage, logError } from '@/utils/errors';
+import { confirmAction } from '@/utils/confirm';
 
 export default function DocumentoDetalleScreen() {
   const router = useRouter();
@@ -46,6 +47,12 @@ export default function DocumentoDetalleScreen() {
 
   const handleSolicitarCambio = async () => {
     if (!documento) return;
+    const ok = await confirmAction({
+      title: 'Solicitar cambio',
+      message: `Le pediremos a Recursos Humanos que autorice reemplazar «${documento.nombre}». Cuando lo autorice podrás subir el nuevo archivo.`,
+      confirmLabel: 'Solicitar cambio',
+    });
+    if (!ok) return;
     try {
       await solicitarCambioMutation.mutateAsync(documento.id);
       toast.success('Le pedimos a Recursos Humanos que autorice el cambio.');
@@ -170,6 +177,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   content: {
+    width: '100%',
+    maxWidth: Layout.maxContentWidth,
+    alignSelf: 'center',
     padding: Spacing.lg,
     gap: Spacing.lg,
     paddingBottom: Spacing.xxxl,

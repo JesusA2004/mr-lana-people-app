@@ -189,6 +189,21 @@ export interface SolicitudHistorialEntrada {
  * presencia real (`if (solicitud.documentos_generados?.length)`), nunca se
  * asume que existan.
  */
+/** Etapa del seguimiento de un préstamo (`PrestamoSeguimientoService`). */
+export interface SolicitudPrestamoEtapa {
+  clave: 'solicitud' | 'visto_bueno' | 'autorizacion' | 'firma' | (string & {});
+  etiqueta: string;
+  estado: 'hecho' | 'actual' | 'pendiente' | 'rechazado' | (string & {});
+}
+
+/** Bloque `prestamo` que el backend agrega a una solicitud de préstamo del colaborador. */
+export interface SolicitudPrestamoSeguimiento {
+  monto_solicitado: number | null;
+  prestamo_id: number | null;
+  monto_autorizado: number | null;
+  etapas: SolicitudPrestamoEtapa[];
+}
+
 export interface Solicitud {
   id: number | string;
   folio?: string;
@@ -217,6 +232,8 @@ export interface Solicitud {
   documentos_generados?: SolicitudDocumentoGenerado[];
   /** Sección 2/3 del encargo 2026-09-15: preparación, ver `SolicitudFormatoOficial`. */
   formatos_oficiales?: SolicitudFormatoOficial[];
+  /** Solo en préstamos: monto pedido y avance (visto bueno → RH → firma). */
+  prestamo?: SolicitudPrestamoSeguimiento | null;
   [key: string]: unknown;
 }
 
@@ -251,10 +268,6 @@ export interface CreateSolicitudPayload {
   fecha_fin?: string;
   dias_solicitados?: number;
   monto_solicitado?: number;
-  plazo_meses?: number;
-  colaborador_objetivo_id?: number;
-  fecha_efectiva?: string;
-  tipo_baja?: string;
   [key: string]: unknown;
 }
 

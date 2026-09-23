@@ -53,6 +53,10 @@ export function invalidateAfterPush(data?: PushNotificationData): void {
     void queryClient.invalidateQueries({ queryKey: queryKeys.incorporacion });
   }
 
+  if (data?.type === 'cumpleanos_muro') {
+    void queryClient.invalidateQueries({ queryKey: ['cumpleanos', 'muros'] });
+  }
+
   for (const queryKey of pushCicloKeys(data?.type)) {
     void queryClient.invalidateQueries({ queryKey });
   }

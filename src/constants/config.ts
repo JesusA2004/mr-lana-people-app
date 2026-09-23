@@ -53,8 +53,11 @@ export const AUTO_LOCK_MINUTES = 5;
 export const SHOW_DEMO_PROFILE_PHOTO = __DEV__ && process.env.EXPO_PUBLIC_SHOW_DEMO_PROFILE_PHOTO !== 'false';
 
 /**
- * Herramientas de QA (Diagnóstico Push, Design QA): siempre en desarrollo y
- * en el build `preview` (eas.json define EXPO_PUBLIC_DEV_TOOLS=true solo ahí,
- * para poder probar push en el APK real). NUNCA en `production`.
+ * Herramientas de QA (Diagnóstico Push, Design QA): siempre en desarrollo
+ * (`__DEV__`) y en los builds EAS `development`/`preview`, donde
+ * eas.json define `EXPO_PUBLIC_SHOW_DEV_TOOLS=true` para probar push en el
+ * APK real. El perfil `production` no la define → false: las rutas
+ * `/dev/*` ni siquiera se registran (`Stack.Protected` en
+ * `(app)/_layout.tsx`). Se inyecta en build (EXPO_PUBLIC_*), no en runtime.
  */
-export const SHOW_DEV_TOOLS = __DEV__ || process.env.EXPO_PUBLIC_DEV_TOOLS === 'true';
+export const SHOW_DEV_TOOLS = __DEV__ || process.env.EXPO_PUBLIC_SHOW_DEV_TOOLS === 'true';

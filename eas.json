@@ -7,15 +7,20 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_SHOW_DEV_TOOLS": "true"
+      },
       "android": {
         "buildType": "apk"
       }
     },
     "preview": {
       "distribution": "internal",
+      "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_API_URL": "https://people.mr-lana.com/api/v1",
-        "EXPO_PUBLIC_RH_WEB_URL": "https://people.mr-lana.com"
+        "EXPO_PUBLIC_RH_WEB_URL": "https://people.mr-lana.com",
+        "EXPO_PUBLIC_SHOW_DEV_TOOLS": "true"
       },
       "android": {
         "buildType": "apk"
@@ -25,7 +30,8 @@
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_API_URL": "https://people.mr-lana.com/api/v1",
-        "EXPO_PUBLIC_RH_WEB_URL": "https://people.mr-lana.com"
+        "EXPO_PUBLIC_RH_WEB_URL": "https://people.mr-lana.com",
+        "EXPO_PUBLIC_SHOW_DEV_TOOLS": "false"
       }
     }
   },

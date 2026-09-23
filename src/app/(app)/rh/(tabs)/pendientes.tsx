@@ -6,11 +6,11 @@ import { FlatList, RefreshControl, StyleSheet, Text, TextInput, View } from 'rea
 import { AppHeader } from '@/components/AppHeader';
 import { ErrorState } from '@/components/ErrorState';
 import { FadeInView } from '@/components/FadeInView';
-import { MascotAssistant } from '@/components/mascot/MascotAssistant';
+import { EmptyState } from '@/components/EmptyState';
 import { PressableScale } from '@/components/PressableScale';
 import { RhPendienteCard } from '@/components/RhPendienteCard';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
 import { useRhPendientesInfinite } from '@/hooks/queries/useRhPendientes';
 import type { RhPendienteFiltro } from '@/types/rh';
 import { getErrorMessage } from '@/utils/errors';
@@ -112,7 +112,7 @@ export default function RhPendientesScreen() {
           ) : isError ? (
             <ErrorState message={getErrorMessage(error)} onRetry={() => void refetch()} />
           ) : tipo === 'todos' && !q ? (
-            <MascotAssistant message="No hay pendientes por revisar. ¡Buen trabajo!" type="tip" dismissible={false} />
+            <EmptyState icon="checkmark-done-circle-outline" message="No hay pendientes por revisar. ¡Buen trabajo!" />
           ) : (
             <View style={styles.emptyFilter}>
               <Text style={styles.emptyFilterText}>No hay pendientes que coincidan.</Text>
@@ -174,6 +174,9 @@ const styles = StyleSheet.create({
     color: Colors.white,
   },
   listContent: {
+    width: '100%',
+    maxWidth: Layout.maxContentWidth,
+    alignSelf: 'center',
     padding: Spacing.lg,
     paddingTop: 0,
     flexGrow: 1,

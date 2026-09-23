@@ -10,12 +10,13 @@ import { ErrorState } from '@/components/ErrorState';
 import { MotivoModal } from '@/components/MotivoModal';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
 import { useRhIncorporacion, useRhIncorporacionAprobar, useRhIncorporacionRechazar } from '@/hooks/queries/useRhIncorporaciones';
 import { toast } from '@/store/toastStore';
 import { getErrorMessage, isConcurrencyConflict, logError } from '@/utils/errors';
 import { haptics } from '@/utils/haptics';
 import { canApprove, canReject } from '@/utils/rhActions';
+import { toExpedienteProgress } from '@/utils/expedienteProgress';
 
 /**
  * Detalle de incorporación RH (AGENTS.md sección 12): progreso de
@@ -107,7 +108,7 @@ export default function RhIncorporacionDetailScreen() {
                   .filter(Boolean)
                   .join(' · ')}
               </Text>
-              <AnimatedProgressBar percent={incorporacion.progreso.porcentaje} />
+              <AnimatedProgressBar percent={toExpedienteProgress(incorporacion.progreso).porcentaje} />
               <Text style={styles.progressCaption}>
                 {incorporacion.progreso.aprobados} de {incorporacion.progreso.total} documentos aprobados
               </Text>
@@ -173,6 +174,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   content: {
+    width: '100%',
+    maxWidth: Layout.maxContentWidth,
+    alignSelf: 'center',
     padding: Spacing.lg,
     gap: Spacing.md,
     paddingBottom: Spacing.xxxl,

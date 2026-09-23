@@ -139,14 +139,14 @@ export function normalizeError(error: unknown): NormalizedError {
       case 429:
         return { message: 'Demasiados intentos. Espera un momento e inténtalo de nuevo.', status };
       case 500:
-        return { message: 'Ocurrió un error en el servidor. Intenta más tarde.', status };
+        return { message: 'Tuvimos un problema de nuestro lado. Intenta más tarde.', status };
       case 502:
       case 504:
         return { message: 'El servidor no está respondiendo en este momento. Intenta más tarde.', status };
       case 503:
         return { message: 'Estamos realizando mantenimiento. Intenta de nuevo en unos minutos.', status };
       default:
-        if (status >= 500) return { message: 'Ocurrió un error en el servidor. Intenta más tarde.', status };
+        if (status >= 500) return { message: 'Tuvimos un problema de nuestro lado. Intenta más tarde.', status };
         return { message: safeBackendMessage(data?.message) ?? 'Ocurrió un error inesperado.', status };
     }
   }

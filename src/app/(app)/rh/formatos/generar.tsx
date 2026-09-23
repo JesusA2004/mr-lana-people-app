@@ -10,7 +10,7 @@ import { ErrorState } from '@/components/ErrorState';
 import { Input } from '@/components/Input';
 import { SecureDocumentViewer } from '@/components/SecureDocumentViewer';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
 import { rhFormatosApi } from '@/api/rh/formatos';
 import { useRhColaboradores } from '@/hooks/queries/useRhColaboradores';
 import { useRhFormatoGenerar, useRhFormatoPreparation, useRhFormatos } from '@/hooks/queries/useRhFormatos';
@@ -19,6 +19,7 @@ import type { RhColaborador } from '@/types/rh';
 import { getErrorMessage, logError } from '@/utils/errors';
 import { slugifyFilename } from '@/utils/formatters';
 import { haptics } from '@/utils/haptics';
+import { confirmAction } from '@/utils/confirm';
 
 /**
  * `preparar`/`generar`/`generados/{id}/preview` NO existen todavía en el
@@ -103,8 +104,14 @@ function FormatoGenerarWizard() {
     );
   }
 
-  const handleGenerar = () => {
+  const handleGenerar = async () => {
     if (!formatoId || !colaboradorId || generar.isPending) return;
+    const ok = await confirmAction({
+      title: 'Generar documento',
+      message: 'Se generará el documento con los datos revisados y quedará en el expediente del colaborador.',
+      confirmLabel: 'Generar',
+    });
+    if (!ok) return;
     generar.mutate(
       { formatoId, payload: { colaborador_id: colaboradorId, overrides, output } },
       {
@@ -190,7 +197,7 @@ function FormatoGenerarWizard() {
 
             <Button
               title={generar.isPending ? 'Generando documento…' : 'Generar documento'}
-              onPress={handleGenerar}
+              onPress={() => void handleGenerar()}
               loading={generar.isPending}
               disabled={generar.isPending}
             />
@@ -316,6 +323,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   content: {
+    width: '100%',
+    maxWidth: Layout.maxFormWidth,
+    alignSelf: 'center',
     padding: Spacing.lg,
     gap: Spacing.md,
     paddingBottom: Spacing.xxxl,

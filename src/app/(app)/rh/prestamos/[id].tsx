@@ -11,6 +11,7 @@ import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { toast } from '@/store/toastStore';
 import { getActionErrorMessage, logError } from '@/utils/errors';
 import { haptics } from '@/utils/haptics';
+import { confirmAction } from '@/utils/confirm';
 import { canGenerarDocumentosPrestamo, canResguardarPrestamo } from '@/utils/loan';
 
 const CLAVE_LABEL: Record<string, string> = { contrato_prestamo: 'contrato de préstamo', pagare: 'pagaré' };
@@ -29,7 +30,13 @@ export default function RhPrestamoScreen() {
   const operar = useRhOperarPrestamo(Number(id));
   const { isOffline } = useNetworkStatus();
 
-  const generar = () =>
+  const generar = async () => {
+    const ok = await confirmAction({
+      title: 'Generar documentos',
+      message: 'Se generarán el contrato de préstamo y el pagaré con los datos autorizados. Si ya existían, se reemplazan por la versión nueva.',
+      confirmLabel: 'Generar',
+    });
+    if (!ok) return;
     operar.mutate('generar_documentos', {
       onSuccess: ({ pendientes }) => {
         haptics.success();
@@ -46,6 +53,7 @@ export default function RhPrestamoScreen() {
         toast.error(getActionErrorMessage(error));
       },
     });
+  };
 
   const resguardar = () =>
     Alert.alert('Resguardar préstamo', 'Confirmas que el contrato y el pagaré firmados quedan bajo custodia de RH.', [

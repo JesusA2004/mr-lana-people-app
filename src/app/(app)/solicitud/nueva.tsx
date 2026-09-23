@@ -19,10 +19,9 @@ import { PressableScale } from '@/components/PressableScale';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { Stepper } from '@/components/Stepper';
 import { SuccessCheck } from '@/components/SuccessCheck';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
 import { MascotMessages } from '@/constants/mascotMessages';
 import { requestFieldCopy, requestTypePresentation, SPECIAL_LEAVE_COPY } from '@/constants/requestTypes';
-import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useCreateSolicitud } from '@/hooks/queries/useSolicitudes';
 import { useSolicitudesConfiguracion } from '@/hooks/queries/useSolicitudesConfiguracion';
 import { useVacacionesSaldo } from '@/hooks/queries/useVacaciones';
@@ -31,7 +30,8 @@ import type { KnownRequestType, Solicitud, SolicitudTipoConfig } from '@/types/r
 import { diffInDaysInclusive, formatDateLong, fromApiDateString } from '@/utils/dates';
 import { getErrorMessage, getValidationErrors, logError } from '@/utils/errors';
 import { haptics } from '@/utils/haptics';
-import { buildCreatePayload, findTipoConfig, visibleRequestTypes, type DynamicFormValues } from '@/utils/solicitudesConfig';
+import { formatCurrencyMXN } from '@/utils/formatters';
+import { buildCreatePayload, creatableRequestTypes, findTipoConfig, type DynamicFormValues } from '@/utils/solicitudesConfig';
 
 interface PickedFile {
   uri: string;
@@ -58,19 +58,19 @@ export default function NuevaSolicitudScreen() {
   const params = useLocalSearchParams<{ tipo?: string }>();
 
   const configuracion = useSolicitudesConfiguracion();
-  const bootstrap = useMobileBootstrap(true);
   const createMutation = useCreateSolicitud();
 
-  const tipos = useMemo(
-    () => visibleRequestTypes(configuracion.data, bootstrap.data?.user.permissions),
-    [configuracion.data, bootstrap.data?.user.permissions],
-  );
+  const tipos = useMemo(() => creatableRequestTypes(configuracion.data), [configuracion.data]);
+
+  // El préstamo tiene su propia pantalla, mínima: monto + motivo.
+  useEffect(() => {
+    if (params.tipo === 'prestamo') router.replace('/prestamos/solicitar' as never);
+  }, [params.tipo, router]);
 
   const [selectedTipo, setSelectedTipo] = useState<string>(params.tipo ?? '');
   const [values, setValues] = useState<DynamicFormValues>({});
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
-  const [selectedEmployeeName, setSelectedEmployeeName] = useState<string | undefined>();
   const [step, setStep] = useState(params.tipo ? 1 : 0);
   const [attachments, setAttachments] = useState<PickedFile[]>([]);
   const [permissionPrimer, setPermissionPrimer] = useState<{ kind: PermissionPrimerKind; blocked: boolean } | null>(null);
@@ -138,13 +138,16 @@ export default function NuevaSolicitudScreen() {
   };
 
   const selectTipo = (clave: string) => {
+    if (clave === 'prestamo') {
+      router.push('/prestamos/solicitar' as never);
+      return;
+    }
     if (clave === selectedTipo) return;
     // Cambiar de tipo cambia los campos: arrastrar valores de otro tipo solo
     // produciría un 422 con claves que este tipo ni pide.
     setSelectedTipo(clave);
     setValues({});
     setFieldErrors({});
-    setSelectedEmployeeName(undefined);
     setAttachments([]);
     setFormError(null);
   };
@@ -443,8 +446,6 @@ export default function NuevaSolicitudScreen() {
                   value={values[campo.name]}
                   onChange={(value) => setValue(campo.name, value)}
                   error={fieldErrors[campo.name]}
-                  selectedEmployeeName={selectedEmployeeName}
-                  onSelectEmployee={(_id, nombre) => setSelectedEmployeeName(nombre)}
                 />
               ))}
             </View>
@@ -511,7 +512,7 @@ export default function NuevaSolicitudScreen() {
                   key={campo.name}
                   icon="ellipse-outline"
                   label={requestFieldCopy(campo.name).label}
-                  value={summaryValue(campo.name, values[campo.name], selectedEmployeeName)}
+                  value={summaryValue(campo.name, values[campo.name])}
                 />
               ))}
               {config.permite_adjuntos ? (
@@ -567,9 +568,9 @@ function isInconclusive(error: unknown): boolean {
   return !candidate?.response;
 }
 
-function summaryValue(name: string, value: string | number | undefined, employeeName?: string): string {
+function summaryValue(name: string, value: string | number | undefined): string {
   if (value === undefined || value === null || value === '') return '—';
-  if (name === 'colaborador_objetivo_id') return employeeName ?? `#${value}`;
+  if (name === 'monto_solicitado') return formatCurrencyMXN(Number(value));
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return formatDateLong(value);
   return String(value);
 }
@@ -662,7 +663,7 @@ function SummaryRow({ icon, label, value }: { icon: keyof typeof Ionicons.glyphM
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   stepperWrapper: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.md },
-  content: { padding: Spacing.lg, paddingTop: 0, paddingBottom: Spacing.xxl, gap: Spacing.lg },
+  content: { width: '100%', maxWidth: Layout.maxFormWidth, alignSelf: 'center', padding: Spacing.lg, paddingTop: 0, paddingBottom: Spacing.xxl, gap: Spacing.lg },
   stepBlock: { gap: Spacing.lg },
   title: { fontSize: FontSize.xxl, fontWeight: '800', color: Colors.text },
   stepHelper: { fontSize: FontSize.sm, color: Colors.textMuted },

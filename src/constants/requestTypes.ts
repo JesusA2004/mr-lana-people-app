@@ -19,7 +19,8 @@ export interface RequestTypePresentation {
   family: RequestFamily;
 }
 
-const PRESENTATION: Record<KnownRequestType, RequestTypePresentation> = {
+// `baja_colaborador` no aparece: el colaborador no la crea (proceso de RH).
+const PRESENTATION: Partial<Record<KnownRequestType, RequestTypePresentation>> = {
   vacaciones: { icon: 'airplane-outline', description: 'Toma tus días con goce de sueldo.', family: 'vacaciones' },
   permiso_con_goce: { icon: 'checkmark-done-outline', description: 'Ausencia manteniendo tu sueldo.', family: 'permisos' },
   permiso_sin_goce: { icon: 'exit-outline', description: 'Ausencia sin percepción salarial.', family: 'permisos' },
@@ -32,7 +33,6 @@ const PRESENTATION: Record<KnownRequestType, RequestTypePresentation> = {
   actualizacion_bancaria: { icon: 'card-outline', description: 'Actualiza tu cuenta de pago.', family: 'otras' },
   reposicion_documental: { icon: 'reader-outline', description: 'Repón un documento de tu expediente.', family: 'otras' },
   prestamo: { icon: 'cash-outline', description: 'Solicita apoyo económico interno.', family: 'prestamos' },
-  baja_colaborador: { icon: 'person-remove-outline', description: 'Inicia la baja de alguien de tu equipo.', family: 'otras' },
   permiso_especial_cumpleanos: { icon: 'gift-outline', description: 'Tu día libre de cumpleaños.', family: 'permisos' },
   permiso_especial_paternidad: { icon: 'people-outline', description: 'Días por nacimiento o adopción.', family: 'permisos' },
   permiso_especial_fallecimiento: { icon: 'heart-dislike-outline', description: 'Días por el fallecimiento de un familiar.', family: 'permisos' },
@@ -79,11 +79,7 @@ const FIELD_COPY: Record<string, RequestFieldCopy> = {
   fecha_inicio: { label: 'Fecha de inicio' },
   fecha_fin: { label: 'Fecha de fin' },
   dias_solicitados: { label: 'Días solicitados', placeholder: '0', helper: 'Recursos Humanos valida el saldo disponible.' },
-  monto_solicitado: { label: 'Monto solicitado', placeholder: '0.00', helper: 'Cantidad en pesos mexicanos.' },
-  plazo_meses: { label: 'Plazo en meses (opcional)', placeholder: '12', helper: 'Máximo 36 meses.' },
-  colaborador_objetivo_id: { label: 'Colaborador', helper: 'Solo puedes elegir personas dentro de tu alcance.' },
-  fecha_efectiva: { label: 'Fecha efectiva de la baja' },
-  tipo_baja: { label: 'Tipo de baja' },
+  monto_solicitado: { label: '¿Cuánto necesitas?', placeholder: '0.00', helper: 'Cantidad en pesos mexicanos.' },
 };
 
 const FALLBACK_FIELD_COPY = (name: string): RequestFieldCopy => ({
@@ -94,30 +90,8 @@ export function requestFieldCopy(name: string): RequestFieldCopy {
   return FIELD_COPY[name] ?? FALLBACK_FIELD_COPY(name);
 }
 
-/**
- * Campo especial que se dibuja con un control dedicado en vez del control
- * genérico de su `type` (dinero, selector de colaborador, catálogo de baja).
- */
-export function specialFieldKind(campo: SolicitudCampo): 'money' | 'employee' | 'tipo_baja' | null {
+/** Campo especial que se dibuja con un control dedicado en vez del control genérico de su `type`. */
+export function specialFieldKind(campo: SolicitudCampo): 'money' | null {
   if (campo.name === 'monto_solicitado') return 'money';
-  if (campo.name === 'colaborador_objetivo_id') return 'employee';
-  if (campo.name === 'tipo_baja') return 'tipo_baja';
   return null;
 }
-
-/**
- * Espejo LITERAL de `App\Enums\TipoBaja` (leído del código fuente del
- * backend, no inventado). No hay endpoint que exponga este catálogo hoy —
- * gap D-3 en `docs/BACKEND_SYNC_2026_09_15.md`: mientras no exista, esta
- * lista debe revisarse contra el enum en cada sincronización, porque
- * `StoreSolicitudInternaRequest` valida `tipo_baja` con `Rule::in(TipoBaja)`
- * y un valor de más aquí sería un 422 en producción.
- */
-export const TIPO_BAJA_OPTIONS: { value: string; label: string }[] = [
-  { value: 'renuncia', label: 'Renuncia voluntaria' },
-  { value: 'despido', label: 'Despido' },
-  { value: 'mutuo_acuerdo', label: 'Mutuo acuerdo' },
-  { value: 'fin_contrato', label: 'Fin de contrato' },
-  { value: 'abandono', label: 'Abandono de empleo' },
-  { value: 'otro', label: 'Otro' },
-];

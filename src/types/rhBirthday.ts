@@ -1,3 +1,5 @@
+import type { RhBirthdayWallState } from './birthdayWall';
+
 /**
  * Bandeja de cumpleaños para RH — espejo EXACTO de
  * `App\Http\Controllers\Api\V1\Rh\CumpleanosController` en capacitaciones
@@ -68,4 +70,6 @@ export interface RhBirthdayDetail {
   card_url: string | null;
   colaborador: RhBirthdayColaborador;
   acciones_permitidas?: string[];
+  /** Muro de felicitaciones (backend 2026-09-22). Ausente en backends previos. */
+  muro?: RhBirthdayWallState;
 }

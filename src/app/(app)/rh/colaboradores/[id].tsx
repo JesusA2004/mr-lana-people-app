@@ -36,6 +36,7 @@ import { formatCurrencyMXN } from '@/utils/formatters';
 import { haptics } from '@/utils/haptics';
 import { laborDocumentBadgeStatus, laborDocumentKicker } from '@/utils/laborDocuments';
 import { visibleColaboradorSections } from '@/utils/modules';
+import { toExpedienteProgress } from '@/utils/expedienteProgress';
 
 /**
  * Detalle RH del colaborador: resumen (siempre) + secciones del ciclo
@@ -174,7 +175,7 @@ function AltaSection({ colaboradorId, permissions }: { colaboradorId: string; pe
     <>
       <StatusBadge status={alta.estado_alta === 'activo' ? 'aprobado' : 'en_revision'} label={alta.estado_alta_etiqueta ?? alta.estado_alta ?? 'Sin estado'} />
       {alta.estado_alta !== 'baja' ? <Stepper steps={[...ALTA_STEPS]} currentIndex={altaStepIndex(alta.estado_alta)} /> : null}
-      <InfoRow label="Expediente" value={`${alta.expediente.aprobados}/${alta.expediente.requeridos} aprobados (${alta.expediente.porcentaje}%)`} />
+      <InfoRow label="Expediente" value={`${alta.expediente.aprobados} de ${alta.expediente.requeridos} aprobados (${toExpedienteProgress({ total_obligatorios: alta.expediente.requeridos, completos: alta.expediente.aprobados, porcentaje: alta.expediente.porcentaje, completo: alta.expediente.completo }).porcentaje}%)`} />
       <InfoRow label="Rechazados" value={alta.expediente.rechazados > 0 ? alta.expediente.rechazados : null} />
       <InfoRow label="Tipo de contratación" value={alta.contrato?.tipo_etiqueta ?? alta.estructura.tipo_contratacion} />
       <InfoRow label="Fecha de ingreso" value={formatDateLong(alta.estructura.fecha_ingreso)} />

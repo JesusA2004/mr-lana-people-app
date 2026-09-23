@@ -10,7 +10,7 @@ import { FadeInView } from '@/components/FadeInView';
 import { PressableScale } from '@/components/PressableScale';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useRhVacantes } from '@/hooks/queries/useRhVacantes';
 import type { RhVacante } from '@/types/rhVacante';
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
   filterChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   filterLabel: { fontSize: FontSize.xs, fontWeight: '700', color: Colors.textMuted },
   filterLabelActive: { color: Colors.white },
-  listContent: { padding: Spacing.lg, paddingTop: 0, flexGrow: 1 },
+  listContent: { width: '100%', maxWidth: Layout.maxContentWidth, alignSelf: 'center', padding: Spacing.lg, paddingTop: 0, flexGrow: 1 },
   total: { fontSize: FontSize.xs, color: Colors.textMuted, fontWeight: '600', marginBottom: Spacing.md },
   card: { gap: Spacing.sm },
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: Spacing.sm },

@@ -16,6 +16,7 @@ import type { PushNotificationData, PushResourceType } from '@/types/pushNotific
  * - Ciclo laboral: documento_firma_pendiente, recibo_nomina, prestamo_autorizado,
  *   expediente_incompleto, alta_activada, visto_bueno_pendiente,
  *   evaluacion_pendiente, evaluacion_devuelta, evaluacion_capturada, contrato_por_vencer
+ * - Muro de cumpleaños: cumpleanos_muro (resource_id = greeting)
  * - QA: push_test (POST /dispositivos/push-prueba)
  *
  * Un tipo desconocido devuelve `null`: quien llama decide el respaldo (el
@@ -73,6 +74,9 @@ export function resolveResourceRoute(data: PushNotificationData): string | null 
       // `resource_id` es el contrato; la bandeja de vencimientos es la vista útil.
       return '/(app)/rh/contratos/por-vencer';
 
+    case 'cumpleanos_muro':
+      return id ? `/muro-cumpleanos/${id}` : '/notificaciones';
+
     case 'push_test':
       return SHOW_DEV_TOOLS ? '/dev/diagnostico-push' : '/notificaciones';
 
@@ -101,6 +105,7 @@ const SHARED_PUSH_TYPES = new Set<PushResourceType>([
   'evaluacion_pendiente',
   'evaluacion_devuelta',
   'evaluacion_capturada',
+  'cumpleanos_muro',
   'push_test',
 ]);
 

@@ -1,9 +1,7 @@
 import { useEffect } from 'react';
 
-import { registerCurrentPushToken } from '@/services/pushNotifications';
+import { registerCurrentPushToken, subscribeToPushTokenRotation } from '@/services/pushNotifications';
 import { usePushDiagnosticsStore } from '@/store/pushDiagnosticsStore';
-import { logError } from '@/utils/errors';
-import { supportsRemotePush } from '@/utils/runtime';
 
 /**
  * Sincroniza el push token con el backend al entrar a la app con sesión y
@@ -22,25 +20,16 @@ export function usePushRegistration(enabled: boolean): void {
     void usePushDiagnosticsStore.getState().loadPersisted();
     void registerCurrentPushToken();
 
-    if (!supportsRemotePush) return undefined;
-
     let cancelled = false;
-    let subscription: { remove: () => void } | undefined;
-    (async () => {
-      try {
-        const Notifications = await import('expo-notifications');
-        if (cancelled) return;
-        subscription = Notifications.addPushTokenListener(() => {
-          void registerCurrentPushToken();
-        });
-      } catch (error) {
-        logError('usePushRegistration.addPushTokenListener', error);
-      }
-    })();
+    let unsubscribe: (() => void) | undefined;
+    void subscribeToPushTokenRotation().then((stop) => {
+      if (cancelled) stop();
+      else unsubscribe = stop;
+    });
 
     return () => {
       cancelled = true;
-      subscription?.remove();
+      unsubscribe?.();
     };
   }, [enabled]);
 }

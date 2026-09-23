@@ -37,17 +37,14 @@ function normalizeCampo(raw: unknown): SolicitudCampo | null {
 }
 
 /**
- * Campos que `StoreSolicitudInternaRequest` EXIGE para `baja_colaborador`
- * pero que `tiposConFormulario()` no incluye en `campos[]` (solo emite
- * `colaborador_objetivo_id`). Sin esto, enviar una baja desde la app sería
- * un 422 garantizado. Gap D-2 de `docs/BACKEND_SYNC_2026_09_15.md`: cuando
- * el backend los agregue al catálogo, este relleno deja de aplicar solo
- * (no se duplica un campo que ya venga).
+ * Claves que el autoservicio del colaborador NUNCA envía, aunque un backend
+ * anterior todavía las anuncie en `campos[]`: el plazo del préstamo lo decide
+ * RH al autorizar, y los campos de baja no existen para el colaborador.
  */
-const CAMPOS_BAJA_FALTANTES: SolicitudCampo[] = [
-  { name: 'fecha_efectiva', type: 'date', required: true },
-  { name: 'tipo_baja', type: 'select', required: true },
-];
+export const CAMPOS_NO_AUTOSERVICIO = new Set(['plazo_meses', 'colaborador_objetivo_id', 'fecha_efectiva', 'tipo_baja']);
+
+/** Tipos que un colaborador NO crea desde la app (la baja es un proceso administrativo de RH). */
+export const TIPOS_NO_AUTOSERVICIO = new Set(['baja_colaborador']);
 
 function normalizeTipo(raw: unknown): SolicitudTipoConfig | null {
   if (!raw || typeof raw !== 'object') return null;
@@ -56,15 +53,12 @@ function normalizeTipo(raw: unknown): SolicitudTipoConfig | null {
   if (!clave) return null;
 
   const campos = Array.isArray(record.campos)
-    ? record.campos.map(normalizeCampo).filter((campo): campo is SolicitudCampo => campo !== null)
+    ? record.campos
+        .map(normalizeCampo)
+        .filter((campo): campo is SolicitudCampo => campo !== null && !CAMPOS_NO_AUTOSERVICIO.has(campo.name))
     : [];
 
   const requiereColaboradorObjetivo = asBoolean(record.requiere_colaborador_objetivo);
-  if (requiereColaboradorObjetivo) {
-    for (const faltante of CAMPOS_BAJA_FALTANTES) {
-      if (!campos.some((campo) => campo.name === faltante.name)) campos.push({ ...faltante });
-    }
-  }
 
   return {
     clave,
@@ -106,18 +100,14 @@ export function normalizeSolicitudesConfiguracion(payload: unknown): SolicitudTi
 }
 
 /**
- * `tiposConFormulario()` devuelve TODOS los casos del enum, incluida la baja
- * de colaborador. Esa nunca es una solicitud de colaborador normal: el
- * backend la protege con el permiso dedicado `solicitudes.bajas.crear`
- * (`StoreSolicitudInternaRequest::authorize()`), así que la app tampoco
- * debe ofrecerla sin él (sección 11 del encargo).
+ * Tipos que el colaborador puede crear desde la app. Un colaborador NO
+ * solicita bajas — sin importar sus permisos: la baja laboral la gestiona
+ * RH/Dirección (cierre laboral, finiquito). El backend ya no la incluye en
+ * el catálogo de autoservicio y la rechaza en `POST /solicitudes`; este
+ * filtro protege además contra un backend anterior.
  */
-export function visibleRequestTypes(
-  tipos: SolicitudTipoConfig[] | undefined,
-  permissions: string[] | undefined,
-): SolicitudTipoConfig[] {
-  const puedeCrearBajas = Array.isArray(permissions) && permissions.includes('solicitudes.bajas.crear');
-  return (tipos ?? []).filter((tipo) => puedeCrearBajas || !tipo.requiere_colaborador_objetivo);
+export function creatableRequestTypes(tipos: SolicitudTipoConfig[] | undefined): SolicitudTipoConfig[] {
+  return (tipos ?? []).filter((tipo) => !TIPOS_NO_AUTOSERVICIO.has(tipo.clave) && !tipo.requiere_colaborador_objetivo);
 }
 
 export function findTipoConfig(tipos: SolicitudTipoConfig[] | undefined, clave: RequestType | undefined): SolicitudTipoConfig | undefined {
@@ -135,15 +125,19 @@ export type DynamicFormValues = Record<string, string | number | undefined>;
  * del backend.
  */
 export function buildCreatePayload(config: SolicitudTipoConfig, values: DynamicFormValues): CreateSolicitudPayload {
+  if (TIPOS_NO_AUTOSERVICIO.has(config.clave)) {
+    throw new Error(`El tipo ${config.clave} no se crea desde el autoservicio.`);
+  }
+
   const payload: CreateSolicitudPayload = {
     tipo: config.clave,
     motivo: String(values.motivo ?? '').trim(),
   };
 
-  const numericFields = new Set(['dias_solicitados', 'monto_solicitado', 'plazo_meses', 'colaborador_objetivo_id']);
+  const numericFields = new Set(['dias_solicitados', 'monto_solicitado']);
 
   for (const campo of config.campos) {
-    if (campo.name === 'motivo') continue;
+    if (campo.name === 'motivo' || CAMPOS_NO_AUTOSERVICIO.has(campo.name)) continue;
 
     const raw = values[campo.name];
     if (raw === undefined || raw === null || raw === '') continue;

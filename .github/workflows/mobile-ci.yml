@@ -1,0 +1,52 @@
+name: Mobile CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: mobile-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Typecheck · Lint · Tests · Doctor · Export
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Solo para que el export resuelva la config; no es un secreto.
+      EXPO_PUBLIC_API_URL: https://people.mr-lana.com/api/v1
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Expo SDK 57 requiere Node LTS >= 20.19; se usa 22 LTS.
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests
+        run: npm test -- --ci
+
+      - name: Expo Doctor
+        run: npx expo-doctor
+
+      - name: Export Android bundle
+        run: npx expo export --platform android --output-dir dist-ci
+
+      - name: Export iOS bundle
+        run: npx expo export --platform ios --output-dir dist-ci-ios

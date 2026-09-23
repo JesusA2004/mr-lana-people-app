@@ -278,12 +278,19 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
             {allowDownload ? <Text style={styles.unsupportedHint}>Puedes guardarlo o compartirlo con &ldquo;Guardar o compartir&rdquo;.</Text> : null}
           </View>
         ) : fileUri && isPdf ? (
+          // Privilegio mínimo: solo el PDF local ya descargado. `file://*`
+          // (no `*`) — cualquier otra navegación sale del WebView; sin JS
+          // (el visor nativo de PDF no lo necesita) y sin
+          // `allowUniversalAccessFromFileURLs` (daba a un file:// acceso a
+          // cualquier origen). `allowFileAccess` (Android) y
+          // `allowingReadAccessToURL` (iOS) SÍ son necesarios para abrir el
+          // archivo local.
           <WebView
             source={{ uri: fileUri }}
-            originWhitelist={['*']}
+            originWhitelist={['file://*']}
             allowFileAccess
-            allowUniversalAccessFromFileURLs
             allowingReadAccessToURL={fileUri}
+            javaScriptEnabled={false}
             style={styles.webview}
           />
         ) : fileUri ? (

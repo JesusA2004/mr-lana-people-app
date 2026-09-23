@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { isExperimentalFeatureEnabled, isFeatureEnabled, isOrganigramaEnabled } from '@/utils/featureFlags';
+import { hasPermission } from '@/utils/capabilities';
 import { isRhModuleEnabled, type RhModule } from '@/utils/modules';
 
 /**
@@ -45,6 +46,10 @@ export default function RhLayout() {
       <Stack.Screen name="documentos/[id]" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
       <Stack.Screen name="incorporaciones/[colaborador]" />
       <Stack.Screen name="colaboradores/[id]" />
+      {/* Alta desde la app: mismo permiso que `POST /rh/colaboradores` y `GET /rh/catalogos`. */}
+      <Stack.Protected guard={hasPermission(permissions, 'colaboradores.alta')}>
+        <Stack.Screen name="colaboradores/nuevo" />
+      </Stack.Protected>
       <Stack.Screen name="expedientes/[colaborador]" />
       <Stack.Screen name="expedientes/[colaborador]/documentos/[documento]" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
 

@@ -100,6 +100,31 @@ export interface RhAdjunto {
   nombre: string;
 }
 
+/** `prestamo.visto_bueno` del detalle RH: decisión del jefe inmediato. */
+export interface RhPrestamoVistoBueno {
+  requerido: boolean;
+  /** `aprobado` | `rechazado` | `pendiente` | `no_aplica` (o una decisión nueva del backend). */
+  estado: string;
+  jefe?: string | null;
+  comentario?: string | null;
+  fecha?: string | null;
+}
+
+/**
+ * Bloque `prestamo` del detalle RH: lo necesario para decidir SIN autorizar
+ * a ciegas. `puede_autorizar`/`puede_rechazar` son la autoridad visual
+ * (PrestamoPolicy + visto bueno + estado pendiente) — la app no los infiere
+ * por rol ni por monto. El backend sigue validando al autorizar (403/422).
+ */
+export interface RhPrestamoDecision {
+  monto_solicitado: number | null;
+  plazo_solicitado: number | null;
+  visto_bueno: RhPrestamoVistoBueno;
+  prestamo_id: number | null;
+  puede_autorizar: boolean;
+  puede_rechazar: boolean;
+}
+
 export interface RhSolicitud {
   id: number;
   folio: string;
@@ -115,18 +140,21 @@ export interface RhSolicitud {
   workflow: Workflow;
   historial: RhHistorialEntrada[];
   /**
-   * PREPARACIÓN, no contrato confirmado (sincronización 2026-09-15): campos
-   * que `Api\V1\Rh\SolicitudController::show()` TODAVÍA no serializa
-   * (confirmado contra `capacitaciones@a1e8546` — el controlador móvil no
-   * cambió en esta sincronización), aunque el modelo `SolicitudInterna` sí
-   * los tenga. Necesarios para revisar con seguridad un préstamo o una
-   * baja de colaborador: sin ellos, la app bloquea "Aprobar" para esos dos
-   * tipos y manda a completar la revisión en el Portal RH (ver
-   * `puedeAprobarSolicitudComplejaMovil` en `src/utils/rhActions.ts`).
+   * Préstamo (contrato 2026-09-22, `Api\V1\Rh\SolicitudController::show()`):
+   * `monto_solicitado` y `plazo_solicitado` (meses; sale de `plazo_meses`
+   * del modelo) llegan SIEMPRE como clave, con `null` cuando no aplican —
+   * por eso se comparan con `!= null`, nunca con `!== undefined`.
+   * `prestamo` trae la decisión (visto bueno + `puede_autorizar`).
+   *
+   * Baja de colaborador: `colaborador_objetivo`/`fecha_efectiva`/`tipo_baja`
+   * siguen siendo PREPARACIÓN — el controlador aún no los serializa y la
+   * app bloquea "Aprobar" hasta que lleguen (ver `src/utils/rhActions.ts`).
    */
   dias_solicitados?: number;
-  monto_solicitado?: string | number;
-  plazo_meses?: number;
+  monto_solicitado?: string | number | null;
+  plazo_solicitado?: number | null;
+  /** Solo para `tipo === 'prestamo'`; `null` en cualquier otro tipo. */
+  prestamo?: RhPrestamoDecision | null;
   fecha_efectiva?: string;
   tipo_baja?: string;
   colaborador_objetivo?: RhColaboradorResumen;

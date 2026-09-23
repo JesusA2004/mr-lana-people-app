@@ -6,9 +6,9 @@ import { FlatList, RefreshControl, StyleSheet, Text, TextInput, View } from 'rea
 import { AppHeader } from '@/components/AppHeader';
 import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
-import { MascotAssistant } from '@/components/mascot/MascotAssistant';
+import { EmptyState } from '@/components/EmptyState';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
 import { useRhFormatos } from '@/hooks/queries/useRhFormatos';
 import type { RhFormato } from '@/types/formato';
 import { formatDateShort } from '@/utils/dates';
@@ -88,7 +88,7 @@ export default function RhFormatosListScreen() {
           ) : isError ? (
             <ErrorState message={getErrorMessage(error)} onRetry={() => void refetch()} />
           ) : (
-            <MascotAssistant message="Todavía no hay formatos disponibles." type="tip" dismissible={false} />
+            <EmptyState icon="document-text-outline" message="Todavía no hay formatos disponibles." />
           )
         }
       />
@@ -153,6 +153,9 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
   listContent: {
+    width: '100%',
+    maxWidth: Layout.maxContentWidth,
+    alignSelf: 'center',
     padding: Spacing.lg,
     paddingTop: 0,
     flexGrow: 1,

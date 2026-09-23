@@ -5,10 +5,10 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { AppHeader } from '@/components/AppHeader';
 import { FilterChips } from '@/components/ciclo/FilterChips';
 import { ErrorState } from '@/components/ErrorState';
-import { MascotAssistant } from '@/components/mascot/MascotAssistant';
+import { EmptyState } from '@/components/EmptyState';
 import { OrganizationTreeNode } from '@/components/OrganizationTreeNode';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
-import { Colors, Radius, Spacing } from '@/constants/colors';
+import { Colors, Layout, Radius, Spacing } from '@/constants/colors';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useRhOrganigramaPersonas } from '@/hooks/queries/useRhCicloLaboral';
 import { useRhOrganizacion } from '@/hooks/queries/useRhOrganizacion';
@@ -63,7 +63,7 @@ export default function RhOrganizacionScreen() {
         ) : query.isError ? (
           <ErrorState message={getErrorMessage(query.error)} onRetry={() => void query.refetch()} />
         ) : tree.length === 0 ? (
-          <MascotAssistant message={vista === 'personas' ? 'No hay colaboradores en tu alcance.' : 'Todavía no hay puestos configurados.'} type="tip" dismissible={false} />
+          <EmptyState icon="people-outline" message={vista === 'personas' ? 'No hay colaboradores en tu alcance.' : 'Todavía no hay puestos configurados.'} />
         ) : (
           <View style={styles.treeCard}>
             {tree.map((node) => (
@@ -87,6 +87,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   content: {
+    width: '100%',
+    maxWidth: Layout.maxContentWidth,
+    alignSelf: 'center',
     padding: Spacing.lg,
     paddingBottom: Spacing.xxxl,
   },

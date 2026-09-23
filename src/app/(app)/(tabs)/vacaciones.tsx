@@ -10,7 +10,7 @@ import { FadeInView } from '@/components/FadeInView';
 import { MascotAssistant } from '@/components/mascot/MascotAssistant';
 import { RequestCard } from '@/components/RequestCard';
 import { SkeletonBlock, SkeletonCardList } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
 import { MascotMessages } from '@/constants/mascotMessages';
 import { useVacacionesSaldo, useVacacionesUnificadas } from '@/hooks/queries/useVacaciones';
 import { formatDateLong } from '@/utils/dates';
@@ -169,6 +169,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   content: {
+    width: '100%',
+    maxWidth: Layout.maxContentWidth,
+    alignSelf: 'center',
     padding: Spacing.lg,
     paddingTop: 0,
     gap: Spacing.lg,

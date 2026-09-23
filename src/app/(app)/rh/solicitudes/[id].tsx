@@ -12,7 +12,7 @@ import { MotivoModal } from '@/components/MotivoModal';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
 import { WorkflowTimeline } from '@/components/WorkflowTimeline';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import {
   useRhSolicitud,
@@ -27,9 +27,11 @@ import { formatDateLong, formatDateTime } from '@/utils/dates';
 import { getErrorMessage, isConcurrencyConflict, logError } from '@/utils/errors';
 import { formatCurrencyMXN, humanizeRequestType } from '@/utils/formatters';
 import { haptics } from '@/utils/haptics';
+import { formatPlazoMeses } from '@/utils/loan';
 import { openRhWeb, rhWebSolicitudPath } from '@/utils/openRhWeb';
-import { canApprove, canReject, canRequestCorrection, esSolicitudCompleja, puedeAprobarSolicitudComplejaMovil } from '@/utils/rhActions';
+import { canApprove, canRequestCorrection, puedeAprobarSolicitudComplejaMovil, requiereRevisionPortal, usaRechazoGenerico } from '@/utils/rhActions';
 import { blockedApprovalReason, type BlockedApproval } from '@/utils/rhBlockedActions';
+import { confirmAction } from '@/utils/confirm';
 
 /**
  * Detalle de solicitud RH: folio, tipo, estado, colaborador, fechas, motivo,
@@ -47,15 +49,16 @@ import { blockedApprovalReason, type BlockedApproval } from '@/utils/rhBlockedAc
  * `Rh\SolicitudController::actualizarEstado()` — nunca un movimiento libre
  * de tablero. El backend sigue siendo la autoridad final (403/422).
  *
- * Sincronización 2026-09-15: préstamo y baja de colaborador son
- * "solicitudes complejas" — el Resource móvil de RH todavía no manda
- * `monto_solicitado`/`plazo_meses` ni `colaborador_objetivo`/
- * `fecha_efectiva`/`tipo_baja` (confirmado contra `capacitaciones@a1e8546`:
- * el controlador móvil no cambió). Aprobar a ciegas un monto o una baja que
- * ni siquiera se puede leer es un riesgo real, así que "Aprobar" se oculta
- * para esos dos tipos y se ofrece completar la revisión en el Portal RH
- * (ver `puedeAprobarSolicitudComplejaMovil`). Ver/Rechazar/Pedir corrección
- * siguen intactos.
+ * Préstamo (contrato 2026-09-22): el detalle trae `monto_solicitado`,
+ * `plazo_solicitado` y el bloque `prestamo` (visto bueno +
+ * `puede_autorizar`/`puede_rechazar`). Autorizar y rechazar un préstamo
+ * viven SOLO en `PrestamoDecision` (endpoints `.../prestamo/*`): el
+ * Aprobar/Rechazar genéricos no se muestran para ese tipo, para no tener
+ * dos botones con el mismo texto que hacen operaciones distintas.
+ *
+ * Baja de colaborador: el backend aún no manda `colaborador_objetivo`/
+ * `fecha_efectiva`/`tipo_baja`, así que "Aprobar" se oculta y se ofrece
+ * completar la revisión en el Portal RH.
  */
 export default function RhSolicitudDetailScreen() {
   const router = useRouter();
@@ -100,8 +103,14 @@ export default function RhSolicitudDetailScreen() {
     toast.error(getErrorMessage(err));
   }
 
-  const handleEstado = (estado: 'en_revision' | 'cerrada') => {
+  const handleEstado = async (estado: 'en_revision' | 'cerrada') => {
     if (!id) return;
+    const ok = await confirmAction(
+      estado === 'en_revision'
+        ? { title: 'Marcar en revisión', message: 'El colaborador verá que su solicitud ya está en revisión.', confirmLabel: 'Marcar' }
+        : { title: 'Cerrar solicitud', message: 'La solicitud quedará cerrada y ya no admitirá cambios.', confirmLabel: 'Cerrar', destructive: true },
+    );
+    if (!ok) return;
     estadoMutation.mutate(
       { id, estado },
       {
@@ -243,28 +252,23 @@ export default function RhSolicitudDetailScreen() {
             {/* Sección 14: solo aparece si el Resource realmente manda
                 alguno de estos campos — nunca se dibuja una fila vacía ni
                 se asume un valor por el tipo de la solicitud. */}
-            {solicitud.dias_solicitados !== undefined ||
-            solicitud.monto_solicitado !== undefined ||
-            solicitud.plazo_meses !== undefined ||
+            {solicitud.dias_solicitados != null ||
+            (!solicitud.prestamo && montoValido(solicitud.monto_solicitado) !== null) ||
+            (!solicitud.prestamo && formatPlazoMeses(solicitud.plazo_solicitado) !== null) ||
             solicitud.fecha_efectiva ||
             solicitud.tipo_baja ||
             solicitud.colaborador_objetivo ? (
               <Card style={styles.fieldCard}>
                 <Text style={styles.fieldLabel}>Detalles de la solicitud</Text>
-                {solicitud.dias_solicitados !== undefined ? (
+                {solicitud.dias_solicitados != null ? (
                   <FieldRow icon="calendar-number-outline" label="Días solicitados" value={String(solicitud.dias_solicitados)} />
                 ) : null}
-                {solicitud.monto_solicitado !== undefined ? (
-                  <FieldRow
-                    icon="cash-outline"
-                    label="Monto solicitado"
-                    value={formatCurrencyMXN(
-                      typeof solicitud.monto_solicitado === 'number' ? solicitud.monto_solicitado : Number(solicitud.monto_solicitado),
-                    )}
-                  />
+                {/* Con bloque `prestamo`, monto y plazo se muestran en PrestamoDecision. */}
+                {!solicitud.prestamo && montoValido(solicitud.monto_solicitado) !== null ? (
+                  <FieldRow icon="cash-outline" label="Monto solicitado" value={formatCurrencyMXN(montoValido(solicitud.monto_solicitado))} />
                 ) : null}
-                {solicitud.plazo_meses !== undefined ? (
-                  <FieldRow icon="hourglass-outline" label="Plazo" value={`${solicitud.plazo_meses} meses`} />
+                {!solicitud.prestamo && formatPlazoMeses(solicitud.plazo_solicitado) !== null ? (
+                  <FieldRow icon="hourglass-outline" label="Plazo" value={formatPlazoMeses(solicitud.plazo_solicitado) ?? ''} />
                 ) : null}
                 {solicitud.colaborador_objetivo ? (
                   <FieldRow icon="person-remove-outline" label="Colaborador a dar de baja" value={solicitud.colaborador_objetivo.nombre} />
@@ -276,7 +280,7 @@ export default function RhSolicitudDetailScreen() {
               </Card>
             ) : null}
 
-            {esSolicitudCompleja(solicitud.tipo) && !puedeAprobarSolicitudComplejaMovil(solicitud) ? (
+            {requiereRevisionPortal(solicitud) ? (
               <Card style={styles.blockedCard}>
                 <View style={styles.blockedHeader}>
                   <Ionicons name="shield-checkmark-outline" size={18} color={Colors.warning} />
@@ -284,7 +288,7 @@ export default function RhSolicitudDetailScreen() {
                 </View>
                 <Text style={styles.fieldValue}>
                   {solicitud.tipo === 'prestamo'
-                    ? 'La app móvil todavía no muestra el monto y el plazo completos de este préstamo.'
+                    ? 'El servidor no envió los datos de decisión de este préstamo.'
                     : 'La app móvil todavía no muestra el colaborador, la fecha efectiva y el tipo de baja completos.'}
                 </Text>
                 <Button
@@ -296,14 +300,8 @@ export default function RhSolicitudDetailScreen() {
               </Card>
             ) : null}
 
-            {solicitud.tipo === 'prestamo' && hasPermission(permissions, 'prestamos.autorizar') ? (
-              <PrestamoDecision
-                solicitudId={Number(solicitud.id)}
-                estado={solicitud.estado}
-                bloqueado={!puedeAprobarSolicitudComplejaMovil(solicitud)}
-                montoSolicitado={typeof solicitud.monto_solicitado === 'number' ? solicitud.monto_solicitado : null}
-                onDone={() => void refetch()}
-              />
+            {solicitud.tipo === 'prestamo' && solicitud.prestamo ? (
+              <PrestamoDecision solicitudId={Number(solicitud.id)} estado={solicitud.estado} prestamo={solicitud.prestamo} onDone={() => void refetch()} />
             ) : null}
 
             {solicitud.adjuntos.length > 0 ? (
@@ -346,7 +344,7 @@ export default function RhSolicitudDetailScreen() {
                     title="Marcar en revisión"
                     variant="outline"
                     leftIcon="eye-outline"
-                    onPress={() => handleEstado('en_revision')}
+                    onPress={() => void handleEstado('en_revision')}
                     disabled={pending}
                     style={styles.actionButton}
                   />
@@ -356,7 +354,7 @@ export default function RhSolicitudDetailScreen() {
                     title="Cerrar solicitud"
                     variant="outline"
                     leftIcon="lock-closed-outline"
-                    onPress={() => handleEstado('cerrada')}
+                    onPress={() => void handleEstado('cerrada')}
                     disabled={pending}
                     style={styles.actionButton}
                   />
@@ -365,12 +363,12 @@ export default function RhSolicitudDetailScreen() {
             ) : null}
 
             {(() => {
-              // La seguridad de préstamo/baja nunca depende de
-              // `acciones_permitidas` (el backend todavía ni sabe que la
-              // app oculta esto): es una restricción propia de la app
-              // mientras el Resource móvil no mande los campos completos.
+              // Préstamo: autorizar/rechazar van por PrestamoDecision, nunca
+              // por el Aprobar/Rechazar genéricos. Baja: Aprobar oculto
+              // mientras el backend no mande sus campos.
               const puedeAprobarAqui = canApprove(solicitud.acciones_permitidas) && puedeAprobarSolicitudComplejaMovil(solicitud);
-              const hayAcciones = puedeAprobarAqui || canReject(solicitud.acciones_permitidas) || canRequestCorrection(solicitud.acciones_permitidas);
+              const puedeRechazarAqui = usaRechazoGenerico(solicitud);
+              const hayAcciones = puedeAprobarAqui || puedeRechazarAqui || canRequestCorrection(solicitud.acciones_permitidas);
               if (!hayAcciones) return null;
 
               return (
@@ -384,7 +382,7 @@ export default function RhSolicitudDetailScreen() {
                       style={styles.actionButton}
                     />
                   ) : null}
-                  {canReject(solicitud.acciones_permitidas) ? (
+                  {puedeRechazarAqui ? (
                     <Button title="Rechazar" variant="danger" onPress={() => setModal('rechazar')} disabled={pending} style={styles.actionButton} />
                   ) : null}
                   {puedeAprobarAqui ? (
@@ -419,6 +417,13 @@ export default function RhSolicitudDetailScreen() {
   );
 }
 
+/** Monto numérico finito o `null` — nunca "$NaN" (`null` pasa un `!== undefined`). */
+function montoValido(value: string | number | null | undefined): number | null {
+  if (value == null || value === '') return null;
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
 function formatDateRange(start?: string | null, end?: string | null): string {
   if (start && end && start !== end) return `${formatDateLong(start)} – ${formatDateLong(end)}`;
   return formatDateLong(start ?? end);
@@ -440,6 +445,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   content: {
+    width: '100%',
+    maxWidth: Layout.maxContentWidth,
+    alignSelf: 'center',
     padding: Spacing.lg,
     gap: Spacing.md,
     paddingBottom: Spacing.xxxl,
@@ -551,10 +559,12 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: Spacing.sm,
     marginTop: Spacing.sm,
   },
   actionButton: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: 130,
   },
 });

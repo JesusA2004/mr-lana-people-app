@@ -11,7 +11,7 @@ import { MotivoModal } from '@/components/MotivoModal';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
 import { WorkflowTimeline } from '@/components/WorkflowTimeline';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
 import { useRhVacacion, useRhVacacionAprobar, useRhVacacionRechazar } from '@/hooks/queries/useRhVacaciones';
 import { toast } from '@/store/toastStore';
 import { formatDateLong, formatDateTime } from '@/utils/dates';
@@ -192,6 +192,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   content: {
+    width: '100%',
+    maxWidth: Layout.maxContentWidth,
+    alignSelf: 'center',
     padding: Spacing.lg,
     gap: Spacing.md,
     paddingBottom: Spacing.xxxl,

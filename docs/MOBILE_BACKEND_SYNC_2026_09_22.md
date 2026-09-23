@@ -103,6 +103,18 @@ Cold start soportado (mismo `PendingPushNavigationController`). Si la ruta es de
 
 ## 6. Gaps REALES de backend
 
+> **Continuación 2:** autoservicio sin baja, préstamo monto+motivo, avance del expediente con regla única (`ProgresoExpediente`), `capabilities.employee` real y seguimiento del préstamo para el colaborador — detalle en `docs/FINAL_MOBILE_AUDIT.md`.
+
+> **Estado tras la continuación (capacitaciones@4b0315d + muro de cumpleaños):**
+> G-1 ✅ (`capabilities.rh` por `PERMISOS_EXPERIENCIA_RH`, `counts.tasks` real) ·
+> G-2 ✅ (`GET /rh/catalogos`; **alta de colaborador ya disponible en móvil**) ·
+> G-4 ✅ (`prestamo.visto_bueno` / `puede_autorizar`; "Autorizar préstamo" habilitado) ·
+> G-5 ✅ (detalle por id) · G-6 ✅ (`related_type`/`accion`) · G-8 ✅ (filtro `colaborador_id`).
+> **Siguen abiertos:** G-3 (variables por plantilla → generar documento laboral sigue en Portal RH)
+> y G-7 (App Links: requiere SHA-256 de EAS y Team ID reales, ver `docs/APP_LINKS_SETUP.md`).
+> "Contratar candidato" sigue en Portal: no existe `GET /rh/candidatos`.
+
+
 | # | Endpoint | Problema | Archivo responsable | Cambio mínimo |
 |---|---|---|---|---|
 | G-1 | `GET /mobile/bootstrap` | `capabilities.rh` = `can('rh.pendientes.ver')`; los roles `direccion` y `juridico` no lo tienen, así que **no pueden entrar a Gestión RH en la app** aunque tengan `prestamos.autorizar`, `indicadores.ver`, `documentos_laborales.ver`, etc. (Sí pueden autorizar evaluaciones y usar Tareas desde Mi espacio.) Tampoco envía features ni `counts.tasks` real (`tasks => 0`). | `app/Services/Mobile/MobileBootstrapService.php` (`capabilities()`, `counts()`) | `'rh' => $usuario->can('rh.pendientes.ver') \|\| $usuario->canAny(['indicadores.ver','documentos_laborales.ver','prestamos.autorizar','evaluaciones.autorizar','cierres.ver'])` y `'tasks' => app(TareaService::class)->conteos($usuario)['abiertas']`. |
@@ -116,7 +128,7 @@ Cold start soportado (mismo `PendingPushNavigationController`). Si la ruta es de
 
 ## 7. Módulos no expuestos y por qué
 
-- **Alta de colaborador / contratar candidato**: G-2.
+- **Contratar candidato**: falta `GET /rh/candidatos` (el alta directa ya está en móvil).
 - **Generar documento laboral manual**: G-3.
 - **Carga/versionado de plantillas DOCX**: administración técnica; solo consulta en móvil.
 - **Edición de vacantes**: la API no la soporta.

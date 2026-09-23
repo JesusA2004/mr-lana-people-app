@@ -5,6 +5,7 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 
 import { AnimatedProgressBar } from '@/components/AnimatedProgressBar';
 import { BirthdayHeroCard } from '@/components/BirthdayHeroCard';
+import { BirthdayWallBanner } from '@/components/BirthdayWallBanner';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
@@ -15,7 +16,7 @@ import { PressableScale } from '@/components/PressableScale';
 import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { RequestCard } from '@/components/RequestCard';
 import { SkeletonBlock, SkeletonCardList } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
 import { MascotMessages } from '@/constants/mascotMessages';
 import { Stepper } from '@/components/Stepper';
 import { useBirthdayGreeting } from '@/hooks/queries/useBirthday';
@@ -33,6 +34,7 @@ import { formatCurrencyMXN, joinName, pluralize } from '@/utils/formatters';
 import { prestamoEstadoLabel, prestamoVigente } from '@/utils/loan';
 import { hasAnyPermission, isSelfServiceModuleEnabled } from '@/utils/modules';
 import { reciboPeriodoLabel } from '@/utils/payroll';
+import { progressBreakdown, progressHeadline, toExpedienteProgress } from '@/utils/expedienteProgress';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const HEADER_TOP_EXTRA = 20;
@@ -110,6 +112,7 @@ export default function DashboardScreen() {
     [incorporacion.data],
   );
 
+  const expedienteProgreso = toExpedienteProgress(incorporacion.data?.progreso);
   const expedienteEnRevision = incorporacion.data?.progreso.en_revision ?? 0;
 
   // Prioridad del home dinámico: 1) documento rechazado, 2) expediente incompleto,
@@ -240,6 +243,8 @@ export default function DashboardScreen() {
               </FadeInView>
             ) : null}
 
+            <BirthdayWallBanner enabled={cumpleanosEnabled} />
+
             {priorityMascot ? (
               <MascotAssistant
                 message={priorityMascot.message}
@@ -296,28 +301,23 @@ export default function DashboardScreen() {
                     </View>
                     <Text style={styles.expedienteTitle}>Tu expediente</Text>
                   </View>
-                  {incorporacion.data ? <Text style={styles.expedientePercent}>{Math.round(incorporacion.data.progreso.porcentaje)}%</Text> : null}
+                  {incorporacion.data ? <Text style={styles.expedientePercent}>{expedienteProgreso.porcentaje}%</Text> : null}
                 </View>
                 {incorporacion.data ? (
                   <>
-                    <AnimatedProgressBar percent={incorporacion.data.progreso.porcentaje} />
+                    <AnimatedProgressBar percent={expedienteProgreso.porcentaje} />
                     <View style={styles.expedienteCaptionRow}>
                       <Ionicons
-                        name={expedienteStats.pendientes + expedienteStats.rechazados === 0 ? 'checkmark-circle' : 'alert-circle'}
+                        name={expedienteProgreso.completo ? 'checkmark-circle' : 'alert-circle'}
                         size={14}
-                        color={expedienteStats.pendientes + expedienteStats.rechazados === 0 ? Colors.success : Colors.warning}
+                        color={expedienteProgreso.completo ? Colors.success : Colors.warning}
                       />
                       <Text style={styles.expedienteCaption}>
-                        {expedienteStats.pendientes + expedienteStats.rechazados === 0
-                          ? 'Todo en orden.'
-                          : `${expedienteStats.pendientes + expedienteStats.rechazados} ${pluralize(
-                              expedienteStats.pendientes + expedienteStats.rechazados,
-                              'documento requiere',
-                              'documentos requieren',
-                            )} atención`}
+                        {progressHeadline(expedienteProgreso)}
+                        {progressBreakdown(expedienteProgreso) ? ` · ${progressBreakdown(expedienteProgreso)}` : ''}
                       </Text>
                     </View>
-                    {expedienteStats.pendientes + expedienteStats.rechazados > 0 ? (
+                    {expedienteProgreso.faltantes + expedienteProgreso.rechazados > 0 ? (
                       <Button
                         title="Continuar expediente"
                         variant="outline"
@@ -447,7 +447,7 @@ export default function DashboardScreen() {
               ) : null}
               {recibosEnabled ? <QuickAction icon="receipt-outline" label="Mis recibos" onPress={() => router.push('/recibos')} /> : null}
               {contratosEnabled ? <QuickAction icon="document-text-outline" label="Mis contratos" onPress={() => router.push('/contratos')} /> : null}
-              {prestamosEnabled ? <QuickAction icon="cash-outline" label="Mis préstamos" onPress={() => router.push('/prestamos')} /> : null}
+              {prestamosEnabled ? <QuickAction icon="cash-outline" label="Préstamos" onPress={() => router.push('/prestamos')} /> : null}
               {puedeVerEvaluaciones ? (
                 <QuickAction icon="clipboard-outline" label="Evaluaciones" onPress={() => router.push('/evaluaciones')} />
               ) : tareasEnabled ? (
@@ -571,6 +571,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   content: {
+    width: '100%',
+    maxWidth: Layout.maxContentWidth,
+    alignSelf: 'center',
     padding: Spacing.lg,
     paddingTop: 0,
     gap: Spacing.lg,

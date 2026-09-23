@@ -4,6 +4,7 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 
 import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
+import { ExperienceSwitchCard } from '@/components/ExperienceSwitchCard';
 import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
 import { FadeInView } from '@/components/FadeInView';
@@ -11,7 +12,7 @@ import { PressableScale } from '@/components/PressableScale';
 import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { SecurityWatermark } from '@/components/SecurityWatermark';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
 import { useIncorporacion } from '@/hooks/queries/useIncorporacion';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { usePerfil } from '@/hooks/queries/usePerfil';
@@ -20,6 +21,8 @@ import { isSelfServiceModuleEnabled } from '@/utils/modules';
 import { formatDateLong } from '@/utils/dates';
 import { getErrorMessage } from '@/utils/errors';
 import { joinName } from '@/utils/formatters';
+import { toExpedienteProgress } from '@/utils/expedienteProgress';
+import { canSwitchExperience, experienceAvailability } from '@/utils/experience';
 
 export default function PerfilScreen() {
   const router = useRouter();
@@ -60,9 +63,12 @@ export default function PerfilScreen() {
   const personalFilled = personalFields.filter((field) => Boolean(field.value));
 
   const features = bootstrap.data?.features;
+  const puedeCambiarExperiencia = canSwitchExperience(experienceAvailability(bootstrap.data?.capabilities, features));
   const esJefe = (equipo.data?.length ?? 0) > 0;
   type PerfilLink = { route: string; icon: keyof typeof Ionicons.glyphMap; title: string; caption: string };
   const links = ([
+    { route: '/(app)/(tabs)/expediente', icon: 'folder-open-outline', title: 'Mi expediente', caption: 'Consulta y carga tus documentos' },
+    { route: '/incorporacion', icon: 'briefcase-outline', title: 'Mi incorporación', caption: 'Avance de tu proceso de alta' },
     isSelfServiceModuleEnabled(features, 'jerarquia') && { route: '/jerarquia', icon: 'git-network-outline', title: 'Mi jerarquía', caption: 'Jefe inmediato, gerente y estructura' },
     isSelfServiceModuleEnabled(features, 'documentos_laborales') && {
       route: '/documentos-laborales',
@@ -72,7 +78,7 @@ export default function PerfilScreen() {
     },
     isSelfServiceModuleEnabled(features, 'contratos') && { route: '/contratos', icon: 'document-text-outline', title: 'Mis contratos', caption: 'Vigencia y tipo de contrato' },
     isSelfServiceModuleEnabled(features, 'recibos') && { route: '/recibos', icon: 'receipt-outline', title: 'Mis recibos', caption: 'Recibos internos de nómina (no fiscales)' },
-    isSelfServiceModuleEnabled(features, 'prestamos') && { route: '/prestamos', icon: 'cash-outline', title: 'Mis préstamos', caption: 'Préstamos autorizados y documentos' },
+    isSelfServiceModuleEnabled(features, 'prestamos') && { route: '/prestamos', icon: 'cash-outline', title: 'Préstamos', caption: 'Solicita y sigue tus préstamos' },
     isSelfServiceModuleEnabled(features, 'tareas') && { route: '/tareas', icon: 'checkbox-outline', title: 'Tareas', caption: 'Pendientes por atender' },
     esJefe && isSelfServiceModuleEnabled(features, 'equipo') && { route: '/equipo', icon: 'people-outline', title: 'Mi equipo', caption: 'Vistos buenos y evaluaciones' },
     { route: '/ayuda', icon: 'help-buoy-outline', title: 'Ayuda', caption: 'Preguntas frecuentes y contacto' },
@@ -123,11 +129,17 @@ export default function PerfilScreen() {
                       size={13}
                       color={Colors.primaryDark}
                     />
-                    <Text style={styles.statusPillText}>Expediente {Math.round(incorporacion.data.progreso.porcentaje)}%</Text>
+                    <Text style={styles.statusPillText}>Expediente {toExpedienteProgress(incorporacion.data.progreso).porcentaje}%</Text>
                   </PressableScale>
                 ) : null}
               </Card>
             </FadeInView>
+
+            {puedeCambiarExperiencia ? (
+              <FadeInView index={1}>
+                <ExperienceSwitchCard />
+              </FadeInView>
+            ) : null}
 
             <FadeInView index={1}>
               <SectionCard icon="briefcase-outline" title="Información laboral" fields={laboralFilled} />
@@ -138,32 +150,6 @@ export default function PerfilScreen() {
                 <SectionCard icon="person-circle-outline" title="Información personal" fields={personalFilled} />
               </FadeInView>
             ) : null}
-
-            <FadeInView index={3}>
-              <Card style={styles.linkCard} onPress={() => router.push('/(app)/(tabs)/expediente')}>
-                <View style={styles.linkIcon}>
-                  <Ionicons name="folder-open-outline" size={20} color={Colors.primaryDark} />
-                </View>
-                <View style={styles.linkText}>
-                  <Text style={styles.linkTitle}>Mi expediente digital</Text>
-                  <Text style={styles.linkCaption}>Consulta y carga tus documentos</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
-              </Card>
-            </FadeInView>
-
-            <FadeInView index={4}>
-              <Card style={styles.linkCard} onPress={() => router.push('/incorporacion')}>
-                <View style={styles.linkIcon}>
-                  <Ionicons name="briefcase-outline" size={20} color={Colors.primaryDark} />
-                </View>
-                <View style={styles.linkText}>
-                  <Text style={styles.linkTitle}>Mi incorporación</Text>
-                  <Text style={styles.linkCaption}>Sigue el avance de tu proceso de alta</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
-              </Card>
-            </FadeInView>
 
             {/* Ciclo laboral (backend 2026-09-22): accesos sin convertir cada módulo en tab. */}
             <FadeInView index={5}>
@@ -243,6 +229,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   content: {
+    width: '100%',
+    maxWidth: Layout.maxContentWidth,
+    alignSelf: 'center',
     padding: Spacing.lg,
     gap: Spacing.lg,
     paddingBottom: Spacing.xxxl,

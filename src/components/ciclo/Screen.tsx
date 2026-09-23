@@ -3,7 +3,8 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 
 import { AppHeader } from '@/components/AppHeader';
 import { ErrorState } from '@/components/ErrorState';
-import { MascotAssistant } from '@/components/mascot/MascotAssistant';
+import { EmptyState } from '@/components/EmptyState';
+import { ResponsiveContent } from '@/components/ResponsiveContent';
 import { SkeletonBlock, SkeletonCardList } from '@/components/SkeletonBlock';
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 import { getDevErrorDetail, getErrorMessage, isNotFoundError } from '@/utils/errors';
@@ -24,6 +25,8 @@ export interface ScreenProps {
   children?: React.ReactNode;
   /** Contenido fijo debajo del header (filtros). */
   header?: React.ReactNode;
+  /** Formulario: tope de ancho de lectura (`Layout.maxFormWidth`) en vez del de contenido. */
+  form?: boolean;
 }
 
 /**
@@ -43,6 +46,7 @@ export function Screen({
   onRefresh,
   children,
   header,
+  form = false,
 }: ScreenProps) {
   const router = useRouter();
   const hasError = error !== null && error !== undefined;
@@ -54,19 +58,23 @@ export function Screen({
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets
         refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} /> : undefined}>
-        {isLoading ? (
-          <View style={styles.skeleton}>
-            <SkeletonBlock height={120} radius={Radius.lg} />
-            <SkeletonCardList count={3} />
-          </View>
-        ) : hasError && isNotFoundError(error) && notFoundMessage ? (
-          <MascotAssistant message={notFoundMessage} type="info" dismissible={false} />
-        ) : hasError ? (
-          <ErrorState message={getErrorMessage(error)} devDetail={getDevErrorDetail(error)} onRetry={onRetry} />
-        ) : (
-          children
-        )}
+        <ResponsiveContent form={form} style={styles.inner}>
+          {isLoading ? (
+            <View style={styles.skeleton}>
+              <SkeletonBlock height={120} radius={Radius.lg} />
+              <SkeletonCardList count={3} />
+            </View>
+          ) : hasError && isNotFoundError(error) && notFoundMessage ? (
+            <EmptyState icon="information-circle-outline" message={notFoundMessage} />
+          ) : hasError ? (
+            <ErrorState message={getErrorMessage(error)} devDetail={getDevErrorDetail(error)} onRetry={onRetry} />
+          ) : (
+            children
+          )}
+        </ResponsiveContent>
       </ScrollView>
     </View>
   );
@@ -81,7 +89,7 @@ export function SectionTitle({ children }: { children: React.ReactNode }) {
 }
 
 export function EmptyMessage({ message }: { message: string }) {
-  return <MascotAssistant message={message} type="tip" dismissible={false} />;
+  return <EmptyState message={message} />;
 }
 
 export function Notice({ tone = 'info', children }: { tone?: 'info' | 'warning' | 'danger' | 'success'; children: React.ReactNode }) {
@@ -99,8 +107,10 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: Spacing.lg,
-    gap: Spacing.lg,
     paddingBottom: Spacing.xxxl,
+  },
+  inner: {
+    gap: Spacing.lg,
   },
   skeleton: {
     gap: Spacing.lg,

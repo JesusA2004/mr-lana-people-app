@@ -29,6 +29,8 @@ export type PushResourceType =
   | 'evaluacion_devuelta'
   | 'evaluacion_capturada'
   | 'contrato_por_vencer'
+  // Muro de felicitaciones (`MuroCumpleanosService`): resource_id = greeting
+  | 'cumpleanos_muro'
   // QA — `POST /dispositivos/push-prueba`
   | 'push_test'
   | (string & {});

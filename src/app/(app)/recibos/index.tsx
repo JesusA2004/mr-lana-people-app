@@ -31,7 +31,7 @@ export default function MisRecibosScreen() {
       onRefresh={() => void query.refetch()}>
       <Notice tone="info">Estos recibos son comprobantes internos de pago semanal. No son CFDI ni sustituyen el comprobante fiscal.</Notice>
       {recibos.length === 0 ? (
-        <EmptyMessage message="Todavía no tienes recibos internos de nómina." />
+        <EmptyMessage message="Todavía no tienes recibos. Cuando Recursos Humanos publique uno, lo verás aquí." />
       ) : (
         <View style={styles.list}>
           {recibos.map((recibo, index) => (

@@ -11,10 +11,11 @@ import { ErrorState } from '@/components/ErrorState';
 import { FadeInView } from '@/components/FadeInView';
 import { MascotAssistant } from '@/components/mascot/MascotAssistant';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
 import { useIncorporacion } from '@/hooks/queries/useIncorporacion';
 import { getDevErrorDetail, getErrorMessage } from '@/utils/errors';
 import { deriveIncorporationSteps } from '@/utils/incorporation';
+import { toExpedienteProgress } from '@/utils/expedienteProgress';
 
 const ESTADO_MENSAJE: Record<string, string> = {
   incompleto: 'Todavía te faltan documentos por cargar.',
@@ -49,9 +50,9 @@ export default function IncorporacionScreen() {
               <Card style={styles.heroCard}>
                 <View style={styles.heroHeader}>
                   <Text style={styles.heroTitle}>Progreso de incorporación</Text>
-                  <Text style={styles.heroPercent}>{Math.round(data.progreso.porcentaje)}%</Text>
+                  <Text style={styles.heroPercent}>{toExpedienteProgress(data.progreso).porcentaje}%</Text>
                 </View>
-                <AnimatedProgressBar percent={data.progreso.porcentaje} />
+                <AnimatedProgressBar percent={toExpedienteProgress(data.progreso).porcentaje} />
               </Card>
             </FadeInView>
 
@@ -104,6 +105,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   content: {
+    width: '100%',
+    maxWidth: Layout.maxContentWidth,
+    alignSelf: 'center',
     padding: Spacing.lg,
     gap: Spacing.lg,
     paddingBottom: Spacing.xxxl,

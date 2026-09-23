@@ -37,7 +37,7 @@ export default function RhRecibosScreen() {
         <Button title="Importar CSV / XLSX" leftIcon="cloud-upload-outline" variant="outline" onPress={() => router.push('/(app)/rh/recibos/importar' as never)} />
       ) : null}
       {recibos.length === 0 ? (
-        <EmptyMessage message="No hay recibos para mostrar." />
+        <EmptyMessage message="Aún no hay recibos aquí. Captura uno o impórtalos desde un archivo." />
       ) : (
         <View style={styles.list}>
           {recibos.map((recibo) => (

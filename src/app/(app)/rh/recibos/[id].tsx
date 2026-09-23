@@ -13,6 +13,7 @@ import { toast } from '@/store/toastStore';
 import { hasPermission } from '@/utils/capabilities';
 import { getActionErrorMessage, logError } from '@/utils/errors';
 import { joinName, slugifyFilename } from '@/utils/formatters';
+import { confirmAction } from '@/utils/confirm';
 
 /** Detalle RH de un recibo interno + PDF (solo si existe) + regenerar PDF (`nomina.recibos.crear`). */
 export default function RhReciboScreen() {
@@ -62,7 +63,15 @@ export default function RhReciboScreen() {
               variant="ghost"
               leftIcon="refresh-outline"
               loading={regenerar.isPending}
-              onPress={() =>
+              onPress={async () => {
+                const ok = await confirmAction({
+                  title: recibo.tiene_pdf ? 'Regenerar PDF' : 'Generar PDF',
+                  message: recibo.tiene_pdf
+                    ? 'El comprobante actual se reemplazará por uno nuevo generado con los datos vigentes del recibo.'
+                    : 'Se generará el comprobante PDF de este recibo.',
+                  confirmLabel: recibo.tiene_pdf ? 'Regenerar' : 'Generar',
+                });
+                if (!ok) return;
                 regenerar.mutate(undefined, {
                   onSuccess: (actualizado) =>
                     actualizado.tiene_pdf ? toast.success('PDF generado.') : toast.warning('El servidor no pudo generar el PDF. Intenta más tarde.'),
@@ -70,8 +79,8 @@ export default function RhReciboScreen() {
                     logError('rhRecibo.regenerar', error);
                     toast.error(getActionErrorMessage(error));
                   },
-                })
-              }
+                });
+              }}
             />
           ) : null}
         </>

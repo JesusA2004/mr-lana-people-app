@@ -28,28 +28,22 @@ export function canAuthorizeChange(actions?: AllowedAction[]): boolean {
 }
 
 /**
- * Seguridad para las dos solicitudes "complejas" (sección 5/14 del encargo
- * 2026-09-15): `Api\V1\Rh\SolicitudController::show()` TODAVÍA no
- * serializa los campos que RH necesita para aprobar con criterio un
- * préstamo (`monto_solicitado`/`plazo_meses`) o una baja de colaborador
- * (`colaborador_objetivo`/`fecha_efectiva`/`tipo_baja`), aunque el modelo sí
- * los tenga.
+ * Seguridad para las dos solicitudes "complejas" (préstamo y baja de
+ * colaborador): ¿se ofrece el botón GENÉRICO "Aprobar"
+ * (`POST .../rh/solicitudes/{id}/aprobar`)?
  *
- * Mientras eso sea cierto, la app BLOQUEA "Aprobar" en móvil para esos dos
- * tipos — nunca deja aprobar a ciegas un monto o una baja que ni siquiera
- * se puede leer — y ofrece completar la revisión en el Portal RH. "Ver",
- * "Rechazar" y "Pedir corrección" siguen intactos: solo dependen de
- * `acciones_permitidas`, como cualquier otro tipo.
- *
- * Esta función deja de bloquear SOLA en cuanto el backend mande esos campos
- * (comprueba su presencia real, nunca el tipo de la solicitud a ciegas):
- * el día que `Rh\SolicitudController` los serialice, `Aprobar` reaparece
- * sin tocar una línea de este archivo.
+ * - Préstamo: NUNCA. Autorizar un préstamo es otra operación
+ *   (`POST .../prestamo/autorizar`, con monto y plazo AUTORIZADOS, contrato y
+ *   pagaré) y vive exclusivamente en `PrestamoDecision`. El "Aprobar"
+ *   genérico no debe crear ni autorizar un préstamo por accidente.
+ * - Baja de colaborador: solo cuando el backend mande colaborador, fecha
+ *   efectiva y tipo de baja (hoy todavía no — se revisa en Portal RH).
+ * - Cualquier otro tipo: sí (sigue dependiendo de `acciones_permitidas`).
  */
-export function puedeAprobarSolicitudComplejaMovil(solicitud: Pick<RhSolicitud, 'tipo' | 'monto_solicitado' | 'plazo_meses' | 'colaborador_objetivo' | 'fecha_efectiva' | 'tipo_baja'>): boolean {
-  if (solicitud.tipo === 'prestamo') {
-    return solicitud.monto_solicitado !== undefined && solicitud.monto_solicitado !== null;
-  }
+export function puedeAprobarSolicitudComplejaMovil(
+  solicitud: Pick<RhSolicitud, 'tipo' | 'colaborador_objetivo' | 'fecha_efectiva' | 'tipo_baja'>,
+): boolean {
+  if (solicitud.tipo === 'prestamo') return false;
 
   if (solicitud.tipo === 'baja_colaborador') {
     return Boolean(solicitud.colaborador_objetivo) && Boolean(solicitud.fecha_efectiva) && Boolean(solicitud.tipo_baja);
@@ -58,7 +52,62 @@ export function puedeAprobarSolicitudComplejaMovil(solicitud: Pick<RhSolicitud, 
   return true;
 }
 
+/**
+ * ¿Se ofrece el "Rechazar" GENÉRICO? Para un préstamo con bloque
+ * `prestamo`, no: el rechazo va por `POST .../prestamo/rechazar` dentro de
+ * `PrestamoDecision` — nunca dos botones "Rechazar" que hacen operaciones
+ * distintas. Si un backend viejo no manda `prestamo`, se conserva el
+ * genérico (única vía disponible).
+ */
+export function usaRechazoGenerico(solicitud: Pick<RhSolicitud, 'tipo' | 'prestamo' | 'acciones_permitidas'>): boolean {
+  if (solicitud.tipo === 'prestamo' && solicitud.prestamo) return false;
+  return canReject(solicitud.acciones_permitidas);
+}
+
+/**
+ * La solicitud necesita revisión en Portal RH porque la app no tiene los
+ * datos para decidirla: préstamo sin bloque `prestamo` (backend viejo) o
+ * baja sin sus campos.
+ */
+export function requiereRevisionPortal(solicitud: Pick<RhSolicitud, 'tipo' | 'prestamo' | 'colaborador_objetivo' | 'fecha_efectiva' | 'tipo_baja'>): boolean {
+  if (solicitud.tipo === 'prestamo') return !solicitud.prestamo;
+  if (solicitud.tipo === 'baja_colaborador') return !puedeAprobarSolicitudComplejaMovil(solicitud);
+  return false;
+}
+
 /** true si el tipo de la solicitud es uno de los que requieren la revisión completa de arriba. */
 export function esSolicitudCompleja(tipo: string | undefined): boolean {
   return tipo === 'prestamo' || tipo === 'baja_colaborador';
+}
+
+export type VistoBuenoTono = 'success' | 'warning' | 'danger' | 'neutral';
+
+/** Texto + tono del visto bueno del jefe (nunca solo color: siempre texto). */
+export function describirVistoBueno(vb: { requerido: boolean; estado: string } | null | undefined): { label: string; tone: VistoBuenoTono } {
+  if (!vb || !vb.requerido || vb.estado === 'no_aplica') return { label: 'No requiere visto bueno', tone: 'neutral' };
+  switch (vb.estado) {
+    case 'aprobado':
+      return { label: 'Visto bueno aprobado', tone: 'success' };
+    case 'rechazado':
+      return { label: 'Visto bueno rechazado', tone: 'danger' };
+    case 'pendiente':
+      return { label: 'Pendiente de visto bueno', tone: 'warning' };
+    default:
+      return { label: `Visto bueno: ${vb.estado.replace(/_/g, ' ')}`, tone: 'neutral' };
+  }
+}
+
+/**
+ * Motivo útil cuando `puede_autorizar === false` en una solicitud aún
+ * abierta. Solo describe lo que el backend dijo; no decide nada.
+ */
+export function motivoNoAutorizable(
+  prestamo: { puede_autorizar: boolean; monto_solicitado: number | null; visto_bueno: { requerido: boolean; estado: string } },
+): string | null {
+  if (prestamo.puede_autorizar) return null;
+  const vb = prestamo.visto_bueno;
+  if (vb.requerido && vb.estado === 'pendiente') return 'Pendiente de visto bueno del jefe inmediato.';
+  if (vb.requerido && vb.estado === 'rechazado') return 'El jefe inmediato no dio su visto bueno.';
+  if (prestamo.monto_solicitado == null) return 'La solicitud no indica un monto; revísala en Portal RH.';
+  return 'Tu cuenta no puede autorizar este préstamo.';
 }

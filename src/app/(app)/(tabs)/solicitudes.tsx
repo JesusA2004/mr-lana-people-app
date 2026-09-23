@@ -11,7 +11,7 @@ import { MascotAssistant } from '@/components/mascot/MascotAssistant';
 import { PressableScale } from '@/components/PressableScale';
 import { RequestCard } from '@/components/RequestCard';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
 import { MascotMessages } from '@/constants/mascotMessages';
 import { requestFamily, type RequestFamily } from '@/constants/requestTypes';
 import { useSolicitudesInfinite } from '@/hooks/queries/useSolicitudes';
@@ -270,6 +270,9 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   listContent: {
+    width: '100%',
+    maxWidth: Layout.maxContentWidth,
+    alignSelf: 'center',
     padding: Spacing.lg,
     paddingTop: 0,
     flexGrow: 1,

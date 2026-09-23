@@ -6,11 +6,11 @@ import { FlatList, RefreshControl, StyleSheet, Text, TextInput, View } from 'rea
 import { AppHeader } from '@/components/AppHeader';
 import { ErrorState } from '@/components/ErrorState';
 import { FadeInView } from '@/components/FadeInView';
-import { MascotAssistant } from '@/components/mascot/MascotAssistant';
+import { EmptyState } from '@/components/EmptyState';
 import { PressableScale } from '@/components/PressableScale';
 import { RhBirthdayCard } from '@/components/RhBirthdayCard';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
 import { useRhCumpleanosInfinite } from '@/hooks/queries/useRhCumpleanos';
 import type { RhBirthdayPeriodo } from '@/types/rhBirthday';
 import { getErrorMessage } from '@/utils/errors';
@@ -129,7 +129,7 @@ export default function RhCumpleanosListScreen() {
           ) : isError ? (
             <ErrorState message={getErrorMessage(error)} onRetry={() => void refetch()} />
           ) : (
-            <MascotAssistant message="No hay cumpleaños en este periodo." type="tip" dismissible={false} />
+            <EmptyState icon="gift-outline" message="No hay cumpleaños en este periodo." />
           )
         }
       />
@@ -226,6 +226,9 @@ const styles = StyleSheet.create({
     color: Colors.white,
   },
   listContent: {
+    width: '100%',
+    maxWidth: Layout.maxContentWidth,
+    alignSelf: 'center',
     padding: Spacing.lg,
     paddingTop: 0,
     flexGrow: 1,

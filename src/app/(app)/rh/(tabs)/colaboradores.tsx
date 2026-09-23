@@ -10,9 +10,11 @@ import { FadeInView } from '@/components/FadeInView';
 import { PressableScale } from '@/components/PressableScale';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useRhColaboradores } from '@/hooks/queries/useRhColaboradores';
 import type { RhColaborador } from '@/types/rh';
+import { hasPermission } from '@/utils/capabilities';
 import { getErrorMessage } from '@/utils/errors';
 
 /** Directorio RH (AGENTS.md sección 13): buscador rápido, solo datos que la API devuelve — el expediente vive en `rh/expedientes`. */
@@ -28,10 +30,22 @@ export default function RhColaboradoresScreen() {
 
   const { data, isLoading, isError, error, refetch, isRefetching } = useRhColaboradores({ q: q || undefined, per_page: 40 }, true);
   const colaboradores = data?.data ?? [];
+  const bootstrap = useMobileBootstrap(true);
+  const puedeAlta = hasPermission(bootstrap.data?.user.permissions, 'colaboradores.alta');
 
   return (
     <View style={styles.container}>
-      <AppHeader title="Colaboradores" subtitle={data?.meta?.total ? `${data.meta.total} en total` : undefined} />
+      <AppHeader
+        title="Colaboradores"
+        subtitle={data?.meta?.total ? `${data.meta.total} en total` : undefined}
+        right={
+          puedeAlta ? (
+            <PressableScale accessibilityLabel="Dar de alta a un colaborador" onPress={() => router.push('/(app)/rh/colaboradores/nuevo' as never)} style={styles.addButton}>
+              <Ionicons name="person-add-outline" size={20} color={Colors.primaryDark} />
+            </PressableScale>
+          ) : undefined
+        }
+      />
 
       <View style={styles.searchWrapper}>
         <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
@@ -106,6 +120,14 @@ function ColaboradorRow({ colaborador, onPress }: { colaborador: RhColaborador; 
 }
 
 const styles = StyleSheet.create({
+  addButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   container: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -129,6 +151,9 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
   listContent: {
+    width: '100%',
+    maxWidth: Layout.maxContentWidth,
+    alignSelf: 'center',
     padding: Spacing.lg,
     paddingTop: 0,
     flexGrow: 1,

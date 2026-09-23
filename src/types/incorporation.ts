@@ -8,6 +8,12 @@ export interface IncorporacionProgreso {
   en_revision: number;
   rechazados: number;
   porcentaje: number;
+  /** Regla única del backend (ProgresoExpediente). Opcionales por compatibilidad. */
+  total_obligatorios?: number;
+  completos?: number;
+  faltantes?: number;
+  completo?: boolean;
+  sin_obligatorios?: boolean;
 }
 
 /** Espejo de `App\Services\Incorporacion\IncorporacionService::estadoGeneral()`. */

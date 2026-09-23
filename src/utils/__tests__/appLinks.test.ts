@@ -17,6 +17,8 @@ const CASOS: [type: string, resourceId: number | null, route: string, experience
   ['rh_documento', 431, '/(app)/rh/documentos/431', 'rh'],
   ['rh_incorporacion', 20, '/(app)/rh/incorporaciones/20', 'rh'],
   ['rh_cumpleanos', 42, '/(app)/rh/cumpleanos/42', 'rh'],
+  // Ruta compartida por ambas experiencias: no cambia de experiencia.
+  ['cumpleanos_muro', 15, '/muro-cumpleanos/15', null],
   ['documento_firma_pendiente', 300, '/documentos-laborales/300', 'colaborador'],
   ['recibo_nomina', 88, '/recibos/88', 'colaborador'],
   ['prestamo_autorizado', 15, '/prestamos/15', 'colaborador'],

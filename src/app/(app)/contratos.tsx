@@ -24,7 +24,7 @@ export default function MisContratosScreen() {
       refreshing={query.isRefetching}
       onRefresh={() => void query.refetch()}>
       {contratos.length === 0 ? (
-        <EmptyMessage message="Todavía no hay contratos registrados en tu expediente." />
+        <EmptyMessage message="Todavía no hay contratos. Cuando Recursos Humanos registre el tuyo, verás aquí su tipo y vigencia." />
       ) : (
         contratos.map((contrato) => (
           <ContratoCard

@@ -10,10 +10,12 @@ import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
 import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { useGestionarMuro } from '@/hooks/queries/useBirthdayWall';
 import { useRhCumpleano, useRhCumpleanoEnviar } from '@/hooks/queries/useRhCumpleanos';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from '@/store/toastStore';
+import { confirmAction } from '@/utils/confirm';
 import { formatDateLong } from '@/utils/dates';
 import { getErrorMessage, logError } from '@/utils/errors';
 import { haptics } from '@/utils/haptics';
@@ -25,6 +27,39 @@ export default function RhCumpleanoDetailScreen() {
   const token = useAuthStore((state) => state.token);
   const { data: greeting, isLoading, isError, error, refetch, isRefetching } = useRhCumpleano(id);
   const enviar = useRhCumpleanoEnviar(id);
+  const gestionarMuro = useGestionarMuro(id ?? '');
+  const muro = greeting?.muro;
+
+  const handleMuro = async (accion: 'abrir' | 'cerrar') => {
+    const nombre = greeting?.colaborador.nombre ?? 'el colaborador';
+    const ok = await confirmAction(
+      accion === 'abrir'
+        ? {
+            title: 'Abrir muro de felicitaciones',
+            message: `Todos los colaboradores recibirán un aviso y podrán dejarle mensajes y fotos a ${nombre}.`,
+            confirmLabel: 'Abrir muro',
+          }
+        : {
+            title: 'Cerrar muro',
+            message: 'Ya no se podrán dejar mensajes nuevos. Los que ya están se conservan.',
+            confirmLabel: 'Cerrar muro',
+            destructive: true,
+          },
+    );
+    if (!ok) return;
+    gestionarMuro.mutate(accion, {
+      onSuccess: () => {
+        haptics.success();
+        toast.success(accion === 'abrir' ? 'Muro abierto. Avisamos a todos.' : 'Muro cerrado.');
+        void refetch();
+      },
+      onError: (err) => {
+        logError('rhCumpleano.muro', err);
+        haptics.error();
+        toast.error(getErrorMessage(err));
+      },
+    });
+  };
   const [imageStatus, setImageStatus] = useState<'loading' | 'ready' | 'error'>('loading');
 
   // El backend real todavía no manda `acciones_permitidas` en este recurso
@@ -105,6 +140,55 @@ export default function RhCumpleanoDetailScreen() {
               <Text style={styles.statusText}>{greeting.enviada ? 'Felicitación enviada al colaborador' : 'Todavía no se ha enviado'}</Text>
             </View>
 
+            {muro ? (
+              <Card style={styles.muroCard}>
+                <View style={styles.statusRow}>
+                  <Ionicons name={muro.abierto ? 'chatbubbles' : 'chatbubbles-outline'} size={18} color={muro.abierto ? Colors.celebration : Colors.textMuted} />
+                  <Text style={styles.muroTitle}>Muro de felicitaciones</Text>
+                </View>
+                <Text style={styles.statusText}>
+                  {muro.abierto
+                    ? `Abierto · ${muro.mensajes_count} ${muro.mensajes_count === 1 ? 'mensaje' : 'mensajes'}`
+                    : muro.publicado
+                      ? `Cerrado · ${muro.mensajes_count} ${muro.mensajes_count === 1 ? 'mensaje' : 'mensajes'}`
+                      : 'Ábrelo para que todos puedan dejarle un mensaje o una foto.'}
+                </Text>
+                <View style={styles.muroActions}>
+                  {muro.publicado ? (
+                    <Button
+                      title="Ver muro"
+                      variant="outline"
+                      leftIcon="eye-outline"
+                      fullWidth={false}
+                      style={styles.muroButton}
+                      onPress={() => router.push(`/muro-cumpleanos/${greeting.greeting_id}` as never)}
+                    />
+                  ) : null}
+                  {muro.puede_gestionar && !muro.abierto ? (
+                    <Button
+                      title={muro.publicado ? 'Reabrir muro' : 'Abrir muro'}
+                      leftIcon="megaphone-outline"
+                      fullWidth={false}
+                      style={styles.muroButton}
+                      loading={gestionarMuro.isPending}
+                      onPress={() => void handleMuro('abrir')}
+                    />
+                  ) : null}
+                  {muro.puede_gestionar && muro.abierto ? (
+                    <Button
+                      title="Cerrar muro"
+                      variant="ghost"
+                      leftIcon="lock-closed-outline"
+                      fullWidth={false}
+                      style={styles.muroButton}
+                      loading={gestionarMuro.isPending}
+                      onPress={() => void handleMuro('cerrar')}
+                    />
+                  ) : null}
+                </View>
+              </Card>
+            ) : null}
+
             {canEnviar ? (
               <Button title="Enviar felicitación" leftIcon="paper-plane-outline" onPress={handleEnviar} loading={enviar.isPending} disabled={enviar.isPending} />
             ) : null}
@@ -121,9 +205,30 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   content: {
+    width: '100%',
+    maxWidth: Layout.maxContentWidth,
+    alignSelf: 'center',
     padding: Spacing.lg,
     gap: Spacing.lg,
     paddingBottom: Spacing.xxxl,
+  },
+  muroCard: {
+    gap: Spacing.sm,
+  },
+  muroTitle: {
+    fontSize: FontSize.md,
+    fontWeight: '800',
+    color: Colors.text,
+  },
+  muroActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  muroButton: {
+    flexGrow: 1,
+    flexBasis: 130,
+    minHeight: 44,
   },
   profileCard: {
     alignItems: 'center',

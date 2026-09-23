@@ -12,8 +12,9 @@ export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'dan
 const LABEL_COLOR: Record<ButtonVariant, string> = {
   primary: Colors.white,
   secondary: Colors.white,
-  outline: Colors.primary,
-  ghost: Colors.primary,
+  // Texto sobre fondo transparente: `primaryDark` contrasta mejor que `primary` en claro y oscuro.
+  outline: Colors.primaryDark,
+  ghost: Colors.primaryDark,
   danger: Colors.white,
 };
 
@@ -73,6 +74,7 @@ export function Button({
   return (
     <AnimatedPressable
       accessibilityRole="button"
+      accessibilityLabel={title}
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       onPress={onPress}
       onPressIn={handlePressIn}
@@ -88,7 +90,7 @@ export function Button({
       ]}>
       <View style={[styles.content, loading && styles.contentHidden]}>
         {leftIcon ? <Ionicons name={leftIcon} size={18} color={labelColor} /> : null}
-        <Text style={[styles.label, variantLabelStyles[variant]]} numberOfLines={1}>
+        <Text style={[styles.label, variantLabelStyles[variant]]} numberOfLines={2}>
           {title}
         </Text>
         {rightIcon ? <Ionicons name={rightIcon} size={18} color={labelColor} /> : null}
@@ -109,6 +111,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
   },
   fullWidth: {
     alignSelf: 'stretch',
@@ -121,6 +124,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
+    maxWidth: '100%',
   },
   contentHidden: {
     opacity: 0,
@@ -135,6 +139,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   label: {
+    // En 320 px o con texto grande el título baja a 2 líneas en vez de cortarse.
+    flexShrink: 1,
+    textAlign: 'center',
     fontSize: FontSize.md,
     fontWeight: '700',
   },
@@ -163,7 +170,7 @@ const variantStyles = StyleSheet.create({
 const variantLabelStyles = StyleSheet.create({
   primary: { color: Colors.white },
   secondary: { color: Colors.white },
-  outline: { color: Colors.primary },
-  ghost: { color: Colors.primary },
+  outline: { color: Colors.primaryDark },
+  ghost: { color: Colors.primaryDark },
   danger: { color: Colors.white },
 });

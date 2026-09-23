@@ -13,6 +13,7 @@ import { LockScreen } from '@/components/LockScreen';
 import { PrivacyOverlay } from '@/components/PrivacyOverlay';
 import { PushPermissionPrimer } from '@/components/PushPermissionPrimer';
 import { Colors } from '@/constants/colors';
+import { SHOW_DEV_TOOLS } from '@/constants/config';
 import { useAppPrivacyProtection } from '@/hooks/useAppPrivacyProtection';
 import { useBackgroundPrivacy } from '@/hooks/useBackgroundPrivacy';
 import { useBirthdayAutoCelebration } from '@/hooks/useBirthdayAutoCelebration';
@@ -22,7 +23,7 @@ import { useNotificationBadgeSync } from '@/hooks/queries/useNotificaciones';
 import { useAppLockStore } from '@/store/appLockStore';
 import { useExperienceStore } from '@/store/experienceStore';
 import { usePendingNavigationStore } from '@/store/pendingNavigationStore';
-import { canUseRhExperience } from '@/utils/capabilities';
+import { experienceAvailability, resolveExperience, shouldCorrectStoredExperience, type ExperienceAvailability } from '@/utils/experience';
 import { getErrorMessage } from '@/utils/errors';
 import { isFeatureEnabled } from '@/utils/featureFlags';
 import { isSelfServiceModuleEnabled } from '@/utils/modules';
@@ -50,6 +51,15 @@ export default function AppLayout() {
   const experience = useExperienceStore((state) => state.experience);
   const isExperienceLoading = useExperienceStore((state) => state.isLoading);
   const loadExperience = useExperienceStore((state) => state.load);
+  const setExperience = useExperienceStore((state) => state.setExperience);
+  const availability = experienceAvailability(bootstrap.data?.capabilities, bootstrap.data?.features);
+
+  // Preferencia guardada que ya no aplica (p. ej. le retiraron permisos de
+  // RH): se corrige para no volver a intentar un árbol inválido.
+  const correccion = bootstrap.data && !isExperienceLoading ? shouldCorrectStoredExperience(experience, availability) : null;
+  useEffect(() => {
+    if (correccion) void setExperience(correccion);
+  }, [correccion, setExperience]);
 
   // AGENTS.md sección 16 ("feature flags... las rutas profundas también
   // deben manejarlo"): mientras el bootstrap no ha resuelto se asume
@@ -113,11 +123,10 @@ export default function AppLayout() {
     );
   }
 
-  // Autoridad final: si capabilities/features ya NO ofrecen RH (permiso
-  // retirado, feature flag apagado), se fuerza la experiencia colaborador
-  // sin importar qué haya elegido esta cuenta antes — `canUseRh &&` manda.
-  const canUseRh = canUseRhExperience(bootstrap.data.capabilities, bootstrap.data.features);
-  const showRhTree = canUseRh && experience === 'rh';
+  // Autoridad final: capabilities/features del backend (nunca el rol).
+  // Solo RH → Gestión RH directo; solo colaborador → Mi espacio; ambas →
+  // la elegida. Un permiso retirado nunca deja montado el árbol RH.
+  const showRhTree = resolveExperience(experience, availability) === 'rh';
 
   return (
     <View style={styles.flex}>
@@ -129,6 +138,8 @@ export default function AppLayout() {
             options={{ presentation: 'modal', animation: 'slide_from_bottom', gestureEnabled: false }}
           />
           <Stack.Screen name="solicitud/[id]" />
+          {/* Solicitar préstamo es una solicitud: disponible aunque el módulo Préstamos esté apagado. */}
+          <Stack.Screen name="prestamos/solicitar" />
           <Stack.Screen name="expediente/[tipoId]" />
           <Stack.Protected guard={incorporacionEnabled}>
             <Stack.Screen name="incorporacion" />
@@ -160,6 +171,7 @@ export default function AppLayout() {
         {/* Compartidas entre Mi espacio y Gestión RH — nunca duplicar login ni crear otro token al cambiar de experiencia. */}
         <Stack.Protected guard={cumpleanosEnabled}>
           <Stack.Screen name="cumpleanos" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+          <Stack.Screen name="muro-cumpleanos/[id]" />
         </Stack.Protected>
         {/* Jefe / evaluaciones / bandeja: compartidas — un jefe o RH/Dirección
             las usa desde cualquiera de las dos experiencias. */}
@@ -177,6 +189,11 @@ export default function AppLayout() {
         <Stack.Screen name="configuracion" />
         <Stack.Screen name="ayuda" />
         <Stack.Screen name="guia" options={{ animation: 'fade' }} />
+        {/* QA (Diagnóstico Push / Design QA): solo dev o builds preview — en producción la ruta no existe. */}
+        <Stack.Protected guard={SHOW_DEV_TOOLS}>
+          <Stack.Screen name="dev/diagnostico-push" />
+          <Stack.Screen name="dev/design-qa" />
+        </Stack.Protected>
       </Stack>
 
       <PrivacyOverlay visible={appState !== 'active' && !isLocked} />
@@ -184,7 +201,7 @@ export default function AppLayout() {
       <PushPermissionPrimer />
       <BiometricEnrollPrimer />
       <ExperienceSelectorPrimer />
-      <PendingPushNavigationController showRhTree={showRhTree} canUseRh={canUseRh} />
+      <PendingPushNavigationController showRhTree={showRhTree} availability={availability} />
     </View>
   );
 }
@@ -199,7 +216,7 @@ export default function AppLayout() {
  * `showRhTree` coincida con la experiencia que pide la navegación
  * pendiente (o navega de inmediato si la ruta es compartida).
  */
-function PendingPushNavigationController({ showRhTree, canUseRh }: { showRhTree: boolean; canUseRh: boolean }) {
+function PendingPushNavigationController({ showRhTree, availability }: { showRhTree: boolean; availability: ExperienceAvailability }) {
   const router = useRouter();
   const pending = usePendingNavigationStore((state) => state.pending);
   const clearPendingPushNavigation = usePendingNavigationStore((state) => state.clearPendingPushNavigation);
@@ -209,7 +226,7 @@ function PendingPushNavigationController({ showRhTree, canUseRh }: { showRhTree:
     // Destino en Gestión RH pero la cuenta ya no puede usarla (permiso
     // retirado o feature apagado): nunca dejar la navegación colgada ni
     // abrir una ruta desmontada — cae en el centro de notificaciones.
-    if (pending.experience === 'rh' && !canUseRh) {
+    if ((pending.experience === 'rh' && !availability.rh) || (pending.experience === 'colaborador' && !availability.colaborador)) {
       router.push('/notificaciones');
       clearPendingPushNavigation();
       return;
@@ -217,7 +234,7 @@ function PendingPushNavigationController({ showRhTree, canUseRh }: { showRhTree:
     if (pending.experience !== null && (pending.experience === 'rh') !== showRhTree) return;
     router.push(pending.route as never);
     clearPendingPushNavigation();
-  }, [pending, showRhTree, canUseRh, router, clearPendingPushNavigation]);
+  }, [pending, showRhTree, availability.rh, availability.colaborador, router, clearPendingPushNavigation]);
 
   return null;
 }

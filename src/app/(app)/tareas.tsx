@@ -12,7 +12,7 @@ import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useLeerTarea, useResolverTarea, useTareas } from '@/hooks/queries/useTrabajo';
 import { toast } from '@/store/toastStore';
 import type { Tarea, TareasEstadoFiltro } from '@/types/task';
-import { canUseRhExperience } from '@/utils/capabilities';
+import { experienceAvailability } from '@/utils/experience';
 import { openCrossExperienceRoute } from '@/utils/crossNavigation';
 import { formatDateShort } from '@/utils/dates';
 import { getActionErrorMessage, logError } from '@/utils/errors';
@@ -44,7 +44,7 @@ export default function TareasScreen() {
   const bootstrap = useMobileBootstrap(true);
   const leer = useLeerTarea();
   const resolver = useResolverTarea();
-  const canUseRh = bootstrap.data ? canUseRhExperience(bootstrap.data.capabilities, bootstrap.data.features) : false;
+  const canUseRh = experienceAvailability(bootstrap.data?.capabilities, bootstrap.data?.features).rh;
 
   const tareas = query.data?.pages.flatMap((page) => page.data) ?? [];
   const conteos = query.data?.pages[0]?.conteos;

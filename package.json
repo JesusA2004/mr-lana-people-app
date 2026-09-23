@@ -62,7 +62,9 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "test": "jest"
+    "typecheck": "tsc --noEmit",
+    "test": "jest",
+    "check": "npm run typecheck && npm run lint && npm test"
   },
   "private": true,
   "jest": {

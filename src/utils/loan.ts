@@ -62,3 +62,30 @@ export function canGenerarDocumentosPrestamo(prestamo: Prestamo, permissions: st
     (!prestamo.contrato || !prestamo.pagare)
   );
 }
+
+/** "12 meses" / "1 mes"; `null` si el backend no manda un plazo válido (nunca "NaN meses"). */
+export function formatPlazoMeses(plazo: number | string | null | undefined): string | null {
+  if (plazo == null || plazo === '') return null;
+  const n = Number(plazo);
+  if (!Number.isFinite(n)) return null;
+  return `${n} ${n === 1 ? 'mes' : 'meses'}`;
+}
+
+export type PeriodicidadPrestamo = 'semanal' | 'quincenal' | 'mensual';
+
+/**
+ * Valores iniciales del formulario "Autorizar préstamo": lo solicitado, que
+ * RH puede ajustar. El plazo solicitado está en MESES (`plazo_meses`), así
+ * que la periodicidad inicial es mensual para que "plazo = número de pagos"
+ * signifique lo mismo que pidió el colaborador.
+ */
+export function prestamoAutorizacionInicial(prestamo: { monto_solicitado: number | null; plazo_solicitado: number | null }): {
+  monto: string;
+  plazo: string;
+  periodicidad: PeriodicidadPrestamo;
+} {
+  const monto = prestamo.monto_solicitado != null && Number.isFinite(prestamo.monto_solicitado) ? String(prestamo.monto_solicitado) : '';
+  const plazo =
+    prestamo.plazo_solicitado != null && Number.isInteger(prestamo.plazo_solicitado) && prestamo.plazo_solicitado >= 1 ? String(prestamo.plazo_solicitado) : '';
+  return { monto, plazo, periodicidad: plazo ? 'mensual' : 'quincenal' };
+}

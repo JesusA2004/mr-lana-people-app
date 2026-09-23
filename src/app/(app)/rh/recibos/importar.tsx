@@ -18,6 +18,7 @@ import { toApiDateString } from '@/utils/dates';
 import { getActionErrorMessage, getFieldError, logError } from '@/utils/errors';
 import { formatCurrencyMXN } from '@/utils/formatters';
 import { haptics } from '@/utils/haptics';
+import { confirmAction } from '@/utils/confirm';
 
 const IMPORT_TYPES = [
   'text/csv',
@@ -47,8 +48,16 @@ export default function RhImportarRecibosScreen() {
 
   const listo = !!archivo && !!inicio && !!fin;
 
-  const enviar = (simular: boolean) => {
+  const enviar = async (simular: boolean) => {
     if (!archivo || !inicio || !fin) return;
+    if (!simular) {
+      const ok = await confirmAction({
+        title: 'Importar recibos',
+        message: `Se generarán los recibos del archivo «${archivo.name}» para el periodo elegido y cada colaborador podrá verlos. Te recomendamos simular primero.`,
+        confirmLabel: 'Importar',
+      });
+      if (!ok) return;
+    }
     importar.mutate(
       { archivo, periodo_inicio: toApiDateString(inicio), periodo_fin: toApiDateString(fin), fecha_pago: pago ? toApiDateString(pago) : null, simular },
       {
@@ -81,8 +90,8 @@ export default function RhImportarRecibosScreen() {
       </Card>
       {isOffline ? <Notice tone="warning">Sin conexión: la importación requiere el servidor.</Notice> : null}
       <View style={styles.actions}>
-        <Button title="Simular" variant="outline" disabled={!listo || isOffline} loading={importar.isPending && importar.variables?.simular} onPress={() => enviar(true)} style={styles.flex} />
-        <Button title="Importar" disabled={!listo || isOffline} loading={importar.isPending && !importar.variables?.simular} onPress={() => enviar(false)} style={styles.flex} />
+        <Button title="Simular" variant="outline" disabled={!listo || isOffline} loading={importar.isPending && importar.variables?.simular} onPress={() => void enviar(true)} style={styles.flex} />
+        <Button title="Importar" disabled={!listo || isOffline} loading={importar.isPending && !importar.variables?.simular} onPress={() => void enviar(false)} style={styles.flex} />
       </View>
 
       {resultado ? (

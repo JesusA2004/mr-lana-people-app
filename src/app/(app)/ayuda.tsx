@@ -8,7 +8,7 @@ import { Card } from '@/components/Card';
 import { FadeInView } from '@/components/FadeInView';
 import { MascotAvatar } from '@/components/mascot/MascotAvatar';
 import { PressableScale } from '@/components/PressableScale';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
 
 interface Faq {
   question: string;
@@ -42,9 +42,9 @@ const FAQS: Faq[] = [
       'Ve al tab "Expediente", toca el documento que quieres cargar y elige "Subir documento". Puedes tomar una foto, elegir una de tu galería o subir un PDF — verás el progreso real de la subida.',
   },
   {
-    question: '¿Mi información está segura?',
+    question: '¿Quién puede ver mi información?',
     answer:
-      'Sí: bloqueamos capturas de pantalla y grabación dentro de la app, tu sesión viaja cifrada y se protege sola si dejas la app en segundo plano. Puedes ver el detalle en "Privacidad" más abajo.',
+      'Solo tú y el personal autorizado de Recursos Humanos. Los documentos no se pueden capturar en pantalla y la app se bloquea si la dejas un rato sin usar.',
   },
 ];
 
@@ -121,9 +121,8 @@ export default function AyudaScreen() {
               <Text style={styles.privacyTitle}>Privacidad</Text>
             </View>
             <Text style={styles.privacyText}>
-              Tu información laboral y personal se consulta directamente desde los sistemas de MR. LANA PEOPLE mediante conexión segura (HTTPS). La
-              app bloquea capturas de pantalla y grabación, oculta la vista previa en el selector de apps recientes, y tu sesión se protege con un
-              token cifrado en tu dispositivo. No compartimos tu información con servicios externos ajenos a la plataforma.
+              Tus datos y documentos solo los ven tú y el personal autorizado de Recursos Humanos. No compartimos tu información con
+              terceros. Si dejas la app un rato sin usar, te pedimos confirmar tu identidad al volver.
             </Text>
           </Card>
         </FadeInView>
@@ -138,6 +137,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   content: {
+    width: '100%',
+    maxWidth: Layout.maxContentWidth,
+    alignSelf: 'center',
     padding: Spacing.lg,
     gap: Spacing.lg,
     paddingBottom: Spacing.xxxl,
