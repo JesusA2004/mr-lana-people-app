@@ -70,10 +70,16 @@ export interface FormatoDato {
   valor: string;
 }
 
-/** Variable conocida que resolvió vacío — informativo, NUNCA bloquea `puede_generar`. */
+/**
+ * Variable conocida (automática) que resolvió vacío. Por default es solo
+ * informativo, pero si RH la marcó requerida en Portal RH → Formatos →
+ * Variables (ej. {{curp}}), `requerido: true` SÍ bloquea `puede_generar` —
+ * ver `App\Services\Formatos\FormatoPreviewService`.
+ */
 export interface FormatoFaltante {
   variable: string;
   etiqueta: string;
+  requerido: boolean;
 }
 
 /**
@@ -97,7 +103,7 @@ export interface FormatoPreparation {
   datos: FormatoDato[];
   faltantes: FormatoFaltante[];
   manuales: FormatoVariableManual[];
-  /** false solo si falta una variable MANUAL marcada como requerida — un dato base vacío nunca bloquea. */
+  /** false si falta una variable manual requerida O una automática que RH marcó requerida — usar este campo, no recalcular en el cliente. */
   puede_generar: boolean;
   output_available: { docx: true; pdf: boolean };
 }

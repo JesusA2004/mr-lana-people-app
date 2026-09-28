@@ -51,7 +51,14 @@ function FormatoGenerarWizard() {
   const generar = useRhFormatoGenerar();
 
   const manuales = preparation.data?.manuales ?? [];
-  const puedeGenerarAhora = manuales.every((manual) => !manual.requerido || (overrides[manual.clave] ?? manual.valor).trim() !== '');
+  // No recalcular localmente si faltan datos automáticos requeridos (ej.
+  // {{curp}} marcado obligatorio en Portal RH → Formatos → Variables): el
+  // backend es la única fuente de verdad de `puede_generar`, ver
+  // App\Services\Formatos\FormatoPreviewService.
+  const manualesCompletos = manuales.every((manual) => !manual.requerido || (overrides[manual.clave] ?? manual.valor).trim() !== '');
+  const puedeGenerarAhora = manualesCompletos && (preparation.data?.puede_generar ?? true);
+  const faltantesBloqueantes = (preparation.data?.faltantes ?? []).filter((f) => f.requerido);
+  const faltantesInformativos = (preparation.data?.faltantes ?? []).filter((f) => !f.requerido);
 
   // Paso 1: elegir plantilla (solo si no llegó por parámetro).
   if (!plantillaId) {
@@ -148,13 +155,19 @@ function FormatoGenerarWizard() {
               </>
             ) : null}
 
-            {preparation.data.faltantes.length > 0 ? (
-              <Text style={styles.avisoText}>
-                Sin dato todavía (no impide generar): {preparation.data.faltantes.map((f) => f.etiqueta).join(', ')}.
+            {faltantesBloqueantes.length > 0 ? (
+              <Text style={styles.errorText}>
+                Faltan datos obligatorios: {faltantesBloqueantes.map((f) => f.etiqueta).join(', ')}.
               </Text>
             ) : null}
 
-            {!puedeGenerarAhora ? <Text style={styles.errorText}>Completa los campos marcados con * antes de generar.</Text> : null}
+            {faltantesInformativos.length > 0 ? (
+              <Text style={styles.avisoText}>
+                Sin dato todavía (no impide generar): {faltantesInformativos.map((f) => f.etiqueta).join(', ')}.
+              </Text>
+            ) : null}
+
+            {!manualesCompletos ? <Text style={styles.errorText}>Completa los campos marcados con * antes de generar.</Text> : null}
             {generar.isError ? <Text style={styles.errorText}>{getErrorMessage(generar.error)}</Text> : null}
 
             <Button
