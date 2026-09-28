@@ -3,7 +3,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { BackHandler, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInRight, FadeOutLeft } from 'react-native-reanimated';
 
 import { solicitudesApi } from '@/api/solicitudes';
@@ -378,7 +378,8 @@ export default function NuevaSolicitudScreen() {
         <Stepper steps={stepLabels} currentIndex={clampedStep} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView style={styles.keyboardArea} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
         {currentStepKey === 'tipo' ? (
           <Animated.View key="step-tipo" entering={FadeInRight.duration(240)} exiting={FadeOutLeft.duration(160)} style={styles.stepBlock}>
             <MascotBubble message={MascotMessages.wizardTipo} />
@@ -487,7 +488,7 @@ export default function NuevaSolicitudScreen() {
                 {attachments.map((file, index) => (
                   <View key={`${file.uri}-${index}`} style={styles.attachmentRow}>
                     <Ionicons name="document-text-outline" size={18} color={Colors.primaryDark} />
-                    <Text style={styles.attachmentName} numberOfLines={1}>
+                    <Text style={styles.attachmentName} numberOfLines={2}>
                       {file.name}
                     </Text>
                     <PressableScale haptic={false} accessibilityLabel={`Quitar ${file.name}`} onPress={() => removeAttachment(index)}>
@@ -541,6 +542,7 @@ export default function NuevaSolicitudScreen() {
           disabled={submitting || (currentStepKey === 'tipo' && !config)}
         />
       </View>
+      </KeyboardAvoidingView>
 
       <PermissionPrimerSheet
         visible={Boolean(permissionPrimer)}
@@ -662,6 +664,7 @@ function SummaryRow({ icon, label, value }: { icon: keyof typeof Ionicons.glyphM
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
+  keyboardArea: { flex: 1 },
   stepperWrapper: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.md },
   content: { width: '100%', maxWidth: Layout.maxFormWidth, alignSelf: 'center', padding: Spacing.lg, paddingTop: 0, paddingBottom: Spacing.xxl, gap: Spacing.lg },
   stepBlock: { gap: Spacing.lg },

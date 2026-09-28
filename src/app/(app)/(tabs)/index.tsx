@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AnimatedProgressBar } from '@/components/AnimatedProgressBar';
+import { AniversarioHeroCard } from '@/components/AniversarioHeroCard';
 import { BirthdayHeroCard } from '@/components/BirthdayHeroCard';
 import { BirthdayWallBanner } from '@/components/BirthdayWallBanner';
 import { Button } from '@/components/Button';
@@ -20,6 +21,7 @@ import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
 import { MascotMessages } from '@/constants/mascotMessages';
 import { Stepper } from '@/components/Stepper';
 import { useBirthdayGreeting } from '@/hooks/queries/useBirthday';
+import { useCelebracionesActivas } from '@/hooks/queries/useCelebraciones';
 import { useDocumentosPendientes, useMiAlta, useMisPrestamos, useMisRecibos } from '@/hooks/queries/useCicloLaboral';
 import { useDashboard } from '@/hooks/queries/useDashboard';
 import { useIncorporacion } from '@/hooks/queries/useIncorporacion';
@@ -65,6 +67,15 @@ export default function DashboardScreen() {
   const equipoEnabled = isSelfServiceModuleEnabled(features, 'equipo');
   const evaluacionesEnabled = isSelfServiceModuleEnabled(features, 'evaluaciones');
   const birthday = useBirthdayGreeting(cumpleanosEnabled);
+  // Aniversario laboral: sistema aparte de cumpleaños (sin feature flag —
+  // `GET /celebraciones/activas` ya filtra por policy). Se prioriza el
+  // propio; si no, el primer compañero visible hoy. Cumpleaños ya tiene su
+  // propia tarjeta arriba, así que aquí solo se busca `aniversario_laboral`.
+  const celebracionesActivas = useCelebracionesActivas();
+  const aniversarioHoy = useMemo(() => {
+    const aniversarios = celebracionesActivas.data?.filter((c) => c.tipo === 'aniversario_laboral') ?? [];
+    return aniversarios.find((c) => c.es_mia) ?? aniversarios[0];
+  }, [celebracionesActivas.data]);
 
   const alta = useMiAlta();
   const documentosPendientes = useDocumentosPendientes(documentosLaboralesEnabled);
@@ -240,6 +251,12 @@ export default function DashboardScreen() {
             {birthday.data ? (
               <FadeInView index={0}>
                 <BirthdayHeroCard greeting={birthday.data} primerNombre={primerNombre} />
+              </FadeInView>
+            ) : null}
+
+            {aniversarioHoy ? (
+              <FadeInView index={birthday.data ? 1 : 0}>
+                <AniversarioHeroCard celebracion={aniversarioHoy} />
               </FadeInView>
             ) : null}
 

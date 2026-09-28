@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 
 import { queryKeys } from '@/api/queryKeys';
 import { rhCumpleanosApi, type RhCumpleanosParams } from '@/api/rh/cumpleanos';
@@ -23,13 +23,5 @@ export function useRhCumpleano(greetingId: string | number | undefined) {
     queryKey: queryKeys.rhCumpleano(greetingId ?? ''),
     queryFn: () => rhCumpleanosApi.getById(greetingId as string | number),
     enabled: Boolean(greetingId),
-  });
-}
-
-export function useRhCumpleanoEnviar(greetingId: string | number | undefined) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: () => rhCumpleanosApi.enviar(greetingId as string | number),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: queryKeys.rhCumpleano(greetingId ?? '') }),
   });
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from './Button';
 import { Input } from './Input';
@@ -23,6 +24,7 @@ export interface MotivoModalProps {
  * un solo componente en vez de repetir el mismo formulario cuatro veces.
  */
 export function MotivoModal({ visible, title, description, confirmLabel, submitting = false, onCancel, onConfirm }: MotivoModalProps) {
+  const insets = useSafeAreaInsets();
   const [motivo, setMotivo] = useState('');
 
   useEffect(() => {
@@ -39,14 +41,14 @@ export function MotivoModal({ visible, title, description, confirmLabel, submitt
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={submitting ? () => {} : onCancel}>
-      <View style={styles.backdrop}>
+      <KeyboardAvoidingView style={styles.backdrop} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Pressable
           style={StyleSheet.absoluteFill}
           onPress={submitting ? undefined : onCancel}
           accessibilityRole="button"
           accessibilityLabel="Cerrar"
         />
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, Spacing.xl) }]}>
           <Text style={styles.title}>{title}</Text>
           {description ? <Text style={styles.description}>{description}</Text> : null}
           <Input
@@ -72,7 +74,7 @@ export function MotivoModal({ visible, title, description, confirmLabel, submitt
             />
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

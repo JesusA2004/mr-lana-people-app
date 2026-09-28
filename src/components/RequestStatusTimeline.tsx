@@ -69,9 +69,14 @@ export interface RequestStatusTimelineProps {
   estado?: RequestStatus;
   /** Etiqueta ya traducida por el backend (`estado_etiqueta`). */
   estadoEtiqueta?: string;
+  /** `creada_en` real — se muestra bajo "Enviada" cuando el hito ya se cumplió. */
+  enviadaEn?: string | null;
+  /** `revisado_en` real — se muestra bajo "En revisión"/"Resuelta" cuando aplica. */
+  revisadoEn?: string | null;
+  formatFecha?: (iso?: string | null) => string;
 }
 
-export function RequestStatusTimeline({ estado, estadoEtiqueta }: RequestStatusTimelineProps) {
+export function RequestStatusTimeline({ estado, estadoEtiqueta, enviadaEn, revisadoEn, formatFecha }: RequestStatusTimelineProps) {
   const final = estado ? FINAL_STATES[estado] : undefined;
 
   if (final) {
@@ -88,12 +93,16 @@ export function RequestStatusTimeline({ estado, estadoEtiqueta }: RequestStatusT
 
   const reached = reachedCount(estado);
   const needsCorrection = estado === 'requiere_correccion';
+  const fecha = (iso?: string | null) => (iso && formatFecha ? formatFecha(iso) : undefined);
 
   return (
     <View style={styles.container}>
+      <Text style={styles.heading}>Así va tu solicitud</Text>
       {MILESTONES.map((milestone, index) => {
         const done = index < reached;
         const current = index === reached;
+        // Fecha real por hito: 0 = enviada, último alcanzado = revisado_en (solo si ya se resolvió/entró a revisión).
+        const milestoneDate = index === 0 ? fecha(enviadaEn) : index === reached - 1 ? fecha(revisadoEn) : undefined;
         return (
           <View key={milestone.key} style={styles.row}>
             <View style={styles.markerColumn}>
@@ -102,7 +111,10 @@ export function RequestStatusTimeline({ estado, estadoEtiqueta }: RequestStatusT
               </View>
               {index < MILESTONES.length - 1 ? <View style={[styles.connector, done && styles.connectorDone]} /> : null}
             </View>
-            <Text style={[styles.label, (done || current) && styles.labelActive]}>{milestone.label}</Text>
+            <View style={styles.labelColumn}>
+              <Text style={[styles.label, (done || current) && styles.labelActive]}>{milestone.label}</Text>
+              {milestoneDate ? <Text style={styles.dateText}>{milestoneDate}</Text> : null}
+            </View>
           </View>
         );
       })}
@@ -119,6 +131,7 @@ export function RequestStatusTimeline({ estado, estadoEtiqueta }: RequestStatusT
 
 const styles = StyleSheet.create({
   container: { gap: 0 },
+  heading: { fontSize: FontSize.xs, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: Spacing.md },
   row: { flexDirection: 'row', gap: Spacing.md },
   markerColumn: { alignItems: 'center', width: 20 },
   marker: {
@@ -135,8 +148,10 @@ const styles = StyleSheet.create({
   markerCurrent: { borderColor: Colors.primary, borderWidth: 3 },
   connector: { width: 2, flex: 1, minHeight: 22, backgroundColor: Colors.border },
   connectorDone: { backgroundColor: Colors.primary },
-  label: { flex: 1, fontSize: FontSize.sm, color: Colors.textMuted, paddingBottom: Spacing.md },
+  labelColumn: { flex: 1, paddingBottom: Spacing.md },
+  label: { fontSize: FontSize.sm, color: Colors.textMuted },
   labelActive: { color: Colors.text, fontWeight: '700' },
+  dateText: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: 2 },
   finalCard: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.md, borderRadius: Radius.md },
   finalText: { flex: 1 },
   finalTitle: { fontSize: FontSize.md, fontWeight: '800' },

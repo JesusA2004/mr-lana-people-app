@@ -39,3 +39,21 @@ export interface NotificationItem {
   } | null;
   [key: string]: unknown;
 }
+
+/**
+ * `POST /api/v1/notificaciones/{id}/abrir` — espejo de
+ * `DestinoNotificacionService::resolver()`. `url` es del portal WEB (nunca
+ * se usa para navegar en la app, que sigue resolviendo con
+ * `data.type`/`resource_id` vía `resolveResourceRoute`). Lo que SÍ debe
+ * mostrarse tal cual es `mensaje_estado`, para avisar cuando el recurso
+ * cambió en otro lado mientras el aviso seguía sin abrirse (AGENTS.md
+ * sección 27).
+ */
+export interface AbrirNotificacionRespuesta {
+  url: string | null;
+  /** true = ya se atendió; false = sigue pendiente; null = informativo o recurso inexistente. */
+  atendida: boolean | null;
+  estado_recurso: string | null;
+  mensaje_estado: string | null;
+  no_leidas: number;
+}

@@ -25,7 +25,21 @@ export function useMarkNotificacionLeida() {
   });
 }
 
-/** `POST /notificaciones/leer-todas` — todavía no existe en el backend, ver docs/BACKEND_REQUIREMENTS_V4.md. */
+/** Al TOCAR una notificación (ver `notificacionesApi.abrir`) — reemplaza a `useMarkNotificacionLeida` para ese caso. */
+export function useAbrirNotificacion() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: number | string) => notificacionesApi.abrir(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notificaciones });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.bootstrap });
+    },
+  });
+}
+
+/** `POST /api/v1/notificaciones/leer-todas` — `NotificacionController::marcarTodasLeidas`. */
 export function useMarkAllNotificacionesLeidas() {
   const queryClient = useQueryClient();
 

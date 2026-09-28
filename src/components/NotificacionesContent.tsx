@@ -12,7 +12,7 @@ import { SkeletonCardList } from './SkeletonBlock';
 
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 import { MascotMessages } from '@/constants/mascotMessages';
-import { useMarkAllNotificacionesLeidas, useMarkNotificacionLeida, useNotificaciones } from '@/hooks/queries/useNotificaciones';
+import { useAbrirNotificacion, useMarkAllNotificacionesLeidas, useNotificaciones } from '@/hooks/queries/useNotificaciones';
 import { toast } from '@/store/toastStore';
 import type { NotificationItem } from '@/types/notification';
 import { experienceForPushType, resolveResourceRoute } from '@/utils/appLinks';
@@ -62,7 +62,7 @@ export interface NotificacionesContentProps {
 export function NotificacionesContent({ showBack = false }: NotificacionesContentProps) {
   const router = useRouter();
   const { data, isLoading, isError, error, refetch, isRefetching } = useNotificaciones();
-  const markAsRead = useMarkNotificacionLeida();
+  const abrir = useAbrirNotificacion();
   const markAllAsRead = useMarkAllNotificacionesLeidas();
   const [tab, setTab] = useState<Tab>('todas');
 
@@ -72,16 +72,10 @@ export function NotificacionesContent({ showBack = false }: NotificacionesConten
   const sections = useMemo(() => groupByDate(filtered), [filtered]);
 
   const handlePress = (item: NotificationItem) => {
-    if (!item.leida) {
-      markAsRead.mutate(item.id, {
-        onError: (markError) => logError('notificaciones.markAsRead', markError),
-      });
-    }
-
     // Navegación determinista con los campos estructurados del backend
     // (`data.type/resource_id/periodo`) y el mismo resolver que el push.
-    // `url` es una ruta del portal WEB: nunca se usa para navegar en la app.
-    // Un tipo sin pantalla móvil solo se marca como leído.
+    // `url` de la respuesta de `/abrir` es una ruta del portal WEB: nunca se
+    // usa para navegar en la app.
     const type = item.data?.type ?? item.tipo ?? undefined;
     const resolved = resolveResourceRoute({
       type,
@@ -94,6 +88,18 @@ export function NotificacionesContent({ showBack = false }: NotificacionesConten
       // documento laboral por archivar): mismo mecanismo que el tap de push.
       openCrossExperienceRoute(resolved, experienceForPushType(type));
     }
+
+    // Marca leída Y trae el estado ACTUAL del recurso: si alguien lo
+    // resolvió desde la web mientras el aviso seguía sin abrirse, avisa
+    // "ya fue atendida" en vez de dejar que la pantalla de destino sea la
+    // única señal (AGENTS.md sección 27). Se dispara después de navegar
+    // para no retrasar el tap.
+    abrir.mutate(item.id, {
+      onSuccess: (respuesta) => {
+        if (respuesta.mensaje_estado) toast.info(respuesta.mensaje_estado);
+      },
+      onError: (abrirError) => logError('notificaciones.abrir', abrirError),
+    });
   };
 
   const handleMarkAllAsRead = () => {

@@ -310,7 +310,7 @@ export default function RhSolicitudDetailScreen() {
                 {solicitud.adjuntos.map((adjunto) => (
                   <View key={adjunto.id} style={styles.attachmentRow}>
                     <Ionicons name="document-attach-outline" size={16} color={Colors.textMuted} />
-                    <Text style={styles.attachmentName} numberOfLines={1}>
+                    <Text style={styles.attachmentName} numberOfLines={2}>
                       {adjunto.nombre}
                     </Text>
                   </View>

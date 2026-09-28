@@ -12,6 +12,14 @@ export type PushResourceType =
   | 'vacaciones'
   | 'incorporacion'
   | 'cumpleanos'
+  // Celebraciones unificadas (`App\Notifications\Mobile\CelebracionNotification`):
+  // cumpleaños/aniversario laboral al homenajeado, "avisar a todos" y
+  // mensajes nuevos. Sistema aparte de `cumpleanos`/`cumpleanos_muro`
+  // (que siguen usando la felicitación "clásica"), ver `src/types/celebracion.ts`.
+  | 'aniversario_laboral'
+  | 'cumpleanos_general'
+  | 'aniversario_general'
+  | 'celebracion_mensaje'
   // RH / aprobadores
   | 'rh_solicitud'
   | 'rh_documento'

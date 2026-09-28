@@ -43,16 +43,12 @@ export const rhCumpleanosApi = {
   },
 
   /**
-   * GAP DE BACKEND: no existe todavía en capacitaciones — el único envío
-   * manual real hoy vive en el panel web
-   * (`/rh/cumpleanos/{colaborador}/felicitacion`, permiso
-   * `rh.cumpleanos.notificaciones.gestionar`), no en la API móvil
-   * (confirmado contra `routes/api.php`). Se implementa igual, gateado por
-   * `acciones_permitidas` (que el backend real todavía no manda en el
-   * detalle) para que el botón "Enviar" aparezca solo. Ver
-   * `docs/BACKEND_GAPS_FINAL.md`.
+   * El envío manual de felicitación NO tiene ruta en `Rh\CumpleanosController`
+   * (confirmado contra `routes/api.php` @ `capacitaciones@cc4beeb`) — solo
+   * existe en el panel web. La acción real y equivalente ya está disponible
+   * vía el sistema unificado de celebraciones: ver
+   * `rhCelebracionesApi.enviar(colaboradorId, 'cumpleanos')` en
+   * `src/api/rh/celebraciones.ts`, usada por
+   * `src/app/(app)/rh/cumpleanos/[id].tsx`.
    */
-  async enviar(greetingId: number | string): Promise<void> {
-    await apiClient.post(`/rh/cumpleanos/${greetingId}/enviar`);
-  },
 };

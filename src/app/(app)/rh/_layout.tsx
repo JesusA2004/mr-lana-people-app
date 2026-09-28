@@ -53,6 +53,16 @@ export default function RhLayout() {
       <Stack.Screen name="expedientes/[colaborador]" />
       <Stack.Screen name="expedientes/[colaborador]/documentos/[documento]" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
 
+      {/* Formatos oficiales (PDF fijo + overlay real, distinto del motor DOCX
+          legacy de abajo): sin `Stack.Protected` propio — el backend real no
+          documenta un permiso de LISTADO separado (solo `.generar` y
+          `.descargar` para las acciones), así que la app confía en el 403
+          normal de cada endpoint en vez de inventar un nombre de permiso
+          para tapar el módulo completo. */}
+      <Stack.Screen name="formatos-oficiales/index" />
+      <Stack.Screen name="formatos-oficiales/[id]" />
+      <Stack.Screen name="formatos-oficiales/generar" />
+
       <Stack.Protected guard={cumpleanosEnabled}>
         <Stack.Screen name="cumpleanos/index" />
         <Stack.Screen name="cumpleanos/[id]" />

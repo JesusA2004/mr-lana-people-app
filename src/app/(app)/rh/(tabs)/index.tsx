@@ -92,12 +92,20 @@ export default function RhDashboardScreen() {
     moduloOn('cierres') && { route: '/(app)/rh/cierres', icon: 'exit-outline', label: 'Cierres y finiquitos' },
     moduloOn('recibos') && { route: '/(app)/rh/recibos', icon: 'receipt-outline', label: 'Recibos internos' },
     cumpleanosEnabled && { route: '/(app)/rh/cumpleanos', icon: 'gift-outline', label: 'Cumpleaños' },
+    hasPermission(permissions, 'celebraciones.ver') && { route: '/(app)/rh/aniversarios', icon: 'ribbon-outline', label: 'Aniversarios' },
     moduloOn('indicadores') && { route: '/(app)/rh/indicadores', icon: 'stats-chart-outline', label: 'Indicadores' },
     moduloOn('plantilla') && { route: '/(app)/rh/plantilla', icon: 'grid-outline', label: 'Plantilla y cobertura' },
     (organigramaEnabled || organigramaPersonasEnabled) && { route: '/(app)/rh/organizacion', icon: 'git-network-outline', label: 'Organigrama' },
     vacantesEnabled && { route: '/(app)/rh/vacantes', icon: 'briefcase-outline', label: 'Vacantes' },
     moduloOn('plantillas_documentales') && { route: '/(app)/rh/plantillas-documentales', icon: 'documents-outline', label: 'Plantillas documentales' },
     formatosEnabled && { route: '/(app)/rh/formatos', icon: 'document-text-outline', label: 'Formatos' },
+    // Formatos oficiales (PDF fijo + overlay, sistema real y distinto del
+    // anterior): sin feature flag propio — a diferencia de "Formatos"
+    // (motor DOCX todavía sin backend real, por eso fail-CLOSED arriba), el
+    // controlador de este módulo ya existe y funciona en producción. Se
+    // muestra a cualquier RH sin gate de permiso inventado (el backend real
+    // no documenta uno de LISTADO) y confía en el 403 normal de cada acción.
+    { route: '/(app)/rh/formatos-oficiales', icon: 'newspaper-outline', label: 'Formatos oficiales' },
   ]);
 
   const cumpleanosHoy = useRhCumpleanosInfinite({ periodo: 'hoy' }, cumpleanosEnabled);

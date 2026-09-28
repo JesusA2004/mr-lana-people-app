@@ -49,7 +49,7 @@ export function SolicitudFormatoOficialCard({ solicitud, onVerDocumento }: Solic
               <Ionicons name={presentation.icon} size={16} color={presentation.color} />
             </View>
             <View style={styles.rowText}>
-              <Text style={styles.rowName} numberOfLines={1}>
+              <Text style={styles.rowName} numberOfLines={2}>
                 {documento.nombre}
               </Text>
               <Text style={[styles.rowStatus, { color: presentation.color }]}>

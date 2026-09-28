@@ -3,6 +3,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type QueryClie
 import { solicitudesApi } from '@/api/solicitudes';
 import { queryKeys, rhQueryKeyPrefix } from '@/api/queryKeys';
 import type { CreateSolicitudPayload } from '@/types/request';
+import type { LocalUploadFile } from '@/api/upload';
 
 /**
  * Todo lo que una mutación de solicitudes puede haber movido: el listado
@@ -83,6 +84,25 @@ export function useCancelSolicitud() {
       invalidateSolicitudes(queryClient, id);
       // Si quien cancela también es RH, su bandeja acaba de cambiar.
       void queryClient.invalidateQueries({ queryKey: rhQueryKeyPrefix });
+    },
+    retry: false,
+  });
+}
+
+/**
+ * `POST /api/v1/solicitudes/{id}/adjuntos` — la única acción real disponible
+ * para el colaborador cuando una solicitud está en `requiere_correccion`
+ * (no existe endpoint para editar/reenviar los datos, ver AGENTS.md sección
+ * 13). La respuesta no trae el adjunto nuevo (bug B-2 documentado en
+ * `solicitudesApi.addAttachment`), así que solo se invalida el detalle.
+ */
+export function useAddSolicitudAttachment(id: string | number | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (file: LocalUploadFile) => solicitudesApi.addAttachment(id as string | number, file),
+    onSuccess: () => {
+      if (id !== undefined) void queryClient.invalidateQueries({ queryKey: queryKeys.solicitud(id) });
     },
     retry: false,
   });

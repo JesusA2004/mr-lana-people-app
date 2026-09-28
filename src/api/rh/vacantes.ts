@@ -6,6 +6,8 @@ import type { RhVacante } from '@/types/rhVacante';
 export interface RhVacantesParams {
   estado?: string;
   sucursal_id?: number | string;
+  /** `busqueda` — nombre de puesto o sucursal (`VacantesListadoService::consulta()`). */
+  busqueda?: string;
   page?: number;
   per_page?: number;
 }

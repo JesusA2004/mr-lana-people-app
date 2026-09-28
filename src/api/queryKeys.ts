@@ -12,6 +12,9 @@ export const queryKeys = {
   vacacionesSolicitudes: ['vacaciones', 'solicitudes'] as const,
   notificaciones: ['notificaciones'] as const,
   cumpleanosFelicitacionActual: ['cumpleanos', 'felicitacion-actual'] as const,
+  celebracionesActivas: ['celebraciones', 'activas'] as const,
+  celebracion: (id: string | number) => ['celebraciones', String(id)] as const,
+  celebracionMensajes: (id: string | number) => ['celebraciones', String(id), 'mensajes'] as const,
   appConfig: ['app', 'config'] as const,
   appReleaseLatest: (platform: string) => ['app', 'releases', 'latest', platform] as const,
 
@@ -36,10 +39,18 @@ export const queryKeys = {
 
   rhCumpleanos: (params: Record<string, unknown> = {}) => ['rh', 'cumpleanos', params] as const,
   rhCumpleano: (id: string | number) => ['rh', 'cumpleanos', String(id)] as const,
+  rhAniversarios: (params: Record<string, unknown> = {}) => ['rh', 'celebraciones', 'aniversarios', params] as const,
 
   rhFormatos: (params: Record<string, unknown> = {}) => ['rh', 'formatos', params] as const,
   rhFormatoPreparation: (formatoId: string | number, colaboradorId: string | number) =>
     ['rh', 'formatos', String(formatoId), 'preparar', String(colaboradorId)] as const,
+
+  // Formatos oficiales (PDF fijo + overlay) — sistema real distinto del motor
+  // DOCX legacy de arriba, namespace propio para no mezclar invalidaciones.
+  rhFormatosOficiales: (params: Record<string, unknown> = {}) => ['rh', 'formatos-oficiales', params] as const,
+  rhFormatoOficial: (id: string | number) => ['rh', 'formatos-oficiales', String(id)] as const,
+  rhFormatosOficialesGenerados: (params: Record<string, unknown> = {}) => ['rh', 'formatos-oficiales', 'generados', params] as const,
+  rhFormatosOficialesVariables: ['rh', 'formatos-oficiales', 'variables'] as const,
 
   rhDocumentExtraction: (documentoId: string | number) => ['rh', 'documentos', String(documentoId), 'extraccion'] as const,
 

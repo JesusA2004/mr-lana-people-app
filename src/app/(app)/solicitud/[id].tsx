@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -15,7 +16,7 @@ import { SolicitudFormatoOficialCard } from '@/components/SolicitudFormatoOficia
 import { StatusBadge } from '@/components/StatusBadge';
 import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
 import { MascotMessages } from '@/constants/mascotMessages';
-import { useCancelSolicitud, useSolicitud } from '@/hooks/queries/useSolicitudes';
+import { useAddSolicitudAttachment, useCancelSolicitud, useSolicitud } from '@/hooks/queries/useSolicitudes';
 import { toast } from '@/store/toastStore';
 import { canCancelSolicitud } from '@/types/request';
 import { formatDateLong, formatDateTime } from '@/utils/dates';
@@ -23,24 +24,29 @@ import { getDevErrorDetail, getErrorMessage, logError } from '@/utils/errors';
 import { formatCurrencyMXN, humanizeRequestType } from '@/utils/formatters';
 import { haptics } from '@/utils/haptics';
 import { loanStagesToTimeline } from '@/utils/loanRequest';
+import { getSolicitudStory, prestamoNextAction } from '@/utils/solicitudStory';
 
 /**
  * Detalle de una solicitud propia.
  *
- * `SolicitudInternaResource` todavía serializa solo los campos planos: no
- * incluye los adjuntos ni la bitácora de historial, aunque
- * `SolicitudController::show()` sí los cargue en memoria (gap D-1 de
- * `docs/BACKEND_SYNC_2026_09_15.md`). Esta pantalla muestra únicamente lo
- * que el backend devuelve de verdad — nunca inventa una lista de adjuntos.
+ * `SolicitudInternaResource` todavía serializa solo los campos planos (13
+ * confirmados contra `capacitaciones@cc4beeb`): no incluye adjuntos ni la
+ * bitácora de historial, aunque `SolicitudController::show()` sí los cargue
+ * en memoria (gap D-1, aún real). Esta pantalla muestra únicamente lo que
+ * el backend devuelve de verdad — nunca inventa una lista de adjuntos.
  *
- * Sincronización 2026-09-15: las secciones "Documentos de tu solicitud",
- * "Archivos enviados" y "Seguimiento detallado" están preparadas para
- * cuando el Resource los mande, pero se protegen con la presencia real del
- * payload (`solicitud.documentos_generados?.length`,
- * `solicitud.adjuntos?.length`, `solicitud.historial?.length`) — hoy
- * ninguna se dibuja porque ninguno de esos campos llega todavía.
+ * Las secciones "Documentos de tu solicitud", "Archivos enviados" y
+ * "Seguimiento detallado" están preparadas para cuando el Resource los
+ * mande, pero se protegen con la presencia real del payload
+ * (`solicitud.documentos_generados?.length`, `solicitud.adjuntos?.length`,
+ * `solicitud.historial?.length`) — hoy ninguna se dibuja porque ninguno de
+ * esos campos llega todavía.
  *
- * Lo que sí ya existe y se usa aquí: `POST /solicitudes/{id}/cancelar`.
+ * Gap real confirmado (no D-1): no existe ningún endpoint para editar o
+ * reenviar una solicitud en `requiere_correccion` — solo
+ * `POST {id}/adjuntos` (agregar un archivo) y `POST {id}/cancelar`. Por eso
+ * la corrección NUNCA ofrece un botón "Corregir"/reenviar: solo agregar un
+ * documento o cancelar y crear una solicitud nueva.
  */
 export default function SolicitudDetalleScreen() {
   const router = useRouter();
@@ -49,9 +55,12 @@ export default function SolicitudDetalleScreen() {
 
   const { data: solicitud, isLoading, isError, error, refetch } = useSolicitud(id);
   const cancelMutation = useCancelSolicitud();
+  const addAttachmentMutation = useAddSolicitudAttachment(id);
 
   const hasDateRange = Boolean(solicitud?.fecha_inicio || solicitud?.fecha_fin);
   const puedeCancelar = canCancelSolicitud(solicitud);
+  const story = getSolicitudStory(solicitud?.estado);
+  const prestamoActionLabel = prestamoNextAction(solicitud?.prestamo?.etapas);
 
   interface DetailItem {
     icon: keyof typeof Ionicons.glyphMap;
@@ -80,6 +89,37 @@ export default function SolicitudDetalleScreen() {
     { icon: 'time-outline', label: 'Última revisión', value: solicitud?.revisado_en ? formatDateTime(solicitud.revisado_en) : undefined },
   ];
   const details = allDetails.filter((item) => Boolean(item.value));
+
+  const handleAddDocument = async () => {
+    if (!id) return;
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/pdf', 'image/jpeg', 'image/png'],
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+      if (result.canceled || !result.assets[0]) return;
+      const asset = result.assets[0];
+
+      addAttachmentMutation.mutate(
+        { uri: asset.uri, name: asset.name, mimeType: asset.mimeType ?? 'application/octet-stream' },
+        {
+          onSuccess: (response) => {
+            haptics.success();
+            toast.success(response.message ?? 'Documento agregado.');
+          },
+          onError: (uploadError) => {
+            logError('solicitudes.addAttachment', uploadError);
+            haptics.warning();
+            toast.error(getErrorMessage(uploadError));
+          },
+        },
+      );
+    } catch (pickError) {
+      logError('solicitudes.pickDocument', pickError);
+      toast.error('No fue posible seleccionar el archivo.');
+    }
+  };
 
   const handleCancel = () => {
     if (!id) return;
@@ -125,24 +165,54 @@ export default function SolicitudDetalleScreen() {
               {solicitud.creada_en ? <Text style={styles.date}>{formatDateLong(solicitud.creada_en)}</Text> : null}
             </Card>
 
+            <Card style={styles.storyCard}>
+              <Text style={styles.storyTitle}>{story.title}</Text>
+              <Text style={styles.storyNextAction}>
+                {solicitud.tipo === 'prestamo' && prestamoActionLabel ? prestamoActionLabel : story.nextAction}
+              </Text>
+            </Card>
+
             <Card>
               {/* Préstamo: avance real calculado por el backend (visto bueno → RH → firma). */}
               {solicitud.prestamo?.etapas.length ? (
                 <StepTimeline items={loanStagesToTimeline(solicitud.prestamo.etapas)} />
               ) : (
-                <RequestStatusTimeline estado={solicitud.estado} estadoEtiqueta={solicitud.estado_etiqueta} />
+                <RequestStatusTimeline
+                  estado={solicitud.estado}
+                  estadoEtiqueta={solicitud.estado_etiqueta}
+                  enviadaEn={solicitud.creada_en}
+                  revisadoEn={solicitud.revisado_en}
+                  formatFecha={formatDateTime}
+                />
               )}
             </Card>
 
             {solicitud.estado === 'requiere_correccion' && solicitud.motivo_rechazo ? (
-              <MascotAssistant message={MascotMessages.documentoRechazado} type="warning" priority="high" dismissible={false} />
-            ) : null}
-
-            {solicitud.motivo_rechazo ? (
+              <>
+                <MascotAssistant message={MascotMessages.documentoRechazado} type="warning" priority="high" dismissible={false} />
+                <Card style={styles.correctionCard}>
+                  <View style={styles.rejectionHeader}>
+                    <Ionicons name="alert-circle" size={18} color={Colors.warning} />
+                    <Text style={styles.correctionTitle}>Necesitamos que hagas un cambio</Text>
+                  </View>
+                  <Text style={styles.rejectionLabel}>Motivo</Text>
+                  <Text style={styles.rejectionText}>{solicitud.motivo_rechazo}</Text>
+                  <Button
+                    title="Agregar documento"
+                    variant="outline"
+                    leftIcon="attach-outline"
+                    loading={addAttachmentMutation.isPending}
+                    disabled={addAttachmentMutation.isPending}
+                    onPress={() => void handleAddDocument()}
+                    style={styles.rejectionButton}
+                  />
+                </Card>
+              </>
+            ) : solicitud.motivo_rechazo ? (
               <Card style={styles.rejectionCard}>
                 <View style={styles.rejectionHeader}>
                   <Ionicons name="alert-circle" size={18} color={Colors.danger} />
-                  <Text style={styles.rejectionTitle}>Motivo de rechazo / corrección</Text>
+                  <Text style={styles.rejectionTitle}>Motivo de rechazo</Text>
                 </View>
                 <Text style={styles.rejectionText}>{solicitud.motivo_rechazo}</Text>
               </Card>
@@ -179,7 +249,7 @@ export default function SolicitudDetalleScreen() {
                     <View style={styles.detailIcon}>
                       <Ionicons name="document-attach-outline" size={16} color={Colors.primaryDark} />
                     </View>
-                    <Text style={styles.detailValue} numberOfLines={1}>
+                    <Text style={styles.detailValue} numberOfLines={2}>
                       {adjunto.nombre}
                     </Text>
                   </View>
@@ -276,10 +346,34 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     color: Colors.textMuted,
   },
+  storyCard: {
+    gap: Spacing.xs,
+    backgroundColor: Colors.primarySoft,
+    borderColor: Colors.primarySoft,
+  },
+  storyTitle: {
+    fontSize: FontSize.md,
+    fontWeight: '800',
+    color: Colors.text,
+  },
+  storyNextAction: {
+    fontSize: FontSize.sm,
+    color: Colors.textMuted,
+  },
   rejectionCard: {
     backgroundColor: Colors.dangerSoft,
     borderColor: Colors.dangerSoft,
     gap: Spacing.xs,
+  },
+  correctionCard: {
+    backgroundColor: Colors.warningSoft,
+    borderColor: Colors.warningSoft,
+    gap: Spacing.xs,
+  },
+  correctionTitle: {
+    fontSize: FontSize.sm,
+    fontWeight: '800',
+    color: Colors.text,
   },
   rejectionHeader: {
     flexDirection: 'row',
@@ -291,9 +385,20 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: Colors.danger,
   },
+  rejectionLabel: {
+    fontSize: FontSize.xs,
+    fontWeight: '700',
+    color: Colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: Spacing.xs,
+  },
   rejectionText: {
     fontSize: FontSize.sm,
     color: Colors.text,
+  },
+  rejectionButton: {
+    marginTop: Spacing.sm,
   },
   detailRow: {
     flexDirection: 'row',

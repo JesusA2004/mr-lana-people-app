@@ -12,12 +12,13 @@ import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
 import { useGestionarMuro } from '@/hooks/queries/useBirthdayWall';
-import { useRhCumpleano, useRhCumpleanoEnviar } from '@/hooks/queries/useRhCumpleanos';
+import { useRhCumpleano } from '@/hooks/queries/useRhCumpleanos';
+import { useRhCelebracionEnviar } from '@/hooks/queries/useRhCelebraciones';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from '@/store/toastStore';
 import { confirmAction } from '@/utils/confirm';
-import { formatDateLong } from '@/utils/dates';
-import { getErrorMessage, logError } from '@/utils/errors';
+import { formatDateLong, toApiDateString } from '@/utils/dates';
+import { getActionErrorMessage, getErrorMessage, logError } from '@/utils/errors';
 import { haptics } from '@/utils/haptics';
 
 /** Destino real del push `{"type":"rh_cumpleanos","resource_id":<greeting_id>}` (AGENTS.md de este encargo, sección 6). */
@@ -26,7 +27,7 @@ export default function RhCumpleanoDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const token = useAuthStore((state) => state.token);
   const { data: greeting, isLoading, isError, error, refetch, isRefetching } = useRhCumpleano(id);
-  const enviar = useRhCumpleanoEnviar(id);
+  const enviar = useRhCelebracionEnviar();
   const gestionarMuro = useGestionarMuro(id ?? '');
   const muro = greeting?.muro;
 
@@ -62,23 +63,34 @@ export default function RhCumpleanoDetailScreen() {
   };
   const [imageStatus, setImageStatus] = useState<'loading' | 'ready' | 'error'>('loading');
 
-  // El backend real todavía no manda `acciones_permitidas` en este recurso
-  // (confirmado contra `Rh\CumpleanosController::show`) — el botón "Enviar"
-  // solo aparece si algún día lo agrega, nunca se inventa.
-  const canEnviar = Array.isArray(greeting?.acciones_permitidas) && greeting.acciones_permitidas.includes('enviar');
+  // `Rh\CumpleanosController::show()` sigue sin mandar `acciones_permitidas`
+  // (gap real, no inventado), pero el sistema unificado de celebraciones
+  // (`docs/CELEBRACIONES.md`) SÍ expone un endpoint real para enviar la
+  // felicitación de HOY: `POST /rh/celebraciones/{colaborador}/cumpleanos/
+  // enviar` (confirmado contra `capacitaciones@cc4beeb`). Solo aplica al
+  // evento del día — fuera de fecha el backend responde 422, así que el
+  // botón solo se ofrece si esta felicitación es la de hoy y no se ha
+  // enviado todavía.
+  const esHoy = greeting?.fecha === toApiDateString(new Date());
+  const canEnviar = Boolean(greeting) && !greeting?.enviada && esHoy;
 
   const handleEnviar = () => {
-    enviar.mutate(undefined, {
-      onSuccess: () => {
-        haptics.success();
-        toast.success('Felicitación enviada.');
+    if (!greeting) return;
+    enviar.mutate(
+      { colaboradorId: greeting.colaborador.id, tipo: 'cumpleanos' },
+      {
+        onSuccess: (data) => {
+          haptics.success();
+          toast.success(data.message ?? 'Felicitación enviada.');
+          void refetch();
+        },
+        onError: (err) => {
+          logError('rhCumpleano.enviar', err);
+          haptics.error();
+          toast.error(getActionErrorMessage(err));
+        },
       },
-      onError: (err) => {
-        logError('rhCumpleano.enviar', err);
-        haptics.error();
-        toast.error(getErrorMessage(err));
-      },
-    });
+    );
   };
 
   return (

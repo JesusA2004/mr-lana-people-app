@@ -12,6 +12,9 @@ import type { PushNotificationData, PushResourceType } from '@/types/pushNotific
  * `PushNotifier::aUsuario*` y `NotificadorRhService::notificar()`):
  *
  * - Colaborador: solicitud, vacaciones, documento, incorporacion, cumpleanos
+ * - Celebraciones unificadas: aniversario_laboral, cumpleanos_general,
+ *   aniversario_general, celebracion_mensaje (`CelebracionNotification`,
+ *   confirmado contra `capacitaciones@cc4beeb`)
  * - RH/aprobador: rh_solicitud, rh_vacaciones, rh_documento, rh_incorporacion, rh_cumpleanos
  * - Ciclo laboral: documento_firma_pendiente, recibo_nomina, prestamo_autorizado,
  *   expediente_incompleto, alta_activada, visto_bueno_pendiente,
@@ -38,6 +41,14 @@ export function resolveResourceRoute(data: PushNotificationData): string | null 
       return '/incorporacion';
     case 'cumpleanos':
       return '/cumpleanos';
+
+    // Celebraciones unificadas: siempre llevan a la celebración concreta
+    // (`resource_id` = id de `BirthdayGreeting`), nunca a una bandeja.
+    case 'aniversario_laboral':
+    case 'cumpleanos_general':
+    case 'aniversario_general':
+    case 'celebracion_mensaje':
+      return id ? `/celebracion/${id}` : null;
 
     case 'rh_solicitud':
       return id ? `/(app)/rh/solicitudes/${id}` : '/(app)/rh/(tabs)/pendientes';
@@ -136,6 +147,10 @@ const KNOWN_COLLABORATOR_TYPES = new Set<PushResourceType>([
   'vacaciones',
   'incorporacion',
   'cumpleanos',
+  'aniversario_laboral',
+  'cumpleanos_general',
+  'aniversario_general',
+  'celebracion_mensaje',
   'documento_firma_pendiente',
   'recibo_nomina',
   'prestamo_autorizado',

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { FlatList, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AppHeader } from '@/components/AppHeader';
 import { Card } from '@/components/Card';
@@ -18,6 +18,7 @@ import { hasPermission } from '@/utils/capabilities';
 import { formatDateLong } from '@/utils/dates';
 import { getErrorMessage } from '@/utils/errors';
 import { openRhWeb } from '@/utils/openRhWeb';
+import { diasVacanteAbierta } from '@/utils/vacantes';
 
 /**
  * Vacantes — SOLO LECTURA (`GET /api/v1/rh/vacantes`, permiso
@@ -29,13 +30,17 @@ import { openRhWeb } from '@/utils/openRhWeb';
  * Tampoco es un tab principal: se llega desde Inicio → Vacantes.
  */
 /**
- * Espejo LITERAL de `App\Enums\EstadoVacante` (6 casos, confirmado el
- * 2026-09-15 contra `capacitaciones@a1e8546`). `en_proceso` NUNCA existió —
- * bug de esta sincronización: el filtro se armó a mano en vez de leer el
- * enum real y quedaba silenciosamente incompleto.
+ * Espejo LITERAL de `App\Enums\EstadoVacante` (6 casos, confirmado contra
+ * `capacitaciones@cc4beeb`). `en_proceso` NUNCA existió.
+ *
+ * Sin `estado` en la petición, `VacantesListadoService::consulta()` excluye
+ * `cubierta`/`cancelada` — es decir, "sin filtro" YA significa "activas",
+ * nunca "todas" (AGENTS.md sección 18). El chip por default se llama
+ * "Activas" para no prometer lo que el backend no manda; quien quiera ver
+ * cubiertas/canceladas las pide explícitamente.
  */
-const ESTADO_FILTERS: { label: string; value: string | 'todos' }[] = [
-  { label: 'Todas', value: 'todos' },
+const ESTADO_FILTERS: { label: string; value: string | 'activas' }[] = [
+  { label: 'Activas', value: 'activas' },
   { label: 'Abiertas', value: 'abierta' },
   { label: 'En reclutamiento', value: 'en_reclutamiento' },
   { label: 'Con candidatos', value: 'con_candidatos' },
@@ -47,10 +52,20 @@ const ESTADO_FILTERS: { label: string; value: string | 'todos' }[] = [
 export default function RhVacantesScreen() {
   const router = useRouter();
   const bootstrap = useMobileBootstrap(true);
-  const [estado, setEstado] = useState<string | 'todos'>('todos');
+  const [estado, setEstado] = useState<string | 'activas'>('activas');
+  const [searchInput, setSearchInput] = useState('');
+  const [busqueda, setBusqueda] = useState('');
+
+  useEffect(() => {
+    const handle = setTimeout(() => setBusqueda(searchInput.trim()), 350);
+    return () => clearTimeout(handle);
+  }, [searchInput]);
 
   const puedeVer = hasPermission(bootstrap.data?.user.permissions, 'vacantes.ver');
-  const params = useMemo(() => ({ estado: estado === 'todos' ? undefined : estado }), [estado]);
+  const params = useMemo(
+    () => ({ estado: estado === 'activas' ? undefined : estado, busqueda: busqueda || undefined }),
+    [estado, busqueda],
+  );
   const query = useRhVacantes(params, puedeVer);
 
   const vacantes = useMemo(() => query.data?.pages.flatMap((page) => page.data) ?? [], [query.data]);
@@ -77,6 +92,25 @@ export default function RhVacantesScreen() {
       <View style={styles.readOnlyBanner}>
         <Ionicons name="eye-outline" size={16} color={Colors.primaryDark} />
         <Text style={styles.readOnlyText}>Consulta. Abrir, editar o cubrir una vacante se hace en el Portal RH.</Text>
+      </View>
+
+      <View style={styles.searchWrapper}>
+        <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
+        <TextInput
+          value={searchInput}
+          onChangeText={setSearchInput}
+          placeholder="Puesto o sucursal"
+          placeholderTextColor={Colors.textMuted}
+          style={styles.searchInput}
+          autoCapitalize="none"
+          autoCorrect={false}
+          accessibilityLabel="Buscar vacante por puesto o sucursal"
+        />
+        {searchInput ? (
+          <PressableScale haptic={false} accessibilityLabel="Limpiar búsqueda" onPress={() => setSearchInput('')}>
+            <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
+          </PressableScale>
+        ) : null}
       </View>
 
       <FlatList
@@ -147,6 +181,7 @@ export default function RhVacantesScreen() {
 
 function VacanteCard({ vacante, onPress }: { vacante: RhVacante; onPress: () => void }) {
   const meta = [vacante.departamento, vacante.sucursal].filter(Boolean).join(' · ');
+  const diasAbierta = diasVacanteAbierta(vacante.fecha_apertura);
 
   return (
     <Card style={styles.card} onPress={onPress}>
@@ -167,7 +202,12 @@ function VacanteCard({ vacante, onPress }: { vacante: RhVacante; onPress: () => 
       </View>
 
       <View style={styles.cardFooter}>
-        {vacante.fecha_apertura ? <Text style={styles.cardFooterText}>Abierta el {formatDateLong(vacante.fecha_apertura)}</Text> : null}
+        {vacante.fecha_apertura ? (
+          <Text style={styles.cardFooterText}>
+            Abierta el {formatDateLong(vacante.fecha_apertura)}
+            {diasAbierta !== null ? ` · ${diasAbierta} ${diasAbierta === 1 ? 'día' : 'días'} abierta` : ''}
+          </Text>
+        ) : null}
         <View style={styles.badgeRow}>
           {vacante.generada_automaticamente ? (
             <View style={styles.tag}>
@@ -209,6 +249,20 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primarySoft,
   },
   readOnlyText: { flex: 1, fontSize: FontSize.xs, color: Colors.text },
+  searchWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    height: 40,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  searchInput: { flex: 1, fontSize: FontSize.sm, color: Colors.text },
   filterRow: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.md, gap: Spacing.sm },
   filterChip: {
     paddingHorizontal: Spacing.md,
