@@ -1,40 +1,42 @@
 import { apiClient, extractData } from '../client';
 
-import type { FormatoOutput, FormatoPreparation, GeneratedDocument, RhFormato } from '@/types/formato';
+import type { FormatoPreparation, GeneratedDocument, RhFormato } from '@/types/formato';
 import { normalizeRhFormatosList } from '@/utils/formato';
 
-export interface GenerarFormatoPayload {
-  colaborador_id: number | string;
-  overrides?: Record<string, string>;
-  output?: FormatoOutput;
+export interface PrepararGenerarFormatoPayload {
+  tipo_sujeto: 'colaborador' | 'candidato';
+  sujeto_id: number | string;
+  /** Solo las variables manuales declaradas para esa plantilla — el backend rechaza cualquier otra clave. */
+  extra?: Record<string, string>;
 }
 
 /**
- * `GET /api/v1/rh/formatos` — espejo EXACTO de
- * `App\Http\Controllers\Api\V1\Rh\FormatoController` en capacitaciones
- * (confirmado contra el código fuente real, commit `34a8132`). YA
- * IMPLEMENTADO: catálogo (sin filtros de query — `index()` no lee ningún
- * parámetro, nunca mandar `tipo`/`q`/`page` al backend) + descarga
- * DOCX/PDF de documentos ya generados. Generar/preparar/preview un
- * documento NUEVO desde el celular sigue sin existir — ver el bloque
- * "contrato propuesto" al final de este archivo y
- * `docs/BACKEND_GAPS_FINAL.md`.
+ * `App\Http\Controllers\Api\V1\Rh\FormatoController` — motor de plantillas
+ * DOCX (App\Services\Plantillas\*), mismos servicios que el panel web (ver
+ * docs/PLANTILLAS_FORMATOS.md). Catálogo, preparar, generar y descarga
+ * (DOCX/PDF) — administrar plantillas (subir, mapear variables, versionar)
+ * se queda en Portal RH.
  */
 export const rhFormatosApi = {
+  /** `GET /rh/formatos` — arreglo plano, sin paginación ni filtros de query. */
   async list(): Promise<RhFormato[]> {
     const response = await apiClient.get('/rh/formatos');
     return normalizeRhFormatosList((response.data as { data?: unknown } | undefined)?.data);
   },
 
-  /**
-   * Ambas rutas reciben directamente el id de un `GeneratedDocument` ya
-   * existente (`{documento}` en `routes/api.php`), NO el id del formato —
-   * bug corregido: la auditoría anterior usaba un prefijo `formatos/
-   * generados/{id}/...` que nunca existió. GAP real: no hay endpoint para
-   * DESCUBRIR esos ids desde el celular (ver docs/BACKEND_GAPS_FINAL.md) —
-   * estas rutas solo son útiles el día que exista una lista de documentos
-   * generados por colaborador.
-   */
+  /** `POST /rh/formatos/{plantilla}/preparar` — qué se puede resolver solo, qué falta, y si ya se puede generar. */
+  async preparar(plantillaId: number | string, payload: PrepararGenerarFormatoPayload): Promise<FormatoPreparation> {
+    const response = await apiClient.post(`/rh/formatos/${plantillaId}/preparar`, payload);
+    return extractData<FormatoPreparation>(response.data);
+  },
+
+  /** `POST /rh/formatos/{plantilla}/generar` — crea el `GeneratedDocument` y lo archiva en el expediente del colaborador. */
+  async generar(plantillaId: number | string, payload: PrepararGenerarFormatoPayload): Promise<GeneratedDocument> {
+    const response = await apiClient.post(`/rh/formatos/${plantillaId}/generar`, payload);
+    return extractData<GeneratedDocument>(response.data);
+  },
+
+  /** Streaming autenticado (Bearer) como adjunto — nunca una URL directa expuesta. */
   descargarPath(documentoGeneradoId: number | string): string {
     return `/rh/formatos/${documentoGeneradoId}/descargar`;
   },
@@ -43,25 +45,13 @@ export const rhFormatosApi = {
     return `/rh/formatos/${documentoGeneradoId}/descargar-pdf`;
   },
 
-  // -------------------------------------------------------------------------
-  // Contrato PROPUESTO, AÚN NO IMPLEMENTADO en el backend real — mantenido
-  // para que `rh/formatos/generar.tsx` compile y quede listo, pero sin
-  // ningún punto de entrada alcanzable desde la navegación normal de la
-  // app (ver docs/BACKEND_GAPS_FINAL.md). Toda llamada aquí responde 404
-  // hoy.
-  // -------------------------------------------------------------------------
-
-  async preparar(formatoId: number | string, colaboradorId: number | string): Promise<FormatoPreparation> {
-    const response = await apiClient.get(`/rh/formatos/${formatoId}/preparar`, { params: { colaborador_id: colaboradorId } });
-    return extractData<FormatoPreparation>(response.data);
-  },
-
-  async generar(formatoId: number | string, payload: GenerarFormatoPayload): Promise<GeneratedDocument> {
-    const response = await apiClient.post(`/rh/formatos/${formatoId}/generar`, payload);
-    return extractData<GeneratedDocument>(response.data);
-  },
-
+  /**
+   * Vista previa embebida del documento ya generado: reutiliza la misma
+   * descarga PDF (`SecureDocumentViewer` la descarga a un archivo temporal
+   * y la abre en un WebView local — el `Content-Disposition` del backend no
+   * afecta ese flujo). No existe un endpoint de "preview" aparte.
+   */
   previewPath(documentoGeneradoId: number | string): string {
-    return `/rh/formatos/generados/${documentoGeneradoId}/preview`;
+    return this.descargarPdfPath(documentoGeneradoId);
   },
 };

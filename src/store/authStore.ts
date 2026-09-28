@@ -7,7 +7,6 @@ import { queryClient } from '@/api/queryClient';
 import { AUTH_TOKEN_KEY, DEVICE_NAME } from '@/constants/config';
 import { revokeCurrentPushToken } from '@/services/pushNotifications';
 import { useAppLockStore } from '@/store/appLockStore';
-import { useExperienceStore } from '@/store/experienceStore';
 import { clearPendingPushNavigation } from '@/store/pendingNavigationStore';
 import type { AuthUser } from '@/types/auth';
 import { AppError, isTransientError, logError } from '@/utils/errors';
@@ -41,6 +40,8 @@ interface AuthState {
   login: (email: string, password: string) => Promise<void>;
   /** Aplica una sesión ya obtenida fuera de /login (ver registro por QR en incorporacion/qr/[token].tsx). */
   loginWithToken: (token: string, user: AuthUser) => Promise<void>;
+  /** LockScreen: confirma la contraseña de la sesión actual sin crear ni revocar tokens (POST /reautenticar). */
+  reauthenticate: (password: string) => Promise<void>;
   logout: () => Promise<void>;
   restoreSession: () => Promise<void>;
   /** Reintenta verificar la sesión pendiente (botón Reintentar / NetInfo recuperó conexión). */
@@ -114,8 +115,10 @@ export const useAuthStore = create<AuthState>((set, get) => {
     safely('queryClient.clear', () => queryClient.clear());
     // No dejar el auto-lock esperando un desbloqueo que ya no aplica.
     safely('appLock.reset', () => useAppLockStore.getState().reset());
-    // No filtrar la experiencia (Mi espacio/Gestión RH) a la siguiente cuenta.
-    safely('experience.reset', () => useExperienceStore.getState().reset());
+    // La experiencia (Mi espacio/Gestión RH) y la preferencia biométrica NO
+    // se borran aquí: están namespaced por cuenta (`:{userId}`), así que no
+    // se filtran a la siguiente cuenta y se restauran solas la próxima vez
+    // que esta misma cuenta inicie sesión en este dispositivo.
     // Una navegación pendiente de un push nunca debe disparar en la sesión de otra cuenta.
     safely('pendingNavigation.clear', () => clearPendingPushNavigation());
   }
@@ -131,6 +134,11 @@ export const useAuthStore = create<AuthState>((set, get) => {
     try {
       const user = await authApi.me({ timeout: RESTORE_REQUEST_TIMEOUT_MS });
       set({ token: storedToken, user, isAuthenticated: true, pendingVerification: false });
+      // Arranque en frío con una sesión ya guardada (nunca un login
+      // interactivo recién hecho, que no pasa por aquí): siempre exige
+      // desbloqueo antes de mostrar cualquier dato, sin importar cuánto
+      // tiempo estuvo la app cerrada.
+      useAppLockStore.getState().lock();
     } catch (error) {
       logError('authStore.verifyStoredToken', error);
       if (isTransientError(error)) {
@@ -190,6 +198,10 @@ export const useAuthStore = create<AuthState>((set, get) => {
         await clearPersistedToken();
         throw error;
       }
+    },
+
+    async reauthenticate(password) {
+      await authApi.reautenticar(password);
     },
 
     async logout() {

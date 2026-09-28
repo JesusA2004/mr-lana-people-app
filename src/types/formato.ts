@@ -1,14 +1,10 @@
 /**
- * Catálogo de formatos automáticos RH + descarga de lo ya generado — espejo
- * EXACTO de `App\Services\Formatos\FormatoCatalogoService::listar()` +
- * `App\Http\Controllers\Api\V1\Rh\FormatoController` en capacitaciones
- * (confirmado contra el código fuente real el 2026-09-10, commit
- * `34a8132`). El backend YA implementa catálogo + descarga (DOCX/PDF) —
- * auditoría anterior lo daba como gap completo, eso estaba desactualizado.
- * Generar un documento nuevo y su vista previa con variables faltantes
- * siguen solo en el panel web (`Rh\FormatoController` docblock: "requieren
- * un flujo de selección/edición más largo del que tiene sentido en la
- * app... aquí RH solo consulta el catálogo y descarga lo ya generado").
+ * Catálogo de formatos automáticos RH, generación y descarga — espejo de
+ * `App\Http\Controllers\Api\V1\Rh\FormatoController` (motor DOCX,
+ * `App\Services\Plantillas\*`/`App\Services\Formatos\FormatoPreviewService`).
+ * Catálogo, preparar, generar y descarga (DOCX/PDF) ya están implementados
+ * en el backend real; administrar plantillas (subir DOCX, mapear variables,
+ * versionar) se queda en Portal RH — ver docs/PLANTILLAS_FORMATOS.md.
  */
 
 export type FormatoOutput = 'pdf' | 'docx';
@@ -40,13 +36,10 @@ export type FormatoTipo =
 
 /**
  * Entrada real de `GET /rh/formatos` (`FormatoCatalogoService::listar()`).
- * NO trae `clave`, `formatos_salida`, `variables_requeridas` ni
- * `acciones_permitidas` — esos campos eran parte de un contrato
- * especulativo de una auditoría anterior que nunca existió en el backend
- * real. `variables` son los placeholders detectados dentro del DOCX
- * (informativo, no hay UI de generación móvil hoy). El permiso que
- * controla ver el catálogo es `plantillas.ver` (autorización backend, no
- * algo que la app deba replicar).
+ * `variables` son los placeholders {{...}} detectados dentro del DOCX
+ * (informativo). El permiso que controla ver el catálogo es
+ * `plantillas.ver`, y generar un documento nuevo `plantillas.generar`
+ * (autorización backend, no algo que la app deba replicar).
  */
 export interface RhFormato {
   id: number;
@@ -60,41 +53,53 @@ export interface RhFormato {
 }
 
 // ---------------------------------------------------------------------------
-// Contrato PROPUESTO para generación móvil — AÚN NO IMPLEMENTADO en el
-// backend real (confirmado: no existen `preparar`/`generar`/`generados/
-// {id}/preview` en `routes/api.php`). Se mantienen estos tipos y el wizard
-// (`src/app/(app)/rh/formatos/generar.tsx`) preparados mas NO alcanzables
-// desde ninguna navegación real de la app — ver `docs/BACKEND_GAPS_FINAL.md`.
+// `POST /rh/formatos/{plantilla}/preparar` y `.../generar` — implementados
+// en `App\Http\Controllers\Api\V1\Rh\FormatoController` reutilizando
+// `App\Services\Formatos\FormatoPreviewService`/`VariableMappingService`
+// (el mismo motor que ya usa el panel web, ver docs/PLANTILLAS_FORMATOS.md).
+// Misma convención de nombres que el motor de formatos oficiales
+// (`types/formatoOficial.ts`: `puede_generar`, `faltantes`, `manuales`,
+// `datos`) para que ambos sistemas se lean igual desde la app, aunque son
+// motores distintos.
 // ---------------------------------------------------------------------------
 
-export interface FormatoMissingField {
-  field: string;
-  label: string;
+/** Variable conocida (dato real del colaborador/candidato) ya resuelta. */
+export interface FormatoDato {
+  clave: string;
+  etiqueta: string;
+  valor: string;
+}
+
+/** Variable conocida que resolvió vacío — informativo, NUNCA bloquea `puede_generar`. */
+export interface FormatoFaltante {
+  variable: string;
+  etiqueta: string;
 }
 
 /**
- * Shape especulativa del formato dentro de `FormatoPreparation` — distinta
- * de `RhFormato` (el catálogo real) porque el contrato propuesto para
- * `preparar` incluye campos (`formatos_salida`) que el catálogo real nunca
- * mandó. Mantenida separada para no mezclar el contrato real con el
- * propuesto.
+ * Variable manual declarada por RH en Portal RH → Formatos → Plantillas
+ * avanzadas → "Variables" (no corresponde a ningún dato real). `valor` trae
+ * el valor por defecto configurado, si existe.
  */
-export interface FormatoPreparationFormato {
-  id: number;
-  nombre: string;
-  formatos_salida: FormatoOutput[];
+export interface FormatoVariableManual {
+  clave: string;
+  etiqueta: string;
+  descripcion: string | null;
+  tipo: 'text' | 'textarea' | 'date' | 'number' | 'currency' | 'select';
+  requerido: boolean;
+  valor: string;
+  opciones: string[] | null;
 }
 
 export interface FormatoPreparation {
-  formato: FormatoPreparationFormato;
-  colaborador: {
-    id: number;
-    nombre: string;
-    numero_empleado?: string | null;
-  };
-  valores: Record<string, string | null>;
-  faltantes: FormatoMissingField[];
+  plantilla: { id: number; nombre: string };
+  sujeto: { id: number; nombre: string };
+  datos: FormatoDato[];
+  faltantes: FormatoFaltante[];
+  manuales: FormatoVariableManual[];
+  /** false solo si falta una variable MANUAL marcada como requerida — un dato base vacío nunca bloquea. */
   puede_generar: boolean;
+  output_available: { docx: true; pdf: boolean };
 }
 
 export type GeneratedDocumentAction = 'preview' | 'download' | (string & {});
@@ -105,7 +110,5 @@ export interface GeneratedDocument {
   filename: string;
   mime_type: string;
   created_at: string;
-  preview_url?: string | null;
-  download_url?: string | null;
   acciones_permitidas: GeneratedDocumentAction[];
 }

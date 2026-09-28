@@ -13,66 +13,70 @@ jest.mock('expo-secure-store', () => ({
   }),
 }));
 
-describe('useOnboardingStore (onboarding por usuario)', () => {
+describe('useOnboardingStore (onboarding global por instalación)', () => {
   beforeEach(() => {
     mockStore.clear();
-    useOnboardingStore.setState({ isLoading: true, completed: false, userId: null });
+    useOnboardingStore.setState({ isLoading: true, completed: false });
   });
 
-  it('sin usuario (userId null) no hay onboarding que mostrar y no queda cargando', async () => {
+  it('instalación nueva: no hay onboarding que mostrar y no queda cargando', async () => {
     await useOnboardingStore.getState().load(null);
-    expect(useOnboardingStore.getState()).toMatchObject({ isLoading: false, completed: false, userId: null });
+    expect(useOnboardingStore.getState()).toMatchObject({ isLoading: false, completed: false });
   });
 
-  it('un usuario nuevo (sin nada persistido) empieza con onboarding sin completar', async () => {
-    await useOnboardingStore.getState().load('user-nuevo');
-    expect(useOnboardingStore.getState().completed).toBe(false);
-    expect(useOnboardingStore.getState().isLoading).toBe(false);
-  });
-
-  it('complete() persiste bajo una llave namespaced por usuario', async () => {
+  it('complete() persiste bajo la llave global (sin usuario)', async () => {
     await useOnboardingStore.getState().load('user-A');
     await useOnboardingStore.getState().complete();
 
-    expect(mockStore.get('mrlana-onboarding-completed:user-A')).toBe('true');
+    expect(mockStore.get('mrlana-onboarding-completed')).toBe('true');
     expect(useOnboardingStore.getState().completed).toBe(true);
   });
 
-  it('BUG CORREGIDO: el usuario B no hereda el onboarding completado del usuario A en el mismo dispositivo', async () => {
-    // Usuario A completa onboarding.
+  it('el onboarding completado por una cuenta NO vuelve a aparecer al cambiar de cuenta en el mismo dispositivo', async () => {
     await useOnboardingStore.getState().load('user-A');
     await useOnboardingStore.getState().complete();
     expect(useOnboardingStore.getState().completed).toBe(true);
 
-    // logout → login de un usuario distinto en el mismo teléfono.
+    // logout → login de un usuario distinto en el mismo teléfono: la llave es global, sigue completada.
+    useOnboardingStore.setState({ isLoading: true, completed: false });
     await useOnboardingStore.getState().load('user-B');
-    expect(useOnboardingStore.getState().completed).toBe(false);
-
-    // Un colaborador nuevo registrado por QR (id nunca antes visto en este
-    // dispositivo) tampoco hereda nada de A.
-    await useOnboardingStore.getState().load('user-nuevo-por-qr');
-    expect(useOnboardingStore.getState().completed).toBe(false);
-
-    // La preferencia de A se conserva — no se borró nada al cambiar de cuenta.
-    await useOnboardingStore.getState().load('user-A');
     expect(useOnboardingStore.getState().completed).toBe(true);
   });
 
-  it('remockStoreSession del mismo usuario recupera el onboarding ya completado', async () => {
+  it('migración limpia: adopta la llave antigua por usuario si la global todavía no existe', async () => {
+    mockStore.set('mrlana-onboarding-completed:user-A', 'true');
+
+    await useOnboardingStore.getState().load('user-A');
+
+    expect(useOnboardingStore.getState().completed).toBe(true);
+    expect(mockStore.get('mrlana-onboarding-completed')).toBe('true');
+    expect(mockStore.has('mrlana-onboarding-completed:user-A')).toBe(false);
+  });
+
+  it('la migración de una cuenta no aplica la llave antigua de otra cuenta', async () => {
+    mockStore.set('mrlana-onboarding-completed:user-A', 'true');
+
+    await useOnboardingStore.getState().load('user-B');
+
+    expect(useOnboardingStore.getState().completed).toBe(false);
+    expect(mockStore.has('mrlana-onboarding-completed')).toBe(false);
+  });
+
+  it('remockStoreSession recupera el onboarding global ya completado', async () => {
     await useOnboardingStore.getState().load('user-A');
     await useOnboardingStore.getState().complete();
 
     // Simula reiniciar la app: estado en memoria vuelve a los defaults,
     // solo queda lo persistido en SecureStore.
-    useOnboardingStore.setState({ isLoading: true, completed: false, userId: null });
+    useOnboardingStore.setState({ isLoading: true, completed: false });
 
     await useOnboardingStore.getState().load('user-A');
     expect(useOnboardingStore.getState().completed).toBe(true);
   });
 
-  it('complete() sin usuario resuelto (userId null) no revienta ni persiste nada', async () => {
+  it('complete() sin usuario resuelto también persiste (la llave es global, no depende del usuario)', async () => {
     await useOnboardingStore.getState().load(null);
     await useOnboardingStore.getState().complete();
-    expect(mockStore.size).toBe(0);
+    expect(mockStore.get('mrlana-onboarding-completed')).toBe('true');
   });
 });

@@ -14,82 +14,53 @@ import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
 import { rhFormatosApi } from '@/api/rh/formatos';
 import { useRhColaboradores } from '@/hooks/queries/useRhColaboradores';
 import { useRhFormatoGenerar, useRhFormatoPreparation, useRhFormatos } from '@/hooks/queries/useRhFormatos';
-import type { FormatoOutput, GeneratedDocument } from '@/types/formato';
+import type { GeneratedDocument } from '@/types/formato';
 import type { RhColaborador } from '@/types/rh';
 import { getErrorMessage, logError } from '@/utils/errors';
 import { slugifyFilename } from '@/utils/formatters';
 import { haptics } from '@/utils/haptics';
 import { confirmAction } from '@/utils/confirm';
 
-/**
- * `preparar`/`generar`/`generados/{id}/preview` NO existen todavía en el
- * backend real (confirmado contra `routes/api.php` — solo catálogo +
- * descarga de lo ya generado, ver `docs/BACKEND_GAPS_FINAL.md`). El wizard
- * de abajo queda completo y compilando para el día que existan, pero esta
- * pantalla nunca debe dejar a RH pulsar una acción que hoy solo puede
- * responder 404 — ninguna navegación real de la app enlaza aquí (ver
- * `rh/formatos/index.tsx` y `rh/colaboradores/[id].tsx`), y esta bandera
- * es una segunda barrera por si algún día se alcanza por deep link directo.
- */
-const GENERACION_MOVIL_DISPONIBLE = false;
-
 export default function RhFormatoGenerarScreen() {
-  const router = useRouter();
-
-  // Nunca condicionar hooks a esta bandera (rules-of-hooks): el wizard real
-  // vive en un componente hijo separado (`FormatoGenerarWizard`) que solo
-  // se monta cuando `GENERACION_MOVIL_DISPONIBLE` es `true`.
-  if (!GENERACION_MOVIL_DISPONIBLE) {
-    return (
-      <View style={styles.container}>
-        <AppHeader title="Generar documento" showBack onBackPress={() => router.back()} />
-        <View style={styles.resultWrapper}>
-          <Ionicons name="construct-outline" size={40} color={Colors.textMuted} />
-          <Text style={styles.resultTitle}>Todavía no disponible desde el celular</Text>
-          <Text style={styles.resultSubtitle}>Genera este documento desde el panel web de MR. LANA PEOPLE por ahora.</Text>
-          <Button title="Regresar" onPress={() => router.back()} style={styles.resultButton} />
-        </View>
-      </View>
-    );
-  }
-
   return <FormatoGenerarWizard />;
 }
 
 /**
- * Wizard corto de generación de formato (AGENTS.md de este encargo,
- * secciones 42-44): seleccionar formato → prellenar → revisar faltantes →
- * vista previa → generar → descargar. Separado del export default para
- * respetar rules-of-hooks: solo se monta cuando la generación móvil está
- * habilitada.
+ * Wizard de generación de formato: elegir plantilla → elegir colaborador →
+ * revisar datos resueltos/faltantes → capturar variables manuales → generar
+ * → descargar/vista previa. Mismo motor DOCX que Portal RH
+ * (`App\Http\Controllers\Api\V1\Rh\FormatoController`, ver
+ * docs/PLANTILLAS_FORMATOS.md) — la app solo consume, no administra
+ * plantillas (subir DOCX, mapear variables) ni elige candidato todavía: no
+ * existe `GET /rh/candidatos` para buscarlos desde el celular (gap ya
+ * documentado, ver docs/FINAL_MOBILE_AUDIT.md), así que este wizard solo
+ * ofrece colaborador.
  */
 function FormatoGenerarWizard() {
   const router = useRouter();
   const { formato: formatoParam, colaborador: colaboradorParam } = useLocalSearchParams<{ formato?: string; colaborador?: string }>();
 
-  const [formatoId, setFormatoId] = useState<string | undefined>(formatoParam);
+  const [plantillaId, setPlantillaId] = useState<string | undefined>(formatoParam);
   const [colaboradorId, setColaboradorId] = useState<string | undefined>(colaboradorParam);
   const [overrides, setOverrides] = useState<Record<string, string>>({});
-  // Solo se guarda la elección EXPLÍCITA de la persona — el valor por
-  // default (primer `formatos_salida` del formato) se deriva del render,
-  // nunca se sincroniza con un efecto (evita el cascading render de
-  // `setState` dentro de `useEffect`).
-  const [outputOverride, setOutputOverride] = useState<FormatoOutput | undefined>(undefined);
   const [generated, setGenerated] = useState<GeneratedDocument | null>(null);
   const [viewerOpen, setViewerOpen] = useState(false);
 
-  const preparation = useRhFormatoPreparation(formatoId, colaboradorId);
+  const preparationPayload = colaboradorId ? { tipo_sujeto: 'colaborador' as const, sujeto_id: colaboradorId } : undefined;
+  const preparation = useRhFormatoPreparation(plantillaId, preparationPayload);
   const generar = useRhFormatoGenerar();
-  const output = outputOverride ?? preparation.data?.formato.formatos_salida[0];
 
-  // Paso 1: elegir formato (solo si no llegó por parámetro, ej. desde el detalle de un colaborador).
-  if (!formatoId) {
-    return <FormatoPickerStep onSelect={(id) => setFormatoId(id)} onBack={() => router.back()} />;
+  const manuales = preparation.data?.manuales ?? [];
+  const puedeGenerarAhora = manuales.every((manual) => !manual.requerido || (overrides[manual.clave] ?? manual.valor).trim() !== '');
+
+  // Paso 1: elegir plantilla (solo si no llegó por parámetro).
+  if (!plantillaId) {
+    return <FormatoPickerStep onSelect={(id) => setPlantillaId(id)} onBack={() => router.back()} />;
   }
 
-  // Paso 2: elegir colaborador (solo si no llegó por parámetro, ej. desde la lista de formatos).
+  // Paso 2: elegir colaborador (solo si no llegó por parámetro, ej. desde el detalle de un colaborador).
   if (!colaboradorId) {
-    return <ColaboradorPickerStep onSelect={(id) => setColaboradorId(id)} onBack={() => setFormatoId(undefined)} />;
+    return <ColaboradorPickerStep onSelect={(id) => setColaboradorId(id)} onBack={() => setPlantillaId(undefined)} />;
   }
 
   if (generated) {
@@ -105,7 +76,7 @@ function FormatoGenerarWizard() {
   }
 
   const handleGenerar = async () => {
-    if (!formatoId || !colaboradorId || generar.isPending) return;
+    if (!plantillaId || !colaboradorId || generar.isPending || !puedeGenerarAhora) return;
     const ok = await confirmAction({
       title: 'Generar documento',
       message: 'Se generará el documento con los datos revisados y quedará en el expediente del colaborador.',
@@ -113,7 +84,7 @@ function FormatoGenerarWizard() {
     });
     if (!ok) return;
     generar.mutate(
-      { formatoId, payload: { colaborador_id: colaboradorId, overrides, output } },
+      { plantillaId, payload: { tipo_sujeto: 'colaborador', sujeto_id: colaboradorId, extra: overrides } },
       {
         onSuccess: (result) => {
           haptics.success();
@@ -139,67 +110,58 @@ function FormatoGenerarWizard() {
         ) : !preparation.data ? null : (
           <>
             <Card style={styles.headerCard}>
-              <Text style={styles.formatoNombre}>{preparation.data.formato.nombre}</Text>
-              <Text style={styles.colaboradorNombre}>{preparation.data.colaborador.nombre}</Text>
+              <Text style={styles.formatoNombre}>{preparation.data.plantilla.nombre}</Text>
+              <Text style={styles.colaboradorNombre}>{preparation.data.sujeto.nombre}</Text>
             </Card>
 
-            <Text style={styles.sectionTitle}>Datos completos</Text>
-            <Card style={styles.dataCard}>
-              {Object.entries(preparation.data.valores)
-                .filter(([, value]) => Boolean(value))
-                .map(([field, value]) => (
-                  <View key={field} style={styles.dataRow}>
-                    <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
-                    <Text style={styles.dataLabel}>{field}</Text>
-                    <Text style={styles.dataValue} numberOfLines={1}>
-                      {value}
-                    </Text>
-                  </View>
-                ))}
-            </Card>
-
-            {preparation.data.faltantes.length > 0 ? (
+            {preparation.data.datos.length > 0 ? (
               <>
-                <Text style={styles.sectionTitle}>Faltantes</Text>
+                <Text style={styles.sectionTitle}>Datos completos</Text>
                 <Card style={styles.dataCard}>
-                  {preparation.data.faltantes.map((faltante) => (
+                  {preparation.data.datos.map((dato) => (
+                    <View key={dato.clave} style={styles.dataRow}>
+                      <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
+                      <Text style={styles.dataLabel}>{dato.etiqueta}</Text>
+                      <Text style={styles.dataValue} numberOfLines={1}>
+                        {dato.valor}
+                      </Text>
+                    </View>
+                  ))}
+                </Card>
+              </>
+            ) : null}
+
+            {manuales.length > 0 ? (
+              <>
+                <Text style={styles.sectionTitle}>Datos por capturar</Text>
+                <Card style={styles.dataCard}>
+                  {manuales.map((manual) => (
                     <Input
-                      key={faltante.field}
-                      label={faltante.label}
-                      placeholder={`Completar ${faltante.label.toLowerCase()} (solo para este documento)`}
-                      value={overrides[faltante.field] ?? ''}
-                      onChangeText={(value) => setOverrides((prev) => ({ ...prev, [faltante.field]: value }))}
+                      key={manual.clave}
+                      label={manual.requerido ? `${manual.etiqueta} *` : manual.etiqueta}
+                      placeholder={manual.descripcion ?? `Completar ${manual.etiqueta.toLowerCase()}`}
+                      value={overrides[manual.clave] ?? manual.valor}
+                      onChangeText={(value) => setOverrides((prev) => ({ ...prev, [manual.clave]: value }))}
                     />
                   ))}
                 </Card>
               </>
             ) : null}
 
-            {preparation.data.formato.formatos_salida.length > 1 ? (
-              <>
-                <Text style={styles.sectionTitle}>Formato de salida</Text>
-                <View style={styles.outputRow}>
-                  {preparation.data.formato.formatos_salida.map((option) => (
-                    <Button
-                      key={option}
-                      title={option.toUpperCase()}
-                      variant={output === option ? 'primary' : 'outline'}
-                      fullWidth={false}
-                      onPress={() => setOutputOverride(option)}
-                      style={styles.outputButton}
-                    />
-                  ))}
-                </View>
-              </>
+            {preparation.data.faltantes.length > 0 ? (
+              <Text style={styles.avisoText}>
+                Sin dato todavía (no impide generar): {preparation.data.faltantes.map((f) => f.etiqueta).join(', ')}.
+              </Text>
             ) : null}
 
+            {!puedeGenerarAhora ? <Text style={styles.errorText}>Completa los campos marcados con * antes de generar.</Text> : null}
             {generar.isError ? <Text style={styles.errorText}>{getErrorMessage(generar.error)}</Text> : null}
 
             <Button
               title={generar.isPending ? 'Generando documento…' : 'Generar documento'}
               onPress={() => void handleGenerar()}
               loading={generar.isPending}
-              disabled={generar.isPending}
+              disabled={generar.isPending || !puedeGenerarAhora}
             />
           </>
         )}
@@ -364,7 +326,6 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     color: Colors.textMuted,
     fontWeight: '600',
-    textTransform: 'capitalize',
   },
   dataValue: {
     fontSize: FontSize.sm,
@@ -373,12 +334,9 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     textAlign: 'right',
   },
-  outputRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  outputButton: {
-    flex: 1,
+  avisoText: {
+    fontSize: FontSize.xs,
+    color: Colors.textMuted,
   },
   errorText: {
     fontSize: FontSize.sm,

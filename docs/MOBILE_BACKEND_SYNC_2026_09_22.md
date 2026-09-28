@@ -37,7 +37,7 @@
 | Organigrama puestos | `GET rh/jerarquia-puestos` | RH | existente | existente | `rh/organizacion` (vista Puestos) | Completo (misma implementación) |
 | Vacantes | `GET rh/vacantes`, `GET rh/vacantes/{id}` | RH | existente + `rhEstructuraApi.vacante` | `useRhVacante` | `rh/vacantes/index`, `[id]` | Completo (solo lectura) |
 | Plantillas documentales | `GET rh/plantillas-documentales` | RH / Jurídico | `rhEstructuraApi.plantillasDocumentales` | `useRhPlantillasDocumentales` | `rh/plantillas-documentales` | Consulta. Carga DOCX = Portal RH (decisión) |
-| Formatos legacy | `rh/formatos*` | RH | existente | existente | existente | Sin cambios (experimental, fail-closed) |
+| Formatos (motor DOCX) | `rh/formatos*` (+`{plantilla}/preparar`, `.../generar`, nuevos) | RH | `rhFormatosApi` | `useRhFormatoPreparation`, `useRhFormatoGenerar` | `rh/formatos/index`, `generar` | Completo (28/09/2026): catálogo, preparar, generar, descarga DOCX/PDF, con variables manuales por plantilla (ver `docs/PLANTILLAS_FORMATOS.md`). Sigue detrás de `features.formatos` (ahora `true` por defecto, `APP_MOBILE_FORMATOS_ENABLED`). No confundir con G-3 (documentos laborales/`MotorDocumentalService`, otro subsistema, sigue abierto). |
 | Cumpleaños | existente | Todos | existente | existente | existente | Intacto |
 
 ## 2. Permisos y visibilidad (`src/utils/modules.ts`)
@@ -70,7 +70,8 @@ Las guardas de estado que controlan qué botón se ofrece (`utils/laborDocuments
 | `documentos_laborales` | fail-closed (endpoint no existía) | Visible salvo `false` explícito |
 | contratos, recibos, préstamos, jerarquía, equipo, evaluaciones, tareas | no existían | Visibles salvo `false` explícito |
 | Módulos RH nuevos | no existían | Permiso real (+ `rh_*` explícito si el backend lo agrega) |
-| `formatos`, `document_extraction` | fail-closed | Sin cambio (siguen sin flag y con contrato parcial) |
+| `formatos` | fail-closed, contrato parcial (solo catálogo/descarga) | Contrato completo (preparar/generar con variables manuales) — flag ahora `true` por defecto (28/09/2026) |
+| `document_extraction` | fail-closed | Sin cambio (sigue sin flag y con contrato parcial) |
 | `organigrama` | permiso `puestos.administrar` | Igual para puestos; personas por `organigrama.ver` |
 
 ## 4. Push routing (`src/utils/appLinks.ts`)

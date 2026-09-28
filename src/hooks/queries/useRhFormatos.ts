@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { queryKeys } from '@/api/queryKeys';
-import { rhFormatosApi, type GenerarFormatoPayload } from '@/api/rh/formatos';
+import { rhFormatosApi, type PrepararGenerarFormatoPayload } from '@/api/rh/formatos';
 
 /** `GET /rh/formatos` — arreglo plano, sin paginación ni filtros de query (ver `rhFormatosApi.list`). */
 export function useRhFormatos(enabled: boolean) {
@@ -12,26 +12,20 @@ export function useRhFormatos(enabled: boolean) {
   });
 }
 
-// -----------------------------------------------------------------------------
-// Contrato PROPUESTO, aún no implementado en el backend real — ver
-// `src/api/rh/formatos.ts` y `docs/BACKEND_GAPS_FINAL.md`. Se mantienen
-// estos hooks solo para que `rh/formatos/generar.tsx` compile; nada en la
-// navegación real de la app los invoca.
-// -----------------------------------------------------------------------------
-
-export function useRhFormatoPreparation(formatoId: string | number | undefined, colaboradorId: string | number | undefined) {
+/** `POST /rh/formatos/{plantilla}/preparar` — se reintenta cada vez que cambian los valores manuales capturados. */
+export function useRhFormatoPreparation(plantillaId: string | number | undefined, payload: PrepararGenerarFormatoPayload | undefined) {
   return useQuery({
-    queryKey: queryKeys.rhFormatoPreparation(formatoId ?? '', colaboradorId ?? ''),
-    queryFn: () => rhFormatosApi.preparar(formatoId as string | number, colaboradorId as string | number),
-    enabled: Boolean(formatoId) && Boolean(colaboradorId),
+    queryKey: queryKeys.rhFormatoPreparation(plantillaId ?? '', payload?.sujeto_id ?? '', payload?.extra ?? {}),
+    queryFn: () => rhFormatosApi.preparar(plantillaId as string | number, payload as PrepararGenerarFormatoPayload),
+    enabled: Boolean(plantillaId) && Boolean(payload?.sujeto_id),
   });
 }
 
 export function useRhFormatoGenerar() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ formatoId, payload }: { formatoId: string | number; payload: GenerarFormatoPayload }) =>
-      rhFormatosApi.generar(formatoId, payload),
+    mutationFn: ({ plantillaId, payload }: { plantillaId: string | number; payload: PrepararGenerarFormatoPayload }) =>
+      rhFormatosApi.generar(plantillaId, payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.rhFormatos() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.bootstrap });

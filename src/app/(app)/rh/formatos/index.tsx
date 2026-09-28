@@ -34,16 +34,12 @@ const TIPO_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
 };
 
 /**
- * Catálogo de formatos automáticos RH (AGENTS.md de este encargo, sección
- * 13) — espejo EXACTO de `FormatoCatalogoService::listar()` en
- * capacitaciones, YA IMPLEMENTADO en el backend real. Solo lectura: el
- * backend real solo ofrece a móvil catálogo + descarga de lo YA generado
- * (generar/preparar/preview siguen solo en el panel web, ver
- * `docs/BACKEND_GAPS_FINAL.md`) — por eso ninguna fila navega a ningún
- * lado todavía; mostrar el catálogo como referencia (nombre, tipo, cuántas
- * veces se ha generado, último uso) sin prometer una acción que hoy daría
- * 404. El filtro por texto es enteramente local (el backend no acepta
- * ningún query param en `index()`), nunca se manda al servidor.
+ * Catálogo de formatos automáticos RH — espejo de
+ * `FormatoCatalogoService::listar()`. Cada fila navega al wizard de
+ * generación (`rh/formatos/generar.tsx`, mismo motor DOCX que Portal RH,
+ * ver docs/PLANTILLAS_FORMATOS.md). El filtro por texto es enteramente
+ * local (el backend no acepta ningún query param en `index()`), nunca se
+ * manda al servidor.
  */
 export default function RhFormatosListScreen() {
   const router = useRouter();
@@ -81,7 +77,7 @@ export default function RhFormatosListScreen() {
         contentContainerStyle={styles.listContent}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={Colors.primary} />}
         ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
-        renderItem={({ item }) => <FormatoRow formato={item} />}
+        renderItem={({ item }) => <FormatoRow formato={item} onPress={() => router.push({ pathname: '/rh/formatos/generar', params: { formato: String(item.id) } })} />}
         ListEmptyComponent={
           isLoading ? (
             <SkeletonCardList count={4} />
@@ -92,18 +88,13 @@ export default function RhFormatosListScreen() {
           )
         }
       />
-
-      <View style={styles.footerNote}>
-        <Ionicons name="information-circle-outline" size={14} color={Colors.textMuted} />
-        <Text style={styles.footerNoteText}>Generar un documento nuevo todavía solo está disponible desde el panel web.</Text>
-      </View>
     </View>
   );
 }
 
-function FormatoRow({ formato }: { formato: RhFormato }) {
+function FormatoRow({ formato, onPress }: { formato: RhFormato; onPress: () => void }) {
   return (
-    <Card style={styles.row}>
+    <Card style={styles.row} onPress={onPress}>
       <View style={styles.rowIcon}>
         <Ionicons name={TIPO_ICON[formato.tipo] ?? 'document-outline'} size={20} color={Colors.primaryDark} />
       </View>

@@ -1,16 +1,34 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo } from 'react';
 
 import { notificacionesApi } from '@/api/notificaciones';
 import { queryKeys } from '@/api/queryKeys';
+import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { setBadgeCount } from '@/utils/badge';
 
+/**
+ * Historial de notificaciones paginado de verdad (antes `GET /notificaciones`
+ * solo traía las 30 más recientes con un `useQuery` normal, sin ninguna
+ * forma de ver algo más viejo). `items` ya viene aplanado (todas las
+ * páginas cargadas juntas) para que las pantallas no tengan que lidiar con
+ * la forma `{ pages: [...] }` de React Query.
+ */
 export function useNotificaciones() {
-  return useQuery({
+  const query = useInfiniteQuery({
     queryKey: queryKeys.notificaciones,
-    queryFn: notificacionesApi.getAll,
+    queryFn: ({ pageParam }) => notificacionesApi.getPage(pageParam),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      const current = lastPage.meta?.current_page ?? 1;
+      const last = lastPage.meta?.last_page ?? current;
+      return current < last ? current + 1 : undefined;
+    },
     staleTime: 30_000,
   });
+
+  const items = useMemo(() => query.data?.pages.flatMap((page) => page.data) ?? [], [query.data]);
+
+  return { ...query, items };
 }
 
 export function useMarkNotificacionLeida() {
@@ -54,17 +72,19 @@ export function useMarkAllNotificacionesLeidas() {
 
 /**
  * Mantiene el badge del ícono de la app = notificaciones no leídas (V4
- * sección 19). Reutiliza la misma query que `useNotificaciones` (React
- * Query la comparte por `queryKey`, no dispara un fetch extra) — se monta
- * una sola vez en `(app)/_layout.tsx` para que el badge se actualice sin
- * importar qué pantalla esté abierta.
+ * sección 19). Usa el contador autoritativo de `mobile/bootstrap`
+ * (`counts.notifications`), NO la lista paginada de `useNotificaciones`:
+ * con paginación, la primera página ya no garantiza traer todas las no
+ * leídas si hay más de 30 notificaciones viejas sin leer. Se monta una sola
+ * vez en `(app)/_layout.tsx` para que el badge se actualice sin importar
+ * qué pantalla esté abierta.
  */
 export function useNotificationBadgeSync(): void {
-  const { data } = useNotificaciones();
+  const { data } = useMobileBootstrap(true);
+  const unread = data?.counts.notifications;
 
   useEffect(() => {
-    if (!data) return;
-    const unread = data.filter((item) => !item.leida).length;
+    if (unread === undefined) return;
     void setBadgeCount(unread);
-  }, [data]);
+  }, [unread]);
 }

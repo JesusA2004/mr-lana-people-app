@@ -21,6 +21,7 @@ import { useBirthdayGreeting } from '@/hooks/queries/useBirthday';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useNotificationBadgeSync } from '@/hooks/queries/useNotificaciones';
 import { useAppLockStore } from '@/store/appLockStore';
+import { useAuthStore } from '@/store/authStore';
 import { useExperienceStore } from '@/store/experienceStore';
 import { usePendingNavigationStore } from '@/store/pendingNavigationStore';
 import { experienceAvailability, resolveExperience, shouldCorrectStoredExperience, type ExperienceAvailability } from '@/utils/experience';
@@ -45,6 +46,7 @@ export default function AppLayout() {
   useAppPrivacyProtection(true);
   const appState = useBackgroundPrivacy(true);
   const isLocked = useAppLockStore((state) => state.isLocked);
+  const userId = useAuthStore((state) => state.user?.id ?? null);
   useNotificationBadgeSync();
 
   const bootstrap = useMobileBootstrap(true);
@@ -84,8 +86,8 @@ export default function AppLayout() {
   useBirthdayAutoCelebration(cumpleanosEnabled ? birthday.data : null);
 
   useEffect(() => {
-    void loadExperience();
-  }, [loadExperience]);
+    void loadExperience(userId);
+  }, [loadExperience, userId]);
 
   useEffect(() => {
     // Prefetch de lo que el colaborador casi siempre visita después del

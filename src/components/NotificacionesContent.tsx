@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { RefreshControl, SectionList, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, SectionList, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from './AppHeader';
 import { ErrorState } from './ErrorState';
@@ -61,12 +61,10 @@ export interface NotificacionesContentProps {
  */
 export function NotificacionesContent({ showBack = false }: NotificacionesContentProps) {
   const router = useRouter();
-  const { data, isLoading, isError, error, refetch, isRefetching } = useNotificaciones();
+  const { items, isLoading, isError, error, refetch, isRefetching, fetchNextPage, hasNextPage, isFetchingNextPage } = useNotificaciones();
   const abrir = useAbrirNotificacion();
   const markAllAsRead = useMarkAllNotificacionesLeidas();
   const [tab, setTab] = useState<Tab>('todas');
-
-  const items = useMemo(() => data ?? [], [data]);
   const filtered = useMemo(() => (tab === 'no_leidas' ? items.filter((item) => !item.leida) : items), [items, tab]);
   const unreadCount = useMemo(() => items.filter((item) => !item.leida).length, [items]);
   const sections = useMemo(() => groupByDate(filtered), [filtered]);
@@ -142,6 +140,11 @@ export function NotificacionesContent({ showBack = false }: NotificacionesConten
         ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
         renderSectionHeader={({ section }) => <Text style={styles.sectionHeader}>{section.title}</Text>}
         renderSectionFooter={() => <View style={{ height: Spacing.md }} />}
+        onEndReachedThreshold={0.4}
+        onEndReached={() => {
+          if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
+        }}
+        ListFooterComponent={isFetchingNextPage ? <ActivityIndicator color={Colors.primary} style={styles.footerLoader} /> : null}
         renderItem={({ item, index }) => {
           const read = Boolean(item.leida);
           // Emoji y color los manda el backend (paleta cerrada). La app ya no
@@ -300,5 +303,8 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: Colors.primary,
     marginTop: 6,
+  },
+  footerLoader: {
+    paddingVertical: Spacing.lg,
   },
 });

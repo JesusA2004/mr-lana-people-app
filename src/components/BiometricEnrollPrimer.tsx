@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { PermissionPrimerSheet } from './PermissionPrimerSheet';
 
 import { getBiometricCapabilityAsync, authenticateWithBiometricsAsync } from '@/services/biometricAuth';
+import { useAuthStore } from '@/store/authStore';
 import { useBiometricStore } from '@/store/biometricStore';
 import { toast } from '@/store/toastStore';
 
@@ -15,6 +16,7 @@ const SHOW_DELAY_MS = 1600;
  * `(app)/_layout.tsx`, igual que `PushPermissionPrimer`.
  */
 export function BiometricEnrollPrimer() {
+  const userId = useAuthStore((state) => state.user?.id ?? null);
   const isLoading = useBiometricStore((state) => state.isLoading);
   const hasBeenPrompted = useBiometricStore((state) => state.hasBeenPrompted);
   const enabled = useBiometricStore((state) => state.enabled);
@@ -26,8 +28,8 @@ export function BiometricEnrollPrimer() {
   const evaluated = useRef(false);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void load(userId);
+  }, [load, userId]);
 
   useEffect(() => {
     if (isLoading || hasBeenPrompted || enabled || evaluated.current) return;

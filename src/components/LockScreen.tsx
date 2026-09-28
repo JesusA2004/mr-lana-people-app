@@ -34,13 +34,14 @@ export interface LockScreenProps {
  * la sesión (el token sigue siendo válido). Si el colaborador activó
  * biometría (Configuración → Seguridad), se intenta primero automáticamente
  * al mostrarse; si falla, se cancela, o no está activada, cae al formulario
- * de contraseña (`authStore.login()` reconfirma la contraseña real y de
- * paso refresca el token). Nunca deja al usuario atrapado sin salida (V4
+ * de contraseña (`authStore.reauthenticate()` solo confirma la contraseña
+ * contra la sesión actual — `POST /reautenticar` — sin crear ni revocar
+ * ningún token de Sanctum). Nunca deja al usuario atrapado sin salida (V4
  * sección 118): contraseña y "Cerrar sesión" siempre están disponibles.
  */
 export function LockScreen({ visible }: LockScreenProps) {
   const user = useAuthStore((state) => state.user);
-  const login = useAuthStore((state) => state.login);
+  const reauthenticate = useAuthStore((state) => state.reauthenticate);
   const logout = useAuthStore((state) => state.logout);
   const unlock = useAppLockStore((state) => state.unlock);
   const biometricEnabled = useBiometricStore((state) => state.enabled);
@@ -88,13 +89,12 @@ export function LockScreen({ visible }: LockScreenProps) {
 
   if (!visible) return null;
 
-  const email = user?.correo ?? user?.email ?? '';
   const nombre = user?.nombre ?? user?.name;
 
   const onSubmit = async (values: UnlockFormValues) => {
     setFormError(null);
     try {
-      await login(email, values.password);
+      await reauthenticate(values.password);
       haptics.success();
       unlock();
       reset();

@@ -42,8 +42,8 @@ export const queryKeys = {
   rhAniversarios: (params: Record<string, unknown> = {}) => ['rh', 'celebraciones', 'aniversarios', params] as const,
 
   rhFormatos: (params: Record<string, unknown> = {}) => ['rh', 'formatos', params] as const,
-  rhFormatoPreparation: (formatoId: string | number, colaboradorId: string | number) =>
-    ['rh', 'formatos', String(formatoId), 'preparar', String(colaboradorId)] as const,
+  rhFormatoPreparation: (plantillaId: string | number, sujetoId: string | number, extra: Record<string, string> = {}) =>
+    ['rh', 'formatos', String(plantillaId), 'preparar', String(sujetoId), extra] as const,
 
   // Formatos oficiales (PDF fijo + overlay) — sistema real distinto del motor
   // DOCX legacy de arriba, namespace propio para no mezclar invalidaciones.

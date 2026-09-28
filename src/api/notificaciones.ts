@@ -1,11 +1,13 @@
 import { apiClient, extractData } from './client';
 
+import type { PaginatedResponse } from '@/types/api';
 import type { AbrirNotificacionRespuesta, NotificationItem } from '@/types/notification';
 
 export const notificacionesApi = {
-  async getAll(): Promise<NotificationItem[]> {
-    const response = await apiClient.get('/notificaciones');
-    return extractData<NotificationItem[]>(response.data);
+  /** `GET /notificaciones` — paginado de verdad (antes solo las 30 más recientes, sin forma de ver historial más viejo). */
+  async getPage(page: number, perPage = 30): Promise<PaginatedResponse<NotificationItem>> {
+    const response = await apiClient.get('/notificaciones', { params: { page, per_page: perPage } });
+    return response.data as PaginatedResponse<NotificationItem>;
   },
 
   async markAsRead(id: number | string): Promise<NotificationItem | null> {

@@ -26,4 +26,13 @@ export const authApi = {
     const response = await apiClient.get('/me', { timeout: options.timeout });
     return extractData<AuthUser>(response.data);
   },
+
+  /**
+   * Reautenticación para `LockScreen`: confirma la contraseña de la sesión
+   * YA autenticada (Bearer actual) sin crear ni revocar ningún token. A
+   * diferencia de `login()`, nunca debe usarse para iniciar sesión.
+   */
+  async reautenticar(password: string): Promise<void> {
+    await apiClient.post('/reautenticar', { password });
+  },
 };

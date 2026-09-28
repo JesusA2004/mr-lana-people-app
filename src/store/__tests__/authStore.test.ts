@@ -7,6 +7,7 @@ import { AxiosError, type AxiosResponse } from 'axios';
 
 import { useAuthStore } from '../authStore';
 
+import { useAppLockStore } from '@/store/appLockStore';
 import { useExperienceStore } from '@/store/experienceStore';
 import { usePendingNavigationStore } from '@/store/pendingNavigationStore';
 
@@ -80,6 +81,7 @@ beforeEach(() => {
   mockRevoke.mockResolvedValue(undefined);
   mockAuthApi.logout.mockResolvedValue(undefined);
   resetState();
+  useAppLockStore.setState({ isLocked: false, backgroundedAt: null });
 });
 
 describe('logout', () => {
@@ -147,6 +149,12 @@ describe('login', () => {
     expect(mockClient.token).toBeNull();
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
   });
+
+  it('un login interactivo NUNCA deja la app bloqueada (no tiene sentido pedir desbloqueo justo después de escribir la contraseña)', async () => {
+    mockAuthApi.login.mockResolvedValue({ token: 'nuevo', usuario: USER });
+    await useAuthStore.getState().login('ana@example.com', 'secreto');
+    expect(useAppLockStore.getState().isLocked).toBe(false);
+  });
 });
 
 describe('restoreSession', () => {
@@ -162,6 +170,14 @@ describe('restoreSession', () => {
     expect(state.isAuthenticated).toBe(false);
     expect(state.pendingVerification).toBe(false);
     expect(mockSecure.has(TOKEN_KEY)).toBe(false);
+  });
+
+  it('arranque en frío con una sesión guardada válida exige desbloqueo (LockScreen), sin importar cuánto tiempo estuvo cerrada la app', async () => {
+    mockAuthApi.me.mockResolvedValue(USER);
+    expect(useAppLockStore.getState().isLocked).toBe(false);
+    await useAuthStore.getState().restoreSession();
+    expect(useAuthStore.getState().isAuthenticated).toBe(true);
+    expect(useAppLockStore.getState().isLocked).toBe(true);
   });
 
   it('timeout de red: pendiente de verificar y CONSERVA el token guardado', async () => {
@@ -202,13 +218,40 @@ describe('restoreSession', () => {
     expect(mockAuthApi.me).not.toHaveBeenCalled();
   });
 
-  it('un 401 de cualquier endpoint después expulsa la sesión (handler global)', async () => {
+  it('un 401 de cualquier endpoint después expulsa la sesión (handler global) sin borrar la experiencia de la cuenta', async () => {
     mockAuthApi.me.mockResolvedValue(USER);
     await useAuthStore.getState().restoreSession();
     expect(useAuthStore.getState().isAuthenticated).toBe(true);
 
+    // La experiencia (Mi espacio/Gestión RH) está namespaced por cuenta: un
+    // logout forzado (401) no debe borrarla, se restaura sola la próxima vez
+    // que esta misma cuenta inicie sesión en este dispositivo.
+    useExperienceStore.setState({ experience: 'rh', userId: USER.id });
+
     mockClient.onUnauthorized?.();
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
-    expect(useExperienceStore.getState().experience).toBeNull();
+    expect(useExperienceStore.getState().experience).toBe('rh');
+  });
+});
+
+describe('reauthenticate', () => {
+  const mockReautenticar = jest.fn();
+  beforeAll(() => {
+    (mockAuthApi as unknown as { reautenticar: jest.Mock }).reautenticar = mockReautenticar;
+  });
+
+  it('llama a POST /reautenticar con la contraseña y no toca el token ni el Bearer actual', async () => {
+    mockClient.token = 'ya-autenticado';
+    mockReautenticar.mockResolvedValue(undefined);
+
+    await useAuthStore.getState().reauthenticate('secreto');
+
+    expect(mockReautenticar).toHaveBeenCalledWith('secreto');
+    expect(mockClient.token).toBe('ya-autenticado');
+  });
+
+  it('si la contraseña es incorrecta, propaga el error sin desbloquear', async () => {
+    mockReautenticar.mockRejectedValue(httpError(422));
+    await expect(useAuthStore.getState().reauthenticate('mala')).rejects.toBeTruthy();
   });
 });
