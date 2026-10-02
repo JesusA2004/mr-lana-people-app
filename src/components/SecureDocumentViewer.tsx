@@ -13,7 +13,8 @@ import { PdfViewer } from './PdfViewer';
 import { SecurityWatermark } from './SecurityWatermark';
 import { SkeletonBlock } from './SkeletonBlock';
 
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 import { API_URL } from '@/constants/config';
 import { useAuthStore } from '@/store/authStore';
 import { extensionForSniffedType, isPreviewableSniffedType, sniffFileType, type SniffedFileType } from '@/utils/fileSniff';
@@ -82,6 +83,7 @@ type ViewerStatus = 'loading' | 'ready' | 'error' | 'unsupported';
  * reconozca `file://...pdf` dentro del WebView.
  */
 export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, allowDownload = false, downloadFileName }: SecureDocumentViewerProps) {
+  const styles = useEstilos(crearEstilos);
   const token = useAuthStore((state) => state.token);
   const [status, setStatus] = useState<ViewerStatus>('loading');
   const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined);
@@ -299,7 +301,8 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: Colors.black,

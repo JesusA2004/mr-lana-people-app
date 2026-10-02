@@ -30,7 +30,7 @@ export default function RhReciboScreen() {
     return (
       <SecureDocumentViewer
         path={rhRecibosApi.pdfPath(recibo.id)}
-        title={recibo.folio ?? 'Recibo interno'}
+        title={recibo.folio ?? 'Recibo de nómina'}
         watermarkLabel={`${joinName(user?.nombre, user?.apellidos) ?? 'RH'} · ${new Date().toLocaleString('es-MX')}`}
         onClose={() => setViewerOpen(false)}
         allowDownload
@@ -41,8 +41,7 @@ export default function RhReciboScreen() {
 
   return (
     <Screen
-      title="Recibo interno"
-      subtitle="No fiscal"
+      title="Recibo de nómina"
       isLoading={query.isLoading}
       error={query.error}
       notFoundMessage="Este recibo ya no está disponible."

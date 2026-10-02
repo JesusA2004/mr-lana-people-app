@@ -10,7 +10,8 @@ import { EmptyState } from '@/components/EmptyState';
 import { PressableScale } from '@/components/PressableScale';
 import { RhPendienteCard } from '@/components/RhPendienteCard';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useRhPendientesInfinite } from '@/hooks/queries/useRhPendientes';
 import type { RhPendienteFiltro } from '@/types/rh';
 import { getErrorMessage } from '@/utils/errors';
@@ -26,6 +27,8 @@ const FILTERS: { label: string; value: RhPendienteFiltro }[] = [
 
 /** Bandeja RH unificada (AGENTS.md sección 7): filtros + búsqueda + paginación real, siempre resueltos por el backend. */
 export default function RhPendientesScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const [tipo, setTipo] = useState<RhPendienteFiltro>('todos');
   const [searchInput, setSearchInput] = useState('');
@@ -124,7 +127,8 @@ export default function RhPendientesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

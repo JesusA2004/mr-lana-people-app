@@ -10,7 +10,8 @@ import { Notice, Screen, SectionTitle } from '@/components/ciclo/Screen';
 import { MotivoModal } from '@/components/MotivoModal';
 import { PressableScale } from '@/components/PressableScale';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useAutorizarEvaluacion, useCapturarEvaluacion, useDevolverEvaluacion, useEquipoPendientes, useEvaluacion } from '@/hooks/queries/useTrabajo';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -74,6 +75,7 @@ export default function EvaluacionDetailScreen() {
 }
 
 function Resumen({ evaluacion }: { evaluacion: Evaluacion }) {
+  const styles = useEstilos(crearEstilos);
   const contrato = evaluacion.contrato;
   return (
     <Card style={styles.gap}>
@@ -97,6 +99,7 @@ function Resumen({ evaluacion }: { evaluacion: Evaluacion }) {
 }
 
 function Resultado({ evaluacion }: { evaluacion: Evaluacion }) {
+  const styles = useEstilos(crearEstilos);
   if (evaluacion.criterios.length === 0 && evaluacion.calificacion === null) return null;
   return (
     <Card style={styles.gap}>
@@ -130,6 +133,8 @@ function initialCriterios(evaluacion: Evaluacion): CriterioForm[] {
 }
 
 function CapturaForm({ evaluacion }: { evaluacion: Evaluacion }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const capturar = useCapturarEvaluacion(evaluacion.id);
   const { isOffline } = useNetworkStatus();
   const [criterios, setCriterios] = useState<CriterioForm[]>(() => initialCriterios(evaluacion));
@@ -231,6 +236,8 @@ function CapturaForm({ evaluacion }: { evaluacion: Evaluacion }) {
 }
 
 function Autorizacion({ evaluacion }: { evaluacion: Evaluacion }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const autorizar = useAutorizarEvaluacion(evaluacion.id);
   const devolver = useDevolverEvaluacion(evaluacion.id);
   const { isOffline } = useNetworkStatus();
@@ -330,6 +337,8 @@ function Autorizacion({ evaluacion }: { evaluacion: Evaluacion }) {
 }
 
 function Choice({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   return (
     <PressableScale
       accessibilityRole="button"
@@ -342,7 +351,8 @@ function Choice({ label, selected, onPress }: { label: string; selected: boolean
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   gap: {
     gap: Spacing.sm,
   },

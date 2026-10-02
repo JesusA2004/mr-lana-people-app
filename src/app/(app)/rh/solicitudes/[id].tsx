@@ -12,7 +12,8 @@ import { MotivoModal } from '@/components/MotivoModal';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
 import { WorkflowTimeline } from '@/components/WorkflowTimeline';
-import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import {
   useRhSolicitud,
@@ -42,7 +43,7 @@ import { confirmAction } from '@/utils/confirm';
  * otra: la bandeja legacy `rh/vacaciones` quedó fuera de la navegación
  * nueva (sección 18).
  *
- * "Tomar" (`en_revision`) y "Cerrar" (`cerrada`) usan
+ * "Tomar" (`en_revision`) usa
  * `PATCH .../estado`. `WorkflowService` todavía no las anuncia en
  * `acciones_permitidas` (gap D-5 de `docs/BACKEND_SYNC_2026_09_15.md`), así
  * que se ofrecen replicando EXACTAMENTE el mapa estado→permiso de
@@ -61,6 +62,8 @@ import { confirmAction } from '@/utils/confirm';
  * completar la revisión en el Portal RH.
  */
 export default function RhSolicitudDetailScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: solicitud, isLoading, isError, error, refetch, isRefetching } = useRhSolicitud(id);
@@ -76,9 +79,8 @@ export default function RhSolicitudDetailScreen() {
 
   const permissions = bootstrap.data?.user.permissions;
   // Espejo de `actualizarEstado()`: `en_revision` exige la habilidad
-  // `revisar`; `cerrada`, la habilidad `cerrar`.
+
   const puedeTomar = solicitud?.estado === 'enviada' && hasPermission(permissions, 'solicitudes.revisar');
-  const puedeCerrar = solicitud?.estado === 'aprobada' && hasPermission(permissions, 'solicitudes.cerrar');
 
   function handleActionError(err: unknown) {
     logError('rhSolicitud.accion', err);
@@ -103,12 +105,10 @@ export default function RhSolicitudDetailScreen() {
     toast.error(getErrorMessage(err));
   }
 
-  const handleEstado = async (estado: 'en_revision' | 'cerrada') => {
+  const handleEstado = async (estado: 'en_revision') => {
     if (!id) return;
     const ok = await confirmAction(
-      estado === 'en_revision'
-        ? { title: 'Marcar en revisión', message: 'El colaborador verá que su solicitud ya está en revisión.', confirmLabel: 'Marcar' }
-        : { title: 'Cerrar solicitud', message: 'La solicitud quedará cerrada y ya no admitirá cambios.', confirmLabel: 'Cerrar', destructive: true },
+      { title: 'Marcar en revisión', message: 'El colaborador verá que su solicitud ya está en revisión.', confirmLabel: 'Marcar' },
     );
     if (!ok) return;
     estadoMutation.mutate(
@@ -116,7 +116,7 @@ export default function RhSolicitudDetailScreen() {
       {
         onSuccess: (data) => {
           haptics.success();
-          toast.success(data?.message ?? (estado === 'en_revision' ? 'Tomaste esta solicitud para revisión.' : 'Solicitud cerrada.'));
+          toast.success(data?.message ?? 'Tomaste esta solicitud para revisión.');
         },
         onError: handleActionError,
       },
@@ -328,7 +328,7 @@ export default function RhSolicitudDetailScreen() {
                 <Text style={styles.fieldLabel}>Historial</Text>
                 {solicitud.historial.map((entrada, index) => (
                   <View key={index} style={styles.historyRow}>
-                    <Text style={styles.historyAction}>{entrada.accion}</Text>
+                    <Text style={styles.historyAction}>{entrada.accion_etiqueta ?? entrada.accion}</Text>
                     {entrada.usuario ? <Text style={styles.historyMeta}>{entrada.usuario}</Text> : null}
                     <Text style={styles.historyMeta}>{formatDateTime(entrada.fecha)}</Text>
                     {entrada.comentario ? <Text style={styles.historyComment}>{entrada.comentario}</Text> : null}
@@ -337,7 +337,7 @@ export default function RhSolicitudDetailScreen() {
               </Card>
             ) : null}
 
-            {puedeTomar || puedeCerrar ? (
+            {puedeTomar ? (
               <View style={styles.actions}>
                 {puedeTomar ? (
                   <Button
@@ -345,16 +345,6 @@ export default function RhSolicitudDetailScreen() {
                     variant="outline"
                     leftIcon="eye-outline"
                     onPress={() => void handleEstado('en_revision')}
-                    disabled={pending}
-                    style={styles.actionButton}
-                  />
-                ) : null}
-                {puedeCerrar ? (
-                  <Button
-                    title="Cerrar solicitud"
-                    variant="outline"
-                    leftIcon="lock-closed-outline"
-                    onPress={() => void handleEstado('cerrada')}
                     disabled={pending}
                     style={styles.actionButton}
                   />
@@ -430,6 +420,8 @@ function formatDateRange(start?: string | null, end?: string | null): string {
 }
 
 function FieldRow({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   return (
     <View style={styles.fieldRow}>
       <Ionicons name={icon} size={16} color={Colors.primaryDark} />
@@ -439,7 +431,8 @@ function FieldRow({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

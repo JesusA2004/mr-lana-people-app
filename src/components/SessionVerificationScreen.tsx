@@ -6,7 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from './Button';
 
-import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useAuthStore } from '@/store/authStore';
 
@@ -17,6 +18,8 @@ import { useAuthStore } from '@/store/authStore';
  * primer plano. Solo un 401 real manda a Login.
  */
 export function SessionVerificationScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const retry = useAuthStore((state) => state.retrySessionVerification);
   const discard = useAuthStore((state) => state.discardPendingSession);
   const isVerifying = useAuthStore((state) => state.isVerifying);
@@ -65,7 +68,8 @@ export function SessionVerificationScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: Colors.background,

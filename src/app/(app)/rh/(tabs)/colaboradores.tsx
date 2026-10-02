@@ -10,7 +10,8 @@ import { FadeInView } from '@/components/FadeInView';
 import { PressableScale } from '@/components/PressableScale';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useRhColaboradores } from '@/hooks/queries/useRhColaboradores';
 import type { RhColaborador } from '@/types/rh';
@@ -19,6 +20,8 @@ import { getErrorMessage } from '@/utils/errors';
 
 /** Directorio RH (AGENTS.md sección 13): buscador rápido, solo datos que la API devuelve — el expediente vive en `rh/expedientes`. */
 export default function RhColaboradoresScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const [searchInput, setSearchInput] = useState('');
   const [q, setQ] = useState('');
@@ -94,6 +97,8 @@ export default function RhColaboradoresScreen() {
 }
 
 function ColaboradorRow({ colaborador, onPress }: { colaborador: RhColaborador; onPress: () => void }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const pendientes = (colaborador.solicitudes_pendientes ?? 0) + (colaborador.vacaciones_pendientes ?? 0) + (colaborador.documentos_pendientes ?? 0);
 
   return (
@@ -119,7 +124,8 @@ function ColaboradorRow({ colaborador, onPress }: { colaborador: RhColaborador; 
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   addButton: {
     width: 44,
     height: 44,

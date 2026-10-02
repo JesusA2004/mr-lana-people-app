@@ -4,7 +4,8 @@ import { useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 
-import { Colors, Radius } from '@/constants/colors';
+import { Colors, Radius, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { Motion } from '@/constants/motion';
 
 export interface NotificationBellButtonProps {
@@ -13,6 +14,8 @@ export interface NotificationBellButtonProps {
 
 /** Botón de acceso a notificaciones con badge de no leídas, usado en el header del Dashboard. */
 export function NotificationBellButton({ unreadCount = 0 }: NotificationBellButtonProps) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const reducedMotion = useReducedMotion();
   const scale = useSharedValue(1);
@@ -48,7 +51,8 @@ export function NotificationBellButton({ unreadCount = 0 }: NotificationBellButt
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   button: {
     width: 40,
     height: 40,

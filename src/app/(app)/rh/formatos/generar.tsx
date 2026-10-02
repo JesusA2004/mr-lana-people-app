@@ -10,7 +10,8 @@ import { ErrorState } from '@/components/ErrorState';
 import { Input } from '@/components/Input';
 import { SecureDocumentViewer } from '@/components/SecureDocumentViewer';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { rhFormatosApi } from '@/api/rh/formatos';
 import { useRhColaboradores } from '@/hooks/queries/useRhColaboradores';
 import { useRhFormatoGenerar, useRhFormatoPreparation, useRhFormatos } from '@/hooks/queries/useRhFormatos';
@@ -37,6 +38,8 @@ export default function RhFormatoGenerarScreen() {
  * ofrece colaborador.
  */
 function FormatoGenerarWizard() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const { formato: formatoParam, colaborador: colaboradorParam } = useLocalSearchParams<{ formato?: string; colaborador?: string }>();
 
@@ -184,6 +187,8 @@ function FormatoGenerarWizard() {
 }
 
 function FormatoPickerStep({ onSelect, onBack }: { onSelect: (id: string) => void; onBack: () => void }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const { data, isLoading, isError, error, refetch } = useRhFormatos(true);
   const formatos = data ?? [];
 
@@ -211,6 +216,8 @@ function FormatoPickerStep({ onSelect, onBack }: { onSelect: (id: string) => voi
 }
 
 function ColaboradorPickerStep({ onSelect, onBack }: { onSelect: (id: string) => void; onBack: () => void }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const [q, setQ] = useState('');
   const { data, isLoading } = useRhColaboradores({ q: q || undefined, per_page: 20 }, true);
   const colaboradores = useMemo(() => data?.data ?? [], [data]);
@@ -259,6 +266,8 @@ function GeneratedResultStep({
   onCloseViewer: () => void;
   onDone: () => void;
 }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   if (viewerOpen) {
     return (
       <SecureDocumentViewer
@@ -292,7 +301,8 @@ function GeneratedResultStep({
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

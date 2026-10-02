@@ -8,7 +8,8 @@ import { FilterChips } from '@/components/ciclo/FilterChips';
 import { Field, FormSheet } from '@/components/ciclo/FormSheet';
 import { Notice, SectionTitle } from '@/components/ciclo/Screen';
 import { MotivoModal } from '@/components/MotivoModal';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 import { useRhDecidirPrestamo } from '@/hooks/queries/useRhCicloLaboral';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { toast } from '@/store/toastStore';
@@ -48,6 +49,7 @@ const TONE_COLOR: Record<VistoBuenoTono, { fg: string; bg: string; icon: keyof t
  * backend sigue siendo la autoridad final (403/422 se muestran tal cual).
  */
 export function PrestamoDecision({ solicitudId, estado, prestamo, onDone }: PrestamoDecisionProps) {
+  const styles = useEstilos(crearEstilos);
   const decidir = useRhDecidirPrestamo(solicitudId);
   const { isOffline } = useNetworkStatus();
   const [autorizando, setAutorizando] = useState(false);
@@ -235,7 +237,8 @@ export function PrestamoDecision({ solicitudId, estado, prestamo, onDone }: Pres
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   card: {
     gap: Spacing.md,
   },

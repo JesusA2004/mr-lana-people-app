@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Colors, FontSize, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 import type { ApprovalStep, ApprovalStepStatus } from '@/types/incorporation';
 
 const STATUS_STYLE: Record<ApprovalStepStatus, { icon: keyof typeof Ionicons.glyphMap; color: string }> = {
@@ -22,6 +23,7 @@ export interface ApprovalTimelineProps {
  * Comercial para Corporativo MR. LANA, vive en el backend).
  */
 export function ApprovalTimeline({ steps }: ApprovalTimelineProps) {
+  const styles = useEstilos(crearEstilos);
   return (
     <View style={styles.container}>
       {steps.map((step, index) => {
@@ -44,7 +46,8 @@ export function ApprovalTimeline({ steps }: ApprovalTimelineProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     gap: 0,
   },

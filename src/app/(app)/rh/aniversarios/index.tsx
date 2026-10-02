@@ -11,7 +11,8 @@ import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
 import { PressableScale } from '@/components/PressableScale';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useRhAniversarios, useRhCelebracionAvisarATodos, useRhCelebracionEnviar } from '@/hooks/queries/useRhCelebraciones';
 import { useAuthStore } from '@/store/authStore';
@@ -39,6 +40,8 @@ const RANGOS: { label: string; dias: number }[] = [
  * las acciones solo se ofrecen cuando `item.es_hoy` es verdadero.
  */
 export default function RhAniversariosScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const bootstrap = useMobileBootstrap(true);
   const [rango, setRango] = useState(30);
@@ -125,6 +128,7 @@ export default function RhAniversariosScreen() {
 }
 
 function AniversarioCard({ item, onPress }: { item: RhAniversarioFila; onPress?: () => void }) {
+  const styles = useEstilos(crearEstilos);
   const token = useAuthStore((state) => state.token);
   const enviar = useRhCelebracionEnviar();
   const avisar = useRhCelebracionAvisarATodos();
@@ -211,7 +215,8 @@ function AniversarioCard({ item, onPress }: { item: RhAniversarioFila; onPress?:
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   searchWrapper: {
     flexDirection: 'row',

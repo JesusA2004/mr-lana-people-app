@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { Easing, FadeInDown, FadeOutUp } from 'react-native-reanimated';
 
 import { Colors, FontSize, Radius, Shadow, Spacing } from '@/constants/colors';
+import { useColores } from '@/theme/ThemeProvider';
 import { useToastStore, type ToastItem, type ToastType } from '@/store/toastStore';
 import { haptics } from '@/utils/haptics';
 
@@ -33,6 +34,7 @@ export function ToastHost() {
 }
 
 function ToastRow({ item, onDismiss }: { item: ToastItem; onDismiss: () => void }) {
+  const Colors = useColores();
   const style = TOAST_STYLES[item.type];
 
   useEffect(() => {

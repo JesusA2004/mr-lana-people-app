@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/Button';
 import { ItemCard, LoadMore } from '@/components/ciclo/ItemCard';
-import { EmptyMessage, Notice, Screen } from '@/components/ciclo/Screen';
+import { EmptyMessage, Screen } from '@/components/ciclo/Screen';
 import { Spacing } from '@/constants/colors';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useRhRecibos } from '@/hooks/queries/useRhCicloLaboral';
@@ -25,14 +25,13 @@ export default function RhRecibosScreen() {
 
   return (
     <Screen
-      title="Recibos internos"
-      subtitle={nombre ?? (lote ? `Lote ${lote}` : 'No fiscales')}
+      title="Recibos de nómina"
+      subtitle={nombre ?? (lote ? `Lote ${lote}` : 'Emitidos por Recursos Humanos')}
       isLoading={query.isLoading}
       error={query.error}
       onRetry={() => void query.refetch()}
       refreshing={query.isRefetching}
       onRefresh={() => void query.refetch()}>
-      <Notice tone="info">Recibos internos de pago semanal. No son CFDI; People no timbra ni calcula impuestos.</Notice>
       {puedeImportar && !colaboradorId ? (
         <Button title="Importar CSV / XLSX" leftIcon="cloud-upload-outline" variant="outline" onPress={() => router.push('/(app)/rh/recibos/importar' as never)} />
       ) : null}

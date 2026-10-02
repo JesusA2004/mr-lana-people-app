@@ -52,7 +52,7 @@ export function useRhSolicitudCorreccion() {
 export function useRhSolicitudEstado() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, estado, comentario }: { id: string | number; estado: 'en_revision' | 'cerrada'; comentario?: string }) =>
+    mutationFn: ({ id, estado, comentario }: { id: string | number; estado: 'en_revision'; comentario?: string }) =>
       rhSolicitudesApi.actualizarEstado(id, estado, comentario),
     onSuccess: () => invalidateRhQueries(queryClient),
   });

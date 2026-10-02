@@ -7,7 +7,7 @@ export function reciboPeriodoLabel(recibo: Pick<ReciboNomina, 'tipo_periodo' | '
     const unidad = recibo.tipo_periodo === 'quincenal' ? 'Quincena' : recibo.tipo_periodo === 'mensual' ? 'Mes' : 'Semana';
     return `${unidad} ${recibo.numero_periodo} · ${recibo.ejercicio}`;
   }
-  return recibo.folio ?? 'Recibo interno';
+  return recibo.folio ?? 'Recibo de nómina';
 }
 
 export function formatPeriodo(inicio: string | null, fin: string | null): string | null {

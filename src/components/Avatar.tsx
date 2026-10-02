@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 
-import { Colors, FontSize, Radius } from '@/constants/colors';
+import { Colors, FontSize, Radius, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 import { getInitials } from '@/utils/formatters';
 
 export interface AvatarProps {
@@ -22,6 +23,7 @@ export interface AvatarProps {
  * `<ProfileAvatar />`, que envuelve este componente.
  */
 export function Avatar({ name, uri, headers, size = 56, ringColor }: AvatarProps) {
+  const styles = useEstilos(crearEstilos);
   const [failed, setFailed] = useState(false);
   const dimension = { width: size, height: size, borderRadius: size / 2 };
   const ringStyle = ringColor ? { borderWidth: 2.5, borderColor: ringColor } : null;
@@ -44,7 +46,8 @@ export function Avatar({ name, uri, headers, size = 56, ringColor }: AvatarProps
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   image: {
     backgroundColor: Colors.surfaceMuted,
   },

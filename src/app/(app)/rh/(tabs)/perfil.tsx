@@ -5,7 +5,8 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AppHeader } from '@/components/AppHeader';
 import { ExperienceSwitchCard } from '@/components/ExperienceSwitchCard';
 import { PressableScale } from '@/components/PressableScale';
-import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 
 /**
@@ -13,6 +14,8 @@ import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
  * espacio solo si la cuenta tiene ambas) y acceso a Configuración.
  */
 export default function RhPerfilScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const bootstrap = useMobileBootstrap(true);
   const user = bootstrap.data?.user;
@@ -57,7 +60,8 @@ export default function RhPerfilScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import { ItemCard, LoadMore } from '@/components/ciclo/ItemCard';
-import { EmptyMessage, Notice, Screen } from '@/components/ciclo/Screen';
+import { EmptyMessage, Screen } from '@/components/ciclo/Screen';
 import { FadeInView } from '@/components/FadeInView';
 import { Spacing } from '@/constants/colors';
 import { useMisRecibos } from '@/hooks/queries/useCicloLaboral';
@@ -22,14 +22,13 @@ export default function MisRecibosScreen() {
   return (
     <Screen
       title="Mis recibos"
-      subtitle="Recibo interno de nómina · no fiscal"
+      subtitle="Tus recibos de nómina"
       isLoading={query.isLoading}
       error={query.error}
       notFoundMessage="Tu cuenta todavía no está vinculada a un expediente de colaborador."
       onRetry={() => void query.refetch()}
       refreshing={query.isRefetching}
       onRefresh={() => void query.refetch()}>
-      <Notice tone="info">Estos recibos son comprobantes internos de pago semanal. No son CFDI ni sustituyen el comprobante fiscal.</Notice>
       {recibos.length === 0 ? (
         <EmptyMessage message="Todavía no tienes recibos. Cuando Recursos Humanos publique uno, lo verás aquí." />
       ) : (

@@ -4,6 +4,7 @@ import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 
 import { Colors } from '@/constants/colors';
+import { useColores } from '@/theme/ThemeProvider';
 
 export type RhIdentityBadgeSize = 'xs' | 'sm' | 'md' | 'lg' | 'hero';
 
@@ -38,6 +39,7 @@ export function withAlpha(hex: string, alpha: number): string {
  * logo; este badge solo identifica la experiencia administrativa.
  */
 export function RhIdentityBadge({ size = 'md', animated = false, accessibilityLabel, style }: RhIdentityBadgeProps) {
+  const Colors = useColores();
   const d = RH_BADGE_DIAMETER[size];
   const reduceMotion = useReducedMotion();
   const breathe = useSharedValue(0);

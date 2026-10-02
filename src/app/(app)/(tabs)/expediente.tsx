@@ -10,7 +10,8 @@ import { ErrorState } from '@/components/ErrorState';
 import { FadeInView } from '@/components/FadeInView';
 import { PressableScale } from '@/components/PressableScale';
 import { SkeletonBlock, SkeletonCardList } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useMiExpediente } from '@/hooks/queries/useCicloLaboral';
 import { useIncorporacion } from '@/hooks/queries/useIncorporacion';
 import type { DocumentoIncorporacion } from '@/types/document';
@@ -31,6 +32,8 @@ const TONE: Record<DocumentGlyphTone, string> = {
  * (subir, reemplazar, solicitar cambio).
  */
 export default function ExpedienteScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const { data, isLoading, isError, error, refetch, isRefetching } = useIncorporacion();
   const estadoReal = useMiExpediente();
@@ -109,6 +112,8 @@ export default function ExpedienteScreen() {
 }
 
 function DocumentList({ title, documentos, onOpen }: { title: string; documentos: DocumentoIncorporacion[]; onOpen: (d: DocumentoIncorporacion) => void }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle} accessibilityRole="header">
@@ -138,7 +143,8 @@ function DocumentList({ title, documentos, onOpen }: { title: string; documentos
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

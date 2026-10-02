@@ -11,9 +11,9 @@ describe('catálogos de solicitudes', () => {
     expect(REQUEST_TYPES as readonly string[]).not.toContain('general');
   });
 
-  it('replica los 8 estados de EstadoSolicitudInterna', () => {
-    expect(REQUEST_STATUSES).toHaveLength(8);
-    expect(FINAL_REQUEST_STATUSES).toEqual(['rechazada', 'cancelada', 'cerrada']);
+  it('replica los 7 estados de EstadoSolicitudInterna (sin «cerrada»)', () => {
+    expect(REQUEST_STATUSES).toHaveLength(7);
+    expect(FINAL_REQUEST_STATUSES).toEqual(['aprobada', 'rechazada', 'cancelada']);
   });
 
   it('los estados cancelables son exactamente los de EstadoSolicitudInterna::puedeCancelarse()', () => {
@@ -27,7 +27,7 @@ describe('canCancelSolicitud', () => {
   });
 
   it('no ofrece cancelar sobre un estado ya resuelto', () => {
-    for (const estado of ['aprobada', 'rechazada', 'cancelada', 'cerrada']) {
+    for (const estado of ['aprobada', 'rechazada', 'cancelada']) {
       expect(canCancelSolicitud({ estado })).toBe(false);
     }
   });

@@ -19,7 +19,8 @@ import { PressableScale } from '@/components/PressableScale';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { Stepper } from '@/components/Stepper';
 import { SuccessCheck } from '@/components/SuccessCheck';
-import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { MascotMessages } from '@/constants/mascotMessages';
 import { requestFieldCopy, requestTypePresentation, SPECIAL_LEAVE_COPY } from '@/constants/requestTypes';
 import { useCreateSolicitud } from '@/hooks/queries/useSolicitudes';
@@ -54,6 +55,8 @@ const MAX_ATTACHMENT_MB = 20;
  * al paso de información sin duplicar un segundo formulario (sección 3).
  */
 export default function NuevaSolicitudScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const params = useLocalSearchParams<{ tipo?: string }>();
 
@@ -578,6 +581,8 @@ function summaryValue(name: string, value: string | number | undefined): string 
 }
 
 function TypeCard({ tipo, active, onPress }: { tipo: SolicitudTipoConfig; active: boolean; onPress: () => void }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const presentation = requestTypePresentation(tipo.clave);
 
   return (
@@ -596,6 +601,7 @@ function TypeCard({ tipo, active, onPress }: { tipo: SolicitudTipoConfig; active
 
 /** Pantalla de éxito: check animado + "Ver solicitud" / "Volver al inicio". */
 function SuccessScreen({ solicitud }: { solicitud: Solicitud }) {
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
 
   return (
@@ -627,6 +633,8 @@ function SuccessScreen({ solicitud }: { solicitud: Solicitud }) {
  * revisar su lista antes de volver a intentar (sección 43).
  */
 function UnconfirmedScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
 
   return (
@@ -649,6 +657,8 @@ function UnconfirmedScreen() {
 }
 
 function SummaryRow({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   return (
     <View style={styles.summaryRow}>
       <View style={styles.summaryIcon}>
@@ -662,7 +672,8 @@ function SummaryRow({ icon, label, value }: { icon: keyof typeof Ionicons.glyphM
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   keyboardArea: { flex: 1 },
   stepperWrapper: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.md },

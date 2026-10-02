@@ -18,6 +18,7 @@ import { StartupFallback } from '@/components/StartupFallback';
 import { ToastHost } from '@/components/ToastHost';
 import { UpdateBanner } from '@/components/UpdateBanner';
 import { Colors, ColorSchemeAtLaunch } from '@/constants/colors';
+import { useColores } from '@/theme/ThemeProvider';
 import { IS_API_URL_CONFIGURED } from '@/constants/config';
 import { useAppConfig } from '@/hooks/queries/useAppRelease';
 import { useAppTheme } from '@/hooks/queries/useAppTheme';
@@ -143,6 +144,7 @@ function AppThemeController() {
  * "sin sesión": muestra `SessionVerificationScreen` en vez de Login.
  */
 function RootNavigator() {
+  const Colors = useColores();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isInitializing = useAuthStore((state) => state.isInitializing);
   const pendingVerification = useAuthStore((state) => state.pendingVerification);

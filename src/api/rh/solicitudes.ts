@@ -54,11 +54,12 @@ export const rhSolicitudesApi = {
    *
    * La app NO implementa un Kanban: solo usa este endpoint para los dos
    * movimientos que `aprobar`/`rechazar`/`correccion` no cubren —
-   * `en_revision` (tomar la solicitud) y `cerrada` (darla por concluida).
+   * `en_revision` (tomar la solicitud). No existe un estado "cerrada": una
+   * solicitud aprobada ya es definitiva.
    * Aprobar y rechazar siguen yendo por sus rutas dedicadas, nunca por
    * aquí, para no duplicar el flujo (sección 17).
    */
-  async actualizarEstado(id: number | string, estado: 'en_revision' | 'cerrada', comentario?: string): Promise<{ message?: string }> {
+  async actualizarEstado(id: number | string, estado: 'en_revision', comentario?: string): Promise<{ message?: string }> {
     const response = await apiClient.patch(`/rh/solicitudes/${id}/estado`, comentario ? { estado, comentario } : { estado });
     return response.data as { message?: string };
   },

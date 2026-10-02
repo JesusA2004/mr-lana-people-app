@@ -8,7 +8,8 @@ import { PressableScale } from './PressableScale';
 import { ProfileAvatar } from './ProfileAvatar';
 import { RhIdentityBadge } from './RhIdentityBadge';
 
-import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { Motion } from '@/constants/motion';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useExperienceStore, type Experience } from '@/store/experienceStore';
@@ -28,6 +29,7 @@ import { haptics } from '@/utils/haptics';
  * animaciones de layout de Reanimated respetan Reduce Motion del sistema.
  */
 export function ExperienceSelectorPrimer() {
+  const styles = useEstilos(crearEstilos);
   const bootstrap = useMobileBootstrap(true);
   const experience = useExperienceStore((state) => state.experience);
   const experienceLoading = useExperienceStore((state) => state.isLoading);
@@ -105,6 +107,8 @@ export function ExperienceCard({
   tone?: 'default' | 'rh';
   onPress: () => void;
 }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const accent = tone === 'rh' ? Colors.rhAccent : Colors.primary;
   return (
     <PressableScale
@@ -128,7 +132,8 @@ export function ExperienceCard({
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   overlay: {
     position: 'absolute',
     top: 0,

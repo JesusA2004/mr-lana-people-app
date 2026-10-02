@@ -10,7 +10,8 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { PressableScale } from '@/components/PressableScale';
 import { ExperienceSwitchCard } from '@/components/ExperienceSwitchCard';
-import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { SHOW_DEV_TOOLS } from '@/constants/config';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { authenticateWithBiometricsAsync, biometricLabel, getBiometricCapabilityAsync, type BiometricKind } from '@/services/biometricAuth';
@@ -28,6 +29,8 @@ import { canSwitchExperience, experienceAvailability } from '@/utils/experience'
 import { joinName } from '@/utils/formatters';
 
 export default function ConfiguracionScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
@@ -246,6 +249,8 @@ function SettingRow({
   onPress: () => void;
   last?: boolean;
 }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   return (
     <PressableScale
       haptic={false}
@@ -261,7 +266,8 @@ function SettingRow({
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

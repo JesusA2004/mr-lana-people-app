@@ -4,7 +4,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Button } from './Button';
 import { Card } from './Card';
 
-import { Colors, FontSize, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 import type { BirthdayGreeting } from '@/types/birthday';
 
 export interface BirthdayHeroCardProps {
@@ -18,6 +19,7 @@ export interface BirthdayHeroCardProps {
  * directamente también debe verlo.
  */
 export function BirthdayHeroCard({ greeting, primerNombre }: BirthdayHeroCardProps) {
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
 
   return (
@@ -43,7 +45,8 @@ export function BirthdayHeroCard({ greeting, primerNombre }: BirthdayHeroCardPro
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   card: {
     backgroundColor: Colors.primarySoft,
     borderColor: Colors.primarySoft,

@@ -11,7 +11,8 @@ import { Notice, Screen, SectionTitle } from '@/components/ciclo/Screen';
 import { DateField } from '@/components/forms/DateField';
 import { PressableScale } from '@/components/PressableScale';
 import { Stepper } from '@/components/Stepper';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useRhActa, useRhGuardarActa } from '@/hooks/queries/useRhCicloLaboral';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { toast } from '@/store/toastStore';
@@ -40,6 +41,7 @@ export default function RhEditarActaScreen() {
 }
 
 function ActaForm({ acta, actaId, colaboradorId }: { acta: Acta | null; actaId?: string; colaboradorId?: string }) {
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const guardar = useRhGuardarActa();
   const { isOffline } = useNetworkStatus();
@@ -170,6 +172,7 @@ function ActaForm({ acta, actaId, colaboradorId }: { acta: Acta | null; actaId?:
 }
 
 function RemoveButton({ label, onPress }: { label: string; onPress: () => void }) {
+  const Colors = useColores();
   return (
     <PressableScale accessibilityRole="button" accessibilityLabel={label} onPress={onPress} hitSlop={10}>
       <Ionicons name="trash-outline" size={20} color={Colors.danger} />
@@ -177,7 +180,8 @@ function RemoveButton({ label, onPress }: { label: string; onPress: () => void }
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   gap: {
     gap: Spacing.md,
   },

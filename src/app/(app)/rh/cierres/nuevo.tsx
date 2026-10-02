@@ -8,7 +8,8 @@ import { FilterChips } from '@/components/ciclo/FilterChips';
 import { Field } from '@/components/ciclo/FormSheet';
 import { Notice, Screen, SectionTitle } from '@/components/ciclo/Screen';
 import { DateField } from '@/components/forms/DateField';
-import { Colors, FontSize, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 import { useRhIniciarCierre } from '@/hooks/queries/useRhCicloLaboral';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { toast } from '@/store/toastStore';
@@ -23,6 +24,7 @@ import { haptics } from '@/utils/haptics';
  * crea la solicitud de baja en revisión y abre la tarea de finiquito.
  */
 export default function RhNuevoCierreScreen() {
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const { colaboradorId, nombre } = useLocalSearchParams<{ colaboradorId: string; nombre?: string }>();
   const iniciar = useRhIniciarCierre(colaboradorId);
@@ -80,7 +82,8 @@ export default function RhNuevoCierreScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   gap: {
     gap: Spacing.md,
   },

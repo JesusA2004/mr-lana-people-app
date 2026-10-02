@@ -7,7 +7,8 @@ import { FilterChips } from '@/components/ciclo/FilterChips';
 import { ItemCard, LoadMore } from '@/components/ciclo/ItemCard';
 import { EmptyMessage, Screen } from '@/components/ciclo/Screen';
 import { PressableScale } from '@/components/PressableScale';
-import { Colors, Radius, Spacing } from '@/constants/colors';
+import { Colors, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useRhCandidatos } from '@/hooks/queries/useRhCandidatos';
 import { candidatoBadge } from '@/utils/candidato';
 import { formatDateShort } from '@/utils/dates';
@@ -39,6 +40,8 @@ const FILTROS: { value: Filtro; label: string }[] = [
 
 /** Reclutamiento — `GET /rh/candidatos` (permiso `candidatos.ver`, alcance). */
 export default function RhCandidatosScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const [filtro, setFiltro] = useState<Filtro>('todos');
   const [searchInput, setSearchInput] = useState('');
@@ -108,7 +111,8 @@ export default function RhCandidatosScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   header: {
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.md,

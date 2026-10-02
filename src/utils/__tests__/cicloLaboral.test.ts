@@ -71,7 +71,7 @@ describe('recibos', () => {
     const r = normalizeRecibo({ id: 1, neto: '1234.50', tiene_pdf: false, conceptos: [{ tipo: 'deduccion', concepto: 'Préstamo', importe: '100.00' }] });
     expect(r.tiene_pdf).toBe(false);
     expect(r.neto).toBe(1234.5);
-    expect(r.leyenda).toMatch(/NO FISCAL/);
+    expect(r.leyenda).toBe('RECIBO DE NÓMINA');
     expect(r.conceptos?.[0].importe).toBe(100);
     expect(normalizeRecibo({ id: 1 }).tiene_pdf).toBe(false);
   });

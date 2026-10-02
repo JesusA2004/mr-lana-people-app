@@ -4,7 +4,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Card } from '@/components/Card';
 import { InfoRow } from '@/components/ciclo/InfoRow';
 import { SectionTitle } from '@/components/ciclo/Screen';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import type { Jerarquia, PersonaResumen } from '@/types/cicloLaboral';
 
 /**
@@ -13,6 +14,7 @@ import type { Jerarquia, PersonaResumen } from '@/types/cicloLaboral';
  * nunca se inventa una persona.
  */
 export function JerarquiaCard({ jerarquia }: { jerarquia: Jerarquia }) {
+  const styles = useEstilos(crearEstilos);
   const yo = jerarquia.colaborador;
   return (
     <>
@@ -40,6 +42,7 @@ export function JerarquiaCard({ jerarquia }: { jerarquia: Jerarquia }) {
 }
 
 function PersonaCard({ titulo, persona }: { titulo: string; persona: PersonaResumen | null }) {
+  const styles = useEstilos(crearEstilos);
   return (
     <Card style={styles.gap}>
       <Text style={styles.kicker}>{titulo}</Text>
@@ -49,6 +52,8 @@ function PersonaCard({ titulo, persona }: { titulo: string; persona: PersonaResu
 }
 
 export function PersonaRow({ persona }: { persona: PersonaResumen }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   return (
     <View style={styles.personaRow} accessible accessibilityLabel={`${persona.nombre}${persona.puesto ? `, ${persona.puesto}` : ''}`}>
       <View style={styles.avatar}>
@@ -64,7 +69,8 @@ export function PersonaRow({ persona }: { persona: PersonaResumen }) {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   gap: {
     gap: Spacing.xs,
   },

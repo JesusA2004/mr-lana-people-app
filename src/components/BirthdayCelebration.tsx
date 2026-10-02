@@ -10,7 +10,8 @@ import { Confetti } from './Confetti';
 import { MascotAvatar } from './mascot/MascotAvatar';
 import { SkeletonBlock } from './SkeletonBlock';
 
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useBirthdayImageSource } from '@/hooks/queries/useBirthday';
 import type { BirthdayGreeting } from '@/types/birthday';
 
@@ -29,6 +30,8 @@ export interface BirthdayCelebrationProps {
  * los declara.
  */
 export function BirthdayCelebration({ greeting, nombre, onClose }: BirthdayCelebrationProps) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const imageSource = useBirthdayImageSource(true);
   const [imageStatus, setImageStatus] = useState<'loading' | 'ready' | 'error'>(imageSource ? 'loading' : 'error');
@@ -99,7 +102,8 @@ export function BirthdayCelebration({ greeting, nombre, onClose }: BirthdayCeleb
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: Colors.background,

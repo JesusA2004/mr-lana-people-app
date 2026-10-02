@@ -5,7 +5,8 @@ import { Card } from '@/components/Card';
 import { FilterChips } from '@/components/ciclo/FilterChips';
 import { InfoRow } from '@/components/ciclo/InfoRow';
 import { Screen, SectionTitle } from '@/components/ciclo/Screen';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 import { useRhIndicadores } from '@/hooks/queries/useRhCicloLaboral';
 import { formatDateShort, toApiDateString } from '@/utils/dates';
 import { formatCurrencyMXN } from '@/utils/formatters';
@@ -34,6 +35,7 @@ const fmt = (value: number | null, suffix = '') => (value === null ? null : `${v
  * backend; `null` = sin datos suficientes (la fila no se pinta).
  */
 export default function RhIndicadoresScreen() {
+  const styles = useEstilos(crearEstilos);
   const [periodo, setPeriodo] = useState<Periodo>('mes');
   const query = useRhIndicadores(rango(periodo));
   const data = query.data;
@@ -95,6 +97,7 @@ export default function RhIndicadoresScreen() {
 }
 
 function Kpi({ label, value }: { label: string; value: string | null }) {
+  const styles = useEstilos(crearEstilos);
   return (
     <View style={styles.kpi} accessible accessibilityLabel={`${label}: ${value ?? 'sin datos'}`}>
       <Text style={styles.kpiValue}>{value ?? '—'}</Text>
@@ -103,7 +106,8 @@ function Kpi({ label, value }: { label: string; value: string | null }) {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

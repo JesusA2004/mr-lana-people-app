@@ -8,7 +8,8 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { EmptyMessage, Notice, Screen, SectionTitle } from '@/components/ciclo/Screen';
 import { PressableScale } from '@/components/PressableScale';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useMiProceso, usePresentarLeccion } from '@/hooks/queries/useCicloLaboral';
 import { toast } from '@/store/toastStore';
 import { getActionErrorMessage, logError } from '@/utils/errors';
@@ -21,6 +22,8 @@ import { formatoCalificacion, respuestasCompletas } from '@/utils/miProceso';
  * respuestas y se muestra el resultado.
  */
 export default function LeccionScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const { avanceId } = useLocalSearchParams<{ avanceId: string }>();
   const query = useMiProceso();
@@ -139,7 +142,8 @@ export default function LeccionScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   material: {
     gap: Spacing.sm,
   },

@@ -8,7 +8,8 @@ import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
 import { EmptyState } from '@/components/EmptyState';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useRhFormatos } from '@/hooks/queries/useRhFormatos';
 import type { RhFormato } from '@/types/formato';
 import { formatDateShort } from '@/utils/dates';
@@ -42,6 +43,8 @@ const TIPO_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
  * manda al servidor.
  */
 export default function RhFormatosListScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const [q, setQ] = useState('');
 
@@ -93,6 +96,8 @@ export default function RhFormatosListScreen() {
 }
 
 function FormatoRow({ formato, onPress }: { formato: RhFormato; onPress: () => void }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   return (
     <Card style={styles.row} onPress={onPress}>
       <View style={styles.rowIcon}>
@@ -120,7 +125,8 @@ function FormatoRow({ formato, onPress }: { formato: RhFormato; onPress: () => v
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

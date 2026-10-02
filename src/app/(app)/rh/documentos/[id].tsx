@@ -13,7 +13,8 @@ import { SecureDocumentViewer } from '@/components/SecureDocumentViewer';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
 import { rhDocumentosApi } from '@/api/rh/documentos';
-import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useRhDocumentExtraction, useRhDocumentExtractionAplicar, useRhDocumentExtractionIgnorar } from '@/hooks/queries/useRhDocumentExtraction';
 import { useRhDocumento, useRhDocumentoAprobar, useRhDocumentoRechazar } from '@/hooks/queries/useRhDocumentos';
@@ -38,6 +39,8 @@ import { confirmAction } from '@/utils/confirm';
 
 /** Detalle de documento RH (AGENTS.md sección 11): visor seguro dentro de la app, nunca descarga/comparte. */
 export default function RhDocumentoDetailScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const { id, focus } = useLocalSearchParams<{ id: string; focus?: string }>();
   const user = useAuthStore((state) => state.user);
@@ -275,6 +278,8 @@ export default function RhDocumentoDetailScreen() {
 }
 
 function FieldRow({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   return (
     <View style={styles.fieldRow}>
       <Ionicons name={icon} size={16} color={Colors.primaryDark} />
@@ -319,6 +324,8 @@ function ExtractionSection({
   ignoring,
   hasSelection,
 }: ExtractionSectionProps) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const { extraccion } = response;
 
   return (
@@ -396,7 +403,8 @@ function ExtractionSection({
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

@@ -10,7 +10,8 @@ import { EmptyState } from '@/components/EmptyState';
 import { PressableScale } from '@/components/PressableScale';
 import { RhBirthdayCard } from '@/components/RhBirthdayCard';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useRhCumpleanosInfinite } from '@/hooks/queries/useRhCumpleanos';
 import type { RhBirthdayPeriodo } from '@/types/rhBirthday';
 import { getErrorMessage } from '@/utils/errors';
@@ -28,6 +29,8 @@ const FILTERS: { label: string; value: RhBirthdayPeriodo }[] = [
  * Filtros + búsqueda + paginación real, igual patrón que `RhPendientesScreen`.
  */
 export default function RhCumpleanosListScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   // Deep link de push (`rh_cumpleanos` sin resource_id, ver `utils/appLinks.ts`): preselecciona el filtro.
   const { periodo: periodoParam } = useLocalSearchParams<{ periodo?: string }>();
@@ -138,6 +141,8 @@ export default function RhCumpleanosListScreen() {
 }
 
 function StatChip({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: number }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   return (
     <View style={styles.statChip}>
       <Ionicons name={icon} size={14} color={Colors.primaryDark} />
@@ -147,7 +152,8 @@ function StatChip({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

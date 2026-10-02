@@ -3,7 +3,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Card } from '@/components/Card';
 import { InfoRow } from '@/components/ciclo/InfoRow';
 import { Notice, SectionTitle } from '@/components/ciclo/Screen';
-import { Colors, FontSize, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 import type { ReciboConcepto, ReciboNomina } from '@/types/payroll';
 import { formatDateLong } from '@/utils/dates';
 import { formatCurrencyMXN } from '@/utils/formatters';
@@ -14,6 +15,7 @@ import { formatPeriodo, reciboPeriodoLabel, splitConceptos } from '@/utils/payro
  * el backend — nunca se recalculan en el dispositivo.
  */
 export function ReciboDetail({ recibo, colaboradorNombre }: { recibo: ReciboNomina; colaboradorNombre?: string | null }) {
+  const styles = useEstilos(crearEstilos);
   const { percepciones, deducciones } = splitConceptos(recibo.conceptos);
 
   return (
@@ -52,6 +54,7 @@ export function ReciboDetail({ recibo, colaboradorNombre }: { recibo: ReciboNomi
 }
 
 function ConceptList({ conceptos, empty }: { conceptos: ReciboConcepto[]; empty: string }) {
+  const styles = useEstilos(crearEstilos);
   if (conceptos.length === 0) return <Text style={styles.empty}>{empty}</Text>;
   return (
     <View style={styles.conceptList}>
@@ -69,7 +72,8 @@ function ConceptList({ conceptos, empty }: { conceptos: ReciboConcepto[]; empty:
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   header: {
     gap: 2,
   },

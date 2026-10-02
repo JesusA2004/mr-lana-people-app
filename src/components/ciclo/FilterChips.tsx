@@ -21,7 +21,7 @@ export interface FilterChipsProps<T extends string> {
 export function FilterChips<T extends string>({ options, value, onChange }: FilterChipsProps<T>) {
   const styles = useEstilos(crearEstilos);
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.scroll} contentContainerStyle={styles.row}>
       {options.map((option) => {
         const active = option.value === value;
         return (
@@ -45,7 +45,13 @@ export function FilterChips<T extends string>({ options, value, onChange }: Filt
 
 const crearEstilos = (Colors: ColorPalette) =>
   StyleSheet.create({
+    // Sin flexGrow: dentro de un contenedor flex la fila crecía en alto y
+    // estiraba cada chip como una píldora gigante.
+    scroll: {
+      flexGrow: 0,
+    },
     row: {
+      alignItems: 'center',
       paddingHorizontal: Spacing.lg,
       paddingBottom: Spacing.md,
       gap: Spacing.sm,

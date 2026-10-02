@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Colors, FontSize } from '@/constants/colors';
+import { Colors, FontSize, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 
 export interface SecurityWatermarkProps {
   /** Texto corto a repetir, ej. "Jesús A. · EMP-1234". Debe identificar a quien está viendo la pantalla, no datos de terceros. */
@@ -21,6 +22,7 @@ const COLS = 3;
  * interceptar toques de la pantalla que cubre.
  */
 export function SecurityWatermark({ label }: SecurityWatermarkProps) {
+  const styles = useEstilos(crearEstilos);
   return (
     <View style={styles.container} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       {Array.from({ length: ROWS }).map((_, row) => (
@@ -36,7 +38,8 @@ export function SecurityWatermark({ label }: SecurityWatermarkProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     position: 'absolute',
     top: 0,

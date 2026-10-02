@@ -12,7 +12,8 @@ import { PressableScale } from '@/components/PressableScale';
 import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { SecurityWatermark } from '@/components/SecurityWatermark';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useIncorporacion } from '@/hooks/queries/useIncorporacion';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { usePerfil } from '@/hooks/queries/usePerfil';
@@ -25,6 +26,8 @@ import { toExpedienteProgress } from '@/utils/expedienteProgress';
 import { canSwitchExperience, experienceAvailability } from '@/utils/experience';
 
 export default function PerfilScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const { data: perfil, isLoading, isError, error, refetch, isRefetching } = usePerfil();
   const incorporacion = useIncorporacion();
@@ -77,7 +80,7 @@ export default function PerfilScreen() {
       caption: 'Contratos, comprobantes y firmas',
     },
     isSelfServiceModuleEnabled(features, 'contratos') && { route: '/contratos', icon: 'document-text-outline', title: 'Mis contratos', caption: 'Vigencia y tipo de contrato' },
-    isSelfServiceModuleEnabled(features, 'recibos') && { route: '/recibos', icon: 'receipt-outline', title: 'Mis recibos', caption: 'Recibos internos de nómina (no fiscales)' },
+    isSelfServiceModuleEnabled(features, 'recibos') && { route: '/recibos', icon: 'receipt-outline', title: 'Mis recibos', caption: 'Tus recibos de nómina' },
     isSelfServiceModuleEnabled(features, 'prestamos') && { route: '/prestamos', icon: 'cash-outline', title: 'Préstamos', caption: 'Solicita y sigue tus préstamos' },
     isSelfServiceModuleEnabled(features, 'tareas') && { route: '/tareas', icon: 'checkbox-outline', title: 'Tareas', caption: 'Pendientes por atender' },
     esJefe && isSelfServiceModuleEnabled(features, 'equipo') && { route: '/equipo', icon: 'people-outline', title: 'Mi equipo', caption: 'Vistos buenos y evaluaciones' },
@@ -198,6 +201,8 @@ function SectionCard({
   title: string;
   fields: { icon: keyof typeof Ionicons.glyphMap; label: string; value?: string }[];
 }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   return (
     <Card>
       <View style={styles.sectionHeader}>
@@ -223,7 +228,8 @@ function SectionCard({
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

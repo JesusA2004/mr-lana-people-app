@@ -13,7 +13,8 @@ import { MotivoModal } from '@/components/MotivoModal';
 import { PressableScale } from '@/components/PressableScale';
 import { SecureDocumentViewer } from '@/components/SecureDocumentViewer';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Colors, FontSize, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useRhActa, useRhOperarActa, type RhActaOperacion } from '@/hooks/queries/useRhCicloLaboral';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -34,6 +35,7 @@ type Sheet = null | 'anexo' | 'negativa' | 'seguimiento';
  * cláusulas.
  */
 export default function RhActaScreen() {
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const query = useRhActa(id);
@@ -236,7 +238,8 @@ export default function RhActaScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   gap: {
     gap: Spacing.xs,
   },

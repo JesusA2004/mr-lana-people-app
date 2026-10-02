@@ -90,6 +90,8 @@ export interface Workflow {
 
 export interface RhHistorialEntrada {
   accion: string;
+  /** Texto en español que manda el backend (no se traduce aquí). */
+  accion_etiqueta?: string;
   comentario?: string | null;
   usuario?: string | null;
   fecha: string;

@@ -11,7 +11,8 @@ import { MotivoModal } from '@/components/MotivoModal';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
 import { WorkflowTimeline } from '@/components/WorkflowTimeline';
-import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useRhVacacion, useRhVacacionAprobar, useRhVacacionRechazar } from '@/hooks/queries/useRhVacaciones';
 import { toast } from '@/store/toastStore';
 import { formatDateLong, formatDateTime } from '@/utils/dates';
@@ -21,6 +22,8 @@ import { canApprove, canReject } from '@/utils/rhActions';
 
 /** Detalle de vacaciones RH (AGENTS.md sección 10): colaborador, periodo, días, saldo disponible, motivo/comentario y acciones reales. */
 export default function RhVacacionDetailScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: vacacion, isLoading, isError, error, refetch, isRefetching } = useRhVacacion(id);
@@ -141,7 +144,7 @@ export default function RhVacacionDetailScreen() {
                 <Text style={styles.fieldLabel}>Historial</Text>
                 {vacacion.historial.map((entrada, index) => (
                   <View key={index} style={styles.historyRow}>
-                    <Text style={styles.historyAction}>{entrada.accion}</Text>
+                    <Text style={styles.historyAction}>{entrada.accion_etiqueta ?? entrada.accion}</Text>
                     <Text style={styles.historyMeta}>{formatDateTime(entrada.fecha)}</Text>
                     {entrada.comentario ? <Text style={styles.historyComment}>{entrada.comentario}</Text> : null}
                   </View>
@@ -177,6 +180,8 @@ export default function RhVacacionDetailScreen() {
 }
 
 function FieldRow({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   return (
     <View style={styles.fieldRow}>
       <Ionicons name={icon} size={16} color={Colors.primaryDark} />
@@ -186,7 +191,8 @@ function FieldRow({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

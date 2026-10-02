@@ -10,7 +10,8 @@ import { FadeInView } from '@/components/FadeInView';
 import { MascotAssistant } from '@/components/mascot/MascotAssistant';
 import { RequestCard } from '@/components/RequestCard';
 import { SkeletonBlock, SkeletonCardList } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { MascotMessages } from '@/constants/mascotMessages';
 import { useVacacionesSaldo, useVacacionesUnificadas } from '@/hooks/queries/useVacaciones';
 import { formatDateLong } from '@/utils/dates';
@@ -28,6 +29,8 @@ import { getErrorMessage } from '@/utils/errors';
  *     `?tipo=vacaciones` — no hay un segundo formulario (secciones 2/3/49).
  */
 export default function VacacionesScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const saldoQuery = useVacacionesSaldo();
   const solicitudesQuery = useVacacionesUnificadas();
@@ -154,6 +157,8 @@ function BalanceTile({
   icon: keyof typeof Ionicons.glyphMap;
   highlight?: boolean;
 }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   return (
     <Card style={[styles.tile, highlight && styles.tileHighlight]} padded>
       <Ionicons name={icon} size={20} color={highlight ? Colors.primaryDark : Colors.textMuted} />
@@ -163,7 +168,8 @@ function BalanceTile({
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import type { RequestStatus } from '@/types/request';
 
 /**
@@ -33,7 +34,6 @@ function reachedCount(estado: RequestStatus | undefined): number {
     case 'en_revision':
       return 2;
     case 'aprobada':
-    case 'cerrada':
       return 3;
     default:
       return 1;
@@ -77,6 +77,8 @@ export interface RequestStatusTimelineProps {
 }
 
 export function RequestStatusTimeline({ estado, estadoEtiqueta, enviadaEn, revisadoEn, formatFecha }: RequestStatusTimelineProps) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const final = estado ? FINAL_STATES[estado] : undefined;
 
   if (final) {
@@ -129,7 +131,8 @@ export function RequestStatusTimeline({ estado, estadoEtiqueta, enviadaEn, revis
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: { gap: 0 },
   heading: { fontSize: FontSize.xs, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: Spacing.md },
   row: { flexDirection: 'row', gap: Spacing.md },

@@ -10,7 +10,8 @@ import { Field } from '@/components/ciclo/FormSheet';
 import { Notice, Screen, SectionTitle } from '@/components/ciclo/Screen';
 import { DateField } from '@/components/forms/DateField';
 import { PressableScale } from '@/components/PressableScale';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useRhCrearRecibo } from '@/hooks/queries/useRhCicloLaboral';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { toast } from '@/store/toastStore';
@@ -34,6 +35,8 @@ const NUEVO: ConceptoForm = { tipo: 'percepcion', concepto: '', importe: '', can
  * los genera el backend. No es CFDI.
  */
 export default function RhNuevoReciboScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const { colaboradorId, nombre } = useLocalSearchParams<{ colaboradorId: string; nombre?: string }>();
   const crear = useRhCrearRecibo(colaboradorId);
@@ -51,7 +54,7 @@ export default function RhNuevoReciboScreen() {
 
   const enviar = () => {
     if (!inicio || !fin) return;
-    Alert.alert('Generar recibo interno', `Se generará el recibo de ${nombre ?? 'este colaborador'} y quedará disponible en su app.`, [
+    Alert.alert('Generar recibo de nómina', `Se generará el recibo de ${nombre ?? 'este colaborador'} y quedará disponible en su app.`, [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Generar',
@@ -88,7 +91,7 @@ export default function RhNuevoReciboScreen() {
   };
 
   return (
-    <Screen title="Nuevo recibo interno" subtitle={nombre}>
+    <Screen title="Nuevo recibo de nómina" subtitle={nombre}>
       <Card style={styles.gap}>
         <SectionTitle>Periodo</SectionTitle>
         <DateField label="Inicio" value={inicio} onChange={setInicio} error={getFieldError(crear.error, 'periodo_inicio')} />
@@ -144,7 +147,8 @@ export default function RhNuevoReciboScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   gap: {
     gap: Spacing.md,
   },

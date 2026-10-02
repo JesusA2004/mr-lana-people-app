@@ -12,7 +12,8 @@ import { StepTimeline } from '@/components/ciclo/StepTimeline';
 import { PressableScale } from '@/components/PressableScale';
 import { SecureDocumentViewer } from '@/components/SecureDocumentViewer';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useFirmarDocumentoLaboral, useLaborDocument } from '@/hooks/queries/useLaborDocuments';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { toast } from '@/store/toastStore';
@@ -38,6 +39,8 @@ import {
  * administra impresión, envío, recepción ni archivo físico — eso es de RH.
  */
 export default function DocumentoLaboralDetailScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const numericId = Number(id);
@@ -172,7 +175,8 @@ export default function DocumentoLaboralDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   gap: {
     gap: Spacing.sm,
   },

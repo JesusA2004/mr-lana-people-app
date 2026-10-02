@@ -17,7 +17,8 @@ import { PdfViewer } from '@/components/PdfViewer';
 import { SecureDocumentViewer } from '@/components/SecureDocumentViewer';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { Stepper } from '@/components/Stepper';
-import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useRhColaboradores } from '@/hooks/queries/useRhColaboradores';
 import {
   useRhFormatoOficial,
@@ -54,6 +55,8 @@ type WizardStepKey = 'formato' | 'sujeto' | 'revision' | 'resultado';
  * RH" (informativo, nunca oculto del catálogo).
  */
 export default function RhFormatoOficialGenerarScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const { formato: formatoParam } = useLocalSearchParams<{ formato?: string }>();
 
@@ -235,6 +238,8 @@ export default function RhFormatoOficialGenerarScreen() {
 }
 
 function FormatoPickerStep({ onSelect }: { onSelect: (id: string) => void }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const { data, isLoading, isError, error, refetch } = useRhFormatosOficiales({}, true);
   const formatos = useMemo(() => (data ?? []).filter((item) => puedeIniciarGeneracion(item)), [data]);
 
@@ -265,6 +270,8 @@ function FormatoPickerStep({ onSelect }: { onSelect: (id: string) => void }) {
 }
 
 function ColaboradorPickerStep({ onSelect, showCandidatoNote }: { onSelect: (item: RhColaborador) => void; showCandidatoNote: boolean }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const [q, setQ] = useState('');
   const { data, isLoading } = useRhColaboradores({ q: q || undefined, per_page: 20 }, true);
   const colaboradores = useMemo(() => data?.data ?? [], [data]);
@@ -343,6 +350,8 @@ function RevisionStep({
   generarLoading: boolean;
   generarError: unknown;
 }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   if (preparando) {
     return (
       <View style={styles.content}>
@@ -463,6 +472,8 @@ function RevisionStep({
 }
 
 function ResultadoStep({ generacion, onVerDocumento, onDone }: { generacion: OfficialFormatGeneracion; onVerDocumento: () => void; onDone: () => void }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   return (
     <View style={styles.resultWrapper}>
       <View style={styles.resultIcon}>
@@ -493,6 +504,7 @@ const PDF_PREVIEW_PROTECTION_KEY = 'mrlana-formato-oficial-preview';
  * pantalla mientras está abierto.
  */
 function Base64PdfPreviewModal({ base64, title, onClose }: { base64: string; title: string; onClose: () => void }) {
+  const styles = useEstilos(crearEstilos);
   const [fileUri, setFileUri] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
@@ -571,7 +583,8 @@ function Base64PdfPreviewModal({ base64, title, onClose }: { base64: string; tit
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   stepperWrapper: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.md },
   content: {

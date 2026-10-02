@@ -4,7 +4,8 @@ import { Card } from '@/components/Card';
 import { InfoRow } from '@/components/ciclo/InfoRow';
 import { Notice, Screen, SectionTitle } from '@/components/ciclo/Screen';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Colors, FontSize, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 import { useRhPlantillasDocumentales } from '@/hooks/queries/useRhCicloLaboral';
 
 /**
@@ -16,6 +17,7 @@ import { useRhPlantillasDocumentales } from '@/hooks/queries/useRhCicloLaboral';
  * muestra qué claves del catálogo tienen plantilla activa y cuáles faltan.
  */
 export default function RhPlantillasDocumentalesScreen() {
+  const styles = useEstilos(crearEstilos);
   const query = useRhPlantillasDocumentales();
   const data = query.data;
   const faltantes = (data?.catalogo ?? []).filter((c) => !c.configurada);
@@ -68,7 +70,8 @@ export default function RhPlantillasDocumentalesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',

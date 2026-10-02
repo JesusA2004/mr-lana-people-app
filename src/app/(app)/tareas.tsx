@@ -7,7 +7,8 @@ import { Card } from '@/components/Card';
 import { FilterChips } from '@/components/ciclo/FilterChips';
 import { LoadMore } from '@/components/ciclo/ItemCard';
 import { EmptyMessage, Screen } from '@/components/ciclo/Screen';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useLeerTarea, useResolverTarea, useTareas } from '@/hooks/queries/useTrabajo';
 import { toast } from '@/store/toastStore';
@@ -39,6 +40,8 @@ const FILTROS: { value: TareasEstadoFiltro; label: string }[] = [
  * `related_id`/`accion` (ver `utils/taskRoutes.ts`), nunca el título.
  */
 export default function TareasScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const [estado, setEstado] = useState<TareasEstadoFiltro>('abiertas');
   const query = useTareas({ estado });
   const bootstrap = useMobileBootstrap(true);
@@ -138,7 +141,8 @@ export default function TareasScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   list: {
     gap: Spacing.md,
   },

@@ -1,6 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 
-import { Colors, Radius } from '@/constants/colors';
+import { Colors, Radius, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 
 export interface DemoAvatarIllustrationProps {
   size: number;
@@ -14,6 +15,7 @@ export interface DemoAvatarIllustrationProps {
  * con datos reales del colaborador.
  */
 export function DemoAvatarIllustration({ size }: DemoAvatarIllustrationProps) {
+  const styles = useEstilos(crearEstilos);
   const headSize = size * 0.42;
   const shouldersSize = size * 0.72;
 
@@ -41,7 +43,8 @@ export function DemoAvatarIllustration({ size }: DemoAvatarIllustrationProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     backgroundColor: Colors.secondarySoft,
     alignItems: 'center',

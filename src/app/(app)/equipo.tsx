@@ -9,7 +9,8 @@ import { ItemCard } from '@/components/ciclo/ItemCard';
 import { PersonaRow } from '@/components/ciclo/JerarquiaCard';
 import { EmptyMessage, Notice, Screen, SectionTitle } from '@/components/ciclo/Screen';
 import { MotivoModal } from '@/components/MotivoModal';
-import { Colors, FontSize, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 import { useEquipo, useEquipoPendientes, useVistoBueno } from '@/hooks/queries/useTrabajo';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { toast } from '@/store/toastStore';
@@ -29,6 +30,7 @@ type Tab = 'pendientes' | 'equipo';
  * que mostrar.
  */
 export default function MiEquipoScreen() {
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const [tab, setTab] = useState<Tab>('pendientes');
   const equipo = useEquipo();
@@ -188,7 +190,8 @@ export default function MiEquipoScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   gap: {
     gap: Spacing.xs,
   },

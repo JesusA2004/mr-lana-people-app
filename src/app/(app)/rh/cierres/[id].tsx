@@ -14,7 +14,8 @@ import { MotivoModal } from '@/components/MotivoModal';
 import { PressableScale } from '@/components/PressableScale';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Stepper } from '@/components/Stepper';
-import { Colors, FontSize, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useRhCierre, useRhOperarCierre, type RhCierreOperacion } from '@/hooks/queries/useRhCicloLaboral';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -36,6 +37,7 @@ type Sheet = null | 'aviso' | 'calcular' | 'concepto' | 'firmado' | 'pago' | 'ca
  * los calcula el backend (`FiniquitoService`): aquí nunca se suma nada.
  */
 export default function RhCierreDetailScreen() {
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const query = useRhCierre(id);
@@ -338,6 +340,8 @@ export default function RhCierreDetailScreen() {
 }
 
 function Renglon({ renglon, editable, onEdit }: { renglon: FiniquitoRenglon; editable: boolean; onEdit: () => void }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const content = (
     <View style={styles.renglon}>
       <View style={styles.flex}>
@@ -361,7 +365,8 @@ function Renglon({ renglon, editable, onEdit }: { renglon: FiniquitoRenglon; edi
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   gap: {
     gap: Spacing.sm,
   },

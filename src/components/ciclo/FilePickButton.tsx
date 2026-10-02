@@ -4,7 +4,8 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import type { LocalUploadFile } from '@/api/upload';
 import { PressableScale } from '@/components/PressableScale';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { toast } from '@/store/toastStore';
 import { logError } from '@/utils/errors';
 
@@ -26,6 +27,8 @@ export const LABOR_FILE_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
  * picker (nunca en almacenamiento público) y solo viaja por multipart.
  */
 export function FilePickButton({ label, file, onChange, types = LABOR_FILE_TYPES, maxSizeMb = 20 }: FilePickButtonProps) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const pick = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({ type: types, copyToCacheDirectory: true, multiple: false });
@@ -60,7 +63,8 @@ export function FilePickButton({ label, file, onChange, types = LABOR_FILE_TYPES
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   wrapper: {
     gap: 4,
   },

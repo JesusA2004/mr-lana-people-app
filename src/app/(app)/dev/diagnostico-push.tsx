@@ -8,7 +8,8 @@ import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Notice } from '@/components/ciclo/Screen';
-import { Colors, FontSize, Layout, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { SHOW_DEV_TOOLS } from '@/constants/config';
 import {
   getPushPermissionStatusAsync,
@@ -45,6 +46,7 @@ const PERMISSION_LABEL: Record<PushPermissionState, string> = {
  * la notificación real, nunca se simula.
  */
 export default function DiagnosticoPushScreen() {
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const diag = usePushDiagnosticsStore();
   const [registering, setRegistering] = useState(false);
@@ -167,6 +169,8 @@ export default function DiagnosticoPushScreen() {
 }
 
 function Row({ label, value, mono = false, tone }: { label: string; value: string; mono?: boolean; tone?: 'danger' }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   return (
     <View style={styles.row}>
       <Text style={styles.rowLabel}>{label}</Text>
@@ -177,7 +181,8 @@ function Row({ label, value, mono = false, tone }: { label: string; value: strin
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

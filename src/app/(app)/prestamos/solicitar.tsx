@@ -6,7 +6,8 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Notice, Screen } from '@/components/ciclo/Screen';
 import { MoneyField } from '@/components/forms/MoneyField';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useCreateSolicitud } from '@/hooks/queries/useSolicitudes';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -25,6 +26,8 @@ import { buildLoanRequestPayload, LOAN_REASON_MAX, validateLoanRequest, type Loa
  * bueno → RH → firma) se ve en Préstamos.
  */
 export default function SolicitarPrestamoScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const crear = useCreateSolicitud();
   const { isOffline } = useNetworkStatus();
@@ -114,7 +117,8 @@ export default function SolicitarPrestamoScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   card: {
     gap: Spacing.lg,
   },

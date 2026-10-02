@@ -4,7 +4,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Button } from './Button';
 import { ConfidenceBadge } from './ConfidenceBadge';
 
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import type { ExtractionConfidenceLevel } from '@/types/documentExtraction';
 
 export interface FieldMatchRowProps {
@@ -15,6 +16,8 @@ export interface FieldMatchRowProps {
 
 /** Campo detectado que COINCIDE con lo que ya tiene el sistema — sección 9: "Coincide ✓". */
 export function FieldMatchRow({ label, value, confidenceLevel }: FieldMatchRowProps) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   return (
     <View style={styles.row}>
       <View style={styles.rowHeader}>
@@ -51,6 +54,8 @@ export interface FieldComparisonRowProps {
 
 /** Campo con DIFERENCIA entre lo que ya tiene el sistema y lo que detectó el análisis — sección 9: "Diferencia encontrada". */
 export function FieldComparisonRow({ label, systemValue, detectedValue, confidenceLevel, selection, onSelect, applicable = true }: FieldComparisonRowProps) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   return (
     <View style={styles.row}>
       <View style={styles.rowHeader}>
@@ -102,7 +107,8 @@ export function FieldComparisonRow({ label, systemValue, detectedValue, confiden
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   row: {
     gap: Spacing.sm,
     paddingVertical: Spacing.md,

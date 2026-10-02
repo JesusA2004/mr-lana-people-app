@@ -5,7 +5,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Avatar } from './Avatar';
 import { PressableScale } from './PressableScale';
 
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useBirthdayWalls } from '@/hooks/queries/useBirthdayWall';
 import { useAuthStore } from '@/store/authStore';
 
@@ -15,6 +16,8 @@ import { useAuthStore } from '@/store/authStore';
  * todavía no tiene el endpoint (404): nunca un error en el home.
  */
 export function BirthdayWallBanner({ enabled = true, max = 3 }: { enabled?: boolean; max?: number }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const token = useAuthStore((state) => state.token);
   const walls = useBirthdayWalls(enabled);
@@ -62,7 +65,8 @@ export function BirthdayWallBanner({ enabled = true, max = 3 }: { enabled?: bool
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   list: {
     gap: Spacing.md,
   },

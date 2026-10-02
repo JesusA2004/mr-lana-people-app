@@ -12,7 +12,8 @@ import { MoneyField } from '@/components/forms/MoneyField';
 import { SelectField } from '@/components/forms/SelectField';
 import { Input } from '@/components/Input';
 import { Stepper } from '@/components/Stepper';
-import { Colors, FontSize, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { retryUnlessClientError, SENSITIVE_MUTATION } from '@/hooks/queries/queryOptions';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { toast } from '@/store/toastStore';
@@ -41,6 +42,8 @@ import { haptics } from '@/utils/haptics';
  * sus errores regresan al paso del campo.
  */
 export default function NuevoColaboradorScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const queryClient = useQueryClient();
   const { isOffline } = useNetworkStatus();
@@ -213,7 +216,8 @@ export default function NuevoColaboradorScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   section: {
     gap: Spacing.md,
   },

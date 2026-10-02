@@ -16,7 +16,8 @@ import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Stepper } from '@/components/Stepper';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useRhColaborador } from '@/hooks/queries/useRhColaboradores';
 import {
@@ -44,6 +45,8 @@ import { toExpedienteProgress } from '@/utils/expedienteProgress';
  * cargan SOLO al expandirse (lazy) — nunca todo al abrir.
  */
 export default function RhColaboradorDetailScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: colaborador, isLoading, isError, error, refetch, isRefetching } = useRhColaborador(id);
@@ -121,9 +124,9 @@ export default function RhColaboradorDetailScreen() {
             {sections.has('recibos') || sections.has('prestamos') || sections.has('actas') || sections.has('cierre') ? (
               <Card style={styles.gap}>
                 <Text style={styles.sectionTitle}>Más</Text>
-                {sections.has('recibos') ? <LinkRow icon="receipt-outline" label="Recibos internos" onPress={() => goWith('/(app)/rh/recibos')} /> : null}
+                {sections.has('recibos') ? <LinkRow icon="receipt-outline" label="Recibos de nómina" onPress={() => goWith('/(app)/rh/recibos')} /> : null}
                 {hasPermission(permissions, 'nomina.recibos.crear') ? (
-                  <LinkRow icon="add-circle-outline" label="Nuevo recibo interno" onPress={() => goWith('/(app)/rh/recibos/nuevo')} />
+                  <LinkRow icon="add-circle-outline" label="Nuevo recibo de nómina" onPress={() => goWith('/(app)/rh/recibos/nuevo')} />
                 ) : null}
                 {sections.has('prestamos') ? <LinkRow icon="cash-outline" label="Préstamos" onPress={() => goWith('/(app)/rh/prestamos')} /> : null}
                 {sections.has('actas') ? <LinkRow icon="reader-outline" label="Actas" onPress={() => goWith('/(app)/rh/actas')} /> : null}
@@ -206,6 +209,7 @@ function AltaSection({ colaboradorId, permissions }: { colaboradorId: string; pe
 }
 
 function ContratosSection({ colaboradorId }: { colaboradorId: string }) {
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const query = useRhColaboradorContratos(colaboradorId);
   if (query.isLoading) return <SkeletonBlock height={80} radius={Radius.md} />;
@@ -233,6 +237,7 @@ function ContratosSection({ colaboradorId }: { colaboradorId: string }) {
 }
 
 function DocumentosSection({ colaboradorId }: { colaboradorId: string }) {
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const query = useRhDocumentosLaborales({ colaborador_id: colaboradorId, per_page: 20 });
   const documentos = query.data?.pages.flatMap((p) => p.data) ?? [];
@@ -263,12 +268,15 @@ function JerarquiaSection({ colaboradorId }: { colaboradorId: string }) {
 }
 
 function LinkRow({ icon, label, onPress, danger = false }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; danger?: boolean }) {
+  const styles = useEstilos(crearEstilos);
   return (
     <Button title={label} variant={danger ? 'danger' : 'ghost'} leftIcon={icon} onPress={onPress} style={styles.linkRow} />
   );
 }
 
 function CountTile({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value?: number }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   return (
     <View style={styles.countTile} accessible accessibilityLabel={`${label}: ${value ?? 0} pendientes`}>
       <Ionicons name={icon} size={18} color={Colors.primaryDark} />
@@ -278,7 +286,8 @@ function CountTile({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMa
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

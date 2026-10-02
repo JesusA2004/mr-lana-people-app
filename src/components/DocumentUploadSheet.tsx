@@ -9,7 +9,8 @@ import { Button } from './Button';
 import { PermissionPrimerSheet, type PermissionPrimerKind } from './PermissionPrimerSheet';
 import { PressableScale } from './PressableScale';
 
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { toast } from '@/store/toastStore';
 import { getErrorMessage, logError } from '@/utils/errors';
 import { haptics } from '@/utils/haptics';
@@ -45,6 +46,8 @@ type Step = 'choose' | 'preview';
  * cual.
  */
 export function DocumentUploadSheet({ visible, title, onClose, onConfirm, maxSizeMb = 20, allowVideo = false }: DocumentUploadSheetProps) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const [step, setStep] = useState<Step>('choose');
   const [file, setFile] = useState<PickedDocumentFile | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -279,6 +282,8 @@ export function DocumentUploadSheet({ visible, title, onClose, onConfirm, maxSiz
 }
 
 function OptionRow({ icon, label, onPress }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   return (
     <PressableScale onPress={onPress} style={styles.optionRow}>
       <View style={styles.optionIcon}>
@@ -290,7 +295,8 @@ function OptionRow({ icon, label, onPress }: { icon: keyof typeof Ionicons.glyph
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

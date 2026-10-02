@@ -3,7 +3,8 @@ import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
 
 import { Button } from './Button';
 
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 
 export interface ExitConfirmSheetProps {
   visible: boolean;
@@ -13,6 +14,7 @@ export interface ExitConfirmSheetProps {
 
 /** "¿Salir sin enviar?" — V4 sección 47: evita perder un formulario a medio llenar por un back accidental. */
 export function ExitConfirmSheet({ visible, onContinueEditing, onExit }: ExitConfirmSheetProps) {
+  const styles = useEstilos(crearEstilos);
   return (
     <Modal visible={visible} transparent animationType="none" statusBarTranslucent onRequestClose={onContinueEditing}>
       <Animated.View entering={FadeIn.duration(180)} style={styles.backdrop}>
@@ -29,7 +31,8 @@ export function ExitConfirmSheet({ visible, onContinueEditing, onExit }: ExitCon
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: Colors.overlay,

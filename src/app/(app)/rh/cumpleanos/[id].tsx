@@ -10,7 +10,8 @@ import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
 import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useGestionarMuro } from '@/hooks/queries/useBirthdayWall';
 import { useRhCumpleano } from '@/hooks/queries/useRhCumpleanos';
 import { useRhCelebracionEnviar } from '@/hooks/queries/useRhCelebraciones';
@@ -23,6 +24,8 @@ import { haptics } from '@/utils/haptics';
 
 /** Destino real del push `{"type":"rh_cumpleanos","resource_id":<greeting_id>}` (AGENTS.md de este encargo, sección 6). */
 export default function RhCumpleanoDetailScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const token = useAuthStore((state) => state.token);
@@ -211,7 +214,8 @@ export default function RhCumpleanoDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

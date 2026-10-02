@@ -10,7 +10,8 @@ import { ErrorState } from '@/components/ErrorState';
 import { MotivoModal } from '@/components/MotivoModal';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useRhIncorporacion, useRhIncorporacionAprobar, useRhIncorporacionRechazar } from '@/hooks/queries/useRhIncorporaciones';
 import { toast } from '@/store/toastStore';
 import { getErrorMessage, isConcurrencyConflict, logError } from '@/utils/errors';
@@ -25,6 +26,8 @@ import { toExpedienteProgress } from '@/utils/expedienteProgress';
  * expediente completo — este detalle enlaza ahí.
  */
 export default function RhIncorporacionDetailScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const { colaborador: colaboradorId } = useLocalSearchParams<{ colaborador: string }>();
   const { data: incorporacion, isLoading, isError, error, refetch, isRefetching } = useRhIncorporacion(colaboradorId);
@@ -168,7 +171,8 @@ export default function RhIncorporacionDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

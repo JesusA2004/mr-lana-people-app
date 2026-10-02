@@ -10,7 +10,8 @@ import { z } from 'zod';
 import { Button } from './Button';
 import { PressableScale } from './PressableScale';
 
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { authenticateWithBiometricsAsync, biometricLabel, getBiometricCapabilityAsync, type BiometricKind } from '@/services/biometricAuth';
 import { useAppLockStore } from '@/store/appLockStore';
 import { useAuthStore } from '@/store/authStore';
@@ -40,6 +41,8 @@ export interface LockScreenProps {
  * sección 118): contraseña y "Cerrar sesión" siempre están disponibles.
  */
 export function LockScreen({ visible }: LockScreenProps) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const user = useAuthStore((state) => state.user);
   const reauthenticate = useAuthStore((state) => state.reauthenticate);
   const logout = useAuthStore((state) => state.logout);
@@ -164,7 +167,8 @@ export function LockScreen({ visible }: LockScreenProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   overlay: {
     position: 'absolute',
     top: 0,

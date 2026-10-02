@@ -5,7 +5,8 @@ import { StyleSheet, View } from 'react-native';
 import { BirthdayCelebration } from '@/components/BirthdayCelebration';
 import { ErrorState } from '@/components/ErrorState';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
-import { Colors, Radius, Spacing } from '@/constants/colors';
+import { Colors, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 import { useBirthdayGreeting } from '@/hooks/queries/useBirthday';
 import { useAuthStore } from '@/store/authStore';
 import { getErrorMessage } from '@/utils/errors';
@@ -17,6 +18,7 @@ import { joinName } from '@/utils/formatters';
  * modal automático de primera vez del día (`useBirthdayAutoCelebration`).
  */
 export default function CumpleanosScreen() {
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const { data: greeting, isLoading, isError, error, refetch } = useBirthdayGreeting(true);
@@ -51,7 +53,8 @@ export default function CumpleanosScreen() {
   return <BirthdayCelebration greeting={greeting} nombre={joinName(user?.nombre, user?.apellidos)} />;
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   loading: {
     flex: 1,
     backgroundColor: Colors.background,

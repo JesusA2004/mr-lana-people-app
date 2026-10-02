@@ -14,7 +14,8 @@ import { RequestStatusTimeline } from '@/components/RequestStatusTimeline';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { SolicitudFormatoOficialCard } from '@/components/SolicitudFormatoOficialCard';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { MascotMessages } from '@/constants/mascotMessages';
 import { useAddSolicitudAttachment, useCancelSolicitud, useSolicitud } from '@/hooks/queries/useSolicitudes';
 import { toast } from '@/store/toastStore';
@@ -49,6 +50,8 @@ import { getSolicitudStory, prestamoNextAction } from '@/utils/solicitudStory';
  * documento o cancelar y crear una solicitud nueva.
  */
 export default function SolicitudDetalleScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [confirmVisible, setConfirmVisible] = useState(false);
@@ -264,7 +267,7 @@ export default function SolicitudDetalleScreen() {
                   <View
                     key={`${entrada.fecha}-${index}`}
                     style={[styles.historyRow, index === solicitud.historial!.length - 1 && styles.detailRowLast]}>
-                    <Text style={styles.historyAction}>{entrada.accion}</Text>
+                    <Text style={styles.historyAction}>{entrada.accion_etiqueta ?? entrada.accion}</Text>
                     {entrada.usuario ? <Text style={styles.historyMeta}>{entrada.usuario}</Text> : null}
                     <Text style={styles.historyMeta}>{formatDateTime(entrada.fecha)}</Text>
                     {entrada.comentario ? <Text style={styles.historyComment}>{entrada.comentario}</Text> : null}
@@ -309,7 +312,8 @@ export default function SolicitudDetalleScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

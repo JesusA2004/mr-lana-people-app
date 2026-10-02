@@ -4,7 +4,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Button } from './Button';
 import { Card } from './Card';
 
-import { Colors, FontSize, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 import type { Celebracion } from '@/types/celebracion';
 
 export interface AniversarioHeroCardProps {
@@ -18,6 +19,7 @@ export interface AniversarioHeroCardProps {
  * (el propio o el de un compañero, según `BirthdayGreetingPolicy::view`).
  */
 export function AniversarioHeroCard({ celebracion }: AniversarioHeroCardProps) {
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const primerNombre = celebracion.homenajeado.nombre.split(' ')[0];
 
@@ -52,7 +54,8 @@ export function AniversarioHeroCard({ celebracion }: AniversarioHeroCardProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   card: { backgroundColor: Colors.celebrationSoft, borderColor: Colors.celebrationSoft, gap: Spacing.md },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   emoji: { fontSize: 32 },

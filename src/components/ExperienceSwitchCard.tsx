@@ -5,7 +5,8 @@ import { Card } from './Card';
 import { ProfileAvatar } from './ProfileAvatar';
 import { RhIdentityBadge } from './RhIdentityBadge';
 
-import { Colors, FontSize, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useExperienceStore } from '@/store/experienceStore';
 import { toast } from '@/store/toastStore';
@@ -23,6 +24,7 @@ const HOME = { colaborador: '/(app)/(tabs)', rh: '/(app)/rh/(tabs)' } as const;
  * Disponibilidad: `mobile/bootstrap` (capabilities/features), nunca el rol.
  */
 export function ExperienceSwitchCard({ compact = false }: { compact?: boolean }) {
+  const styles = useEstilos(crearEstilos);
   const bootstrap = useMobileBootstrap(true);
   const stored = useExperienceStore((state) => state.experience);
   const availability = experienceAvailability(bootstrap.data?.capabilities, bootstrap.data?.features);
@@ -71,7 +73,8 @@ export function ExperienceSwitchCard({ compact = false }: { compact?: boolean })
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   card: {
     gap: Spacing.md,
   },

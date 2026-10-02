@@ -12,7 +12,8 @@ import { PressableScale } from '@/components/PressableScale';
 import { RhIdentityBadge } from '@/components/RhIdentityBadge';
 import { RhPendienteCard } from '@/components/RhPendienteCard';
 import { SkeletonBlock, SkeletonCardList } from '@/components/SkeletonBlock';
-import { Colors, ColorSchemeAtLaunch, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, ColorSchemeAtLaunch, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useRhContratosPorVencer, useRhDocumentosLaboralesPendientes } from '@/hooks/queries/useRhCicloLaboral';
 import { useRhCumpleanosInfinite } from '@/hooks/queries/useRhCumpleanos';
@@ -36,19 +37,26 @@ const HEADER_TOP_EXTRA = 20;
  * Portal RH. Cada módulo aparece SOLO con el permiso/feature real.
  */
 export default function RhDashboardScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const user = useAuthStore((state) => state.user);
 
   const { data, isLoading, isError, error, refetch, isRefetching } = useRhDashboard(true);
   const bootstrap = useMobileBootstrap(true);
-  const cumpleanosEnabled = isFeatureEnabled(bootstrap.data?.features, 'cumpleanos');
+  // Feature encendido Y permiso: sin `rh.cumpleanos.ver` el backend responde
+  // 403, así que ni se pide ni se muestra el acceso.
+  const cumpleanosEnabled =
+    isFeatureEnabled(bootstrap.data?.features, 'cumpleanos') && hasPermission(bootstrap.data?.user.permissions, 'rh.cumpleanos.ver');
   // Formatos/extracción OCR: fail-CLOSED (bug de producto corregido) —
   // ausente = oculto, sin importar que el backend real ya tenga el
   // catálogo/OCR funcionando (ver docs/BACKEND_GAPS_FINAL.md: ambos quedan
   // ocultos hasta que el backend mande el flag explícito, decisión de
   // producto de esta auditoría).
-  const formatosEnabled = isExperimentalFeatureEnabled(bootstrap.data?.features, 'formatos');
+  // Feature experimental Y el permiso del listado (DocumentTemplatePolicy::viewAny → plantillas.ver).
+  const formatosEnabled =
+    isExperimentalFeatureEnabled(bootstrap.data?.features, 'formatos') && hasPermission(bootstrap.data?.user.permissions, 'plantillas.ver');
   const extractionEnabled = isExperimentalFeatureEnabled(bootstrap.data?.features, 'document_extraction');
   const organigramaEnabled = isOrganigramaEnabled(bootstrap.data?.features, bootstrap.data?.user.permissions);
   // Vacantes: el endpoint real ya existe y funciona, pero `mobile/bootstrap`
@@ -79,7 +87,8 @@ export default function RhDashboardScreen() {
   // visual). Todo lo demás va en "Más herramientas", en lista. Cada módulo
   // aparece SOLO con el permiso real que exige su endpoint (`utils/modules.ts`).
   const principales = only([
-    { route: '/(app)/rh/(tabs)/colaboradores', icon: 'people-outline', label: 'Personas' },
+    // Mismo permiso que GET /rh/colaboradores; un gerente sin él ve a su gente en «Mi equipo».
+    hasPermission(permissions, 'rh.colaboradores.ver') && { route: '/(app)/rh/(tabs)/colaboradores', icon: 'people-outline', label: 'Personas' },
     { route: '/(app)/rh/(tabs)/pendientes', icon: 'file-tray-full-outline', label: 'Solicitudes', badge: data?.resumen.solicitudes },
     moduloOn('documentos_laborales') && { route: '/(app)/rh/documentos-laborales', icon: 'folder-outline', label: 'Documentos', badge: docsPendientesTotal },
     moduloOn('prestamos') && { route: '/(app)/rh/prestamos', icon: 'cash-outline', label: 'Préstamos' },
@@ -92,7 +101,7 @@ export default function RhDashboardScreen() {
     moduloOn('actas') && { route: '/(app)/rh/actas', icon: 'reader-outline', label: 'Actas administrativas' },
     moduloOn('cierres') && { route: '/(app)/rh/cierres', icon: 'exit-outline', label: 'Cierres y finiquitos' },
     moduloOn('reingresos') && { route: '/(app)/rh/reingresos', icon: 'refresh-circle-outline', label: 'Reingresos' },
-    moduloOn('recibos') && { route: '/(app)/rh/recibos', icon: 'receipt-outline', label: 'Recibos internos' },
+    moduloOn('recibos') && { route: '/(app)/rh/recibos', icon: 'receipt-outline', label: 'Recibos de nómina' },
     cumpleanosEnabled && { route: '/(app)/rh/cumpleanos', icon: 'gift-outline', label: 'Cumpleaños' },
     hasPermission(permissions, 'celebraciones.ver') && { route: '/(app)/rh/aniversarios', icon: 'ribbon-outline', label: 'Aniversarios' },
     moduloOn('indicadores') && { route: '/(app)/rh/indicadores', icon: 'stats-chart-outline', label: 'Indicadores' },
@@ -101,13 +110,10 @@ export default function RhDashboardScreen() {
     vacantesEnabled && { route: '/(app)/rh/vacantes', icon: 'briefcase-outline', label: 'Vacantes' },
     moduloOn('plantillas_documentales') && { route: '/(app)/rh/plantillas-documentales', icon: 'documents-outline', label: 'Plantillas documentales' },
     formatosEnabled && { route: '/(app)/rh/formatos', icon: 'document-text-outline', label: 'Formatos' },
-    // Formatos oficiales (PDF fijo + overlay, sistema real y distinto del
-    // anterior): sin feature flag propio — a diferencia de "Formatos"
-    // (motor DOCX todavía sin backend real, por eso fail-CLOSED arriba), el
-    // controlador de este módulo ya existe y funciona en producción. Se
-    // muestra a cualquier RH sin gate de permiso inventado (el backend real
-    // no documenta uno de LISTADO) y confía en el 403 normal de cada acción.
-    { route: '/(app)/rh/formatos-oficiales', icon: 'newspaper-outline', label: 'Formatos oficiales' },
+    // Formatos oficiales: mismo permiso que el listado del backend
+    // (OfficialFormatPolicy::viewAny → formatos_oficiales.ver); sin él
+    // no se ofrece el acceso (nunca un botón que termina en 403).
+    hasPermission(permissions, 'formatos_oficiales.ver') && { route: '/(app)/rh/formatos-oficiales', icon: 'newspaper-outline', label: 'Formatos oficiales' },
   ]);
 
   const cumpleanosHoy = useRhCumpleanosInfinite({ periodo: 'hoy' }, cumpleanosEnabled);
@@ -298,6 +304,7 @@ export default function RhDashboardScreen() {
 type ModuloItem = { route: string; icon: keyof typeof Ionicons.glyphMap; label: string; badge?: number };
 
 function ModuleSection({ title, modulos, onOpen }: { title: string; modulos: ModuloItem[]; onOpen: (route: string) => void }) {
+  const styles = useEstilos(crearEstilos);
   if (modulos.length === 0) return null;
   return (
     <View style={styles.section}>
@@ -315,6 +322,8 @@ function ModuleSection({ title, modulos, onOpen }: { title: string; modulos: Mod
 
 /** Herramientas secundarias: lista compacta (menos peso visual que los accesos principales). */
 function ToolList({ title, modulos, onOpen }: { title: string; modulos: ModuloItem[]; onOpen: (route: string) => void }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   if (modulos.length === 0) return null;
   return (
     <View style={styles.section}>
@@ -347,6 +356,7 @@ function ToolList({ title, modulos, onOpen }: { title: string; modulos: ModuloIt
 }
 
 function StatTile({ label, value, highlight = false, wide, onPress }: { label: string; value: number; highlight?: boolean; wide: boolean; onPress: () => void }) {
+  const styles = useEstilos(crearEstilos);
   return (
     <PressableScale
       accessibilityLabel={`${label}: ${value}`}
@@ -360,7 +370,8 @@ function StatTile({ label, value, highlight = false, wide, onPress }: { label: s
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

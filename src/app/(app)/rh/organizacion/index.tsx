@@ -8,7 +8,8 @@ import { ErrorState } from '@/components/ErrorState';
 import { EmptyState } from '@/components/EmptyState';
 import { OrganizationTreeNode } from '@/components/OrganizationTreeNode';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
-import { Colors, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useRhOrganigramaPersonas } from '@/hooks/queries/useRhCicloLaboral';
 import { useRhOrganizacion } from '@/hooks/queries/useRhOrganizacion';
@@ -28,6 +29,7 @@ type Vista = 'personas' | 'puestos';
  * Cada vista aparece solo con su permiso real.
  */
 export default function RhOrganizacionScreen() {
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const bootstrap = useMobileBootstrap(true);
   const personasEnabled = isRhModuleEnabled(bootstrap.data?.features, bootstrap.data?.user.permissions, 'organigrama_personas');
@@ -81,7 +83,8 @@ export default function RhOrganizacionScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

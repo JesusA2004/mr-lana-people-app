@@ -3,7 +3,8 @@ import { useEffect } from 'react';
 import { StyleSheet, Text, View, type ColorValue } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 
-import { Colors, FontSize } from '@/constants/colors';
+import { Colors, FontSize, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 import { Motion } from '@/constants/motion';
 
 export interface TabIconProps {
@@ -21,6 +22,7 @@ export interface TabIconProps {
  * nada de rebote exagerado) y badge numérico opcional — máximo "99+".
  */
 export function TabIcon({ name, color, focused, size = 23, badgeCount }: TabIconProps) {
+  const styles = useEstilos(crearEstilos);
   const reducedMotion = useReducedMotion();
   const scale = useSharedValue(1);
 
@@ -52,7 +54,8 @@ export function TabIcon({ name, color, focused, size = 23, badgeCount }: TabIcon
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     width: 26,
     height: 24,

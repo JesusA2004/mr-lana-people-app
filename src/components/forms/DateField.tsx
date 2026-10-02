@@ -6,7 +6,8 @@ import { Platform, StyleSheet, Text, View } from 'react-native';
 import { Button } from '../Button';
 import { PressableScale } from '../PressableScale';
 
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { formatDateLong, toApiDateString } from '@/utils/dates';
 
 export interface DateFieldProps {
@@ -25,6 +26,8 @@ export interface DateFieldProps {
  * una plataforma (sección 53).
  */
 export function DateField({ label, value, onChange, error, helper, placeholder = 'Selecciona una fecha' }: DateFieldProps) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const [open, setOpen] = useState(false);
 
   return (
@@ -56,7 +59,8 @@ export function DateField({ label, value, onChange, error, helper, placeholder =
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: { gap: Spacing.xs },
   label: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.text },
   input: {

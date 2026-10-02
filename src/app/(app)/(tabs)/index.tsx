@@ -15,7 +15,8 @@ import { PressableScale } from '@/components/PressableScale';
 import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { RequestCard } from '@/components/RequestCard';
 import { SkeletonBlock, SkeletonCardList } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { MascotMessages } from '@/constants/mascotMessages';
 import { useBirthdayGreeting } from '@/hooks/queries/useBirthday';
 import { useCelebracionesActivas } from '@/hooks/queries/useCelebraciones';
@@ -39,6 +40,8 @@ const HEADER_BOTTOM = 22;
 const HEADER_HORIZONTAL = 20;
 
 export default function DashboardScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -298,7 +301,7 @@ export default function DashboardScreen() {
                     {reciboPeriodoLabel(reciboReciente)}
                     {reciboReciente.fecha_pago ? ` · pago ${formatDateShort(reciboReciente.fecha_pago)}` : ''}
                   </Text>
-                  <Text style={styles.expedienteCaption}>Recibo interno de nómina · no fiscal</Text>
+                  <Text style={styles.expedienteCaption}>Tus recibos de nómina</Text>
                 </Card>
               </FadeInView>
             ) : null}
@@ -389,6 +392,8 @@ function StatTile({
   highlight?: boolean;
   onPress: () => void;
 }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   return (
     <PressableScale onPress={onPress} style={[styles.statTile, highlight && styles.statTileHighlight]}>
       <Ionicons name={icon} size={20} color={highlight ? Colors.primaryDark : Colors.textMuted} />
@@ -408,6 +413,8 @@ function QuickAction({
   label: string;
   onPress: () => void;
 }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   return (
     <PressableScale accessibilityLabel={label} onPress={onPress} style={styles.quickAction}>
       <View style={styles.quickIcon}>
@@ -418,7 +425,8 @@ function QuickAction({
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

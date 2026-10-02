@@ -2,7 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { PressableScale } from '@/components/PressableScale';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 
 export interface ModuleTileProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -15,6 +16,8 @@ export interface ModuleTileProps {
 
 /** Acceso a un módulo (grid de 2 columnas) — Inicio de Mi espacio y de Gestión RH. */
 export function ModuleTile({ icon, label, caption, badge, onPress }: ModuleTileProps) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   return (
     <PressableScale
       accessibilityRole="button"
@@ -44,10 +47,12 @@ export function ModuleTile({ icon, label, caption, badge, onPress }: ModuleTileP
 }
 
 export function ModuleGrid({ children }: { children: React.ReactNode }) {
+  const styles = useEstilos(crearEstilos);
   return <View style={styles.grid}>{children}</View>;
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

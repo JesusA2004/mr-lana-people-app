@@ -5,7 +5,8 @@ import { DocumentStatusBadge } from './DocumentStatusBadge';
 import { DocumentTypeIcon } from './DocumentTypeIcon';
 import { PressableScale } from './PressableScale';
 
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import type { DocumentoIncorporacion } from '@/types/document';
 import { formatDateShort } from '@/utils/dates';
 
@@ -42,6 +43,8 @@ const CATEGORIA_LABEL: Record<string, string> = {
  * desbordan del ancho de pantalla en ningún tamaño de letra/dispositivo.
  */
 export function DocumentCard({ documento, onPress, estado }: DocumentCardProps) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const motivo = documento.motivo_rechazo ?? estado?.motivo_rechazo;
   const rechazado = documento.estado === 'rechazado' || documento.estado === 'requiere_correccion' || documento.estado === 'vencido';
   const meta = [
@@ -76,7 +79,8 @@ export function DocumentCard({ documento, onPress, estado }: DocumentCardProps) 
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   rejection: {
     flexDirection: 'row',
     alignItems: 'flex-start',

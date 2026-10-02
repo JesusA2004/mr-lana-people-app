@@ -48,11 +48,6 @@ export function getSolicitudStory(estado: RequestStatus | undefined): SolicitudS
         title: 'Cancelaste esta solicitud.',
         nextAction: 'Ya no está en revisión. Puedes crear una nueva cuando la necesites.',
       };
-    case 'cerrada':
-      return {
-        title: 'Esta solicitud ya se completó.',
-        nextAction: 'No queda ninguna acción pendiente.',
-      };
     default:
       return {
         title: 'Estamos procesando tu solicitud.',

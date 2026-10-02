@@ -2,7 +2,8 @@ import { Image } from 'expo-image';
 import { StyleSheet, Text } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
-import { Colors, FontSize, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 
 export interface PrivacyOverlayProps {
   visible: boolean;
@@ -17,6 +18,7 @@ export interface PrivacyOverlayProps {
  * que el blur nativo de `enableAppSwitcherProtectionAsync` tome efecto.
  */
 export function PrivacyOverlay({ visible }: PrivacyOverlayProps) {
+  const styles = useEstilos(crearEstilos);
   if (!visible) return null;
 
   return (
@@ -28,7 +30,8 @@ export function PrivacyOverlay({ visible }: PrivacyOverlayProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     position: 'absolute',
     top: 0,

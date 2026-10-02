@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useAppConfig, useLatestAppRelease } from '@/hooks/queries/useAppRelease';
 import { evaluateUpdate, resolveReleaseUrl } from '@/utils/appVersion';
 import { logError } from '@/utils/errors';
@@ -20,6 +21,8 @@ export interface UpdateBannerProps {
  * arranque mientras siga habiendo una versión más nueva.
  */
 export function UpdateBanner({ enabled }: UpdateBannerProps) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const insets = useSafeAreaInsets();
   const { data: config } = useAppConfig();
   const { data: release } = useLatestAppRelease(enabled);
@@ -60,7 +63,8 @@ export function UpdateBanner({ enabled }: UpdateBannerProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   banner: {
     position: 'absolute',
     left: Spacing.md,

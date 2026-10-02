@@ -6,7 +6,8 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { Button } from './Button';
 import { MascotAvatar } from './mascot/MascotAvatar';
 
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import type { GuideSlide } from '@/constants/guideSlides';
 import { haptics } from '@/utils/haptics';
 
@@ -30,6 +31,8 @@ export interface GuideTourProps {
  * tour — el contenido (slides) lo decide quien lo use.
  */
 export function GuideTour({ slides, greetingName, onFinish, onSkip, finishLabel = 'Comenzar', skipLabel = 'Omitir' }: GuideTourProps) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const [step, setStep] = useState(0);
 
   const isFirst = step === 0;
@@ -97,7 +100,8 @@ export function GuideTour({ slides, greetingName, onFinish, onSkip, finishLabel 
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

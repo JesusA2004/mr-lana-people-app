@@ -5,7 +5,8 @@ import { Card } from '@/components/Card';
 import { InfoRow } from '@/components/ciclo/InfoRow';
 import { Notice, SectionTitle } from '@/components/ciclo/Screen';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Colors, FontSize, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 import type { Prestamo, PrestamoDocumentoRef } from '@/types/loan';
 import { formatDateLong, formatDateTime } from '@/utils/dates';
 import { formatCurrencyMXN } from '@/utils/formatters';
@@ -38,6 +39,7 @@ export interface PrestamoDetailProps {
  * descuentos de nómina (eso ocurre fuera del sistema).
  */
 export function PrestamoDetail({ prestamo, onOpenDocumento, showColaborador = false }: PrestamoDetailProps) {
+  const styles = useEstilos(crearEstilos);
   return (
     <>
       <Card style={styles.gap}>
@@ -103,6 +105,7 @@ export function PrestamoDetail({ prestamo, onOpenDocumento, showColaborador = fa
 }
 
 function DocumentoRow({ label, documento, onOpen }: { label: string; documento: PrestamoDocumentoRef | null; onOpen?: (documento: PrestamoDocumentoRef) => void }) {
+  const styles = useEstilos(crearEstilos);
   if (!documento) {
     return <InfoRow label={label} value="Pendiente de generar" />;
   }
@@ -114,7 +117,8 @@ function DocumentoRow({ label, documento, onOpen }: { label: string; documento: 
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   gap: {
     gap: Spacing.xs,
   },

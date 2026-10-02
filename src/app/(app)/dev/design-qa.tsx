@@ -17,6 +17,7 @@ import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Stepper } from '@/components/Stepper';
 import { ColorSchemeAtLaunch, Colors, FontSize, Layout, Palettes, Radius, Spacing, type ColorPalette, type ColorToken } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { SHOW_DEV_TOOLS } from '@/constants/config';
 
 const LONG_TEXT =
@@ -49,6 +50,8 @@ const SWATCHES: ColorToken[] = [
  * largos, botones largos, labels grandes.
  */
 export default function DesignQaScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const [chip, setChip] = useState<'todas' | 'pendientes' | 'aprobadas'>('todas');
   const [input, setInput] = useState('');
@@ -125,7 +128,7 @@ export default function DesignQaScreen() {
 
           <SectionTitle>StatusBadge</SectionTitle>
           <Card style={styles.wrap}>
-            {['enviada', 'en_revision', 'aprobada', 'rechazada', 'requiere_correccion', 'cancelada', 'cerrada', 'desconocido'].map((status) => (
+            {['enviada', 'en_revision', 'aprobada', 'rechazada', 'requiere_correccion', 'cancelada', 'desconocido'].map((status) => (
               <StatusBadge key={status} status={status} />
             ))}
             <StatusBadge label="Etiqueta del backend muy larga para comprobar wrap" />
@@ -200,6 +203,7 @@ export default function DesignQaScreen() {
 }
 
 function PaletteColumn({ title, palette }: { title: string; palette: ColorPalette }) {
+  const styles = useEstilos(crearEstilos);
   return (
     <View style={[styles.paletteCol, { backgroundColor: palette.background, borderColor: palette.border }]}>
       <Text style={[styles.paletteTitle, { color: palette.text }]}>{title}</Text>
@@ -222,7 +226,8 @@ function PaletteColumn({ title, palette }: { title: string; palette: ColorPalett
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

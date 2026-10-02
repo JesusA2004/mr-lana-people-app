@@ -13,7 +13,8 @@ import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
 import { Input } from '@/components/Input';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 import { REMEMBERED_EMAIL_KEY } from '@/constants/config';
 import { useAuthStore } from '@/store/authStore';
 import type { InvitacionValida } from '@/types/invitation';
@@ -56,6 +57,7 @@ const MOTIVO_MENSAJE: Record<string, string> = {
  * completa el registro y entra directo a la incorporación documental.
  */
 export default function IncorporacionQrScreen() {
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const { token } = useLocalSearchParams<{ token: string }>();
   const loginWithToken = useAuthStore((state) => state.loginWithToken);
@@ -331,7 +333,8 @@ export default function IncorporacionQrScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: Colors.background,

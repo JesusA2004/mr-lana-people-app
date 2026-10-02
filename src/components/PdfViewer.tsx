@@ -5,7 +5,8 @@ import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
 import { SkeletonBlock } from './SkeletonBlock';
 
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 import { construirHtmlVisorPdf, partirEnTrozos } from '@/utils/pdfViewerHtml';
 import { logError } from '@/utils/errors';
 
@@ -21,6 +22,7 @@ import { logError } from '@/utils/errors';
  *   `postMessage` (un PDF de 10+ MB no se incrusta en el HTML).
  */
 export function PdfViewer({ fileUri, style, onError }: { fileUri: string; style?: StyleProp<ViewStyle>; onError?: (message: string) => void }) {
+  const styles = useEstilos(crearEstilos);
   if (Platform.OS === 'ios') {
     return (
       <WebView
@@ -40,6 +42,7 @@ export function PdfViewer({ fileUri, style, onError }: { fileUri: string; style?
 const MENSAJE_ERROR = 'No se pudo mostrar este documento. Puedes guardarlo o compartirlo para abrirlo con otra aplicación.';
 
 function AndroidPdfViewer({ fileUri, style, onError }: { fileUri: string; style?: StyleProp<ViewStyle>; onError?: (message: string) => void }) {
+  const styles = useEstilos(crearEstilos);
   const webviewRef = useRef<WebView>(null);
   const base64Ref = useRef<string | null>(null);
   const listoRef = useRef(false);
@@ -145,7 +148,8 @@ function AndroidPdfViewer({ fileUri, style, onError }: { fileUri: string; style?
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   flex: {
     flex: 1,
   },

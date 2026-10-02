@@ -4,7 +4,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Card } from './Card';
 import { PressableScale } from './PressableScale';
 
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import type { Solicitud, SolicitudDocumentoGenerado } from '@/types/request';
 import { documentoOficialStatusPresentation } from '@/utils/documentoOficialStatus';
 
@@ -25,6 +26,8 @@ export interface SolicitudFormatoOficialCardProps {
  * vacíos/ausentes — el día que el backend los mande, aparece solo.
  */
 export function SolicitudFormatoOficialCard({ solicitud, onVerDocumento }: SolicitudFormatoOficialCardProps) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const documentos = solicitud.documentos_generados ?? [];
   const formatos = solicitud.formatos_oficiales ?? [];
 
@@ -80,7 +83,8 @@ export function SolicitudFormatoOficialCard({ solicitud, onVerDocumento }: Solic
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   card: {
     gap: Spacing.sm,
   },

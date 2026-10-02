@@ -15,7 +15,8 @@ import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
 import { PressableScale } from '@/components/PressableScale';
 import { SkeletonBlock, SkeletonCardList } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useBirthdayWall, useBirthdayWallMessages, useEliminarMensajeMuro, usePublicarEnMuro } from '@/hooks/queries/useBirthdayWall';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useAuthStore } from '@/store/authStore';
@@ -35,6 +36,8 @@ const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
  * espacio y Gestión RH (destino del push `cumpleanos_muro`).
  */
 export default function MuroCumpleanosScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const token = useAuthStore((state) => state.token);
@@ -235,6 +238,8 @@ export default function MuroCumpleanosScreen() {
 }
 
 function MensajeCard({ mensaje, token, onDelete }: { mensaje: BirthdayWallMessage; token: string | null; onDelete: () => void }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   return (
     <Card style={styles.message}>
       <View style={styles.messageHeader}>
@@ -267,7 +272,8 @@ function MensajeCard({ mensaje, token, onDelete }: { mensaje: BirthdayWallMessag
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

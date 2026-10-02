@@ -3,7 +3,8 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { Card } from './Card';
 
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import type { RhPendiente } from '@/types/rh';
 import { formatDateTime } from '@/utils/dates';
 
@@ -28,6 +29,8 @@ export interface RhPendienteCardProps {
 
 /** Card de la bandeja unificada RH (AGENTS.md sección 7) — tipo, título, colaborador, sucursal, resumen y fecha, siempre según lo que manda el backend. */
 export function RhPendienteCard({ pendiente, onPress }: RhPendienteCardProps) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   return (
     <Card onPress={onPress} style={styles.card}>
       <View style={styles.headerRow}>
@@ -67,7 +70,8 @@ export function RhPendienteCard({ pendiente, onPress }: RhPendienteCardProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   card: {
     gap: Spacing.xs,
   },

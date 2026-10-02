@@ -11,7 +11,8 @@ import { ErrorState } from '@/components/ErrorState';
 import { FadeInView } from '@/components/FadeInView';
 import { MascotAssistant } from '@/components/mascot/MascotAssistant';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 import { useIncorporacion } from '@/hooks/queries/useIncorporacion';
 import { getDevErrorDetail, getErrorMessage } from '@/utils/errors';
 import { deriveIncorporationSteps } from '@/utils/incorporation';
@@ -26,6 +27,7 @@ const ESTADO_MENSAJE: Record<string, string> = {
 };
 
 export default function IncorporacionScreen() {
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const { data, isLoading, isError, error, refetch } = useIncorporacion();
 
@@ -99,7 +101,8 @@ export default function IncorporacionScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

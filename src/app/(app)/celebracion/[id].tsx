@@ -15,7 +15,8 @@ import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
 import { PressableScale } from '@/components/PressableScale';
 import { SkeletonBlock, SkeletonCardList } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { API_URL } from '@/constants/config';
 import { useCelebracion, useCelebracionMensajes, usePublicarMensajeCelebracion } from '@/hooks/queries/useCelebraciones';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -40,6 +41,8 @@ const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
  * (`muro-cumpleanos/[id].tsx`, que es un sistema aparte).
  */
 export default function CelebracionScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const token = useAuthStore((state) => state.token);
@@ -229,6 +232,7 @@ export default function CelebracionScreen() {
 }
 
 function MensajeCard({ mensaje, token }: { mensaje: CelebracionMensaje; token: string | null }) {
+  const styles = useEstilos(crearEstilos);
   return (
     <Card style={styles.message}>
       <View style={styles.messageHeader}>
@@ -256,7 +260,8 @@ function MensajeCard({ mensaje, token }: { mensaje: CelebracionMensaje; token: s
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   loading: { padding: Spacing.lg, gap: Spacing.lg, width: '100%', maxWidth: Layout.maxContentWidth, alignSelf: 'center' },
   list: { width: '100%', maxWidth: Layout.maxFormWidth, alignSelf: 'center', padding: Spacing.lg, paddingBottom: Spacing.xxxl },

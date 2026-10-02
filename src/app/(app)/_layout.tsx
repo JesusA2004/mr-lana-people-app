@@ -12,7 +12,8 @@ import { ExperienceSelectorPrimer } from '@/components/ExperienceSelectorPrimer'
 import { LockScreen } from '@/components/LockScreen';
 import { PrivacyOverlay } from '@/components/PrivacyOverlay';
 import { PushPermissionPrimer } from '@/components/PushPermissionPrimer';
-import { Colors } from '@/constants/colors';
+import { Colors, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { SHOW_DEV_TOOLS } from '@/constants/config';
 import { useAppPrivacyProtection } from '@/hooks/useAppPrivacyProtection';
 import { useBackgroundPrivacy } from '@/hooks/useBackgroundPrivacy';
@@ -43,6 +44,8 @@ import { isSelfServiceModuleEnabled } from '@/utils/modules';
  * sin duplicar login ni crear otro token.
  */
 export default function AppLayout() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   useAppPrivacyProtection(true);
   const appState = useBackgroundPrivacy(true);
   const isLocked = useAppLockStore((state) => state.isLocked);
@@ -244,7 +247,8 @@ function PendingPushNavigationController({ showRhTree, availability }: { showRhT
   return null;
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   flex: {
     flex: 1,
   },

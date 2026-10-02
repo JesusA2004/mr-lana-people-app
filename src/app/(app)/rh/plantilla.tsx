@@ -5,7 +5,8 @@ import { Card } from '@/components/Card';
 import { FilterChips } from '@/components/ciclo/FilterChips';
 import { InfoRow } from '@/components/ciclo/InfoRow';
 import { EmptyMessage, Screen, SectionTitle } from '@/components/ciclo/Screen';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 import { useRhCobertura } from '@/hooks/queries/useRhCicloLaboral';
 
 /**
@@ -16,6 +17,7 @@ import { useRhCobertura } from '@/hooks/queries/useRhCicloLaboral';
  * ids que el propio backend devuelve en las filas.
  */
 export default function RhPlantillaScreen() {
+  const styles = useEstilos(crearEstilos);
   const [sucursal, setSucursal] = useState<string>('todas');
   const general = useRhCobertura({});
   const filtrada = useRhCobertura({ sucursal_id: Number(sucursal) }, sucursal !== 'todas');
@@ -74,6 +76,7 @@ export default function RhPlantillaScreen() {
 }
 
 function Tile({ label, value, tone }: { label: string; value: number; tone?: 'warning' | 'danger' }) {
+  const styles = useEstilos(crearEstilos);
   return (
     <View style={[styles.tile, tone === 'warning' && styles.tileWarning, tone === 'danger' && value > 0 && styles.tileDanger]} accessible accessibilityLabel={`${label}: ${value}`}>
       <Text style={styles.tileValue}>{value}</Text>
@@ -82,7 +85,8 @@ function Tile({ label, value, tone }: { label: string; value: number; tone?: 'wa
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

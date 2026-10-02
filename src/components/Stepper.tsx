@@ -3,7 +3,8 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { AnimatedProgressBar } from './AnimatedProgressBar';
 
-import { Colors, FontSize, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 
 export interface StepperProps {
   steps: string[];
@@ -18,6 +19,8 @@ export interface StepperProps {
  * en la transición de contenido entre pasos, no en el indicador.
  */
 export function Stepper({ steps, currentIndex }: StepperProps) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   // `currentIndex >= steps.length` = todos completos (ej. alta ya activa).
   const percent = steps.length > 1 ? Math.min(100, (currentIndex / (steps.length - 1)) * 100) : 100;
 
@@ -48,7 +51,8 @@ export function Stepper({ steps, currentIndex }: StepperProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     gap: Spacing.sm,
   },

@@ -11,7 +11,8 @@ import { MotivoModal } from '@/components/MotivoModal';
 import { SecureDocumentViewer } from '@/components/SecureDocumentViewer';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import {
   useRhExpediente,
   useRhExpedienteAprobarDocumento,
@@ -29,6 +30,8 @@ import { haptics } from '@/utils/haptics';
 
 /** Documento individual del expediente (AGENTS.md sección 14): visor seguro + aprobar/rechazar/autorizar cambio, siempre por permiso real. */
 export default function RhExpedienteDocumentoScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const { colaborador: colaboradorId, documento: documentoId } = useLocalSearchParams<{ colaborador: string; documento: string }>();
   const user = useAuthStore((state) => state.user);
@@ -207,7 +210,8 @@ export default function RhExpedienteDocumentoScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

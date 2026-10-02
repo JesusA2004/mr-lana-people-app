@@ -6,7 +6,8 @@ import { MascotAvatar, type MascotOrientation, type MascotSize } from './MascotA
 
 import { Button } from '@/components/Button';
 import { PressableScale } from '@/components/PressableScale';
-import { Colors, FontSize, Radius, Shadow, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Shadow, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { Ionicons } from '@expo/vector-icons';
 
 export type MascotTipType = 'info' | 'success' | 'warning' | 'tip';
@@ -50,6 +51,8 @@ export function MascotAssistant({
   priority = 'normal',
   style,
 }: MascotAssistantProps) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const [dismissed, setDismissed] = useState(false);
   if (dismissed) return null;
 
@@ -85,7 +88,8 @@ export function MascotAssistant({
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'flex-start',

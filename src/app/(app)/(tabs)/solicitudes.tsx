@@ -11,7 +11,8 @@ import { MascotAssistant } from '@/components/mascot/MascotAssistant';
 import { PressableScale } from '@/components/PressableScale';
 import { RequestCard } from '@/components/RequestCard';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { MascotMessages } from '@/constants/mascotMessages';
 import { requestFamily, type RequestFamily } from '@/constants/requestTypes';
 import { useSolicitudesInfinite } from '@/hooks/queries/useSolicitudes';
@@ -50,6 +51,8 @@ function matchesSearch(solicitud: Solicitud, query: string): boolean {
 }
 
 export default function SolicitudesScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const { data, isLoading, isError, error, refetch, isRefetching, fetchNextPage, hasNextPage, isFetchingNextPage } = useSolicitudesInfinite();
   const [family, setFamily] = useState<RequestFamily | 'todas'>('todas');
@@ -193,7 +196,8 @@ export default function SolicitudesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

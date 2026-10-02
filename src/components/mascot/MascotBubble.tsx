@@ -3,7 +3,8 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { MascotAvatar, type MascotOrientation, type MascotSize } from './MascotAvatar';
 
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 
 export interface MascotBubbleProps {
   message: string;
@@ -17,6 +18,7 @@ export interface MascotBubbleProps {
  * sección 12: "Selecciona qué tipo de trámite deseas realizar.").
  */
 export function MascotBubble({ message, orientation = 'right', size = 'md' }: MascotBubbleProps) {
+  const styles = useEstilos(crearEstilos);
   return (
     <Animated.View entering={FadeIn.duration(240)} style={styles.row}>
       <MascotAvatar orientation={orientation} size={size} />
@@ -27,7 +29,8 @@ export function MascotBubble({ message, orientation = 'right', size = 'md' }: Ma
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',

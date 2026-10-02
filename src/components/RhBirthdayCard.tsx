@@ -4,7 +4,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Card } from './Card';
 import { ProfileAvatar } from './ProfileAvatar';
 
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import type { RhBirthdayItem } from '@/types/rhBirthday';
 
 export interface RhBirthdayCardProps {
@@ -14,6 +15,8 @@ export interface RhBirthdayCardProps {
 
 /** Fila de la bandeja de cumpleaños RH (AGENTS.md de este encargo, sección 5) — foto, nombre, puesto/sucursal, y si ya se generó/envió la felicitación. */
 export function RhBirthdayCard({ item, onPress }: RhBirthdayCardProps) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const { colaborador } = item;
 
   return (
@@ -49,7 +52,8 @@ export function RhBirthdayCard({ item, onPress }: RhBirthdayCardProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',

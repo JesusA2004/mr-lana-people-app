@@ -14,7 +14,8 @@ import { MotivoModal } from '@/components/MotivoModal';
 import { PressableScale } from '@/components/PressableScale';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Stepper } from '@/components/Stepper';
-import { Colors, FontSize, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useRhCandidato, useRhOperarCandidato, type RhCandidatoOperacion } from '@/hooks/queries/useRhCandidatos';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { toast } from '@/store/toastStore';
@@ -53,6 +54,7 @@ type Sheet =
  * alcance + separación preautoriza/autoriza): la app nunca decide por rol.
  */
 export default function RhCandidatoDetailScreen() {
+  const styles = useEstilos(crearEstilos);
   const { id } = useLocalSearchParams<{ id: string }>();
   const query = useRhCandidato(id);
   const ficha = query.data;
@@ -481,6 +483,8 @@ export default function RhCandidatoDetailScreen() {
 }
 
 function AdjuntosList({ archivos, onAdd, onRemove }: { archivos: PickedDocumentFile[]; onAdd: () => void; onRemove: (index: number) => void }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   return (
     <View style={styles.attachments}>
       <Text style={styles.attachLabel}>Archivos adjuntos (opcional)</Text>
@@ -500,7 +504,8 @@ function AdjuntosList({ archivos, onAdd, onRemove }: { archivos: PickedDocumentF
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   gap: {
     gap: Spacing.sm,
   },

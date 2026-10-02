@@ -1,6 +1,7 @@
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { formatCurrencyMXN, parseCurrencyInput } from '@/utils/formatters';
 
 export interface MoneyFieldProps {
@@ -22,6 +23,8 @@ export interface MoneyFieldProps {
  * la app tampoco las inventa.
  */
 export function MoneyField({ label, value, onChange, error, helper, placeholder = '0.00' }: MoneyFieldProps) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   return (
     <View style={styles.container}>
       <Text style={styles.label}>{label}</Text>
@@ -47,7 +50,8 @@ export function MoneyField({ label, value, onChange, error, helper, placeholder 
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: { gap: Spacing.xs },
   label: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.text },
   inputWrapper: {

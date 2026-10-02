@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TabIcon } from '@/components/TabIcon';
 import { useColores } from '@/theme/ThemeProvider';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
+import { hasPermission } from '@/utils/capabilities';
 
 const TAB_BAR_BASE_HEIGHT = 64;
 const ICON_SIZE = 23;
@@ -17,6 +18,9 @@ export default function RhTabsLayout() {
 
   const pendientesCount = bootstrap.data?.counts.rh_pendientes ?? 0;
   const notificationsCount = bootstrap.data?.counts.notifications ?? 0;
+  // Sin `rh.colaboradores.ver` (p. ej. un gerente) la pestaña no se ofrece:
+  // el backend respondería 403. Su gente la ve en «Mi equipo».
+  const puedeVerColaboradores = hasPermission(bootstrap.data?.user.permissions, 'rh.colaboradores.ver');
 
   return (
     <Tabs
@@ -63,6 +67,7 @@ export default function RhTabsLayout() {
         name="colaboradores"
         options={{
           title: 'Colaboradores',
+          href: puedeVerColaboradores ? undefined : null,
           tabBarIcon: ({ color, focused }) => (
             <TabIcon name={focused ? 'people' : 'people-outline'} color={color} focused={focused} size={ICON_SIZE} />
           ),

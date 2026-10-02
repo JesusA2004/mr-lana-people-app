@@ -3,7 +3,8 @@ import { useEffect } from 'react';
 import { StyleSheet } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 
-import { Colors } from '@/constants/colors';
+import { Colors, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 
 export interface SuccessCheckProps {
   size?: number;
@@ -11,6 +12,8 @@ export interface SuccessCheckProps {
 
 /** Check animado (escala con leve "overshoot") para pantallas de éxito — solicitud enviada, documento subido, etc. */
 export function SuccessCheck({ size = 96 }: SuccessCheckProps) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const scale = useSharedValue(0);
 
   useEffect(() => {
@@ -29,7 +32,8 @@ export function SuccessCheck({ size = 96 }: SuccessCheckProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   circle: {
     backgroundColor: Colors.success,
     alignItems: 'center',

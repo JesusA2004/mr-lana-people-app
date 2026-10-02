@@ -12,7 +12,8 @@ import { DocumentUploadSheet, type PickedDocumentFile } from '@/components/Docum
 import { ErrorState } from '@/components/ErrorState';
 import { MascotAssistant } from '@/components/mascot/MascotAssistant';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useIncorporacion, useSolicitarCambioDocumento, useUploadDocumento } from '@/hooks/queries/useIncorporacion';
 import { toast } from '@/store/toastStore';
 import { formatDateLong, formatDateTime } from '@/utils/dates';
@@ -20,6 +21,8 @@ import { getErrorMessage, logError } from '@/utils/errors';
 import { confirmAction } from '@/utils/confirm';
 
 export default function DocumentoDetalleScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   // `ref=documento`: se abrió desde un push `documento` cuyo resource_id es
   // el id del ARCHIVO (no del tipo) — ver `utils/appLinks.ts`.
@@ -161,6 +164,7 @@ export default function DocumentoDetalleScreen() {
 const MascotMessagesCorreccion = 'Este documento necesita una corrección. Revisa la observación de Recursos Humanos.';
 
 function DetailRow({ label, value, last = false }: { label: string; value: string; last?: boolean }) {
+  const styles = useEstilos(crearEstilos);
   return (
     <View style={[styles.detailRow, !last && styles.detailRowBorder]}>
       <Text style={styles.detailLabel}>{label}</Text>
@@ -171,7 +175,8 @@ function DetailRow({ label, value, last = false }: { label: string; value: strin
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

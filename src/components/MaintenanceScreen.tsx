@@ -5,7 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from './Button';
 import { MascotAvatar } from './mascot/MascotAvatar';
 
-import { Colors, FontSize, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 import { useMaintenanceStore } from '@/store/maintenanceStore';
 
 /**
@@ -17,6 +18,7 @@ import { useMaintenanceStore } from '@/store/maintenanceStore';
  * esperar la próxima acción del usuario.
  */
 export function MaintenanceScreen() {
+  const styles = useEstilos(crearEstilos);
   const active = useMaintenanceStore((state) => state.active);
   const message = useMaintenanceStore((state) => state.message);
   const setActive = useMaintenanceStore((state) => state.setActive);
@@ -45,7 +47,8 @@ export function MaintenanceScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     position: 'absolute',
     top: 0,

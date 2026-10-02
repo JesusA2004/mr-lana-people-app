@@ -9,7 +9,8 @@ import { FilePickButton } from '@/components/ciclo/FilePickButton';
 import { InfoRow } from '@/components/ciclo/InfoRow';
 import { Notice, Screen, SectionTitle } from '@/components/ciclo/Screen';
 import { DateField } from '@/components/forms/DateField';
-import { Colors, FontSize, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 import { useRhImportarRecibos } from '@/hooks/queries/useRhCicloLaboral';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { toast } from '@/store/toastStore';
@@ -37,6 +38,7 @@ const IMPORT_TYPES = [
  * primero.
  */
 export default function RhImportarRecibosScreen() {
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const importar = useRhImportarRecibos();
   const { isOffline } = useNetworkStatus();
@@ -141,7 +143,8 @@ export default function RhImportarRecibosScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   gap: {
     gap: Spacing.sm,
   },

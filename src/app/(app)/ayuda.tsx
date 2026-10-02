@@ -8,7 +8,8 @@ import { Card } from '@/components/Card';
 import { FadeInView } from '@/components/FadeInView';
 import { MascotAvatar } from '@/components/mascot/MascotAvatar';
 import { PressableScale } from '@/components/PressableScale';
-import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 
 interface Faq {
   question: string;
@@ -58,6 +59,8 @@ const QUICK_LINKS: { icon: keyof typeof Ionicons.glyphMap; label: string; descri
 ];
 
 export default function AyudaScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
@@ -131,7 +134,8 @@ export default function AyudaScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

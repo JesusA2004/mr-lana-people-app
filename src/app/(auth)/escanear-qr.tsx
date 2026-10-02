@@ -8,7 +8,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { PermissionPrimerSheet } from '@/components/PermissionPrimerSheet';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { toast } from '@/store/toastStore';
 import { haptics } from '@/utils/haptics';
 import { maskTokenForLog, parseIncorporacionQr } from '@/utils/parseIncorporacionQr';
@@ -21,6 +22,8 @@ import { maskTokenForLog, parseIncorporacionQr } from '@/utils/parseIncorporacio
  * rechaza sin navegar ni ejecutar nada.
  */
 export default function EscanearQrScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
   const [showPrimer, setShowPrimer] = useState(false);
@@ -149,6 +152,7 @@ export default function EscanearQrScreen() {
 
 /** Solo `__DEV__` (AGENTS.md sección 76): pegar un token de prueba sin cámara real. Nunca en producción. */
 function DevQrPasteModal({ visible, onClose, onSubmit }: { visible: boolean; onClose: () => void; onSubmit: (token: string) => void }) {
+  const styles = useEstilos(crearEstilos);
   const [value, setValue] = useState('');
 
   const handleSubmit = () => {
@@ -183,7 +187,8 @@ function DevQrPasteModal({ visible, onClose, onSubmit }: { visible: boolean; onC
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: Colors.black,

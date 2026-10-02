@@ -6,7 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from './Button';
 import { MascotAvatar } from './mascot/MascotAvatar';
 
-import { Colors, FontSize, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 import { useAppConfig, useLatestAppRelease } from '@/hooks/queries/useAppRelease';
 import { useMaintenanceStore } from '@/store/maintenanceStore';
 import {
@@ -38,6 +39,7 @@ export interface ForceUpdateScreenProps {
  * la actualización contra un servidor caído.
  */
 export function ForceUpdateScreen({ enabled }: ForceUpdateScreenProps) {
+  const styles = useEstilos(crearEstilos);
   const { data: config } = useAppConfig();
   const { data: release } = useLatestAppRelease(enabled);
   const maintenanceActive = useMaintenanceStore((state) => state.active);
@@ -97,7 +99,8 @@ export function ForceUpdateScreen({ enabled }: ForceUpdateScreenProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     position: 'absolute',
     top: 0,

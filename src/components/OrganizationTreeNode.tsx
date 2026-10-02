@@ -4,7 +4,8 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { PressableScale } from './PressableScale';
 
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import type { OrganizationTreeView } from '@/utils/organizationTree';
 
 export interface OrganizationTreeNodeProps {
@@ -29,6 +30,8 @@ const INDENT_PER_LEVEL = 18;
  * (`puestoToTreeView`) y para PERSONAS (`personaToTreeView`).
  */
 export function OrganizationTreeNode({ node, depth = 0, defaultExpanded = depth < 1, onOpen }: OrganizationTreeNodeProps) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const [expanded, setExpanded] = useState(defaultExpanded);
   const hasChildren = node.children.length > 0;
   const canOpen = !hasChildren && node.targetId !== undefined && !!onOpen;
@@ -83,7 +86,8 @@ export function OrganizationTreeNode({ node, depth = 0, defaultExpanded = depth 
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',

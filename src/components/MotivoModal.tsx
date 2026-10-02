@@ -5,7 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from './Button';
 import { Input } from './Input';
 
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 
 export interface MotivoModalProps {
   visible: boolean;
@@ -24,6 +25,7 @@ export interface MotivoModalProps {
  * un solo componente en vez de repetir el mismo formulario cuatro veces.
  */
 export function MotivoModal({ visible, title, description, confirmLabel, submitting = false, onCancel, onConfirm }: MotivoModalProps) {
+  const styles = useEstilos(crearEstilos);
   const insets = useSafeAreaInsets();
   const [motivo, setMotivo] = useState('');
 
@@ -79,7 +81,8 @@ export function MotivoModal({ visible, title, description, confirmLabel, submitt
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: Colors.overlay,

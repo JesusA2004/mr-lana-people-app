@@ -10,7 +10,8 @@ import { MascotAssistant } from './mascot/MascotAssistant';
 import { PressableScale } from './PressableScale';
 import { SkeletonCardList } from './SkeletonBlock';
 
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { MascotMessages } from '@/constants/mascotMessages';
 import { useAbrirNotificacion, useMarkAllNotificacionesLeidas, useNotificaciones } from '@/hooks/queries/useNotificaciones';
 import { toast } from '@/store/toastStore';
@@ -60,6 +61,8 @@ export interface NotificacionesContentProps {
  * componente en vez de duplicar la lista dos veces.
  */
 export function NotificacionesContent({ showBack = false }: NotificacionesContentProps) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const { items, isLoading, isError, error, refetch, isRefetching, fetchNextPage, hasNextPage, isFetchingNextPage } = useNotificaciones();
   const abrir = useAbrirNotificacion();
@@ -191,6 +194,7 @@ export function NotificacionesContent({ showBack = false }: NotificacionesConten
 }
 
 function TabButton({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  const styles = useEstilos(crearEstilos);
   return (
     <PressableScale haptic={false} onPress={onPress} style={[styles.tabButton, active && styles.tabButtonActive] as object}>
       <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{label}</Text>
@@ -198,7 +202,8 @@ function TabButton({ label, active, onPress }: { label: string; active: boolean;
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

@@ -5,7 +5,8 @@ import { Card } from '@/components/Card';
 import { InfoRow } from '@/components/ciclo/InfoRow';
 import { Notice } from '@/components/ciclo/Screen';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Colors, FontSize, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 import type { ContratoLaboral } from '@/types/cicloLaboral';
 import { formatDateLong } from '@/utils/dates';
 
@@ -25,6 +26,7 @@ const ESTADO_LABEL: Record<string, string> = {
 
 /** Card de contrato laboral (autoservicio y RH) — datos y días para vencer tal como los calcula el backend. */
 export function ContratoCard({ contrato, onOpenDocumento }: { contrato: ContratoLaboral; onOpenDocumento?: () => void }) {
+  const styles = useEstilos(crearEstilos);
   const porVencer = contrato.estado === 'vigente' && contrato.dias_para_vencer !== null && contrato.dias_para_vencer >= 0;
   return (
     <Card style={styles.card}>
@@ -50,7 +52,8 @@ export function ContratoCard({ contrato, onOpenDocumento }: { contrato: Contrato
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   card: {
     gap: Spacing.xs,
   },

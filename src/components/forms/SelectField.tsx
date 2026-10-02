@@ -4,7 +4,8 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 
 import { PressableScale } from '../PressableScale';
 
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 
 export interface SelectOption {
   value: string;
@@ -23,6 +24,8 @@ export interface SelectFieldProps {
 
 /** Selector de opción única en hoja inferior — sin dependencias nativas extra, idéntico en Android/iOS. */
 export function SelectField({ label, value, options, onChange, error, helper, placeholder = 'Selecciona una opción' }: SelectFieldProps) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const [open, setOpen] = useState(false);
   const selected = options.find((option) => option.value === value);
 
@@ -69,7 +72,8 @@ export function SelectField({ label, value, options, onChange, error, helper, pl
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: { gap: Spacing.xs },
   label: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.text },
   input: {

@@ -10,7 +10,8 @@ import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
 import { PressableScale } from '@/components/PressableScale';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useRhFormatosOficiales } from '@/hooks/queries/useRhFormatosOficiales';
 import type { OfficialFormatItem } from '@/types/formatoOficial';
 import { formatDateShort } from '@/utils/dates';
@@ -47,6 +48,8 @@ const APLICA_A_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
  * ejes reales de la consulta (`FormatoOficialController::index`).
  */
 export default function RhFormatosOficialesScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
 
   const [searchInput, setSearchInput] = useState('');
@@ -147,6 +150,8 @@ export default function RhFormatosOficialesScreen() {
 }
 
 function FormatoOficialRow({ formato, onPress }: { formato: OfficialFormatItem; onPress: () => void }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   return (
     <Card style={styles.row} onPress={onPress}>
       <View style={styles.rowIcon}>
@@ -190,7 +195,8 @@ function FormatoOficialRow({ formato, onPress }: { formato: OfficialFormatItem; 
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

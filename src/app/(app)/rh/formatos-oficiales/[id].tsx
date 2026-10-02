@@ -11,7 +11,8 @@ import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
 import { SecureDocumentViewer } from '@/components/SecureDocumentViewer';
 import { SkeletonBlock, SkeletonCardList } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useRhFormatoOficial, useRhFormatosOficialesGenerados } from '@/hooks/queries/useRhFormatosOficiales';
 import type { OfficialFormatGeneracion } from '@/types/formatoOficial';
 import { formatDateShort, formatDateTime } from '@/utils/dates';
@@ -29,6 +30,8 @@ import { slugifyFilename } from '@/utils/formatters';
  * ofrecer el botón).
  */
 export default function RhFormatoOficialDetalleScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
 
@@ -165,6 +168,8 @@ export default function RhFormatoOficialDetalleScreen() {
 }
 
 function GeneracionRow({ generacion, onPress }: { generacion: OfficialFormatGeneracion; onPress: () => void }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   return (
     <Card style={styles.generacionRow} onPress={onPress}>
       <Ionicons name="document-text-outline" size={20} color={Colors.primaryDark} />
@@ -189,7 +194,8 @@ function GeneracionRow({ generacion, onPress }: { generacion: OfficialFormatGene
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   listContent: {
     width: '100%',

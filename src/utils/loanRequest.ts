@@ -45,7 +45,7 @@ export function loanStagesToTimeline(etapas: SolicitudPrestamoEtapa[] | undefine
 export function loanRequestsInProgress(solicitudes: Solicitud[] | undefined): Solicitud[] {
   return (solicitudes ?? []).filter((s) => {
     if (s.tipo !== 'prestamo') return false;
-    if (s.estado === 'cancelada' || s.estado === 'cerrada') return false;
+    if (s.estado === 'cancelada') return false;
     const etapas = s.prestamo?.etapas ?? [];
     if (etapas.length === 0) return s.estado !== 'rechazada' && s.estado !== 'aprobada';
     // Terminado cuando la firma ya está hecha; rechazado se sigue mostrando para que la persona vea el motivo.

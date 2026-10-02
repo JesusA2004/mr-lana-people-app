@@ -10,7 +10,8 @@ import { MotivoModal } from '@/components/MotivoModal';
 import { PressableScale } from '@/components/PressableScale';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useRhExpediente, useRhExpedienteAprobarIncorporacion, useRhExpedienteRechazarIncorporacion } from '@/hooks/queries/useRhExpedientes';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { toast } from '@/store/toastStore';
@@ -25,6 +26,8 @@ import { haptics } from '@/utils/haptics';
  * se comprueba contra el permiso real, no contra el nombre del rol.
  */
 export default function RhExpedienteDetailScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const { colaborador: colaboradorId } = useLocalSearchParams<{ colaborador: string }>();
   const { data: expediente, isLoading, isError, error, refetch, isRefetching } = useRhExpediente(colaboradorId);
@@ -164,7 +167,8 @@ export default function RhExpedienteDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

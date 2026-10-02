@@ -63,7 +63,6 @@ export const REQUEST_STATUSES = [
   'rechazada',
   'requiere_correccion',
   'cancelada',
-  'cerrada',
 ] as const;
 
 export type KnownRequestStatus = (typeof REQUEST_STATUSES)[number];
@@ -73,7 +72,7 @@ export type RequestStatus = KnownRequestStatus | (string & {});
  * Estados finales (`EstadoSolicitudInterna::esFinal()`): ya no admiten
  * transiciones ni ediciones.
  */
-export const FINAL_REQUEST_STATUSES: readonly RequestStatus[] = ['rechazada', 'cancelada', 'cerrada'];
+export const FINAL_REQUEST_STATUSES: readonly RequestStatus[] = ['aprobada', 'rechazada', 'cancelada'];
 
 /**
  * Estados en los que el colaborador puede cancelar su propia solicitud —
@@ -174,6 +173,8 @@ export interface SolicitudAdjunto {
 /** Una entrada de la bitácora de una solicitud — ver gap D-1. */
 export interface SolicitudHistorialEntrada {
   accion: string;
+  /** Texto en español que manda el backend (no se traduce aquí). */
+  accion_etiqueta?: string;
   comentario?: string | null;
   usuario?: string | null;
   fecha: string;

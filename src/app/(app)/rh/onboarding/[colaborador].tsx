@@ -8,7 +8,8 @@ import { Card } from '@/components/Card';
 import { Field, FormSheet } from '@/components/ciclo/FormSheet';
 import { EmptyMessage, Notice, Screen, SectionTitle } from '@/components/ciclo/Screen';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Colors, FontSize, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useRhCompletarOnboarding, useRhEntregarActivo, useRhOnboarding, useRhRetroalimentar } from '@/hooks/queries/useRhOnboarding';
 import type { OnboardingActivoRh, OnboardingModuloRh } from '@/api/rh/onboarding';
 import { toast } from '@/store/toastStore';
@@ -32,6 +33,8 @@ const ESTADO_BADGE: Record<string, string> = {
  * `bloqueos`).
  */
 export default function RhOnboardingScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const { colaborador } = useLocalSearchParams<{ colaborador: string }>();
   const query = useRhOnboarding(colaborador);
   const retroalimentar = useRhRetroalimentar(colaborador ?? '');
@@ -215,7 +218,8 @@ export default function RhOnboardingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   gap: {
     gap: Spacing.sm,
   },

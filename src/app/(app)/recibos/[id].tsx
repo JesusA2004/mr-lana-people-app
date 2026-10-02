@@ -24,7 +24,7 @@ export default function MiReciboScreen() {
     return (
       <SecureDocumentViewer
         path={recibosApi.pdfPath(recibo.id)}
-        title={recibo.folio ?? 'Recibo interno'}
+        title={recibo.folio ?? 'Recibo de nómina'}
         onClose={() => setViewerOpen(false)}
         allowDownload
         downloadFileName={slugifyFilename(`recibo-${recibo.folio ?? recibo.id}`)}
@@ -34,8 +34,7 @@ export default function MiReciboScreen() {
 
   return (
     <Screen
-      title="Recibo interno"
-      subtitle="No fiscal"
+      title="Recibo de nómina"
       isLoading={query.isLoading}
       error={query.error}
       notFoundMessage="Este recibo ya no está disponible."

@@ -12,7 +12,7 @@ import {
   normalizeColaboradorRef,
 } from '@/utils/normalize';
 
-const LEYENDA_RECIBO = 'RECIBO INTERNO DE NÓMINA - NO FISCAL';
+const LEYENDA_RECIBO = 'RECIBO DE NÓMINA';
 
 function normalizeConcepto(value: unknown): ReciboConcepto {
   const raw = asRecord(value);

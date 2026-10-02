@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { formatDateTime } from '@/utils/dates';
 
 export type StepTimelineStatus = 'done' | 'current' | 'pending' | 'cancelled';
@@ -30,6 +31,8 @@ const STATUS_LABEL: Record<StepTimelineStatus, string> = {
 
 /** Timeline vertical de pasos (flujo documental, cierre laboral, bitácora). */
 export function StepTimeline({ items }: { items: StepTimelineItem[] }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   return (
     <View>
       {items.map((item, index) => {
@@ -54,7 +57,8 @@ export function StepTimeline({ items }: { items: StepTimelineItem[] }) {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   row: {
     flexDirection: 'row',
     gap: Spacing.md,

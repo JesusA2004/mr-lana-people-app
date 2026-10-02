@@ -10,7 +10,8 @@ import { FadeInView } from '@/components/FadeInView';
 import { PressableScale } from '@/components/PressableScale';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useRhVacantes } from '@/hooks/queries/useRhVacantes';
 import type { RhVacante } from '@/types/rhVacante';
@@ -50,6 +51,8 @@ const ESTADO_FILTERS: { label: string; value: string | 'activas' }[] = [
 ];
 
 export default function RhVacantesScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const bootstrap = useMobileBootstrap(true);
   const [estado, setEstado] = useState<string | 'activas'>('activas');
@@ -180,6 +183,8 @@ export default function RhVacantesScreen() {
 }
 
 function VacanteCard({ vacante, onPress }: { vacante: RhVacante; onPress: () => void }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const meta = [vacante.departamento, vacante.sucursal].filter(Boolean).join(' · ');
   const diasAbierta = diasVacanteAbierta(vacante.fecha_apertura);
 
@@ -228,6 +233,7 @@ function VacanteCard({ vacante, onPress }: { vacante: RhVacante; onPress: () => 
 }
 
 function PlazaTile({ label, value, highlight = false }: { label: string; value: number; highlight?: boolean }) {
+  const styles = useEstilos(crearEstilos);
   return (
     <View style={[styles.plazaTile, highlight && styles.plazaTileHighlight]}>
       <Text style={[styles.plazaValue, highlight && styles.plazaValueHighlight]}>{value}</Text>
@@ -236,7 +242,8 @@ function PlazaTile({ label, value, highlight = false }: { label: string; value: 
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   readOnlyBanner: {
     flexDirection: 'row',

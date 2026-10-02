@@ -11,7 +11,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { Colors, Shadow } from '@/constants/colors';
+import { Colors, Shadow, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 
 /** Insignia de marca (logo-mark) — ya no la oveja: "no la usaremos como avatar". */
 const LOGO_SOURCE = require('../../../assets/images/brand/logo-mark.png');
@@ -38,9 +39,11 @@ export interface MascotAvatarProps {
  * avatar") — sin arte nuevo, reutiliza `assets/images/brand/logo-mark.png`.
  */
 export function MascotAvatar({ orientation = 'right', size = 'md' }: MascotAvatarProps) {
+  const styles = useEstilos(crearEstilos);
   const reducedMotion = useReducedMotion();
   const diameter = DIAMETER_BY_SIZE[size];
-  const glowDiameter = diameter * 1.55;
+  // Halo apenas mayor que el badge: a 1.55× se salía de la tarjeta que lo contiene.
+  const glowDiameter = diameter * 1.22;
   const float = useSharedValue(0);
   const glow = useSharedValue(0);
 
@@ -96,7 +99,8 @@ export function MascotAvatar({ orientation = 'right', size = 'md' }: MascotAvata
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',

@@ -14,9 +14,8 @@ describe('getSolicitudStory', () => {
     expect(story.nextAction).toMatch(/documento|cancelar/i);
   });
 
-  it('aprobada/rechazada/cancelada/cerrada: no piden ninguna acción al colaborador', () => {
+  it('aprobada/rechazada/cancelada: no piden ninguna acción al colaborador', () => {
     expect(getSolicitudStory('aprobada').nextAction).toMatch(/no necesitas/i);
-    expect(getSolicitudStory('cerrada').nextAction).toMatch(/no queda/i);
   });
 
   it('un estado desconocido nunca revienta: cae a un mensaje neutro', () => {

@@ -11,7 +11,8 @@ import { ItemCard, LoadMore } from '@/components/ciclo/ItemCard';
 import { EmptyMessage, Notice, Screen, SectionTitle } from '@/components/ciclo/Screen';
 import { MotivoModal } from '@/components/MotivoModal';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useRhDecidirReingreso, useRhReingresoBuscar, useRhReingresoHistorial, useRhReingresos, useRhSolicitarReingreso } from '@/hooks/queries/useRhReingresos';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { toast } from '@/store/toastStore';
@@ -43,6 +44,8 @@ const FILTROS_ESTADO: { value: FiltroEstado; label: string }[] = [
  * alta a alguien nuevo si ya existe.
  */
 export default function RhReingresosScreen() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const [tab, setTab] = useState<Tab>('buscar');
   const { isOffline } = useNetworkStatus();
 
@@ -274,7 +277,8 @@ export default function RhReingresosScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
   gap: {
     gap: Spacing.sm,
   },
