@@ -23,7 +23,7 @@ export function useRhReingresoBuscar(q: string, enabled: boolean) {
   return useQuery({
     queryKey: queryKeys.rhReingresosBuscar(q),
     queryFn: () => rhReingresosApi.buscar(q),
-    enabled: enabled && q.trim().length >= 3,
+    enabled,
     retry: retryUnlessClientError,
   });
 }

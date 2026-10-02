@@ -21,7 +21,6 @@ import {
   buildAltaPayload,
   EMPTY_ALTA_FORM,
   erroresDelPaso,
-  jefesPara,
   pasoDeCampo,
   puestosPara,
   requiereFechaFin,
@@ -146,14 +145,14 @@ export default function NuevoColaboradorScreen() {
               label="Empresa"
               value={form.empresaId}
               options={(cat?.empresas ?? []).map((e) => ({ value: String(e.id), label: e.nombre }))}
-              onChange={(v) => setForm((prev) => ({ ...prev, empresaId: v, sucursalId: '', jefeId: '' }))}
+              onChange={(v) => setForm((prev) => ({ ...prev, empresaId: v, sucursalId: '' }))}
             />
           ) : null}
           <SelectField
             label="Sucursal *"
             value={form.sucursalId}
             options={sucursalesPara(cat, form.empresaId).map((s) => ({ value: String(s.id), label: s.nombre }))}
-            onChange={(v) => setForm((prev) => ({ ...prev, sucursalId: v, jefeId: '' }))}
+            onChange={(v) => setForm((prev) => ({ ...prev, sucursalId: v }))}
             error={err('sucursal_principal_id')}
           />
           <SelectField
@@ -170,14 +169,7 @@ export default function NuevoColaboradorScreen() {
             onChange={(v) => set('puestoId', v)}
             error={err('puesto_id')}
           />
-          <SelectField
-            label="Jefe inmediato"
-            value={form.jefeId}
-            options={jefesPara(cat, form.sucursalId).map((j) => ({ value: String(j.id), label: j.puesto ? `${j.nombre} · ${j.puesto}` : j.nombre }))}
-            onChange={(v) => set('jefeId', v)}
-            helper={form.sucursalId ? undefined : 'Elige primero la sucursal.'}
-            error={err('jefe_id')}
-          />
+          <Text style={styles.nota}>El jefe directo se asigna solo según el organigrama (puesto y sucursal).</Text>
         </Card>
       ) : null}
 
@@ -224,6 +216,10 @@ export default function NuevoColaboradorScreen() {
 const styles = StyleSheet.create({
   section: {
     gap: Spacing.md,
+  },
+  nota: {
+    fontSize: FontSize.xs,
+    color: Colors.textMuted,
   },
   subheading: {
     marginTop: Spacing.sm,

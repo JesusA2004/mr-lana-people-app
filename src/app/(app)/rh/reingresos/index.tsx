@@ -132,9 +132,8 @@ export default function RhReingresosScreen() {
             />
           </View>
 
-          {q.length > 0 && q.length < 3 ? <Notice tone="info">Escribe al menos 3 caracteres.</Notice> : null}
           {busqueda.isLoading ? <SkeletonCardList count={2} /> : null}
-          {busqueda.data?.length === 0 && q.length >= 3 ? <EmptyMessage message="No se encontró a nadie con ese dato." /> : null}
+          {busqueda.data?.length === 0 ? <EmptyMessage message={q.length > 0 ? 'No se encontró a nadie con ese dato.' : 'No hay bajas recientes.'} /> : null}
 
           {(busqueda.data ?? []).map((persona) => (
             <ItemCard

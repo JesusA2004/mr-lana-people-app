@@ -5,11 +5,11 @@ import * as Sharing from 'expo-sharing';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { WebView } from 'react-native-webview';
 
 import { apiClient } from '@/api/client';
 import { Button } from './Button';
 import { ErrorState } from './ErrorState';
+import { PdfViewer } from './PdfViewer';
 import { SecurityWatermark } from './SecurityWatermark';
 import { SkeletonBlock } from './SkeletonBlock';
 
@@ -278,21 +278,9 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
             {allowDownload ? <Text style={styles.unsupportedHint}>Puedes guardarlo o compartirlo con &ldquo;Guardar o compartir&rdquo;.</Text> : null}
           </View>
         ) : fileUri && isPdf ? (
-          // Privilegio mínimo: solo el PDF local ya descargado. `file://*`
-          // (no `*`) — cualquier otra navegación sale del WebView; sin JS
-          // (el visor nativo de PDF no lo necesita) y sin
-          // `allowUniversalAccessFromFileURLs` (daba a un file:// acceso a
-          // cualquier origen). `allowFileAccess` (Android) y
-          // `allowingReadAccessToURL` (iOS) SÍ son necesarios para abrir el
-          // archivo local.
-          <WebView
-            source={{ uri: fileUri }}
-            originWhitelist={['file://*']}
-            allowFileAccess
-            allowingReadAccessToURL={fileUri}
-            javaScriptEnabled={false}
-            style={styles.webview}
-          />
+          // iOS: visor nativo de WKWebView. Android: pdf.js (su WebView no
+          // dibuja PDFs y quedaba la pantalla en negro). Ver PdfViewer.
+          <PdfViewer fileUri={fileUri} style={styles.webview} />
         ) : fileUri ? (
           <Image source={{ uri: fileUri }} style={styles.image} contentFit="contain" accessibilityLabel={title} />
         ) : null}

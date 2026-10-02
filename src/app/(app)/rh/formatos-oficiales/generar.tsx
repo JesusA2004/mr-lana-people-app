@@ -6,7 +6,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { FlatList, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { WebView } from 'react-native-webview';
 
 import { rhFormatosOficialesApi } from '@/api/rh/formatosOficiales';
 import { AppHeader } from '@/components/AppHeader';
@@ -14,6 +13,7 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
 import { Input } from '@/components/Input';
+import { PdfViewer } from '@/components/PdfViewer';
 import { SecureDocumentViewer } from '@/components/SecureDocumentViewer';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { Stepper } from '@/components/Stepper';
@@ -562,14 +562,7 @@ function Base64PdfPreviewModal({ base64, title, onClose }: { base64: string; tit
         {error ? (
           <ErrorState message={error} />
         ) : fileUri ? (
-          <WebView
-            source={{ uri: fileUri }}
-            originWhitelist={['file://*']}
-            allowFileAccess
-            allowingReadAccessToURL={fileUri}
-            javaScriptEnabled={false}
-            style={styles.previewWebview}
-          />
+          <PdfViewer fileUri={fileUri} style={styles.previewWebview} />
         ) : (
           <SkeletonBlock height={420} radius={Radius.lg} />
         )}

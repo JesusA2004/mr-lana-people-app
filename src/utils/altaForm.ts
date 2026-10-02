@@ -18,7 +18,6 @@ export interface AltaFormState {
   sucursalId: string;
   departamentoId: string;
   puestoId: string;
-  jefeId: string;
   sueldo?: number;
   fechaIngreso?: Date;
   tipoContratacion: string;
@@ -40,7 +39,6 @@ export const EMPTY_ALTA_FORM: AltaFormState = {
   sucursalId: '',
   departamentoId: '',
   puestoId: '',
-  jefeId: '',
   tipoContratacion: '',
   crearAcceso: true,
 };
@@ -60,7 +58,7 @@ export function sucursalesPara(catalogos: Pick<AltaCatalogos, 'sucursales'> | un
 /** Pasos del alta y los campos (claves de error del backend) que valida cada uno. */
 export const ALTA_FORM_STEPS = [
   { key: 'personales', label: 'Personales', fields: ['name', 'apellidos', 'genero', 'telefono', 'email', 'fecha_nacimiento', 'curp', 'rfc', 'nss'] },
-  { key: 'laborales', label: 'Laborales', fields: ['sucursal_principal_id', 'departamento_id', 'puesto_id', 'jefe_id'] },
+  { key: 'laborales', label: 'Laborales', fields: ['sucursal_principal_id', 'departamento_id', 'puesto_id'] },
   { key: 'contratacion', label: 'Contratación', fields: ['fecha_ingreso', 'tipo_contratacion', 'fecha_fin_contrato', 'sueldo_mensual', 'numero_empleado'] },
 ] as const;
 
@@ -81,13 +79,6 @@ export function puestosPara(catalogos: Pick<AltaCatalogos, 'puestos'> | undefine
   const puestos = catalogos?.puestos ?? [];
   if (!departamentoId) return puestos;
   return puestos.filter((p) => p.departamento_id === null || String(p.departamento_id) === departamentoId);
-}
-
-/** Jefes de la sucursal elegida (la lista completa puede tener cientos). */
-export function jefesPara(catalogos: Pick<AltaCatalogos, 'jefes'> | undefined, sucursalId: string) {
-  const jefes = catalogos?.jefes ?? [];
-  if (!sucursalId) return jefes;
-  return jefes.filter((j) => String(j.sucursal_id) === sucursalId);
 }
 
 /**
@@ -131,7 +122,6 @@ export function buildAltaPayload(form: AltaFormState, catalogos: Pick<AltaCatalo
     sucursal_principal_id: Number(form.sucursalId),
     departamento_id: form.departamentoId ? Number(form.departamentoId) : null,
     puesto_id: Number(form.puestoId),
-    jefe_id: form.jefeId ? Number(form.jefeId) : null,
     sueldo_mensual: form.sueldo ?? 0,
     fecha_ingreso: form.fechaIngreso ? toApiDateString(form.fechaIngreso) : '',
     tipo_contratacion: form.tipoContratacion,

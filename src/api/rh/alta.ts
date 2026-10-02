@@ -26,7 +26,6 @@ export interface AltaColaboradorPayload {
   sucursal_principal_id: number;
   departamento_id?: number | null;
   puesto_id: number;
-  jefe_id?: number | null;
   sueldo_mensual: number;
   fecha_ingreso: string;
   tipo_contratacion: string;

@@ -38,8 +38,8 @@ export default function ExpedienteScreen() {
   const progreso = toExpedienteProgress(data?.progreso);
   const breakdown = progressBreakdown(progreso);
   const documentos = data?.documentos ?? [];
+  // El expediente solo pide documentos requeridos; lo opcional entra por Solicitudes.
   const requeridos = documentos.filter((d) => d.obligatorio);
-  const opcionales = documentos.filter((d) => !d.obligatorio);
   const abrir = (documento: DocumentoIncorporacion) => router.push({ pathname: '/expediente/[tipoId]', params: { tipoId: String(documento.id) } });
 
   return (
@@ -101,8 +101,7 @@ export default function ExpedienteScreen() {
               </Notice>
             ) : null}
 
-            {requeridos.length > 0 ? <DocumentList title="Requeridos" documentos={requeridos} onOpen={abrir} /> : null}
-            {opcionales.length > 0 ? <DocumentList title="Opcionales" documentos={opcionales} onOpen={abrir} /> : null}
+            {requeridos.length > 0 ? <DocumentList title="Documentos" documentos={requeridos} onOpen={abrir} /> : null}
           </>
         ) : null}
       </ScrollView>

@@ -1,4 +1,4 @@
-import { buildAltaPayload, EMPTY_ALTA_FORM, erroresDelPaso, jefesPara, pasoDeCampo, puestosPara, requiereFechaFin, sucursalesPara, validarAlta, type AltaFormState } from '../altaForm';
+import { buildAltaPayload, EMPTY_ALTA_FORM, erroresDelPaso, pasoDeCampo, puestosPara, requiereFechaFin, sucursalesPara, validarAlta, type AltaFormState } from '../altaForm';
 
 /** Forma real de `GET /rh/catalogos` (Rh\CatalogoController). */
 const CATALOGOS = {
@@ -59,10 +59,9 @@ describe('alta de colaborador', () => {
     expect(errores.nss).toBeTruthy();
   });
 
-  it('filtra puestos por departamento (y conserva los generales) y jefes por sucursal', () => {
+  it('filtra puestos por departamento (y conserva los generales)', () => {
     expect(puestosPara(CATALOGOS, '10').map((p) => p.id)).toEqual([1, 3]);
     expect(puestosPara(CATALOGOS, '').length).toBe(3);
-    expect(jefesPara(CATALOGOS, '2').map((j) => j.id)).toEqual([51]);
   });
 
   it('arma el payload del backend: IDs numéricos, fechas ISO, CURP en mayúsculas, sin fecha fin si no aplica', () => {
@@ -72,7 +71,6 @@ describe('alta de colaborador', () => {
       sucursal_principal_id: 1,
       puesto_id: 1,
       departamento_id: null,
-      jefe_id: null,
       sueldo_mensual: 12000,
       fecha_ingreso: '2026-09-01',
       curp: 'PEPM900101MDFRRR09',
@@ -92,7 +90,7 @@ describe('alta por pasos', () => {
 
   it('un error del backend regresa al paso de su campo', () => {
     expect(pasoDeCampo('email')).toBe(0);
-    expect(pasoDeCampo('jefe_id')).toBe(1);
+    expect(pasoDeCampo('puesto_id')).toBe(1);
     expect(pasoDeCampo('numero_empleado')).toBe(2);
   });
 
