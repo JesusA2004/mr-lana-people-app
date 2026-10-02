@@ -3,11 +3,9 @@ import { useMemo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { AnimatedProgressBar } from '@/components/AnimatedProgressBar';
 import { AniversarioHeroCard } from '@/components/AniversarioHeroCard';
 import { BirthdayHeroCard } from '@/components/BirthdayHeroCard';
 import { BirthdayWallBanner } from '@/components/BirthdayWallBanner';
-import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
 import { FadeInView } from '@/components/FadeInView';
@@ -19,16 +17,14 @@ import { RequestCard } from '@/components/RequestCard';
 import { SkeletonBlock, SkeletonCardList } from '@/components/SkeletonBlock';
 import { Colors, FontSize, Layout, Radius, Spacing } from '@/constants/colors';
 import { MascotMessages } from '@/constants/mascotMessages';
-import { Stepper } from '@/components/Stepper';
 import { useBirthdayGreeting } from '@/hooks/queries/useBirthday';
 import { useCelebracionesActivas } from '@/hooks/queries/useCelebraciones';
-import { useDocumentosPendientes, useMiAlta, useMisPrestamos, useMisRecibos } from '@/hooks/queries/useCicloLaboral';
+import { LoQueNecesitasHacer } from '@/components/ciclo/LoQueNecesitasHacer';
+import { useMiProceso, useMisPrestamos, useMisRecibos } from '@/hooks/queries/useCicloLaboral';
 import { useDashboard } from '@/hooks/queries/useDashboard';
-import { useIncorporacion } from '@/hooks/queries/useIncorporacion';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useEquipo, useEquipoPendientes, useTareasConteos } from '@/hooks/queries/useTrabajo';
 import type { Solicitud } from '@/types/request';
-import { ALTA_STEPS, altaColaboradorHint, altaStepIndex, isAltaEnProceso } from '@/utils/alta';
 import { getErrorMessage } from '@/utils/errors';
 import { formatDateShort, getGreeting } from '@/utils/dates';
 import { isFeatureEnabled } from '@/utils/featureFlags';
@@ -36,7 +32,6 @@ import { formatCurrencyMXN, joinName, pluralize } from '@/utils/formatters';
 import { prestamoEstadoLabel, prestamoVigente } from '@/utils/loan';
 import { hasAnyPermission, isSelfServiceModuleEnabled } from '@/utils/modules';
 import { reciboPeriodoLabel } from '@/utils/payroll';
-import { progressBreakdown, progressHeadline, toExpedienteProgress } from '@/utils/expedienteProgress';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const HEADER_TOP_EXTRA = 20;
@@ -48,14 +43,12 @@ export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
 
   const { data, isLoading, isError, error, refetch, isRefetching } = useDashboard();
-  const incorporacion = useIncorporacion();
   // Mismo queryKey/staleTime que `(app)/_layout.tsx` — lectura de caché.
   // AGENTS.md sección 16: la card de cumpleaños y el acceso rápido a
   // Vacaciones no deben mostrarse cuando el backend apaga esos features.
   const bootstrap = useMobileBootstrap(true);
   const cumpleanosEnabled = isFeatureEnabled(bootstrap.data?.features, 'cumpleanos');
   const vacacionesEnabled = isFeatureEnabled(bootstrap.data?.features, 'vacaciones');
-  const incorporacionEnabled = isFeatureEnabled(bootstrap.data?.features, 'incorporacion');
   // Ciclo laboral (backend 2026-09-22) — API estable, ver `utils/modules.ts`.
   const features = bootstrap.data?.features;
   const permissions = bootstrap.data?.user.permissions;
@@ -77,8 +70,9 @@ export default function DashboardScreen() {
     return aniversarios.find((c) => c.es_mia) ?? aniversarios[0];
   }, [celebracionesActivas.data]);
 
-  const alta = useMiAlta();
-  const documentosPendientes = useDocumentosPendientes(documentosLaboralesEnabled);
+  // FUENTE ÚNICA del estado del ciclo: el backend dice qué toca hacer
+  // (documentos, firmas, lecciones…). La app no recalcula etapas.
+  const miProceso = useMiProceso();
   const recibos = useMisRecibos(recibosEnabled);
   const prestamos = useMisPrestamos(prestamosEnabled);
   const tareasConteos = useTareasConteos(tareasEnabled);
@@ -87,9 +81,6 @@ export default function DashboardScreen() {
   const equipo = useEquipo(equipoEnabled);
   const equipoPendientes = useEquipoPendientes(equipoEnabled);
 
-  const estadoAlta = alta.data?.estado_alta ?? null;
-  const altaEnProceso = isAltaEnProceso(estadoAlta);
-  const porFirmar = documentosPendientes.data?.por_firmar.length ?? 0;
   const tareasAbiertas = tareasConteos.data?.abiertas ?? 0;
   const reciboReciente = recibos.data?.pages[0]?.data[0] ?? null;
   const prestamoActivo = prestamoVigente(prestamos.data);
@@ -115,60 +106,10 @@ export default function DashboardScreen() {
   );
   const enProceso = solicitudesRecientes.filter((item) => item.estado === 'enviada' || item.estado === 'en_revision').length;
 
-  const expedienteStats = useMemo(
-    () => ({
-      pendientes: incorporacion.data?.progreso.pendientes ?? 0,
-      rechazados: incorporacion.data?.progreso.rechazados ?? 0,
-    }),
-    [incorporacion.data],
-  );
-
-  const expedienteProgreso = toExpedienteProgress(incorporacion.data?.progreso);
-  const expedienteEnRevision = incorporacion.data?.progreso.en_revision ?? 0;
-
-  // Prioridad del home dinámico: 1) documento rechazado, 2) expediente incompleto,
-  // 3) aprobación pendiente, 4) solicitud requiere corrección, 5) vacaciones
-  // pendientes, 6) notificaciones, 7) resumen normal (sin banner).
+  // Avisos que NO son del ciclo laboral (ese lo pinta "Lo que necesitas
+  // hacer" con mi-proceso): solicitud por corregir, vacaciones en espera,
+  // notificaciones.
   const priorityMascot = useMemo(() => {
-    if (porFirmar > 0) {
-      return {
-        type: 'warning' as const,
-        priority: 'high' as const,
-        message: porFirmar === 1 ? 'Tienes un documento laboral por firmar.' : `Tienes ${porFirmar} documentos laborales por firmar.`,
-        actionLabel: 'Revisar y firmar',
-        onAction: () => router.push('/documentos-laborales'),
-      };
-    }
-    if (expedienteStats.rechazados > 0) {
-      return {
-        type: 'warning' as const,
-        priority: 'high' as const,
-        message:
-          expedienteStats.rechazados === 1
-            ? 'Un documento de tu expediente necesita corrección.'
-            : `${expedienteStats.rechazados} documentos de tu expediente necesitan corrección.`,
-        actionLabel: 'Ver expediente',
-        onAction: () => router.push('/(app)/(tabs)/expediente'),
-      };
-    }
-    if (expedienteStats.pendientes > 0) {
-      return {
-        type: 'tip' as const,
-        priority: 'normal' as const,
-        message: MascotMessages.documentosPendientes(expedienteStats.pendientes),
-        actionLabel: 'Completar expediente',
-        onAction: () => router.push('/(app)/(tabs)/expediente'),
-      };
-    }
-    if (expedienteEnRevision > 0) {
-      return {
-        type: 'info' as const,
-        priority: 'normal' as const,
-        message: MascotMessages.pendienteAprobacion,
-        actionLabel: 'Ver expediente',
-        onAction: () => router.push('/(app)/(tabs)/expediente'),
-      };
-    }
     const requiresCorrection = solicitudesRecientes.find((item) => item.estado === 'requiere_correccion');
     if (requiresCorrection) {
       return {
@@ -198,7 +139,7 @@ export default function DashboardScreen() {
       };
     }
     return null;
-  }, [porFirmar, expedienteStats, expedienteEnRevision, solicitudesRecientes, diasEnSolicitud, noLeidas, router]);
+  }, [solicitudesRecientes, diasEnSolicitud, noLeidas, router]);
 
   return (
     <View style={styles.container}>
@@ -231,8 +172,7 @@ export default function DashboardScreen() {
             refreshing={isRefetching}
             onRefresh={() => {
               void refetch();
-              void alta.refetch();
-              if (documentosLaboralesEnabled) void documentosPendientes.refetch();
+              void miProceso.refetch();
               if (tareasEnabled) void tareasConteos.refetch();
               if (equipoEnabled) void equipoPendientes.refetch();
             }}
@@ -272,85 +212,13 @@ export default function DashboardScreen() {
               />
             ) : null}
 
-            {altaEnProceso && alta.data ? (
-              <FadeInView index={0}>
-                <Card style={styles.expedienteCard}>
-                  <View style={styles.expedienteTitleRow}>
-                    <View style={styles.expedienteIcon}>
-                      <Ionicons name="rocket-outline" size={16} color={Colors.primaryDark} />
-                    </View>
-                    <Text style={styles.expedienteTitle}>Tu alta</Text>
-                  </View>
-                  <Stepper steps={[...ALTA_STEPS]} currentIndex={altaStepIndex(estadoAlta)} />
-                  <Text style={styles.expedienteCaption}>
-                    {alta.data.estado_alta_etiqueta ? `${alta.data.estado_alta_etiqueta}. ` : ''}
-                    {altaColaboradorHint(estadoAlta)}
-                  </Text>
-                  {estadoAlta === 'pendiente_documentos' ? (
-                    <Button
-                      title="Completar expediente"
-                      variant="outline"
-                      rightIcon="arrow-forward"
-                      fullWidth={false}
-                      onPress={() => router.push('/(app)/(tabs)/expediente')}
-                      style={styles.expedienteCta}
-                    />
-                  ) : estadoAlta === 'pendiente_firma' && documentosLaboralesEnabled ? (
-                    <Button
-                      title="Firmar documentos"
-                      variant="outline"
-                      rightIcon="arrow-forward"
-                      fullWidth={false}
-                      onPress={() => router.push('/documentos-laborales')}
-                      style={styles.expedienteCta}
-                    />
-                  ) : null}
-                </Card>
-              </FadeInView>
-            ) : null}
-
             <FadeInView index={0}>
-              <Card style={styles.expedienteCard} onPress={() => router.push('/(app)/(tabs)/expediente')}>
-                <View style={styles.expedienteHeaderRow}>
-                  <View style={styles.expedienteTitleRow}>
-                    <View style={styles.expedienteIcon}>
-                      <Ionicons name="briefcase" size={16} color={Colors.primaryDark} />
-                    </View>
-                    <Text style={styles.expedienteTitle}>Tu expediente</Text>
-                  </View>
-                  {incorporacion.data ? <Text style={styles.expedientePercent}>{expedienteProgreso.porcentaje}%</Text> : null}
-                </View>
-                {incorporacion.data ? (
-                  <>
-                    <AnimatedProgressBar percent={expedienteProgreso.porcentaje} />
-                    <View style={styles.expedienteCaptionRow}>
-                      <Ionicons
-                        name={expedienteProgreso.completo ? 'checkmark-circle' : 'alert-circle'}
-                        size={14}
-                        color={expedienteProgreso.completo ? Colors.success : Colors.warning}
-                      />
-                      <Text style={styles.expedienteCaption}>
-                        {progressHeadline(expedienteProgreso)}
-                        {progressBreakdown(expedienteProgreso) ? ` · ${progressBreakdown(expedienteProgreso)}` : ''}
-                      </Text>
-                    </View>
-                    {expedienteProgreso.faltantes + expedienteProgreso.rechazados > 0 ? (
-                      <Button
-                        title="Continuar expediente"
-                        variant="outline"
-                        rightIcon="arrow-forward"
-                        fullWidth={false}
-                        onPress={() => router.push('/(app)/(tabs)/expediente')}
-                        style={styles.expedienteCta}
-                      />
-                    ) : null}
-                  </>
-                ) : incorporacion.isError ? (
-                  <Text style={styles.expedienteCaption}>No pudimos cargar tu expediente. Toca para reintentar.</Text>
-                ) : (
-                  <SkeletonBlock height={8} radius={Radius.full} />
-                )}
-              </Card>
+              <LoQueNecesitasHacer
+                data={miProceso.data}
+                isLoading={miProceso.isLoading}
+                isError={miProceso.isError}
+                onRetry={() => void miProceso.refetch()}
+              />
             </FadeInView>
 
             <View style={styles.statGrid}>
@@ -458,7 +326,7 @@ export default function DashboardScreen() {
               {documentosLaboralesEnabled ? (
                 <QuickAction
                   icon="folder-outline"
-                  label={porFirmar > 0 ? `Documentos (${porFirmar} por firmar)` : 'Documentos laborales'}
+                  label="Documentos laborales"
                   onPress={() => router.push('/documentos-laborales')}
                 />
               ) : null}
@@ -470,8 +338,8 @@ export default function DashboardScreen() {
               ) : tareasEnabled ? (
                 <QuickAction icon="checkbox-outline" label="Tareas" onPress={() => router.push('/tareas')} />
               ) : null}
-              {incorporacionEnabled && altaEnProceso ? (
-                <QuickAction icon="briefcase-outline" label="Mi incorporación" onPress={() => router.push('/incorporacion')} />
+              {(miProceso.data?.lecciones.length ?? 0) > 0 ? (
+                <QuickAction icon="school-outline" label="Mis lecciones" onPress={() => router.push('/lecciones')} />
               ) : null}
               <QuickAction icon="help-buoy-outline" label="Ayuda" onPress={() => router.push('/ayuda')} />
             </View>

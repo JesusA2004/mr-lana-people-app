@@ -1,5 +1,5 @@
 import NetInfo from '@react-native-community/netinfo';
-import { onlineManager, QueryClient } from '@tanstack/react-query';
+import { MutationCache, onlineManager, QueryClient, type QueryKey } from '@tanstack/react-query';
 
 import { setConnectivityProbe } from '@/utils/errors';
 
@@ -20,7 +20,35 @@ setConnectivityProbe(() => onlineManager.isOnline());
  * uno más largo directamente en su propio hook (ver `usePerfil`/
  * `useNotificaciones`) — V4 sección 68.
  */
-export const queryClient = new QueryClient({
+/**
+ * Agregados que CUALQUIER acción puede cambiar (lo que me toca hacer, los
+ * pendientes de RH, contadores, avisos). Tras toda mutación exitosa se
+ * invalidan aquí, una sola vez: ninguna pantalla muestra datos viejos
+ * después de aprobar, subir, firmar, autorizar, cancelar… Los detalles
+ * propios de cada recurso los sigue invalidando su hook.
+ */
+export const QUERIES_AGREGADAS: QueryKey[] = [
+  ['colaborador', 'mi-proceso'],
+  ['bootstrap'],
+  ['dashboard'],
+  ['incorporacion'],
+  ['notificaciones'],
+  ['tareas'],
+  ['equipo'],
+  ['solicitudes'],
+  ['rh', 'pendientes'],
+  ['rh', 'dashboard'],
+  ['rh', 'ciclo'],
+];
+
+export const queryClient: QueryClient = new QueryClient({
+  mutationCache: new MutationCache({
+    onSuccess: () => {
+      for (const queryKey of QUERIES_AGREGADAS) {
+        void queryClient.invalidateQueries({ queryKey });
+      }
+    },
+  }),
   defaultOptions: {
     queries: {
       staleTime: 30_000,

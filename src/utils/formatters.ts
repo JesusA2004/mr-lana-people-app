@@ -155,3 +155,11 @@ export function parseCurrencyInput(value: string): number | undefined {
   const numeric = Number(cleaned);
   return Number.isFinite(numeric) ? numeric : undefined;
 }
+
+/** Número opcional de un campo de texto: vacío o inválido → null (nunca NaN en el payload). */
+export function numeroOpcional(texto: string | null | undefined): number | null {
+  const limpio = (texto ?? '').trim().replace(',', '.');
+  if (limpio === '') return null;
+  const n = Number(limpio);
+  return Number.isFinite(n) ? n : null;
+}

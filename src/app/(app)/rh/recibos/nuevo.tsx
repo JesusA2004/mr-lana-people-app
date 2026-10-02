@@ -16,7 +16,7 @@ import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { toast } from '@/store/toastStore';
 import { toApiDateString } from '@/utils/dates';
 import { getActionErrorMessage, getFieldError, logError } from '@/utils/errors';
-import { parseCurrencyInput } from '@/utils/formatters';
+import { numeroOpcional, parseCurrencyInput } from '@/utils/formatters';
 import { haptics } from '@/utils/haptics';
 
 interface ConceptoForm {
@@ -67,7 +67,7 @@ export default function RhNuevoReciboScreen() {
                 tipo: c.tipo,
                 concepto: c.concepto.trim(),
                 importe: parseCurrencyInput(c.importe) ?? 0,
-                cantidad: c.cantidad.trim() ? Number(c.cantidad) : null,
+                cantidad: numeroOpcional(c.cantidad),
               })),
             },
             {

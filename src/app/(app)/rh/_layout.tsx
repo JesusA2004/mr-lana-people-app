@@ -46,6 +46,7 @@ export default function RhLayout() {
       <Stack.Screen name="documentos/[id]" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
       <Stack.Screen name="incorporaciones/[colaborador]" />
       <Stack.Screen name="colaboradores/[id]" />
+      <Stack.Screen name="onboarding/[colaborador]" />
       {/* Alta desde la app: mismo permiso que `POST /rh/colaboradores` y `GET /rh/catalogos`. */}
       <Stack.Protected guard={hasPermission(permissions, 'colaboradores.alta')}>
         <Stack.Screen name="colaboradores/nuevo" />

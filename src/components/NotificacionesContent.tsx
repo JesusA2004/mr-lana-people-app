@@ -15,7 +15,7 @@ import { MascotMessages } from '@/constants/mascotMessages';
 import { useAbrirNotificacion, useMarkAllNotificacionesLeidas, useNotificaciones } from '@/hooks/queries/useNotificaciones';
 import { toast } from '@/store/toastStore';
 import type { NotificationItem } from '@/types/notification';
-import { experienceForPushType, resolveResourceRoute } from '@/utils/appLinks';
+import { experienceForPush, resolveResourceRoute } from '@/utils/appLinks';
 import { openCrossExperienceRoute } from '@/utils/crossNavigation';
 import { getErrorMessage, logError } from '@/utils/errors';
 import { notificationStyle } from '@/utils/notificationStyle';
@@ -75,16 +75,21 @@ export function NotificacionesContent({ showBack = false }: NotificacionesConten
     // `url` de la respuesta de `/abrir` es una ruta del portal WEB: nunca se
     // usa para navegar en la app.
     const type = item.data?.type ?? item.tipo ?? undefined;
-    const resolved = resolveResourceRoute({
+    // Mismos campos estructurados que el push (incluido related_type y
+    // colaborador_id): sin ellos los avisos del ciclo laboral no abrían.
+    const datos = {
       type,
       resource_id: item.data?.resource_id ?? undefined,
       periodo: item.data?.periodo ?? undefined,
-    });
+      related_type: item.data?.related_type ?? undefined,
+      colaborador_id: item.data?.colaborador_id ?? undefined,
+    };
+    const resolved = resolveResourceRoute(datos);
 
     if (resolved) {
       // Puede vivir en el otro árbol (ej. RH en Mi espacio toca un aviso de
       // documento laboral por archivar): mismo mecanismo que el tap de push.
-      openCrossExperienceRoute(resolved, experienceForPushType(type));
+      openCrossExperienceRoute(resolved, experienceForPush(datos, resolved));
     }
 
     // Marca leída Y trae el estado ACTUAL del recurso: si alguien lo

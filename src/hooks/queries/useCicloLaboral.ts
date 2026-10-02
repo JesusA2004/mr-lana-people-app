@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { cicloLaboralApi, prestamosApi, recibosApi } from '@/api/cicloLaboral';
 import { queryKeys } from '@/api/queryKeys';
@@ -10,6 +10,31 @@ import { retryUnlessClientError } from './queryOptions';
  * (cuenta sin colaborador vinculado) sin reintentar: la pantalla muestra
  * "sin información", nunca un error genérico.
  */
+
+/**
+ * "Lo que necesitas hacer" — fuente ÚNICA del estado del ciclo del
+ * colaborador. Úsalo para decidir qué mostrar; los demás hooks solo dan
+ * detalle (documentos, recibos…).
+ */
+export function useMiProceso(enabled = true) {
+  return useQuery({ queryKey: queryKeys.miProceso, queryFn: cicloLaboralApi.miProceso, enabled, retry: retryUnlessClientError });
+}
+
+/** Presenta una lección; al terminar refresca mi-proceso (y el bootstrap, por los avisos). */
+export function usePresentarLeccion() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ avanceId, respuestas }: { avanceId: number; respuestas: Record<number, number> }) =>
+      cicloLaboralApi.presentarLeccion(avanceId, respuestas),
+    onSuccess: (resultado) => {
+      if (resultado.proceso) {
+        queryClient.setQueryData(queryKeys.miProceso, resultado.proceso);
+      }
+      void queryClient.invalidateQueries({ queryKey: queryKeys.miProceso });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notificaciones });
+    },
+  });
+}
 
 export function useMiAlta(enabled = true) {
   return useQuery({ queryKey: queryKeys.miAlta, queryFn: cicloLaboralApi.alta, enabled, retry: retryUnlessClientError });

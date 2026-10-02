@@ -143,6 +143,9 @@ export default function AppLayout() {
           {/* Solicitar préstamo es una solicitud: disponible aunque el módulo Préstamos esté apagado. */}
           <Stack.Screen name="prestamos/solicitar" />
           <Stack.Screen name="expediente/[tipoId]" />
+          {/* Lecciones de bienvenida: las decide mi-proceso (backend). */}
+          <Stack.Screen name="lecciones/index" />
+          <Stack.Screen name="lecciones/[avanceId]" />
           <Stack.Protected guard={incorporacionEnabled}>
             <Stack.Screen name="incorporacion" />
           </Stack.Protected>

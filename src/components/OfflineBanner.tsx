@@ -3,11 +3,14 @@ import { StyleSheet, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 
-import { Colors, FontSize, Spacing } from '@/constants/colors';
+import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 /** Barra "Sin conexión" (V4 sección 65) — visible en toda la app, incluido login, mientras el dispositivo no tenga internet. */
 export function OfflineBanner() {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const { isOffline } = useNetworkStatus();
   const insets = useSafeAreaInsets();
 
@@ -21,24 +24,25 @@ export function OfflineBanner() {
   );
 }
 
-const styles = StyleSheet.create({
-  banner: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 1100,
-    elevation: 1100,
-    backgroundColor: Colors.inverseSurface,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.xs,
-    paddingBottom: 6,
-  },
-  text: {
-    color: Colors.onInverseSurface,
-    fontSize: FontSize.xs,
-    fontWeight: '700',
-  },
-});
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
+    banner: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 1100,
+      elevation: 1100,
+      backgroundColor: Colors.inverseSurface,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: Spacing.xs,
+      paddingBottom: 6,
+    },
+    text: {
+      color: Colors.onInverseSurface,
+      fontSize: FontSize.xs,
+      fontWeight: '700',
+    },
+  });

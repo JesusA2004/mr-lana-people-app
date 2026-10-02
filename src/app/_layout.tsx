@@ -24,6 +24,7 @@ import { useAppTheme } from '@/hooks/queries/useAppTheme';
 import { useNotificationResponseRouting } from '@/hooks/useNotificationResponseRouting';
 import { usePushRegistration } from '@/hooks/usePushRegistration';
 import { useAppThemeStore } from '@/store/appThemeStore';
+import { ThemeProvider } from '@/theme/ThemeProvider';
 import { useAuthStore } from '@/store/authStore';
 import { useMaintenanceStore } from '@/store/maintenanceStore';
 import { useOnboardingStore } from '@/store/onboardingStore';
@@ -201,9 +202,11 @@ export default function RootLayout() {
         <SplashScreenController />
         <AppConfigController />
         <AppThemeController />
-        <AppErrorBoundary>
-          <RootNavigator />
-        </AppErrorBoundary>
+        <ThemeProvider>
+          <AppErrorBoundary>
+            <RootNavigator />
+          </AppErrorBoundary>
+        </ThemeProvider>
         <ToastHost />
         <OfflineBanner />
         <UpdateBanner enabled={isAuthenticated} />

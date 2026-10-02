@@ -34,6 +34,8 @@ export interface NotificationItem {
     /** Ciclo laboral (backend 2026-09-22): objeto relacionado y acción esperada. */
     related_type?: string | null;
     accion?: string | null;
+    /** Persona del recurso: abre su ficha (onboarding, contratos…). */
+    colaborador_id?: string | number | null;
     /** Avisos agregados (`rh_cumpleanos`): periodo a abrir cuando no hay id. */
     periodo?: string | null;
   } | null;

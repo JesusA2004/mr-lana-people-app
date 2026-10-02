@@ -2,7 +2,8 @@ import { forwardRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 
 export interface InputProps extends TextInputProps {
   label: string;
@@ -11,10 +12,9 @@ export interface InputProps extends TextInputProps {
 }
 
 /** Campo de formulario reutilizable (label + input + error), usado con React Hook Form. */
-export const Input = forwardRef<TextInput, InputProps>(function Input(
-  { label, error, secureToggle = false, secureTextEntry, style, ...rest },
-  ref,
-) {
+export const Input = forwardRef<TextInput, InputProps>(function Input({ label, error, secureToggle = false, secureTextEntry, style, ...rest }, ref) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const [hidden, setHidden] = useState(Boolean(secureTextEntry));
 
   return (
@@ -44,39 +44,40 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
   );
 });
 
-const styles = StyleSheet.create({
-  container: {
-    gap: Spacing.xs,
-  },
-  label: {
-    fontSize: FontSize.sm,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: Colors.border,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.surface,
-    paddingHorizontal: Spacing.md,
-  },
-  inputWrapperError: {
-    borderColor: Colors.danger,
-  },
-  input: {
-    flex: 1,
-    minHeight: 52,
-    fontSize: FontSize.md,
-    color: Colors.text,
-  },
-  toggle: {
-    padding: Spacing.xs,
-  },
-  error: {
-    fontSize: FontSize.xs,
-    color: Colors.danger,
-    fontWeight: '600',
-  },
-});
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
+    container: {
+      gap: Spacing.xs,
+    },
+    label: {
+      fontSize: FontSize.sm,
+      fontWeight: '700',
+      color: Colors.text,
+    },
+    inputWrapper: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderWidth: 1.5,
+      borderColor: Colors.border,
+      borderRadius: Radius.md,
+      backgroundColor: Colors.surface,
+      paddingHorizontal: Spacing.md,
+    },
+    inputWrapperError: {
+      borderColor: Colors.danger,
+    },
+    input: {
+      flex: 1,
+      minHeight: 52,
+      fontSize: FontSize.md,
+      color: Colors.text,
+    },
+    toggle: {
+      padding: Spacing.xs,
+    },
+    error: {
+      fontSize: FontSize.xs,
+      color: Colors.danger,
+      fontWeight: '600',
+    },
+  });

@@ -4,7 +4,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Card } from './Card';
 import { StatusBadge } from './StatusBadge';
 
-import { Colors, FontSize, Spacing } from '@/constants/colors';
+import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import type { Solicitud } from '@/types/request';
 import { formatDateLong } from '@/utils/dates';
 import { humanizeRequestType } from '@/utils/formatters';
@@ -15,6 +16,8 @@ export interface RequestCardProps {
 }
 
 export function RequestCard({ solicitud, onPress }: RequestCardProps) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const fecha = solicitud.creada_en;
 
   return (
@@ -38,40 +41,41 @@ export function RequestCard({ solicitud, onPress }: RequestCardProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    gap: Spacing.xs,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.sm,
-  },
-  typeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    flexShrink: 1,
-  },
-  type: {
-    fontSize: FontSize.md,
-    fontWeight: '700',
-    color: Colors.text,
-    flexShrink: 1,
-  },
-  folio: {
-    fontSize: FontSize.xs,
-    color: Colors.textMuted,
-    fontWeight: '600',
-  },
-  date: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
-  },
-  summary: {
-    fontSize: FontSize.sm,
-    color: Colors.text,
-    marginTop: Spacing.xs / 2,
-  },
-});
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
+    card: {
+      gap: Spacing.xs,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: Spacing.sm,
+    },
+    typeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.xs,
+      flexShrink: 1,
+    },
+    type: {
+      fontSize: FontSize.md,
+      fontWeight: '700',
+      color: Colors.text,
+      flexShrink: 1,
+    },
+    folio: {
+      fontSize: FontSize.xs,
+      color: Colors.textMuted,
+      fontWeight: '600',
+    },
+    date: {
+      fontSize: FontSize.sm,
+      color: Colors.textMuted,
+    },
+    summary: {
+      fontSize: FontSize.sm,
+      color: Colors.text,
+      marginTop: Spacing.xs / 2,
+    },
+  });

@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import type { RequestStatus } from '@/types/request';
 import { humanizeRequestStatus } from '@/utils/formatters';
 
@@ -15,28 +17,100 @@ interface StatusStyle {
  * Cada estado se comunica con ícono + texto + color, nunca solo color,
  * para que también sea legible para daltonismo (ver especificación §18).
  */
-const STATUS_STYLES: Record<string, StatusStyle> = {
-  creada: { icon: 'create-outline', color: Colors.textMuted, background: Colors.neutralSoft },
-  enviada: { icon: 'paper-plane-outline', color: Colors.info, background: Colors.infoSoft },
-  en_revision: { icon: 'time-outline', color: Colors.warning, background: Colors.warningSoft },
-  aprobada: { icon: 'checkmark-circle-outline', color: Colors.success, background: Colors.successSoft },
-  rechazada: { icon: 'close-circle-outline', color: Colors.danger, background: Colors.dangerSoft },
-  requiere_correccion: { icon: 'alert-circle-outline', color: Colors.warning, background: Colors.warningSoft },
-  cancelada: { icon: 'ban-outline', color: Colors.textMuted, background: Colors.neutralSoft },
-  cerrada: { icon: 'lock-closed-outline', color: Colors.textMuted, background: Colors.neutralSoft },
+const crearEstilosEstado = (Colors: ColorPalette): Record<string, StatusStyle> => ({
+  creada: {
+    icon: 'create-outline',
+    color: Colors.textMuted,
+    background: Colors.neutralSoft,
+  },
+  enviada: {
+    icon: 'paper-plane-outline',
+    color: Colors.info,
+    background: Colors.infoSoft,
+  },
+  en_revision: {
+    icon: 'time-outline',
+    color: Colors.warning,
+    background: Colors.warningSoft,
+  },
+  aprobada: {
+    icon: 'checkmark-circle-outline',
+    color: Colors.success,
+    background: Colors.successSoft,
+  },
+  rechazada: {
+    icon: 'close-circle-outline',
+    color: Colors.danger,
+    background: Colors.dangerSoft,
+  },
+  requiere_correccion: {
+    icon: 'alert-circle-outline',
+    color: Colors.warning,
+    background: Colors.warningSoft,
+  },
+  cancelada: {
+    icon: 'ban-outline',
+    color: Colors.textMuted,
+    background: Colors.neutralSoft,
+  },
+  cerrada: {
+    icon: 'lock-closed-outline',
+    color: Colors.textMuted,
+    background: Colors.neutralSoft,
+  },
   // Vocabulario adicional de RH/expedientes (App\Enums\EstadoDocumento y estados de vacaciones/incorporaciones).
-  pendiente: { icon: 'ellipse-outline', color: Colors.textMuted, background: Colors.neutralSoft },
-  cargado: { icon: 'cloud-upload-outline', color: Colors.info, background: Colors.infoSoft },
-  aprobado: { icon: 'checkmark-circle-outline', color: Colors.success, background: Colors.successSoft },
-  rechazado: { icon: 'close-circle-outline', color: Colors.danger, background: Colors.dangerSoft },
-  vencido: { icon: 'time-outline', color: Colors.danger, background: Colors.dangerSoft },
-  cambio_solicitado: { icon: 'swap-horizontal-outline', color: Colors.warning, background: Colors.warningSoft },
-  cambio_autorizado: { icon: 'checkmark-done-outline', color: Colors.info, background: Colors.infoSoft },
-  incompleto: { icon: 'ellipse-outline', color: Colors.textMuted, background: Colors.neutralSoft },
-  completo: { icon: 'checkmark-done-outline', color: Colors.info, background: Colors.infoSoft },
-};
+  pendiente: {
+    icon: 'ellipse-outline',
+    color: Colors.textMuted,
+    background: Colors.neutralSoft,
+  },
+  cargado: {
+    icon: 'cloud-upload-outline',
+    color: Colors.info,
+    background: Colors.infoSoft,
+  },
+  aprobado: {
+    icon: 'checkmark-circle-outline',
+    color: Colors.success,
+    background: Colors.successSoft,
+  },
+  rechazado: {
+    icon: 'close-circle-outline',
+    color: Colors.danger,
+    background: Colors.dangerSoft,
+  },
+  vencido: {
+    icon: 'time-outline',
+    color: Colors.danger,
+    background: Colors.dangerSoft,
+  },
+  cambio_solicitado: {
+    icon: 'swap-horizontal-outline',
+    color: Colors.warning,
+    background: Colors.warningSoft,
+  },
+  cambio_autorizado: {
+    icon: 'checkmark-done-outline',
+    color: Colors.info,
+    background: Colors.infoSoft,
+  },
+  incompleto: {
+    icon: 'ellipse-outline',
+    color: Colors.textMuted,
+    background: Colors.neutralSoft,
+  },
+  completo: {
+    icon: 'checkmark-done-outline',
+    color: Colors.info,
+    background: Colors.infoSoft,
+  },
+});
 
-const DEFAULT_STYLE: StatusStyle = { icon: 'ellipse-outline', color: Colors.textMuted, background: Colors.neutralSoft };
+const estiloPorDefecto = (Colors: ColorPalette): StatusStyle => ({
+  icon: 'ellipse-outline',
+  color: Colors.textMuted,
+  background: Colors.neutralSoft,
+});
 
 export interface StatusBadgeProps {
   status?: RequestStatus | string;
@@ -45,7 +119,10 @@ export interface StatusBadgeProps {
 }
 
 export function StatusBadge({ status, label }: StatusBadgeProps) {
-  const style = (status ? STATUS_STYLES[status] : undefined) ?? DEFAULT_STYLE;
+  const styles = useEstilos(crearEstilos);
+  const Colors = useColores();
+  const estados = useMemo(() => crearEstilosEstado(Colors), [Colors]);
+  const style = (status ? estados[status] : undefined) ?? estiloPorDefecto(Colors);
 
   return (
     <View style={[styles.badge, { backgroundColor: style.background }]}>
@@ -55,18 +132,19 @@ export function StatusBadge({ status, label }: StatusBadgeProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs / 2 + 2,
-    borderRadius: Radius.full,
-    alignSelf: 'flex-start',
-  },
-  label: {
-    fontSize: FontSize.xs,
-    fontWeight: '700',
-  },
-});
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
+    badge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.xs,
+      paddingHorizontal: Spacing.sm,
+      paddingVertical: Spacing.xs / 2 + 2,
+      borderRadius: Radius.full,
+      alignSelf: 'flex-start',
+    },
+    label: {
+      fontSize: FontSize.xs,
+      fontWeight: '700',
+    },
+  });

@@ -2,7 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 
 export interface AppHeaderProps {
   title: string;
@@ -25,6 +26,8 @@ export interface AppHeaderProps {
  * en `false` en todos los Stack de la app) para mantener un look consistente.
  */
 export function AppHeader({ title, subtitle, showBack = false, onBackPress, right, titleNumberOfLines = 1 }: AppHeaderProps) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const insets = useSafeAreaInsets();
 
   return (
@@ -32,12 +35,7 @@ export function AppHeader({ title, subtitle, showBack = false, onBackPress, righ
       <View style={styles.row}>
         <View style={styles.left}>
           {showBack ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Regresar"
-              hitSlop={12}
-              onPress={onBackPress}
-              style={styles.backButton}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Regresar" hitSlop={12} onPress={onBackPress} style={styles.backButton}>
               <Ionicons name="chevron-back" size={22} color={Colors.text} />
             </Pressable>
           ) : null}
@@ -58,51 +56,52 @@ export function AppHeader({ title, subtitle, showBack = false, onBackPress, righ
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: Colors.background,
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.md,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  left: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    flex: 1,
-    minWidth: 0,
-  },
-  titleColumn: {
-    flex: 1,
-    minWidth: 0,
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: FontSize.xl,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  subtitle: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
-    marginTop: 2,
-  },
-  right: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-});
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
+    container: {
+      backgroundColor: Colors.background,
+      paddingHorizontal: Spacing.lg,
+      paddingBottom: Spacing.md,
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    left: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.sm,
+      flex: 1,
+      minWidth: 0,
+    },
+    titleColumn: {
+      flex: 1,
+      minWidth: 0,
+    },
+    backButton: {
+      width: 36,
+      height: 36,
+      borderRadius: Radius.full,
+      backgroundColor: Colors.surface,
+      borderWidth: 1,
+      borderColor: Colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    title: {
+      fontSize: FontSize.xl,
+      fontWeight: '800',
+      color: Colors.text,
+    },
+    subtitle: {
+      fontSize: FontSize.sm,
+      color: Colors.textMuted,
+      marginTop: 2,
+    },
+    right: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.sm,
+    },
+  });

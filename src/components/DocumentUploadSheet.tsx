@@ -13,6 +13,7 @@ import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
 import { toast } from '@/store/toastStore';
 import { getErrorMessage, logError } from '@/utils/errors';
 import { haptics } from '@/utils/haptics';
+import { archivoPermitido, esVideo, mimesAceptados, nombrePorDefecto } from '@/utils/uploadTypes';
 
 export interface PickedDocumentFile {
   uri: string;
@@ -30,9 +31,9 @@ export interface DocumentUploadSheetProps {
   onConfirm: (file: PickedDocumentFile, onProgress: (percent: number) => void) => Promise<void>;
   /** MB máximos permitidos por el backend (config('expedientes.max_upload_mb'), hoy 20). Solo valida en cliente para feedback rápido; el backend sigue siendo la fuente de verdad. */
   maxSizeMb?: number;
+  /** Acepta también video MP4/MOV (cámara, galería y archivos). Solo donde el backend lo permite (p. ej. estudio socioeconómico). */
+  allowVideo?: boolean;
 }
-
-const ACCEPTED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
 
 type Step = 'choose' | 'preview';
 
@@ -43,7 +44,7 @@ type Step = 'choose' | 'preview';
  * simula una subida exitosa — si `onConfirm` falla, se muestra el error tal
  * cual.
  */
-export function DocumentUploadSheet({ visible, title, onClose, onConfirm, maxSizeMb = 20 }: DocumentUploadSheetProps) {
+export function DocumentUploadSheet({ visible, title, onClose, onConfirm, maxSizeMb = 20, allowVideo = false }: DocumentUploadSheetProps) {
   const [step, setStep] = useState<Step>('choose');
   const [file, setFile] = useState<PickedDocumentFile | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -76,20 +77,30 @@ export function DocumentUploadSheet({ visible, title, onClose, onConfirm, maxSiz
   };
 
   const launchCamera = async () => {
-    const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
+    const result = await ImagePicker.launchCameraAsync({
+      quality: 0.8,
+      mediaTypes: allowVideo ? ['images', 'videos'] : ['images'],
+      videoMaxDuration: allowVideo ? 120 : undefined,
+    });
     if (result.canceled || !result.assets[0]) return;
     const asset = result.assets[0];
     if (!validateSize(asset.fileSize)) return;
-    setFile({ uri: asset.uri, name: asset.fileName ?? `foto-${Date.now()}.jpg`, mimeType: asset.mimeType ?? 'image/jpeg', size: asset.fileSize });
+    const mimeType = asset.mimeType ?? (asset.type === 'video' ? 'video/mp4' : 'image/jpeg');
+    setFile({ uri: asset.uri, name: asset.fileName ?? nombrePorDefecto(mimeType), mimeType, size: asset.fileSize });
     setStep('preview');
   };
 
   const launchGallery = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({ quality: 0.8, mediaTypes: ['images'] });
+    const result = await ImagePicker.launchImageLibraryAsync({ quality: 0.8, mediaTypes: allowVideo ? ['images', 'videos'] : ['images'] });
     if (result.canceled || !result.assets[0]) return;
     const asset = result.assets[0];
     if (!validateSize(asset.fileSize)) return;
-    setFile({ uri: asset.uri, name: asset.fileName ?? `imagen-${Date.now()}.jpg`, mimeType: asset.mimeType ?? 'image/jpeg', size: asset.fileSize });
+    const mimeType = asset.mimeType ?? (asset.type === 'video' ? 'video/mp4' : 'image/jpeg');
+    if (!archivoPermitido(mimeType, allowVideo)) {
+      toast.error('Ese tipo de archivo no se puede subir aquí.');
+      return;
+    }
+    setFile({ uri: asset.uri, name: asset.fileName ?? nombrePorDefecto(mimeType), mimeType, size: asset.fileSize });
     setStep('preview');
   };
 
@@ -134,11 +145,16 @@ export function DocumentUploadSheet({ visible, title, onClose, onConfirm, maxSiz
   };
 
   const pickDocument = async () => {
-    const result = await DocumentPicker.getDocumentAsync({ type: ACCEPTED_MIME_TYPES, copyToCacheDirectory: true });
+    const result = await DocumentPicker.getDocumentAsync({ type: mimesAceptados(allowVideo), copyToCacheDirectory: true });
     if (result.canceled || !result.assets[0]) return;
     const asset = result.assets[0];
     if (!validateSize(asset.size ?? undefined)) return;
-    setFile({ uri: asset.uri, name: asset.name, mimeType: asset.mimeType ?? 'application/pdf', size: asset.size ?? undefined });
+    const mimeType = asset.mimeType ?? 'application/pdf';
+    if (!archivoPermitido(mimeType, allowVideo)) {
+      toast.error('Ese tipo de archivo no se puede subir aquí.');
+      return;
+    }
+    setFile({ uri: asset.uri, name: asset.name || nombrePorDefecto(mimeType), mimeType, size: asset.size ?? undefined });
     setStep('preview');
   };
 
@@ -185,7 +201,7 @@ export function DocumentUploadSheet({ visible, title, onClose, onConfirm, maxSiz
         <ScrollView contentContainerStyle={styles.content}>
           {step === 'choose' ? (
             <>
-              <Text style={styles.helperText}>Elige cómo quieres cargar tu documento. Formatos: PDF, JPG o PNG.</Text>
+              <Text style={styles.helperText}>Elige cómo quieres cargar tu documento. Formatos: {allowVideo ? 'PDF, JPG, PNG, MP4 o MOV' : 'PDF, JPG o PNG'}.</Text>
               <OptionRow icon="camera-outline" label="Tomar foto" onPress={() => void pickFromCamera()} />
               <OptionRow icon="image-outline" label="Elegir de galería" onPress={() => void pickFromGallery()} />
               <OptionRow icon="document-attach-outline" label="Elegir archivo PDF" onPress={() => void pickDocument()} />
@@ -198,7 +214,7 @@ export function DocumentUploadSheet({ visible, title, onClose, onConfirm, maxSiz
                   <Image source={{ uri: file.uri }} style={styles.previewImage} resizeMode="cover" />
                 ) : (
                   <View style={styles.previewFileIcon}>
-                    <Ionicons name="document-text" size={32} color={Colors.primaryDark} />
+                    <Ionicons name={esVideo(file.mimeType) ? 'videocam' : 'document-text'} size={32} color={Colors.primaryDark} />
                   </View>
                 )}
                 <View style={styles.previewInfo}>

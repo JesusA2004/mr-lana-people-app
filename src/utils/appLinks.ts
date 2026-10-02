@@ -27,6 +27,7 @@ import type { PushNotificationData, PushResourceType } from '@/types/pushNotific
  */
 export function resolveResourceRoute(data: PushNotificationData): string | null {
   const id = normalizeResourceId(data.resource_id);
+  const colaboradorId = normalizeResourceId(data.colaborador_id);
 
   switch (data.type) {
     case 'solicitud':
@@ -91,6 +92,25 @@ export function resolveResourceRoute(data: PushNotificationData): string | null 
     case 'push_test':
       return SHOW_DEV_TOOLS ? '/dev/diagnostico-push' : '/notificaciones';
 
+    // Lecciones de bienvenida (al colaborador): siempre su lista; la
+    // lección exacta la elige desde ahí (el estado viene de mi-proceso).
+    case 'onboarding_habilitado':
+    case 'onboarding_reevaluacion':
+      return '/lecciones';
+    // Reingreso autorizado (al colaborador): actualizar documentos.
+    case 'reingreso_autorizado':
+      return '/(app)/(tabs)/expediente';
+    // Visto bueno de una solicitud de su equipo (jefe): bandeja de equipo.
+    case 'solicitud_visto_bueno':
+      return '/equipo';
+    // RH: refuerzo/activos del onboarding y contratos listos → ficha de la
+    // persona (`colaborador_id` lo manda el backend en cada aviso).
+    case 'onboarding_refuerzo':
+    case 'onboarding_activos':
+      return colaboradorId ? `/(app)/rh/onboarding/${colaboradorId}` : '/(app)/rh/(tabs)/pendientes';
+    case 'contratos_listos':
+      return colaboradorId ? `/(app)/rh/colaboradores/${colaboradorId}` : '/(app)/rh/(tabs)/pendientes';
+
     default:
       // Eventos de reclutamiento/reingreso (`candidato_preautorizado`,
       // `candidato_autorizado_rh`, `reingreso_solicitado`...): el backend
@@ -100,8 +120,35 @@ export function resolveResourceRoute(data: PushNotificationData): string | null 
       if (data.related_type === 'Candidato') return id ? `/(app)/rh/candidatos/${id}` : '/(app)/rh/candidatos';
       if (data.related_type === 'Reingreso') return '/(app)/rh/reingresos';
       if (data.related_type === 'CierreLaboral') return id ? `/(app)/rh/cierres/${id}` : '/(app)/rh/cierres';
+      if (data.related_type === 'SolicitudInterna') return id ? `/(app)/rh/solicitudes/${id}` : '/(app)/rh/(tabs)/pendientes';
+      if (data.related_type === 'EvaluacionPeriodoPrueba') return id ? `/evaluaciones/${id}` : '/evaluaciones';
+      if (data.related_type === 'OnboardingAvance' || data.related_type === 'OnboardingProceso') {
+        return colaboradorId ? `/(app)/rh/onboarding/${colaboradorId}` : '/(app)/rh/(tabs)/pendientes';
+      }
+      if (data.related_type === 'ContratoLaboral' || data.related_type === 'GeneratedDocument') {
+        return colaboradorId ? `/(app)/rh/colaboradores/${colaboradorId}` : '/(app)/rh/(tabs)/pendientes';
+      }
       return null;
   }
+}
+
+/** Rutas que SOLO existen en Mi espacio (árbol del colaborador). */
+const RUTAS_COLABORADOR = ['/(app)/(tabs)', '/lecciones', '/solicitud/', '/expediente/', '/documentos-laborales', '/recibos', '/prestamos', '/contratos', '/incorporacion', '/jerarquia'];
+
+/**
+ * Experiencia en la que vive una ruta: así un aviso de un tipo nuevo nunca
+ * intenta abrir una pantalla de Gestión RH con el árbol de Mi espacio
+ * montado (eso era "ruta inexistente"). `null` = pantalla compartida.
+ */
+export function experienceForRoute(route: string | null | undefined): Experience | null {
+  if (!route) return null;
+  if (route.startsWith('/(app)/rh/') || route.startsWith('/rh/')) return 'rh';
+  return RUTAS_COLABORADOR.some((r) => route === r || route.startsWith(r)) ? 'colaborador' : null;
+}
+
+/** Experiencia final de un aviso: la del tipo si se conoce, si no la de su ruta destino. */
+export function experienceForPush(data: PushNotificationData, route: string | null): Experience | null {
+  return experienceForPushType(data.type) ?? experienceForRoute(route);
 }
 
 /** Solo ids enteros positivos: un id vacío, "abc" o "1/../x" nunca forma parte de una ruta. */

@@ -4,7 +4,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 
 export interface ItemCardProps {
   icon?: keyof typeof Ionicons.glyphMap;
@@ -24,6 +25,8 @@ export interface ItemCardProps {
 
 /** Card de lista genérica del ciclo laboral (documentos, recibos, préstamos, cierres, actas, tareas...). */
 export function ItemCard({ icon, kicker, title, subtitle, lines = [], status, statusLabel, amount, onPress }: ItemCardProps) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const visibleLines = lines.filter((line): line is string => typeof line === 'string' && line.length > 0);
   return (
     <Card onPress={onPress} style={styles.card}>
@@ -70,55 +73,56 @@ export function LoadMore({ hasNextPage, isFetching, onPress }: { hasNextPage?: b
   return <Button title="Cargar más" variant="ghost" loading={isFetching} onPress={onPress} />;
 }
 
-const styles = StyleSheet.create({
-  card: {
-    gap: Spacing.xs,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  icon: {
-    width: 36,
-    height: 36,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  titleColumn: {
-    flex: 1,
-    gap: 1,
-  },
-  kicker: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: Colors.primaryDark,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  title: {
-    fontSize: FontSize.md,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  subtitle: {
-    fontSize: FontSize.xs,
-    color: Colors.textMuted,
-    fontWeight: '600',
-  },
-  amount: {
-    fontSize: FontSize.md,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  line: {
-    fontSize: FontSize.xs,
-    color: Colors.textMuted,
-  },
-  badgeRow: {
-    flexDirection: 'row',
-    marginTop: Spacing.xs,
-  },
-});
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
+    card: {
+      gap: Spacing.xs,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.md,
+    },
+    icon: {
+      width: 36,
+      height: 36,
+      borderRadius: Radius.md,
+      backgroundColor: Colors.primarySoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    titleColumn: {
+      flex: 1,
+      gap: 1,
+    },
+    kicker: {
+      fontSize: 11,
+      fontWeight: '800',
+      color: Colors.primaryDark,
+      textTransform: 'uppercase',
+      letterSpacing: 0.4,
+    },
+    title: {
+      fontSize: FontSize.md,
+      fontWeight: '800',
+      color: Colors.text,
+    },
+    subtitle: {
+      fontSize: FontSize.xs,
+      color: Colors.textMuted,
+      fontWeight: '600',
+    },
+    amount: {
+      fontSize: FontSize.md,
+      fontWeight: '800',
+      color: Colors.text,
+    },
+    line: {
+      fontSize: FontSize.xs,
+      color: Colors.textMuted,
+    },
+    badgeRow: {
+      flexDirection: 'row',
+      marginTop: Spacing.xs,
+    },
+  });

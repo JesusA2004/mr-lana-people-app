@@ -7,7 +7,7 @@ import { useAuthStore } from '@/store/authStore';
 import { usePushDiagnosticsStore } from '@/store/pushDiagnosticsStore';
 import { toast } from '@/store/toastStore';
 import type { PushNotificationData } from '@/types/pushNotification';
-import { experienceForPushType, isPushForCurrentUser, resolveResourceRoute } from '@/utils/appLinks';
+import { experienceForPush, isPushForCurrentUser, resolveResourceRoute } from '@/utils/appLinks';
 import { openCrossExperienceRoute } from '@/utils/crossNavigation';
 import { logError } from '@/utils/errors';
 import { pushCicloKeys } from '@/utils/pushInvalidation';
@@ -76,7 +76,7 @@ export function openPushTarget(data: PushNotificationData): void {
     return;
   }
   const route = resolveResourceRoute(data);
-  openCrossExperienceRoute(route ?? '/notificaciones', route ? experienceForPushType(data.type) : null);
+  openCrossExperienceRoute(route ?? '/notificaciones', route ? experienceForPush(data, route) : null);
 }
 
 /**

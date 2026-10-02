@@ -1,11 +1,13 @@
 import { apiClient, extractData } from './client';
 import { normalizeAlta, normalizeContrato, normalizeEstadoDocumental, normalizeJerarquia, normalizeMiExpediente } from './normalizers/cicloLaboral';
 import { normalizeLaborDocument } from './normalizers/laborDocument';
+import { normalizeMiProceso, normalizeResultadoLeccion } from './normalizers/miProceso';
 import { normalizePrestamo, normalizeRecibo } from './normalizers/nomina';
 
 import type { AltaChecklist, ContratoLaboral, ExpedienteDocumentoEstado, Jerarquia, MiExpediente } from '@/types/cicloLaboral';
 import type { LaborDocument } from '@/types/laborDocument';
 import type { Prestamo } from '@/types/loan';
+import type { MiProceso, ResultadoLeccion } from '@/types/miProceso';
 import type { ReciboNomina } from '@/types/payroll';
 import { asArray, asRecord, normalizePaginated, type Paginated } from '@/utils/normalize';
 
@@ -51,6 +53,22 @@ export const cicloLaboralApi = {
   async jerarquia(): Promise<Jerarquia> {
     const response = await apiClient.get('/colaborador/jerarquia');
     return normalizeJerarquia(extractData<unknown>(response.data));
+  },
+
+  /**
+   * "Lo que necesitas hacer": FUENTE ÚNICA del estado del ciclo del
+   * colaborador (`CicloLaboralService::misPendientes`). La app no recalcula
+   * etapa ni acción; solo pinta lo que llega.
+   */
+  async miProceso(): Promise<MiProceso> {
+    const response = await apiClient.get('/colaborador/mi-proceso');
+    return normalizeMiProceso(extractData<unknown>(response.data));
+  },
+
+  /** Presenta la evaluación de una lección de bienvenida (respuestas: índice de pregunta → índice de opción). */
+  async presentarLeccion(avanceId: number, respuestas: Record<number, number>): Promise<ResultadoLeccion> {
+    const response = await apiClient.post(`/colaborador/onboarding/avances/${avanceId}/evaluacion`, { respuestas });
+    return normalizeResultadoLeccion(extractData<unknown>(response.data));
   },
 };
 

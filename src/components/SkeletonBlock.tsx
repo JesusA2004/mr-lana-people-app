@@ -1,16 +1,9 @@
 import { useEffect } from 'react';
 import { StyleSheet, View, type DimensionValue } from 'react-native';
-import Animated, {
-  cancelAnimation,
-  Easing,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { cancelAnimation, Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 
-import { Colors, Radius } from '@/constants/colors';
+import { Colors, Radius, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 
 export interface SkeletonBlockProps {
   width?: DimensionValue;
@@ -21,6 +14,7 @@ export interface SkeletonBlockProps {
 
 /** Bloque de carga con pulso discreto, usado en los skeletons de las pantallas. Estático con "Reducir movimiento". */
 export function SkeletonBlock({ width = '100%', height = 16, radius = Radius.sm, style }: SkeletonBlockProps) {
+  const styles = useEstilos(crearEstilos);
   const reducedMotion = useReducedMotion();
   const opacity = useSharedValue(reducedMotion ? 0.7 : 0.5);
 
@@ -32,18 +26,15 @@ export function SkeletonBlock({ width = '100%', height = 16, radius = Radius.sm,
 
   const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
-  return (
-    <Animated.View
-      style={[styles.base, { width, height, borderRadius: radius }, animatedStyle, style]}
-    />
-  );
+  return <Animated.View style={[styles.base, { width, height, borderRadius: radius }, animatedStyle, style]} />;
 }
 
-const styles = StyleSheet.create({
-  base: {
-    backgroundColor: Colors.surfaceMuted,
-  },
-});
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
+    base: {
+      backgroundColor: Colors.surfaceMuted,
+    },
+  });
 
 export function SkeletonCardList({ count = 3 }: { count?: number }) {
   return (

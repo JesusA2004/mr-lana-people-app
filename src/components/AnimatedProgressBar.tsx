@@ -2,7 +2,8 @@ import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
-import { Colors, Radius } from '@/constants/colors';
+import { Colors, Radius, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 import { Motion } from '@/constants/motion';
 
 export interface AnimatedProgressBarProps {
@@ -13,12 +14,8 @@ export interface AnimatedProgressBarProps {
   height?: number;
 }
 
-export function AnimatedProgressBar({
-  percent,
-  color = Colors.primary,
-  trackColor = Colors.surfaceMuted,
-  height = 8,
-}: AnimatedProgressBarProps) {
+export function AnimatedProgressBar({ percent, color = Colors.primary, trackColor = Colors.surfaceMuted, height = 8 }: AnimatedProgressBarProps) {
+  const styles = useEstilos(crearEstilos);
   const clamped = Math.max(0, Math.min(100, percent));
   const width = useSharedValue(0);
 
@@ -40,13 +37,14 @@ export function AnimatedProgressBar({
   );
 }
 
-const styles = StyleSheet.create({
-  track: {
-    width: '100%',
-    overflow: 'hidden',
-  },
-  fill: {
-    height: '100%',
-    borderRadius: Radius.full,
-  },
-});
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
+    track: {
+      width: '100%',
+      overflow: 'hidden',
+    },
+    fill: {
+      height: '100%',
+      borderRadius: Radius.full,
+    },
+  });

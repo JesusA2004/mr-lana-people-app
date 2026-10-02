@@ -35,6 +35,7 @@ export const queryKeys = {
   rhIncorporacion: (id: string | number) => ['rh', 'incorporaciones', String(id)] as const,
   rhColaboradores: (params: Record<string, unknown> = {}) => ['rh', 'colaboradores', params] as const,
   rhColaborador: (id: string | number) => ['rh', 'colaboradores', String(id)] as const,
+  rhOnboarding: (colaboradorId: string | number) => ['rh', 'colaboradores', String(colaboradorId), 'onboarding'] as const,
   rhExpedientes: (params: Record<string, unknown> = {}) => ['rh', 'expedientes', params] as const,
   rhExpediente: (id: string | number) => ['rh', 'expedientes', String(id)] as const,
 
@@ -61,6 +62,7 @@ export const queryKeys = {
   laborDocumentsRoot: ['colaborador', 'documentos-laborales'] as const,
   laborDocuments: (params: Record<string, unknown> = {}) => ['colaborador', 'documentos-laborales', params] as const,
   miAlta: ['colaborador', 'alta'] as const,
+  miProceso: ['colaborador', 'mi-proceso'] as const,
   miExpediente: ['colaborador', 'expediente'] as const,
   documentosPendientes: ['colaborador', 'documentos-pendientes'] as const,
   misContratos: ['colaborador', 'contratos'] as const,

@@ -1,7 +1,8 @@
 import { ScrollView, StyleSheet, Text } from 'react-native';
 
 import { PressableScale } from '@/components/PressableScale';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 
 export interface FilterChipOption<T extends string> {
   value: T;
@@ -18,6 +19,7 @@ export interface FilterChipsProps<T extends string> {
 
 /** Fila horizontal de filtros — mismo estilo que los chips de Solicitudes. */
 export function FilterChips<T extends string>({ options, value, onChange }: FilterChipsProps<T>) {
+  const styles = useEstilos(crearEstilos);
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
       {options.map((option) => {
@@ -41,31 +43,32 @@ export function FilterChips<T extends string>({ options, value, onChange }: Filt
   );
 }
 
-const styles = StyleSheet.create({
-  row: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.md,
-    gap: Spacing.sm,
-  },
-  chip: {
-    minHeight: 36,
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.md,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  chipActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  label: {
-    fontSize: FontSize.xs,
-    fontWeight: '700',
-    color: Colors.textMuted,
-  },
-  labelActive: {
-    color: Colors.white,
-  },
-});
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
+    row: {
+      paddingHorizontal: Spacing.lg,
+      paddingBottom: Spacing.md,
+      gap: Spacing.sm,
+    },
+    chip: {
+      minHeight: 36,
+      justifyContent: 'center',
+      paddingHorizontal: Spacing.md,
+      borderRadius: Radius.full,
+      backgroundColor: Colors.surface,
+      borderWidth: 1,
+      borderColor: Colors.border,
+    },
+    chipActive: {
+      backgroundColor: Colors.primary,
+      borderColor: Colors.primary,
+    },
+    label: {
+      fontSize: FontSize.xs,
+      fontWeight: '700',
+      color: Colors.textMuted,
+    },
+    labelActive: {
+      color: Colors.white,
+    },
+  });

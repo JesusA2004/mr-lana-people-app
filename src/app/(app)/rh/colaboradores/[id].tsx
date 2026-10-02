@@ -97,6 +97,9 @@ export default function RhColaboradorDetailScreen() {
               <Button title="Ver expediente" leftIcon="folder-open-outline" variant="outline" onPress={() => router.push(`/(app)/rh/expedientes/${id}` as never)} />
             ) : null}
 
+            {/* Onboarding: refuerzo de lecciones, activos/responsivas y cierre (las acciones las decide el backend). */}
+            <Button title="Onboarding" leftIcon="school-outline" variant="outline" onPress={() => router.push(`/(app)/rh/onboarding/${id}` as never)} />
+
             {sections.has('contratos') ? (
               <LazySection icon="document-text-outline" title="Contratos">
                 {() => <ContratosSection colaboradorId={id} />}

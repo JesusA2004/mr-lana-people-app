@@ -6,7 +6,8 @@ import { ErrorState } from '@/components/ErrorState';
 import { EmptyState } from '@/components/EmptyState';
 import { ResponsiveContent } from '@/components/ResponsiveContent';
 import { SkeletonBlock, SkeletonCardList } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { getDevErrorDetail, getErrorMessage, isNotFoundError } from '@/utils/errors';
 
 export interface ScreenProps {
@@ -48,6 +49,8 @@ export function Screen({
   header,
   form = false,
 }: ScreenProps) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const hasError = error !== null && error !== undefined;
 
@@ -81,6 +84,7 @@ export function Screen({
 }
 
 export function SectionTitle({ children }: { children: React.ReactNode }) {
+  const styles = useEstilos(crearEstilos);
   return (
     <Text style={styles.sectionTitle} accessibilityRole="header">
       {children}
@@ -93,6 +97,7 @@ export function EmptyMessage({ message }: { message: string }) {
 }
 
 export function Notice({ tone = 'info', children }: { tone?: 'info' | 'warning' | 'danger' | 'success'; children: React.ReactNode }) {
+  const styles = useEstilos(crearEstilos);
   return (
     <View style={[styles.notice, styles[`notice_${tone}`]]} accessibilityRole="text">
       <Text style={[styles.noticeText, styles[`noticeText_${tone}`]]}>{children}</Text>
@@ -100,41 +105,42 @@ export function Notice({ tone = 'info', children }: { tone?: 'info' | 'warning' 
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  content: {
-    padding: Spacing.lg,
-    paddingBottom: Spacing.xxxl,
-  },
-  inner: {
-    gap: Spacing.lg,
-  },
-  skeleton: {
-    gap: Spacing.lg,
-  },
-  sectionTitle: {
-    fontSize: FontSize.md,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  notice: {
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-  },
-  notice_info: { backgroundColor: Colors.infoSoft },
-  notice_warning: { backgroundColor: Colors.warningSoft },
-  notice_danger: { backgroundColor: Colors.dangerSoft },
-  notice_success: { backgroundColor: Colors.successSoft },
-  noticeText: {
-    fontSize: FontSize.sm,
-    fontWeight: '600',
-    lineHeight: 19,
-  },
-  noticeText_info: { color: Colors.text },
-  noticeText_warning: { color: Colors.text },
-  noticeText_danger: { color: Colors.danger },
-  noticeText_success: { color: Colors.success },
-});
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: Colors.background,
+    },
+    content: {
+      padding: Spacing.lg,
+      paddingBottom: Spacing.xxxl,
+    },
+    inner: {
+      gap: Spacing.lg,
+    },
+    skeleton: {
+      gap: Spacing.lg,
+    },
+    sectionTitle: {
+      fontSize: FontSize.md,
+      fontWeight: '800',
+      color: Colors.text,
+    },
+    notice: {
+      borderRadius: Radius.md,
+      padding: Spacing.md,
+    },
+    notice_info: { backgroundColor: Colors.infoSoft },
+    notice_warning: { backgroundColor: Colors.warningSoft },
+    notice_danger: { backgroundColor: Colors.dangerSoft },
+    notice_success: { backgroundColor: Colors.successSoft },
+    noticeText: {
+      fontSize: FontSize.sm,
+      fontWeight: '600',
+      lineHeight: 19,
+    },
+    noticeText_info: { color: Colors.text },
+    noticeText_warning: { color: Colors.text },
+    noticeText_danger: { color: Colors.danger },
+    noticeText_success: { color: Colors.success },
+  });

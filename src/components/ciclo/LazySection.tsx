@@ -3,7 +3,8 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { PressableScale } from '@/components/PressableScale';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 
 export interface LazySectionProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -16,6 +17,8 @@ export interface LazySectionProps {
 
 /** Sección colapsable con carga perezosa (detalle RH del colaborador). */
 export function LazySection({ icon, title, caption, children, defaultExpanded = false }: LazySectionProps) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   const [expanded, setExpanded] = useState(defaultExpanded);
   return (
     <View style={styles.card}>
@@ -39,45 +42,46 @@ export function LazySection({ icon, title, caption, children, defaultExpanded = 
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    overflow: 'hidden',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    minHeight: 56,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-  },
-  icon: {
-    width: 34,
-    height: 34,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  titleColumn: {
-    flex: 1,
-  },
-  title: {
-    fontSize: FontSize.md,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  caption: {
-    fontSize: FontSize.xs,
-    color: Colors.textMuted,
-  },
-  body: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.lg,
-    gap: Spacing.sm,
-  },
-});
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: Colors.surface,
+      borderRadius: Radius.lg,
+      borderWidth: 1,
+      borderColor: Colors.border,
+      overflow: 'hidden',
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.md,
+      minHeight: 56,
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.md,
+    },
+    icon: {
+      width: 34,
+      height: 34,
+      borderRadius: Radius.md,
+      backgroundColor: Colors.primarySoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    titleColumn: {
+      flex: 1,
+    },
+    title: {
+      fontSize: FontSize.md,
+      fontWeight: '800',
+      color: Colors.text,
+    },
+    caption: {
+      fontSize: FontSize.xs,
+      color: Colors.textMuted,
+    },
+    body: {
+      paddingHorizontal: Spacing.lg,
+      paddingBottom: Spacing.lg,
+      gap: Spacing.sm,
+    },
+  });

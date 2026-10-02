@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TabIcon } from '@/components/TabIcon';
-import { Colors } from '@/constants/colors';
+import { useColores } from '@/theme/ThemeProvider';
 import { useIncorporacion } from '@/hooks/queries/useIncorporacion';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useSolicitudes } from '@/hooks/queries/useSolicitudes';
@@ -13,6 +13,8 @@ const TAB_BAR_BASE_HEIGHT = 64;
 const ICON_SIZE = 23;
 
 export default function TabsLayout() {
+  // Colores del tema reactivo (marca de Apariencia incluida).
+  const Colors = useColores();
   const insets = useSafeAreaInsets();
 
   // Badges del tab bar: documentos pendientes (Expediente) y solicitudes que

@@ -1,24 +1,24 @@
 import { File } from 'expo-file-system';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
 import { SkeletonBlock } from './SkeletonBlock';
 
 import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { construirHtmlVisorPdf, partirEnTrozos } from '@/utils/pdfViewerHtml';
 import { logError } from '@/utils/errors';
 
 /**
  * Dibuja un PDF local (`file://…pdf`, ya descargado/validado por quien lo
  * usa).
  *
- * - iOS: el WebView (WKWebView) trae visor de PDF nativo → se abre el
- *   archivo directo.
- * - Android: el WebView de Android NO tiene visor de PDF — abrir un
- *   `file://…pdf` deja la pantalla en negro (era el bug de "abrir documento
- *   se pone en negro"). Ahí se pinta con pdf.js: el PDF viaja como base64
- *   dentro del HTML (nunca sale del teléfono) y pdf.js lo dibuja página por
- *   página en canvas.
+ * - iOS: WKWebView trae visor de PDF nativo → se abre el archivo directo.
+ * - Android: su WebView NO dibuja PDFs (antes la pantalla quedaba en negro).
+ *   Se usa pdf.js EMPAQUETADO en la app (`src/vendor/pdfjs.generated.ts`):
+ *   funciona sin internet y con CDNs bloqueados. El PDF nunca sale del
+ *   teléfono: se lee del disco y se pasa al WebView en trozos por
+ *   `postMessage` (un PDF de 10+ MB no se incrusta en el HTML).
  */
 export function PdfViewer({ fileUri, style, onError }: { fileUri: string; style?: StyleProp<ViewStyle>; onError?: (message: string) => void }) {
   if (Platform.OS === 'ios') {
@@ -37,51 +37,79 @@ export function PdfViewer({ fileUri, style, onError }: { fileUri: string; style?
   return <AndroidPdfViewer fileUri={fileUri} style={style} onError={onError} />;
 }
 
-const PDFJS_VERSION = '3.11.174';
-const PDFJS_URL = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.min.js`;
-const PDFJS_WORKER_URL = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.worker.min.js`;
+const MENSAJE_ERROR = 'No se pudo mostrar este documento. Puedes guardarlo o compartirlo para abrirlo con otra aplicación.';
 
 function AndroidPdfViewer({ fileUri, style, onError }: { fileUri: string; style?: StyleProp<ViewStyle>; onError?: (message: string) => void }) {
-  const [html, setHtml] = useState<string | null>(null);
+  const webviewRef = useRef<WebView>(null);
+  const base64Ref = useRef<string | null>(null);
+  const listoRef = useRef(false);
+  const enviadoRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
-  // Ref: un callback inline del padre no debe volver a leer el archivo en cada render.
+  const [cargando, setCargando] = useState(true);
+  const html = useMemo(() => construirHtmlVisorPdf(), []);
+
+  // Un callback inline del padre no debe volver a leer el archivo en cada render.
   const onErrorRef = useRef(onError);
   useEffect(() => {
     onErrorRef.current = onError;
   }, [onError]);
 
+  const fallar = (detalle: unknown) => {
+    logError('PdfViewer', detalle instanceof Error ? detalle : new Error(String(detalle)));
+    setError(MENSAJE_ERROR);
+    setCargando(false);
+    onErrorRef.current?.(MENSAJE_ERROR);
+  };
+
+  // Envía el PDF en cuanto el WebView avisó que pdf.js está listo Y el
+  // archivo ya se leyó (cualquiera de los dos puede terminar primero).
+  const enviarSiListo = () => {
+    const base64 = base64Ref.current;
+    const webview = webviewRef.current;
+    if (!listoRef.current || base64 === null || webview === null || enviadoRef.current) return;
+    enviadoRef.current = true;
+    const trozos = partirEnTrozos(base64);
+    trozos.forEach((data, index) => webview.postMessage(JSON.stringify({ type: 'chunk', index, data })));
+    webview.postMessage(JSON.stringify({ type: 'end', total: trozos.length }));
+  };
+
   useEffect(() => {
-    let cancelled = false;
+    let cancelado = false;
+    base64Ref.current = null;
+    enviadoRef.current = false;
 
     (async () => {
       try {
         const base64 = await new File(fileUri).base64();
-        if (cancelled) return;
-        setHtml(buildHtml(base64));
+        if (cancelado) return;
+        if (!base64) throw new Error('PDF vacío');
+        base64Ref.current = base64;
+        enviarSiListo();
       } catch (err) {
-        if (cancelled) return;
-        logError('PdfViewer.leer', err);
-        setError('No se pudo leer el documento.');
-        onErrorRef.current?.('No se pudo leer el documento.');
+        if (!cancelado) fallar(err);
       }
     })();
 
     return () => {
-      cancelled = true;
+      cancelado = true;
+      base64Ref.current = null;
     };
   }, [fileUri]);
 
   const handleMessage = (event: WebViewMessageEvent) => {
+    let data: { type?: string; message?: string } = {};
     try {
-      const data = JSON.parse(event.nativeEvent.data) as { type?: string; message?: string };
-      if (data.type === 'error') {
-        const message = 'No se pudo mostrar el documento. Revisa tu conexión e inténtalo de nuevo.';
-        logError('PdfViewer.render', new Error(data.message ?? 'pdf.js'));
-        setError(message);
-        onErrorRef.current?.(message);
-      }
+      data = JSON.parse(event.nativeEvent.data) as typeof data;
     } catch {
-      // Mensaje ajeno al visor: se ignora.
+      return;
+    }
+    if (data.type === 'ready') {
+      listoRef.current = true;
+      enviarSiListo();
+    } else if (data.type === 'rendered') {
+      setCargando(false);
+    } else if (data.type === 'error') {
+      fallar(data.message ?? 'pdf.js');
     }
   };
 
@@ -93,90 +121,40 @@ function AndroidPdfViewer({ fileUri, style, onError }: { fileUri: string; style?
     );
   }
 
-  if (!html) {
-    return (
-      <View style={[styles.loading, style]}>
-        <SkeletonBlock height={420} radius={Radius.lg} />
-      </View>
-    );
-  }
-
   return (
-    <WebView
-      source={{ html, baseUrl: 'https://localhost/' }}
-      originWhitelist={['https://*']}
-      javaScriptEnabled
-      domStorageEnabled={false}
-      allowFileAccess={false}
-      setSupportMultipleWindows={false}
-      onMessage={handleMessage}
-      onShouldStartLoadWithRequest={(request) => request.url === 'https://localhost/' || request.url.startsWith('about:')}
-      style={[styles.webview, style]}
-    />
+    <View style={[styles.flex, style]}>
+      <WebView
+        ref={webviewRef}
+        source={{ html, baseUrl: 'about:blank' }}
+        originWhitelist={['about:*']}
+        javaScriptEnabled
+        domStorageEnabled={false}
+        allowFileAccess={false}
+        setSupportMultipleWindows={false}
+        // Sin red: el visor no carga nada de fuera (pdf.js va dentro del HTML).
+        onShouldStartLoadWithRequest={(request) => request.url.startsWith('about:')}
+        onMessage={handleMessage}
+        style={styles.webview}
+      />
+      {cargando ? (
+        <View style={styles.loadingOverlay} pointerEvents="none">
+          <SkeletonBlock height={420} radius={Radius.lg} />
+        </View>
+      ) : null}
+    </View>
   );
 }
 
-function buildHtml(base64: string): string {
-  return `<!doctype html>
-<html lang="es"><head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
-<style>
-  html,body{margin:0;padding:0;background:#2b2b2b;}
-  #paginas{display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px 0;}
-  canvas{background:#fff;max-width:100%;height:auto;box-shadow:0 1px 4px rgba(0,0,0,.4);}
-  #estado{color:#ddd;font:14px sans-serif;text-align:center;padding:24px;}
-</style>
-<script src="${PDFJS_URL}"></script>
-</head><body>
-<div id="estado">Cargando documento…</div>
-<div id="paginas"></div>
-<script>
-(function(){
-  function avisar(tipo, mensaje){ if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify({type: tipo, message: String(mensaje || '')})); }
-  try {
-    if (!window.pdfjsLib) { avisar('error', 'pdfjs no cargó'); return; }
-    pdfjsLib.GlobalWorkerOptions.workerSrc = '${PDFJS_WORKER_URL}';
-    var binario = atob('${base64}');
-    var bytes = new Uint8Array(binario.length);
-    for (var i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
-    pdfjsLib.getDocument({ data: bytes }).promise.then(function(pdf){
-      document.getElementById('estado').remove();
-      var contenedor = document.getElementById('paginas');
-      var ancho = Math.max(window.innerWidth - 16, 200);
-      var escalaPantalla = window.devicePixelRatio || 1;
-      var cadena = Promise.resolve();
-      for (var n = 1; n <= pdf.numPages; n++) {
-        (function(numero){
-          cadena = cadena.then(function(){
-            return pdf.getPage(numero).then(function(pagina){
-              var base = pagina.getViewport({ scale: 1 });
-              var escala = ancho / base.width;
-              var vista = pagina.getViewport({ scale: escala * escalaPantalla });
-              var canvas = document.createElement('canvas');
-              canvas.width = vista.width; canvas.height = vista.height;
-              canvas.style.width = (vista.width / escalaPantalla) + 'px';
-              contenedor.appendChild(canvas);
-              return pagina.render({ canvasContext: canvas.getContext('2d'), viewport: vista }).promise;
-            });
-          });
-        })(n);
-      }
-      return cadena.then(function(){ avisar('listo'); });
-    }).catch(function(e){ avisar('error', e && e.message); });
-  } catch (e) { avisar('error', e && e.message); }
-})();
-</script>
-</body></html>`;
-}
-
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   webview: {
     flex: 1,
     backgroundColor: Colors.black,
   },
-  loading: {
-    flex: 1,
+  loadingOverlay: {
+    ...StyleSheet.absoluteFill,
     padding: Spacing.lg,
   },
   errorBox: {

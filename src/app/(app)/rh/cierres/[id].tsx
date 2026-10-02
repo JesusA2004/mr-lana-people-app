@@ -23,7 +23,7 @@ import type { FiniquitoRenglon } from '@/types/rhCiclo';
 import { availableCierreOperations, cierreBadge, CIERRE_STEPS, cierreStepIndex, cierreSiguientePaso } from '@/utils/cierre';
 import { formatDateLong, formatDateTime } from '@/utils/dates';
 import { getActionErrorMessage, getFieldError, logError } from '@/utils/errors';
-import { formatCurrencyMXN, parseCurrencyInput } from '@/utils/formatters';
+import { formatCurrencyMXN, numeroOpcional, parseCurrencyInput } from '@/utils/formatters';
 import { haptics } from '@/utils/haptics';
 
 type Sheet = null | 'aviso' | 'calcular' | 'concepto' | 'firmado' | 'pago' | 'cancelar';
@@ -100,7 +100,7 @@ export default function RhCierreDetailScreen() {
   const guardarConcepto = () => {
     const importe = parseCurrencyInput(concepto.importe);
     if (importe === undefined || concepto.concepto.trim() === '') return;
-    const cantidad = concepto.cantidad.trim() ? Number(concepto.cantidad) : null;
+    const cantidad = numeroOpcional(concepto.cantidad);
     const payload = { tipo: concepto.tipo, concepto: concepto.concepto.trim(), importe, cantidad, observaciones: concepto.observaciones.trim() || null };
     if (concepto.id !== null) ejecutar({ tipo: 'actualizar_concepto', conceptoId: concepto.id, payload }, 'Concepto actualizado.');
     else ejecutar({ tipo: 'agregar_concepto', payload }, 'Concepto agregado.');

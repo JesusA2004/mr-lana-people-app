@@ -3,7 +3,8 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { Button } from './Button';
 
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 
 export interface EmptyStateProps {
   icon?: keyof typeof Ionicons.glyphMap;
@@ -18,6 +19,8 @@ export interface EmptyStateProps {
  * una acción opcional. Sobrio a propósito — sin mascota ni ilustraciones.
  */
 export function EmptyState({ icon = 'file-tray-outline', title, message, actionLabel, onAction }: EmptyStateProps) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   return (
     <View style={styles.container} accessibilityRole="summary">
       <View style={styles.iconWrapper}>
@@ -30,36 +33,37 @@ export function EmptyState({ icon = 'file-tray-outline', title, message, actionL
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    paddingVertical: Spacing.xl,
-    paddingHorizontal: Spacing.lg,
-    gap: Spacing.sm,
-  },
-  iconWrapper: {
-    width: 56,
-    height: 56,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.xs,
-  },
-  title: {
-    fontSize: FontSize.md,
-    fontWeight: '800',
-    color: Colors.text,
-    textAlign: 'center',
-  },
-  message: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
-    textAlign: 'center',
-    lineHeight: 20,
-    maxWidth: 420,
-  },
-  action: {
-    marginTop: Spacing.sm,
-  },
-});
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
+    container: {
+      alignItems: 'center',
+      paddingVertical: Spacing.xl,
+      paddingHorizontal: Spacing.lg,
+      gap: Spacing.sm,
+    },
+    iconWrapper: {
+      width: 56,
+      height: 56,
+      borderRadius: Radius.full,
+      backgroundColor: Colors.surfaceMuted,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: Spacing.xs,
+    },
+    title: {
+      fontSize: FontSize.md,
+      fontWeight: '800',
+      color: Colors.text,
+      textAlign: 'center',
+    },
+    message: {
+      fontSize: FontSize.sm,
+      color: Colors.textMuted,
+      textAlign: 'center',
+      lineHeight: 20,
+      maxWidth: 420,
+    },
+    action: {
+      marginTop: Spacing.sm,
+    },
+  });

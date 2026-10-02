@@ -63,4 +63,6 @@ export interface PushNotificationData {
   accion?: string | null;
   /** Destinatario del push (id interno). La app no abre pushes de otra cuenta (ver `isPushForCurrentUser`). */
   user_id?: number | string | null;
+  /** Persona del recurso (avance de onboarding, contrato, cierre…): abre su ficha sin adivinar. */
+  colaborador_id?: number | string | null;
 }

@@ -464,7 +464,10 @@ export default function RhCandidatoDetailScreen() {
 
           <DocumentUploadSheet
             visible={attachOpen}
-            title="Adjuntar archivo"
+            title={sheet === 'socioeconomico' ? 'Adjuntar foto, PDF o video' : 'Adjuntar archivo'}
+            // El backend acepta video SOLO como evidencia del socioeconómico (hasta 60 MB).
+            allowVideo={sheet === 'socioeconomico'}
+            maxSizeMb={sheet === 'socioeconomico' ? 60 : 20}
             onClose={() => setAttachOpen(false)}
             onConfirm={async (file) => {
               setArchivos((prev) => [...prev, file]);

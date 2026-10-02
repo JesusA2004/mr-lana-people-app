@@ -89,7 +89,6 @@ export default function ExpedienteScreen() {
                     {breakdown ? <Text style={styles.heroBreakdown}> · {breakdown}</Text> : null}
                   </Text>
                 ) : null}
-                {estadoReal.data?.estado_alta_etiqueta ? <Text style={styles.heroBreakdown}>Alta: {estadoReal.data.estado_alta_etiqueta}</Text> : null}
               </Card>
             </FadeInView>
 

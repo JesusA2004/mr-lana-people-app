@@ -2,7 +2,7 @@ import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TabIcon } from '@/components/TabIcon';
-import { Colors } from '@/constants/colors';
+import { useColores } from '@/theme/ThemeProvider';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 
 const TAB_BAR_BASE_HEIGHT = 64;
@@ -10,6 +10,8 @@ const ICON_SIZE = 23;
 
 /** Tabs de Gestión RH (AGENTS.md sección 5): Inicio, Pendientes, Colaboradores, Notificaciones, Perfil. */
 export default function RhTabsLayout() {
+  // Colores del tema reactivo (marca de Apariencia incluida).
+  const Colors = useColores();
   const insets = useSafeAreaInsets();
   const bootstrap = useMobileBootstrap(true);
 

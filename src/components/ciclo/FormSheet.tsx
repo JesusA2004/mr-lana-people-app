@@ -2,7 +2,8 @@ import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, Te
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/Button';
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 
 export interface FormSheetProps {
   visible: boolean;
@@ -22,7 +23,19 @@ export interface FormSheetProps {
  * firma física, pago, cálculo de finiquito...). Evita pantallas gigantes de
  * formulario: cada acción pide solo lo que su FormRequest exige.
  */
-export function FormSheet({ visible, title, description, confirmLabel, submitting = false, confirmDisabled = false, destructive = false, onCancel, onConfirm, children }: FormSheetProps) {
+export function FormSheet({
+  visible,
+  title,
+  description,
+  confirmLabel,
+  submitting = false,
+  confirmDisabled = false,
+  destructive = false,
+  onCancel,
+  onConfirm,
+  children,
+}: FormSheetProps) {
+  const styles = useEstilos(crearEstilos);
   const insets = useSafeAreaInsets();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={submitting ? undefined : onCancel}>
@@ -58,6 +71,8 @@ export interface FieldProps extends TextInputProps {
 }
 
 export function Field({ label, error, style, multiline, ...props }: FieldProps) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
@@ -73,69 +88,70 @@ export function Field({ label, error, style, multiline, ...props }: FieldProps) 
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: Colors.overlay,
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: Colors.surface,
-    borderTopLeftRadius: Radius.xl,
-    borderTopRightRadius: Radius.xl,
-    padding: Spacing.lg,
-    gap: Spacing.sm,
-    maxHeight: '90%',
-  },
-  title: {
-    fontSize: FontSize.lg,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  description: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
-  },
-  fields: {
-    gap: Spacing.md,
-    paddingVertical: Spacing.sm,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginTop: Spacing.sm,
-  },
-  flex: {
-    flex: 1,
-  },
-  field: {
-    gap: 4,
-  },
-  label: {
-    fontSize: FontSize.sm,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  input: {
-    minHeight: 46,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    fontSize: FontSize.md,
-    color: Colors.text,
-    backgroundColor: Colors.surface,
-  },
-  multiline: {
-    minHeight: 90,
-    textAlignVertical: 'top',
-  },
-  inputError: {
-    borderColor: Colors.danger,
-  },
-  error: {
-    fontSize: FontSize.xs,
-    color: Colors.danger,
-  },
-});
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: Colors.overlay,
+      justifyContent: 'flex-end',
+    },
+    sheet: {
+      backgroundColor: Colors.surface,
+      borderTopLeftRadius: Radius.xl,
+      borderTopRightRadius: Radius.xl,
+      padding: Spacing.lg,
+      gap: Spacing.sm,
+      maxHeight: '90%',
+    },
+    title: {
+      fontSize: FontSize.lg,
+      fontWeight: '800',
+      color: Colors.text,
+    },
+    description: {
+      fontSize: FontSize.sm,
+      color: Colors.textMuted,
+    },
+    fields: {
+      gap: Spacing.md,
+      paddingVertical: Spacing.sm,
+    },
+    actions: {
+      flexDirection: 'row',
+      gap: Spacing.sm,
+      marginTop: Spacing.sm,
+    },
+    flex: {
+      flex: 1,
+    },
+    field: {
+      gap: 4,
+    },
+    label: {
+      fontSize: FontSize.sm,
+      fontWeight: '700',
+      color: Colors.text,
+    },
+    input: {
+      minHeight: 46,
+      borderWidth: 1,
+      borderColor: Colors.border,
+      borderRadius: Radius.md,
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.sm,
+      fontSize: FontSize.md,
+      color: Colors.text,
+      backgroundColor: Colors.surface,
+    },
+    multiline: {
+      minHeight: 90,
+      textAlignVertical: 'top',
+    },
+    inputError: {
+      borderColor: Colors.danger,
+    },
+    error: {
+      fontSize: FontSize.xs,
+      color: Colors.danger,
+    },
+  });
