@@ -118,6 +118,13 @@ export default function RhLayout() {
       <Stack.Protected guard={moduloOn('plantillas_documentales')}>
         <Stack.Screen name="plantillas-documentales" />
       </Stack.Protected>
+      <Stack.Protected guard={moduloOn('candidatos')}>
+        <Stack.Screen name="candidatos/index" />
+        <Stack.Screen name="candidatos/[id]" />
+      </Stack.Protected>
+      <Stack.Protected guard={moduloOn('reingresos')}>
+        <Stack.Screen name="reingresos/index" />
+      </Stack.Protected>
     </Stack>
   );
 }

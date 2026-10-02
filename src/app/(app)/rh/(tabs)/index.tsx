@@ -86,10 +86,12 @@ export default function RhDashboardScreen() {
   ]);
 
   const herramientas = only([
+    moduloOn('candidatos') && { route: '/(app)/rh/candidatos', icon: 'people-circle-outline', label: 'Candidatos' },
     moduloOn('contratos') && { route: '/(app)/rh/contratos/por-vencer', icon: 'hourglass-outline', label: 'Contratos por vencer', badge: porVencer.data?.contratos.length },
     moduloOn('evaluaciones') && { route: '/evaluaciones', icon: 'clipboard-outline', label: 'Evaluaciones' },
     moduloOn('actas') && { route: '/(app)/rh/actas', icon: 'reader-outline', label: 'Actas administrativas' },
     moduloOn('cierres') && { route: '/(app)/rh/cierres', icon: 'exit-outline', label: 'Cierres y finiquitos' },
+    moduloOn('reingresos') && { route: '/(app)/rh/reingresos', icon: 'refresh-circle-outline', label: 'Reingresos' },
     moduloOn('recibos') && { route: '/(app)/rh/recibos', icon: 'receipt-outline', label: 'Recibos internos' },
     cumpleanosEnabled && { route: '/(app)/rh/cumpleanos', icon: 'gift-outline', label: 'Cumpleaños' },
     hasPermission(permissions, 'celebraciones.ver') && { route: '/(app)/rh/aniversarios', icon: 'ribbon-outline', label: 'Aniversarios' },

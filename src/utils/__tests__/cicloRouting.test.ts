@@ -48,6 +48,9 @@ describe('rutas de tareas (nunca por título)', () => {
     expect(resolveTaskRoute({ ...base, related_type: 'Prestamo', related_id: 6 })?.route).toBe('/(app)/rh/prestamos/6');
     expect(resolveTaskRoute({ ...base, related_type: 'CierreLaboral', related_id: 6 })?.route).toBe('/(app)/rh/cierres/6');
     expect(resolveTaskRoute({ ...base, related_type: 'Colaborador', related_id: 6, accion: 'subir_documentos' })?.experience).toBe('colaborador');
+    expect(resolveTaskRoute({ ...base, related_type: 'Candidato', related_id: 9 })).toEqual({ route: '/(app)/rh/candidatos/9', experience: 'rh' });
+    expect(resolveTaskRoute({ ...base, related_type: 'Candidato', related_id: null })).toEqual({ route: '/(app)/rh/candidatos', experience: 'rh' });
+    expect(resolveTaskRoute({ ...base, related_type: 'Reingreso', related_id: 3 })).toEqual({ route: '/(app)/rh/reingresos', experience: 'rh' });
     expect(resolveTaskRoute({ ...base, related_type: 'Desconocido', related_id: 1 })).toBeNull();
   });
 });

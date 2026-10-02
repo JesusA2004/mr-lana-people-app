@@ -78,6 +78,36 @@ describe('resolveResourceRoute — tipos reales del backend', () => {
   });
 });
 
+describe('resolveResourceRoute — eventos de ciclo laboral por `related_type` (candidatos/reingresos/cierres)', () => {
+  // El backend manda `type` = nombre del evento real (`candidato_preautorizado`,
+  // `reingreso_solicitado`...), no enumerado uno por uno: se resuelve por
+  // `related_type` (class_basename estable) como respaldo.
+  it('candidato: abre la ficha si hay resource_id, el listado si no', () => {
+    expect(resolveResourceRoute({ type: 'candidato_preautorizado', resource_id: 10, related_type: 'Candidato' })).toBe('/(app)/rh/candidatos/10');
+    expect(resolveResourceRoute({ type: 'candidato_autorizado_rh', resource_id: null, related_type: 'Candidato' })).toBe('/(app)/rh/candidatos');
+  });
+
+  it('reingreso: siempre abre la bandeja (no hay endpoint de detalle individual)', () => {
+    expect(resolveResourceRoute({ type: 'reingreso_solicitado', resource_id: 4, related_type: 'Reingreso' })).toBe('/(app)/rh/reingresos');
+  });
+
+  it('cierre laboral: abre el cierre si hay resource_id, el listado si no', () => {
+    expect(resolveResourceRoute({ type: 'cierre_preautorizacion', resource_id: 7, related_type: 'CierreLaboral' })).toBe('/(app)/rh/cierres/7');
+    expect(resolveResourceRoute({ type: 'pago_por_programar', resource_id: null, related_type: 'CierreLaboral' })).toBe('/(app)/rh/cierres');
+  });
+
+  it('un related_type desconocido sigue sin inventar ruta', () => {
+    expect(resolveResourceRoute({ type: 'algo_nuevo', resource_id: 1, related_type: 'ModeloFuturo' })).toBeNull();
+  });
+
+  it.each(['candidato_preautorizado', 'contratos_listos', 'onboarding_refuerzo', 'cierre_preautorizacion', 'cierre_autorizacion_rh', 'pago_por_programar', 'cita_finiquito', 'reingreso_solicitado'])(
+    '%s pertenece a la experiencia RH',
+    (type) => {
+      expect(experienceForPushType(type)).toBe('rh');
+    },
+  );
+});
+
 describe('normalizeResourceId — nunca una ruta armada con datos inválidos', () => {
   it('acepta enteros positivos como número o string', () => {
     expect(normalizeResourceId(12)).toBe('12');

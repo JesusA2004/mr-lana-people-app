@@ -20,7 +20,9 @@ export type CicloMutationEvent =
   | { type: 'rh_cierre'; cierreId: number | string; colaboradorId?: number | string | null }
   | { type: 'rh_recibo'; reciboId?: number | string | null }
   | { type: 'rh_prestamo'; prestamoId?: number | string | null; solicitudId?: number | string | null }
-  | { type: 'rh_acta'; actaId?: number | string | null };
+  | { type: 'rh_acta'; actaId?: number | string | null }
+  | { type: 'rh_candidato'; candidatoId: number | string }
+  | { type: 'rh_reingreso'; reingresoId?: number | string | null; colaboradorId?: number | string | null };
 
 export function keysToInvalidate(event: CicloMutationEvent): QueryKey[] {
   switch (event.type) {
@@ -86,6 +88,15 @@ export function keysToInvalidate(event: CicloMutationEvent): QueryKey[] {
       ];
     case 'rh_acta':
       return [queryKeys.rhActas, queryKeys.rhDocumentosLaborales];
+    case 'rh_candidato':
+      return [queryKeys.rhCandidatos, queryKeys.rhCandidato(event.candidatoId), queryKeys.rhDashboard, queryKeys.tareas, queryKeys.notificaciones];
+    case 'rh_reingreso':
+      return [
+        queryKeys.rhReingresos,
+        ...(event.colaboradorId ? [queryKeys.rhReingresoHistorial(event.colaboradorId)] : []),
+        queryKeys.tareas,
+        queryKeys.notificaciones,
+      ];
   }
 }
 

@@ -20,8 +20,10 @@ import { UpdateBanner } from '@/components/UpdateBanner';
 import { Colors, ColorSchemeAtLaunch } from '@/constants/colors';
 import { IS_API_URL_CONFIGURED } from '@/constants/config';
 import { useAppConfig } from '@/hooks/queries/useAppRelease';
+import { useAppTheme } from '@/hooks/queries/useAppTheme';
 import { useNotificationResponseRouting } from '@/hooks/useNotificationResponseRouting';
 import { usePushRegistration } from '@/hooks/usePushRegistration';
+import { useAppThemeStore } from '@/store/appThemeStore';
 import { useAuthStore } from '@/store/authStore';
 import { useMaintenanceStore } from '@/store/maintenanceStore';
 import { useOnboardingStore } from '@/store/onboardingStore';
@@ -110,6 +112,30 @@ function AppConfigController() {
 }
 
 /**
+ * `GET /api/v1/app/theme` (público, Administración → Configuración →
+ * Apariencia): guarda el tema en memoria (`useAppThemeStore`, para los
+ * estilos en línea que lo consulten con `useAppThemeColor`) y repinta el
+ * fondo nativo con `expo-system-ui` — la única superficie que SÍ puede
+ * actualizarse en vivo sin tocar los `StyleSheet.create` ya evaluados
+ * (ver comentario de `appThemeStore.ts`). Si falla, la app sigue con la
+ * paleta estática de `constants/colors.ts`: nunca se rompe por falta de tema.
+ */
+function AppThemeController() {
+  const { data: theme } = useAppTheme();
+  const setTheme = useAppThemeStore((state) => state.setTheme);
+
+  useEffect(() => {
+    if (!theme) return;
+    setTheme(theme.colors, theme.version);
+    if (theme.colors.background) {
+      SystemUI.setBackgroundColorAsync(theme.colors.background).catch((error: unknown) => logError('SystemUI.setBackgroundColorAsync(theme)', error));
+    }
+  }, [theme, setTheme]);
+
+  return null;
+}
+
+/**
  * Enrutador raíz. Usa `Stack.Protected` en tres tramos: sin sesión → auth;
  * con sesión pero onboarding no visto → onboarding; con sesión y onboarding
  * completo → app. Una sesión guardada que no se pudo verificar por red NO es
@@ -174,6 +200,7 @@ export default function RootLayout() {
         <StatusBar style={STATUS_BAR_STYLE} />
         <SplashScreenController />
         <AppConfigController />
+        <AppThemeController />
         <AppErrorBoundary>
           <RootNavigator />
         </AppErrorBoundary>

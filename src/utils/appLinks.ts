@@ -92,6 +92,14 @@ export function resolveResourceRoute(data: PushNotificationData): string | null 
       return SHOW_DEV_TOOLS ? '/dev/diagnostico-push' : '/notificaciones';
 
     default:
+      // Eventos de reclutamiento/reingreso (`candidato_preautorizado`,
+      // `candidato_autorizado_rh`, `reingreso_solicitado`...): el backend
+      // real los manda con `type` = nombre del evento (variable), pero
+      // `related_type` siempre es el class_basename real del modelo — se usa
+      // como respaldo en vez de enumerar cada evento uno por uno.
+      if (data.related_type === 'Candidato') return id ? `/(app)/rh/candidatos/${id}` : '/(app)/rh/candidatos';
+      if (data.related_type === 'Reingreso') return '/(app)/rh/reingresos';
+      if (data.related_type === 'CierreLaboral') return id ? `/(app)/rh/cierres/${id}` : '/(app)/rh/cierres';
       return null;
   }
 }
@@ -127,6 +135,16 @@ const RH_PUSH_TYPES = new Set<PushResourceType>([
   'rh_incorporacion',
   'rh_cumpleanos',
   'contrato_por_vencer',
+  // Eventos de `config/configuracion_sistema.php` → `eventos` dirigidos a
+  // reclutamiento/RH (`WorkflowRoutingService`/`NotificadorRhService`).
+  'candidato_preautorizado',
+  'contratos_listos',
+  'onboarding_refuerzo',
+  'cierre_preautorizacion',
+  'cierre_autorizacion_rh',
+  'pago_por_programar',
+  'cita_finiquito',
+  'reingreso_solicitado',
 ]);
 
 /**

@@ -66,6 +66,14 @@ export function resolveTaskRoute(tarea: Pick<Tarea, 'tipo' | 'accion' | 'related
     case 'ActaAdministrativa':
       return id ? { route: `/(app)/rh/actas/${id}`, experience: 'rh' } : null;
 
+    case 'Candidato':
+      return id ? { route: `/(app)/rh/candidatos/${id}`, experience: 'rh' } : { route: '/(app)/rh/candidatos', experience: 'rh' };
+
+    // Sin endpoint de detalle individual (`ReingresoController` no tiene `show`):
+    // la bandeja de Reingresos ya filtra por estado, se abre la lista.
+    case 'Reingreso':
+      return { route: '/(app)/rh/reingresos', experience: 'rh' };
+
     default:
       return null;
   }

@@ -16,6 +16,7 @@ export const queryKeys = {
   celebracion: (id: string | number) => ['celebraciones', String(id)] as const,
   celebracionMensajes: (id: string | number) => ['celebraciones', String(id), 'mensajes'] as const,
   appConfig: ['app', 'config'] as const,
+  appTheme: ['app', 'theme'] as const,
   appReleaseLatest: (platform: string) => ['app', 'releases', 'latest', platform] as const,
 
   // Gestión RH — namespace propio para poder invalidar todo con un solo predicate si hace falta.
@@ -100,6 +101,13 @@ export const queryKeys = {
   rhActas: ['rh', 'actas'] as const,
   rhActasList: (params: Record<string, unknown> = {}) => ['rh', 'actas', 'list', params] as const,
   rhActa: (id: string | number) => ['rh', 'actas', 'detail', String(id)] as const,
+  rhCandidatos: ['rh', 'candidatos'] as const,
+  rhCandidatosList: (params: Record<string, unknown> = {}) => ['rh', 'candidatos', 'list', params] as const,
+  rhCandidato: (id: string | number) => ['rh', 'candidatos', 'detail', String(id)] as const,
+  rhReingresos: ['rh', 'reingresos'] as const,
+  rhReingresosList: (params: Record<string, unknown> = {}) => ['rh', 'reingresos', 'list', params] as const,
+  rhReingresosBuscar: (q: string) => ['rh', 'reingresos', 'buscar', q] as const,
+  rhReingresoHistorial: (colaboradorId: string | number) => ['rh', 'reingresos', 'historial', String(colaboradorId)] as const,
   rhCobertura: (params: Record<string, unknown> = {}) => ['rh', 'plantilla', 'cobertura', params] as const,
   rhIndicadores: (params: Record<string, unknown> = {}) => ['rh', 'indicadores', params] as const,
   rhOrganigramaPersonas: (params: Record<string, unknown> = {}) => ['rh', 'organigrama', params] as const,

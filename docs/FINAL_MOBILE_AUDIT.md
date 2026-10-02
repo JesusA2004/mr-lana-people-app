@@ -42,7 +42,7 @@ Eran pruebas que no se actualizaron tras la migración User → Colaborador:
 
 - **G-3** Generar documento laboral desde móvil: el backend no declara variables requeridas por plantilla → sigue en Portal RH.
 - **G-7** App Links HTTPS: requiere SHA-256 de EAS y Apple Team ID reales (`docs/APP_LINKS_SETUP.md`).
-- Contratar candidato desde móvil: falta `GET /rh/candidatos`.
+- ~~Contratar candidato desde móvil: falta `GET /rh/candidatos`.~~ **Cerrado 2026-10-01** — ver sección siguiente.
 
 ## Requiere teléfono físico
 
@@ -62,3 +62,75 @@ Guías: `docs/PUSH_QA.md`, `docs/DEVICE_QA.md`.
 | Expediente | Regla única `App\Services\Expedientes\ProgresoExpediente`: denominador = obligatorios activos; numerador = obligatorios **aprobados**; `floor()`. 8/11 con 1 en revisión = 72 %, nunca 100 si falta uno. Sin obligatorios = 0 % + `sin_obligatorios`. La app solo presenta (`utils/expedienteProgress.ts`, con guarda anti-100 para backends viejos). |
 | Experiencias | `capabilities.employee` = la cuenta tiene expediente de colaborador; `capabilities.rh` = permisos RH. Ambas → se elige y se cambia siempre desde **Perfil** y **Configuración** (tarjeta "Cuenta y experiencia"); solo una → entra directo, sin opción inexistente; permiso retirado → vuelve a la válida y corrige la preferencia. Nunca por nombre de rol. |
 | Copy | Sin leyendas técnicas (HTTPS, cifrado, token). La seguridad real no cambió. |
+
+## Cierre — reclutamiento, reingresos y tema (2026-10-01)
+
+Backend (`mrlanaPeople`) ya tenía el ciclo laboral completo implementado y
+probado (`docs/CICLO_LABORAL_FINAL_IMPLEMENTADO.md`, 883 pruebas backend
+verdes). En la app faltaban genuinamente dos pantallas con API real lista
+desde el backend, y el consumo del tema institucional. Los tres se cerraron
+esta sesión:
+
+### Reclutamiento móvil (`/rh/candidatos`)
+
+- `index.tsx`: listado con filtros por estado + búsqueda, mismo
+  `CandidatoPresenter::fila()` que la web.
+- `[id].tsx`: ficha completa sobre `ciclo.acciones_permitidas` (el mismo DTO
+  `CicloLaboralService::obtenerEstado()` de todo el ciclo laboral — ningún
+  botón se decide por rol). Cubre perfil, entrevista, psicométricas (link +
+  resultados con adjuntos), socioeconómico (con evidencias), referencias,
+  concluir referencias, preautorizar, autorizar RH, devolver, rechazar y
+  descartar. La generación del QR de contratación (`iniciar_contratacion`)
+  se deja fuera a propósito: no está en el alcance de reclutamiento móvil y
+  sigue siendo un flujo del Portal RH.
+- Adjuntos: reutiliza `DocumentUploadSheet` en modo "agregar a una lista
+  local" (PDF/imagen); video de evidencia socioeconómica queda pendiente
+  (el componente compartido no acepta `mp4/mov` todavía — el backend sí lo
+  admite).
+
+### Reingresos (`/rh/reingresos`)
+
+- Una sola pantalla con dos secciones: "Buscar y solicitar" (busca en el
+  histórico real, nunca crea una persona nueva; muestra el historial de
+  salidas/contratos antes de solicitar) y "Solicitudes" (filtra por estado,
+  autoriza/rechaza con los mismos `acciones_permitidas` que manda
+  `ReingresoService::aArray()`). Sin pantalla de detalle por id: el backend
+  no tiene `GET /rh/reingresos/{id}` (solo `index`/`buscar`/`historial`), así
+  que decidir se hace desde la tarjeta de la lista.
+
+### Tema institucional (`GET /api/v1/app/theme`)
+
+No se consumía en absoluto. Se agregó la capa de datos completa
+(`src/api/theme.ts`, `useAppTheme`, `appThemeStore`) con respaldo total a la
+paleta estática si la red falla. **Limitación arquitectónica real, no un
+recorte de alcance**: todas las pantallas usan `StyleSheet.create(...)`
+sobre `constants/colors.ts`, que se evalúa una sola vez al cargar el bundle
+— antes de que cualquier fetch de red pueda resolver — y este proyecto no
+tiene almacenamiento síncrono (ni AsyncStorage ni MMKV) para leer un tema
+cacheado en ese mismo instante. Repintar en vivo cada pantalla exigiría
+migrar ~100 archivos de `StyleSheet.create` estático a un Context reactivo,
+o agregar una dependencia nativa nueva (MMKV) + rebuild EAS — ninguna de las
+dos es segura de hacer sin que el usuario lo decida explícitamente. Lo que
+SÍ quedó funcionando de verdad: `expo-system-ui` repinta el fondo nativo en
+cuanto llega el tema (igual que ya hacía con el color estático al arrancar),
+y `useAppThemeColor(token)` está disponible para cualquier estilo en línea
+nuevo que quiera leer el color institucional en tiempo real.
+
+### Deep links / push
+
+`appLinks.ts` no tenía NINGÚN caso para `Candidato`, `Reingreso` ni
+`CierreLaboral` (los pushes de esos eventos caían al respaldo genérico de
+notificaciones en vez de abrir la pantalla). Se agregó un respaldo por
+`related_type` (el backend manda el evento real como `type`, p. ej.
+`candidato_preautorizado`, pero `related_type` siempre es el
+`class_basename` estable) y se sumaron los 8 eventos nuevos de
+`config/configuracion_sistema.php → eventos` a `RH_PUSH_TYPES` para que el
+push cambie de experiencia a Gestión RH correctamente. `taskRoutes.ts`
+(bandeja de tareas) recibió las mismas dos rutas nuevas.
+
+### Validación de esta sesión
+
+`tsc --noEmit`: 0 errores · `eslint .`: 0 errores · `jest`: 42/42 suites,
+428/428 pruebas (12 nuevas: respaldo por `related_type` en push, rutas de
+tareas de candidato/reingreso) · `expo-doctor`: 20/21 (solo versiones patch
+de Expo SDK desactualizadas, preexistente, no se tocó el stack a propósito).

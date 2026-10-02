@@ -36,7 +36,9 @@ export type RhModule =
   | 'indicadores'
   | 'vacantes'
   | 'organigrama_personas'
-  | 'plantillas_documentales';
+  | 'plantillas_documentales'
+  | 'candidatos'
+  | 'reingresos';
 
 /**
  * Permiso(s) que protegen el endpoint de LISTADO de cada módulo en el
@@ -56,6 +58,8 @@ export const RH_MODULE_PERMISSIONS: Record<RhModule, string[]> = {
   vacantes: ['vacantes.ver'],
   organigrama_personas: ['organigrama.ver'],
   plantillas_documentales: ['plantillas_documentales.ver'],
+  candidatos: ['candidatos.ver'],
+  reingresos: ['reingresos.gestionar', 'reingresos.solicitar'],
 };
 
 /** Clave del feature explícito en `mobile/bootstrap` (si el backend la agrega algún día). */
