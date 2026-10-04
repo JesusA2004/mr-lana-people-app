@@ -9,6 +9,7 @@ import { ContratoCard } from '@/components/ciclo/ContratoCard';
 import { ItemCard } from '@/components/ciclo/ItemCard';
 import { InfoRow } from '@/components/ciclo/InfoRow';
 import { JerarquiaCard } from '@/components/ciclo/JerarquiaCard';
+import { DocumentosProcesoCard } from '@/components/ciclo/DocumentosProcesoCard';
 import { LazySection } from '@/components/ciclo/LazySection';
 import { Notice } from '@/components/ciclo/Screen';
 import { ErrorState } from '@/components/ErrorState';
@@ -102,6 +103,12 @@ export default function RhColaboradorDetailScreen() {
 
             {/* Onboarding: refuerzo de lecciones, activos/responsivas y cierre (las acciones las decide el backend). */}
             <Button title="Onboarding" leftIcon="school-outline" variant="outline" onPress={() => router.push(`/(app)/rh/onboarding/${id}` as never)} />
+
+            {sections.has('documentos_laborales') || sections.has('alta') ? (
+              <LazySection icon="documents-outline" title="Documentos de contratación" caption="Contratos oficiales del puesto: generar → imprimir → firmar → escanear">
+                {() => <DocumentosProcesoCard origen={{ tipo: 'colaborador', id: Number(id) }} />}
+              </LazySection>
+            ) : null}
 
             {sections.has('contratos') ? (
               <LazySection icon="document-text-outline" title="Contratos">

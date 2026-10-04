@@ -46,7 +46,7 @@ export function resolveTaskRoute(tarea: Pick<Tarea, 'tipo' | 'accion' | 'related
       if (tarea.tipo === 'contrato_por_vencer' || tarea.accion === 'revisar_vencimiento') {
         return { route: '/(app)/rh/contratos/por-vencer', experience: 'rh' };
       }
-      // contrato_pendiente / generar_documento: la generación vive en el Portal RH; se abre el colaborador.
+      // contrato_pendiente / generar_paquete_contratacion: se genera desde la tarjeta "Documentos de contratación" del colaborador.
       return colaboradorId ? { route: `/(app)/rh/colaboradores/${colaboradorId}`, experience: 'rh' } : null;
 
     case 'SolicitudInterna':

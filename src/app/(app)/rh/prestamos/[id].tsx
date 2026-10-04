@@ -1,4 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+
+import { DocumentosProcesoCard } from '@/components/ciclo/DocumentosProcesoCard';
 import { Alert } from 'react-native';
 
 import { Button } from '@/components/Button';
@@ -93,6 +95,7 @@ export default function RhPrestamoScreen() {
             showColaborador
             onOpenDocumento={(documento) => router.push(`/(app)/rh/documentos-laborales/${documento.id}` as never)}
           />
+          <DocumentosProcesoCard origen={{ tipo: 'prestamo', id: prestamo.id }} />
           {puedeGenerar || puedeResguardar ? (
             <Card>
               <SectionTitle>Acciones</SectionTitle>

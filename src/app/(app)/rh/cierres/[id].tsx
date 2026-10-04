@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/Button';
+import { DocumentosProcesoCard } from '@/components/ciclo/DocumentosProcesoCard';
 import { Card } from '@/components/Card';
 import { FilterChips } from '@/components/ciclo/FilterChips';
 import { Field, FormSheet } from '@/components/ciclo/FormSheet';
@@ -148,6 +149,8 @@ export default function RhCierreDetailScreen() {
             ) : null}
           </Card>
 
+          <DocumentosProcesoCard origen={{ tipo: 'cierre', id: cierre.id }} />
+
           <Card style={styles.gap}>
             <SectionTitle>Finiquito</SectionTitle>
             {!cierre.finiquito ? (
@@ -192,10 +195,10 @@ export default function RhCierreDetailScreen() {
               {has('aviso') ? <Button title="Subir aviso / renuncia firmada" variant="outline" leftIcon="cloud-upload-outline" disabled={isOffline} onPress={() => setSheet('aviso')} /> : null}
               {has('generar_aviso') ? (
                 <Button
-                  title="Generar aviso de término (plantilla)"
+                  title="Generar aviso de terminación"
                   variant="outline"
                   disabled={isOffline || operar.isPending}
-                  onPress={() => confirmar('Generar aviso', 'Se generará el aviso de término con la plantilla cargada por RH/Jurídico.', { tipo: 'generar_aviso' }, 'Aviso generado.')}
+                  onPress={() => confirmar('Generar aviso', 'Se generará el aviso de terminación con el formato oficial de Jurídico y los datos del colaborador.', { tipo: 'generar_aviso' }, 'Aviso generado.')}
                 />
               ) : null}
               {has('calcular') ? (

@@ -1,5 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
+
+import { DocumentosProcesoCard } from '@/components/ciclo/DocumentosProcesoCard';
 import { useMemo, useState } from 'react';
 import { Alert, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -61,6 +63,7 @@ export default function EvaluacionDetailScreen() {
           <Resumen evaluacion={evaluacion} />
           {actions.capturar ? <CapturaForm key={`${evaluacion.id}-${evaluacion.estado}`} evaluacion={evaluacion} /> : <Resultado evaluacion={evaluacion} />}
           {actions.autorizar || actions.devolver ? <Autorizacion evaluacion={evaluacion} /> : null}
+          {evaluacion.estado === 'autorizada' ? <DocumentosProcesoCard origen={{ tipo: 'evaluacion', id: evaluacion.id }} /> : null}
           {!actions.capturar && !actions.autorizar && evaluacion.estado !== 'autorizada' ? (
             <Notice tone="info">
               {evaluacion.estado === 'capturada'

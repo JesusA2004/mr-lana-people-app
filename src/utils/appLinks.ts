@@ -125,6 +125,9 @@ export function resolveResourceRoute(data: PushNotificationData): string | null 
       if (data.related_type === 'OnboardingAvance' || data.related_type === 'OnboardingProceso') {
         return colaboradorId ? `/(app)/rh/onboarding/${colaboradorId}` : '/(app)/rh/(tabs)/pendientes';
       }
+      // Documentos del proceso (contrato listo, expediente completo, firma pendiente): proceso de la persona.
+      if (data.related_type === 'Colaborador') return id ? `/(app)/rh/colaboradores/${id}` : '/(app)/rh/(tabs)/pendientes';
+      if (data.related_type === 'Prestamo') return id ? `/(app)/rh/prestamos/${id}` : '/(app)/rh/(tabs)/pendientes';
       if (data.related_type === 'ContratoLaboral' || data.related_type === 'GeneratedDocument') {
         return colaboradorId ? `/(app)/rh/colaboradores/${colaboradorId}` : '/(app)/rh/(tabs)/pendientes';
       }

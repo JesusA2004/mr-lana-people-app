@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/AppHeader';
+import { DocumentosProcesoCard } from '@/components/ciclo/DocumentosProcesoCard';
 import { PrestamoDecision } from '@/components/ciclo/PrestamoDecision';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
@@ -303,6 +304,10 @@ export default function RhSolicitudDetailScreen() {
             {solicitud.tipo === 'prestamo' && solicitud.prestamo ? (
               <PrestamoDecision solicitudId={Number(solicitud.id)} estado={solicitud.estado} prestamo={solicitud.prestamo} onDone={() => void refetch()} />
             ) : null}
+
+            {/* Formato oficial de permiso (PDF MR. LANA) y documentos del préstamo: los decide el backend. */}
+            <DocumentosProcesoCard origen={{ tipo: 'solicitud', id: Number(solicitud.id) }} />
+            {solicitud.prestamo?.prestamo_id ? <DocumentosProcesoCard origen={{ tipo: 'prestamo', id: solicitud.prestamo.prestamo_id }} /> : null}
 
             {solicitud.adjuntos.length > 0 ? (
               <Card style={styles.fieldCard}>
