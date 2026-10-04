@@ -10,7 +10,7 @@ import { Confetti } from './Confetti';
 import { MascotAvatar } from './mascot/MascotAvatar';
 import { SkeletonBlock } from './SkeletonBlock';
 
-import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useBirthdayImageSource } from '@/hooks/queries/useBirthday';
 import type { BirthdayGreeting } from '@/types/birthday';

@@ -5,7 +5,7 @@ import { Card } from '@/components/Card';
 import { InfoRow } from '@/components/ciclo/InfoRow';
 import { Notice, SectionTitle } from '@/components/ciclo/Screen';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Colors, FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
 import { useEstilos } from '@/theme/ThemeProvider';
 import type { Prestamo, PrestamoDocumentoRef } from '@/types/loan';
 import { formatDateLong, formatDateTime } from '@/utils/dates';

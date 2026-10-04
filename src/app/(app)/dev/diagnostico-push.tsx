@@ -8,7 +8,7 @@ import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Notice } from '@/components/ciclo/Screen';
-import { Colors, FontSize, Layout, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Layout, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { SHOW_DEV_TOOLS } from '@/constants/config';
 import {

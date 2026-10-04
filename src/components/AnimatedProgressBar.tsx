@@ -2,8 +2,8 @@ import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
-import { Colors, Radius, type ColorPalette } from '@/constants/colors';
-import { useEstilos } from '@/theme/ThemeProvider';
+import { Radius, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { Motion } from '@/constants/motion';
 
 export interface AnimatedProgressBarProps {
@@ -14,7 +14,8 @@ export interface AnimatedProgressBarProps {
   height?: number;
 }
 
-export function AnimatedProgressBar({ percent, color = Colors.primary, trackColor = Colors.surfaceMuted, height = 8 }: AnimatedProgressBarProps) {
+export function AnimatedProgressBar({ percent, color, trackColor, height = 8 }: AnimatedProgressBarProps) {
+  const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   const clamped = Math.max(0, Math.min(100, percent));
   const width = useSharedValue(0);
@@ -29,10 +30,10 @@ export function AnimatedProgressBar({ percent, color = Colors.primary, trackColo
 
   return (
     <View
-      style={[styles.track, { backgroundColor: trackColor, height, borderRadius: height / 2 }]}
+      style={[styles.track, { backgroundColor: trackColor ?? Colors.surfaceMuted, height, borderRadius: height / 2 }]}
       accessibilityRole="progressbar"
       accessibilityValue={{ min: 0, max: 100, now: Math.round(clamped) }}>
-      <Animated.View style={[styles.fill, { backgroundColor: color, borderRadius: height / 2 }, animatedStyle]} />
+      <Animated.View style={[styles.fill, { backgroundColor: color ?? Colors.primary, borderRadius: height / 2 }, animatedStyle]} />
     </View>
   );
 }

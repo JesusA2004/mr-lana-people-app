@@ -8,7 +8,7 @@ import { FilterChips } from '@/components/ciclo/FilterChips';
 import { Field } from '@/components/ciclo/FormSheet';
 import { Notice, Screen, SectionTitle } from '@/components/ciclo/Screen';
 import { DateField } from '@/components/forms/DateField';
-import { Colors, FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
 import { useEstilos } from '@/theme/ThemeProvider';
 import { useRhIniciarCierre } from '@/hooks/queries/useRhCicloLaboral';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';

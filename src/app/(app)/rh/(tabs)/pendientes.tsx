@@ -10,7 +10,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { PressableScale } from '@/components/PressableScale';
 import { RhPendienteCard } from '@/components/RhPendienteCard';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useRhPendientesInfinite } from '@/hooks/queries/useRhPendientes';
 import type { RhPendienteFiltro } from '@/types/rh';

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 
-import { Colors, FontSize, Radius, type ColorPalette } from '@/constants/colors';
+import { FontSize, Radius, type ColorPalette } from '@/constants/colors';
 import { useEstilos } from '@/theme/ThemeProvider';
 import { getInitials } from '@/utils/formatters';
 

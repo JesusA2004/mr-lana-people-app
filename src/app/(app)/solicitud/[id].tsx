@@ -14,7 +14,7 @@ import { RequestStatusTimeline } from '@/components/RequestStatusTimeline';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { SolicitudFormatoOficialCard } from '@/components/SolicitudFormatoOficialCard';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { MascotMessages } from '@/constants/mascotMessages';
 import { useAddSolicitudAttachment, useCancelSolicitud, useSolicitud } from '@/hooks/queries/useSolicitudes';

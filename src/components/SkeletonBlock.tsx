@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { StyleSheet, View, type DimensionValue } from 'react-native';
 import Animated, { cancelAnimation, Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 
-import { Colors, Radius, type ColorPalette } from '@/constants/colors';
+import { Radius, type ColorPalette } from '@/constants/colors';
 import { useEstilos } from '@/theme/ThemeProvider';
 
 export interface SkeletonBlockProps {
@@ -37,6 +37,7 @@ const crearEstilos = (Colors: ColorPalette) =>
   });
 
 export function SkeletonCardList({ count = 3 }: { count?: number }) {
+  const skeletonCardStyles = useEstilos(crearEstilosTarjeta);
   return (
     <View style={{ gap: 12 }}>
       {Array.from({ length: count }).map((_, index) => (
@@ -50,12 +51,13 @@ export function SkeletonCardList({ count = 3 }: { count?: number }) {
   );
 }
 
-const skeletonCardStyles = StyleSheet.create({
-  card: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: 16,
-  },
-});
+const crearEstilosTarjeta = (Colors: ColorPalette) =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: Colors.surface,
+      borderRadius: Radius.lg,
+      borderWidth: 1,
+      borderColor: Colors.border,
+      padding: 16,
+    },
+  });

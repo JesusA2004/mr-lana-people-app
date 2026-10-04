@@ -11,7 +11,7 @@ import { Notice, Screen, SectionTitle } from '@/components/ciclo/Screen';
 import { DateField } from '@/components/forms/DateField';
 import { PressableScale } from '@/components/PressableScale';
 import { Stepper } from '@/components/Stepper';
-import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useRhActa, useRhGuardarActa } from '@/hooks/queries/useRhCicloLaboral';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';

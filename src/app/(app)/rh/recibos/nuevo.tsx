@@ -10,7 +10,7 @@ import { Field } from '@/components/ciclo/FormSheet';
 import { Notice, Screen, SectionTitle } from '@/components/ciclo/Screen';
 import { DateField } from '@/components/forms/DateField';
 import { PressableScale } from '@/components/PressableScale';
-import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useRhCrearRecibo } from '@/hooks/queries/useRhCicloLaboral';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -30,9 +30,9 @@ interface ConceptoForm {
 const NUEVO: ConceptoForm = { tipo: 'percepcion', concepto: '', importe: '', cantidad: '' };
 
 /**
- * Recibo interno individual — `POST /rh/colaboradores/{id}/recibos`
+ * Recibo de nómina individual — `POST /rh/colaboradores/{id}/recibos`
  * (`ReciboNominaRequest`). La app captura conceptos; folio, totales y PDF
- * los genera el backend. No es CFDI.
+ * los genera el backend.
  */
 export default function RhNuevoReciboScreen() {
   const Colors = useColores();

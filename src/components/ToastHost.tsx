@@ -4,19 +4,19 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { Easing, FadeInDown, FadeOutUp } from 'react-native-reanimated';
 
-import { Colors, FontSize, Radius, Shadow, Spacing } from '@/constants/colors';
+import { FontSize, Radius, Shadow, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores } from '@/theme/ThemeProvider';
 import { useToastStore, type ToastItem, type ToastType } from '@/store/toastStore';
 import { haptics } from '@/utils/haptics';
 
 const TOAST_DURATION_MS = 3200;
 
-const TOAST_STYLES: Record<ToastType, { icon: keyof typeof Ionicons.glyphMap; color: string; background: string }> = {
+const estilosDeToast = (Colors: ColorPalette): Record<ToastType, { icon: keyof typeof Ionicons.glyphMap; color: string; background: string }> => ({
   success: { icon: 'checkmark-circle', color: Colors.success, background: Colors.successSoft },
   error: { icon: 'close-circle', color: Colors.danger, background: Colors.dangerSoft },
   warning: { icon: 'alert-circle', color: Colors.warning, background: Colors.warningSoft },
   info: { icon: 'information-circle', color: Colors.info, background: Colors.infoSoft },
-};
+});
 
 /** Móntalo una sola vez, cerca de la raíz de la app (ver src/app/_layout.tsx). */
 export function ToastHost() {
@@ -35,7 +35,7 @@ export function ToastHost() {
 
 function ToastRow({ item, onDismiss }: { item: ToastItem; onDismiss: () => void }) {
   const Colors = useColores();
-  const style = TOAST_STYLES[item.type];
+  const style = estilosDeToast(Colors)[item.type];
 
   useEffect(() => {
     if (item.type === 'success') haptics.success();

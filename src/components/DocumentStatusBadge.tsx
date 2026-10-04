@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores } from '@/theme/ThemeProvider';
 import type { DocumentStatus } from '@/types/document';
 
 interface DocumentStatusStyle {
@@ -12,7 +13,7 @@ interface DocumentStatusStyle {
 }
 
 /** Espejo de App\Enums\EstadoDocumento::etiqueta() — mismos 10 valores exactos. */
-const DOCUMENT_STATUS_STYLES: Record<DocumentStatus, DocumentStatusStyle> = {
+const estilosDeEstado = (Colors: ColorPalette): Record<DocumentStatus, DocumentStatusStyle> => ({
   pendiente: { icon: 'ellipse-outline', color: Colors.textMuted, background: Colors.neutralSoft, label: 'Pendiente' },
   cargado: { icon: 'cloud-upload-outline', color: Colors.info, background: Colors.infoSoft, label: 'Cargado' },
   en_revision: { icon: 'hourglass-outline', color: Colors.warning, background: Colors.warningSoft, label: 'En revisión' },
@@ -23,21 +24,22 @@ const DOCUMENT_STATUS_STYLES: Record<DocumentStatus, DocumentStatusStyle> = {
   archivado: { icon: 'archive-outline', color: Colors.textMuted, background: Colors.neutralSoft, label: 'Archivado' },
   cambio_solicitado: { icon: 'sync-outline', color: Colors.warning, background: Colors.warningSoft, label: 'Cambio solicitado' },
   cambio_autorizado: { icon: 'checkmark-done-outline', color: Colors.info, background: Colors.infoSoft, label: 'Cambio autorizado' },
-};
+});
 
-const PENDING_STYLE: DocumentStatusStyle = {
+const estiloPendiente = (Colors: ColorPalette): DocumentStatusStyle => ({
   icon: 'ellipse-outline',
   color: Colors.textMuted,
   background: Colors.neutralSoft,
   label: 'Sin cargar',
-};
+});
 
 export interface DocumentStatusBadgeProps {
   status?: DocumentStatus | null;
 }
 
 export function DocumentStatusBadge({ status }: DocumentStatusBadgeProps) {
-  const style = status ? (DOCUMENT_STATUS_STYLES[status] ?? PENDING_STYLE) : PENDING_STYLE;
+  const Colors = useColores();
+  const style = (status ? estilosDeEstado(Colors)[status] : undefined) ?? estiloPendiente(Colors);
 
   return (
     <View style={[styles.badge, { backgroundColor: style.background }]}>

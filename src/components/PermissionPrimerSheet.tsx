@@ -5,7 +5,7 @@ import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
 
 import { Button } from './Button';
 
-import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 
 export type PermissionPrimerKind = 'camera' | 'gallery' | 'push' | 'biometric' | 'qr';

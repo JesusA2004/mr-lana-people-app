@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { Card } from './Card';
 
-import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import type { RhPendiente } from '@/types/rh';
 import { formatDateTime } from '@/utils/dates';

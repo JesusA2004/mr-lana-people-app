@@ -17,7 +17,7 @@ import { MotivoModal } from '@/components/MotivoModal';
 import { PressableScale } from '@/components/PressableScale';
 import { SecureDocumentViewer } from '@/components/SecureDocumentViewer';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useRhDocumentoLaboral, useRhOperarDocumentoLaboral, type RhDocumentoOperacion } from '@/hooks/queries/useRhCicloLaboral';

@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import { StyleSheet, Text } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
-import { Colors, FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
 import { useEstilos } from '@/theme/ThemeProvider';
 
 export interface PrivacyOverlayProps {

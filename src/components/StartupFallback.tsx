@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
-import { Colors, Spacing, type ColorPalette } from '@/constants/colors';
+import { Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 
 /**

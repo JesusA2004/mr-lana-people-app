@@ -3,7 +3,7 @@ import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
 
 import { Button } from './Button';
 
-import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useEstilos } from '@/theme/ThemeProvider';
 
 export interface ExitConfirmSheetProps {

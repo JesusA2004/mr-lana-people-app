@@ -5,7 +5,7 @@ import { DocumentStatusBadge } from './DocumentStatusBadge';
 import { DocumentTypeIcon } from './DocumentTypeIcon';
 import { PressableScale } from './PressableScale';
 
-import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import type { DocumentoIncorporacion } from '@/types/document';
 import { formatDateShort } from '@/utils/dates';

@@ -11,7 +11,7 @@ import { MotivoModal } from '@/components/MotivoModal';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
 import { WorkflowTimeline } from '@/components/WorkflowTimeline';
-import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useRhVacacion, useRhVacacionAprobar, useRhVacacionRechazar } from '@/hooks/queries/useRhVacaciones';
 import { toast } from '@/store/toastStore';

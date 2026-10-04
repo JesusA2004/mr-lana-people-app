@@ -9,7 +9,7 @@ import { FilePickButton } from '@/components/ciclo/FilePickButton';
 import { InfoRow } from '@/components/ciclo/InfoRow';
 import { Notice, Screen, SectionTitle } from '@/components/ciclo/Screen';
 import { DateField } from '@/components/forms/DateField';
-import { Colors, FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
 import { useEstilos } from '@/theme/ThemeProvider';
 import { useRhImportarRecibos } from '@/hooks/queries/useRhCicloLaboral';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';

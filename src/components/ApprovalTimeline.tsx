@@ -1,16 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Colors, FontSize, Spacing, type ColorPalette } from '@/constants/colors';
-import { useEstilos } from '@/theme/ThemeProvider';
+import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import type { ApprovalStep, ApprovalStepStatus } from '@/types/incorporation';
 
-const STATUS_STYLE: Record<ApprovalStepStatus, { icon: keyof typeof Ionicons.glyphMap; color: string }> = {
+const estiloDeEstado = (Colors: ColorPalette): Record<ApprovalStepStatus, { icon: keyof typeof Ionicons.glyphMap; color: string }> => ({
   pending: { icon: 'ellipse-outline', color: Colors.textMuted },
   in_review: { icon: 'time', color: Colors.warning },
   approved: { icon: 'checkmark-circle', color: Colors.success },
   rejected: { icon: 'close-circle', color: Colors.danger },
-};
+});
 
 export interface ApprovalTimelineProps {
   steps: ApprovalStep[];
@@ -24,10 +24,11 @@ export interface ApprovalTimelineProps {
  */
 export function ApprovalTimeline({ steps }: ApprovalTimelineProps) {
   const styles = useEstilos(crearEstilos);
+  const estilos = estiloDeEstado(useColores());
   return (
     <View style={styles.container}>
       {steps.map((step, index) => {
-        const style = STATUS_STYLE[step.status];
+        const style = estilos[step.status];
         const isLast = index === steps.length - 1;
         return (
           <View key={step.key} style={styles.row}>

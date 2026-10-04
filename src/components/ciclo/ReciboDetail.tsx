@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Card } from '@/components/Card';
 import { InfoRow } from '@/components/ciclo/InfoRow';
 import { Notice, SectionTitle } from '@/components/ciclo/Screen';
-import { Colors, FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
 import { useEstilos } from '@/theme/ThemeProvider';
 import type { ReciboConcepto, ReciboNomina } from '@/types/payroll';
 import { formatDateLong } from '@/utils/dates';
@@ -11,7 +11,7 @@ import { formatCurrencyMXN } from '@/utils/formatters';
 import { formatPeriodo, reciboPeriodoLabel, splitConceptos } from '@/utils/payroll';
 
 /**
- * Cuerpo del recibo interno (colaborador y RH). Totales tal cual los manda
+ * Cuerpo del recibo de nómina (colaborador y RH). Totales tal cual los manda
  * el backend — nunca se recalculan en el dispositivo.
  */
 export function ReciboDetail({ recibo, colaboradorNombre }: { recibo: ReciboNomina; colaboradorNombre?: string | null }) {

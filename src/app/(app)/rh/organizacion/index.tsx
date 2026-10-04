@@ -8,7 +8,7 @@ import { ErrorState } from '@/components/ErrorState';
 import { EmptyState } from '@/components/EmptyState';
 import { OrganizationTreeNode } from '@/components/OrganizationTreeNode';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
-import { Colors, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useEstilos } from '@/theme/ThemeProvider';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useRhOrganigramaPersonas } from '@/hooks/queries/useRhCicloLaboral';

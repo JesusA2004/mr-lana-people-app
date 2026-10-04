@@ -12,7 +12,7 @@ import { PressableScale } from '@/components/PressableScale';
 import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { SecurityWatermark } from '@/components/SecurityWatermark';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useIncorporacion } from '@/hooks/queries/useIncorporacion';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';

@@ -12,7 +12,7 @@ import { DocumentUploadSheet, type PickedDocumentFile } from '@/components/Docum
 import { ErrorState } from '@/components/ErrorState';
 import { MascotAssistant } from '@/components/mascot/MascotAssistant';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useIncorporacion, useSolicitarCambioDocumento, useUploadDocumento } from '@/hooks/queries/useIncorporacion';
 import { toast } from '@/store/toastStore';

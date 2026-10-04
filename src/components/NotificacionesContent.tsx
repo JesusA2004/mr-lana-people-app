@@ -10,7 +10,7 @@ import { MascotAssistant } from './mascot/MascotAssistant';
 import { PressableScale } from './PressableScale';
 import { SkeletonCardList } from './SkeletonBlock';
 
-import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { MascotMessages } from '@/constants/mascotMessages';
 import { useAbrirNotificacion, useMarkAllNotificacionesLeidas, useNotificaciones } from '@/hooks/queries/useNotificaciones';

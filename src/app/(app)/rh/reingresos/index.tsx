@@ -11,7 +11,7 @@ import { ItemCard, LoadMore } from '@/components/ciclo/ItemCard';
 import { EmptyMessage, Notice, Screen, SectionTitle } from '@/components/ciclo/Screen';
 import { MotivoModal } from '@/components/MotivoModal';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useRhDecidirReingreso, useRhReingresoBuscar, useRhReingresoHistorial, useRhReingresos, useRhSolicitarReingreso } from '@/hooks/queries/useRhReingresos';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';

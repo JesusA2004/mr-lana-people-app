@@ -3,7 +3,6 @@ import { useEffect } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 
-import { Colors } from '@/constants/colors';
 import { useColores } from '@/theme/ThemeProvider';
 
 export type RhIdentityBadgeSize = 'xs' | 'sm' | 'md' | 'lg' | 'hero';

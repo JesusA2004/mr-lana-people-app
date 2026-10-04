@@ -5,7 +5,7 @@ import { Card } from '@/components/Card';
 import { FilterChips } from '@/components/ciclo/FilterChips';
 import { InfoRow } from '@/components/ciclo/InfoRow';
 import { Screen, SectionTitle } from '@/components/ciclo/Screen';
-import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useEstilos } from '@/theme/ThemeProvider';
 import { useRhIndicadores } from '@/hooks/queries/useRhCicloLaboral';
 import { formatDateShort, toApiDateString } from '@/utils/dates';

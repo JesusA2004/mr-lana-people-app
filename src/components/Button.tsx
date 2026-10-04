@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
 
-import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { Motion } from '@/constants/motion';
 import { crearGuardiaDobleToque } from '@/utils/dobleToque';
@@ -45,6 +45,8 @@ export function Button({ title, onPress, variant = 'primary', loading = false, d
   'use no memo';
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
+  const variantStyles = useEstilos(crearEstilosVariante);
+  const variantLabelStyles = useEstilos(crearEstilosEtiqueta);
   // Doble toque: nunca dos envíos de la misma acción (ver utils/dobleToque).
   const guardia = useRef(crearGuardiaDobleToque()).current;
   const [ocupado, setOcupado] = useState(false);
@@ -144,7 +146,8 @@ const crearEstilos = (Colors: ColorPalette) =>
     },
   });
 
-const variantStyles = StyleSheet.create({
+const crearEstilosVariante = (Colors: ColorPalette) =>
+  StyleSheet.create({
   primary: {
     backgroundColor: Colors.primary,
   },
@@ -164,7 +167,8 @@ const variantStyles = StyleSheet.create({
   },
 });
 
-const variantLabelStyles = StyleSheet.create({
+const crearEstilosEtiqueta = (Colors: ColorPalette) =>
+  StyleSheet.create({
   primary: { color: Colors.white },
   secondary: { color: Colors.white },
   outline: { color: Colors.primaryDark },

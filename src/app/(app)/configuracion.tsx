@@ -10,7 +10,7 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { PressableScale } from '@/components/PressableScale';
 import { ExperienceSwitchCard } from '@/components/ExperienceSwitchCard';
-import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { SHOW_DEV_TOOLS } from '@/constants/config';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
@@ -72,7 +72,7 @@ export default function ConfiguracionScreen() {
     ]);
   };
 
-  const pushInfo = describePushSnapshot(pushSnapshot);
+  const pushInfo = describePushSnapshot(pushSnapshot, Colors);
 
   const handleActivatePush = async () => {
     // `canAskAgain` (no `status === 'undetermined'`) decide si el sistema
@@ -211,7 +211,7 @@ export default function ConfiguracionScreen() {
  * Estado del permiso en palabras (nunca solo color). iOS "provisional"
  * entrega en silencio a la bandeja: cuenta como permitido pero se nombra.
  */
-function describePushSnapshot(snapshot: PushPermissionSnapshot | null): {
+function describePushSnapshot(snapshot: PushPermissionSnapshot | null, Colors: ColorPalette): {
   label: string;
   hint?: string;
   icon: keyof typeof Ionicons.glyphMap;

@@ -13,7 +13,7 @@ import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
 import { Input } from '@/components/Input';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useEstilos } from '@/theme/ThemeProvider';
 import { REMEMBERED_EMAIL_KEY } from '@/constants/config';
 import { useAuthStore } from '@/store/authStore';

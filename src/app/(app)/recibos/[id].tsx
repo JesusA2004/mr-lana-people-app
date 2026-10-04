@@ -10,7 +10,7 @@ import { useMiRecibo } from '@/hooks/queries/useCicloLaboral';
 import { slugifyFilename } from '@/utils/formatters';
 
 /**
- * Detalle del recibo interno — `GET /colaborador/recibos/{id}` (Policy
+ * Detalle del recibo de nómina — `GET /colaborador/recibos/{id}` (Policy
  * `ReciboNominaPolicy::ver`, solo el propio). PDF por streaming autenticado
  * SOLO si `tiene_pdf === true`: nunca un botón que termine en 404.
  */

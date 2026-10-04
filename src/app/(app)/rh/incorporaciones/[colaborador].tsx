@@ -10,7 +10,7 @@ import { ErrorState } from '@/components/ErrorState';
 import { MotivoModal } from '@/components/MotivoModal';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useRhIncorporacion, useRhIncorporacionAprobar, useRhIncorporacionRechazar } from '@/hooks/queries/useRhIncorporaciones';
 import { toast } from '@/store/toastStore';

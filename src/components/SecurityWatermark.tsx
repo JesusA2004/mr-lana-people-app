@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Colors, FontSize, type ColorPalette } from '@/constants/colors';
+import { FontSize, type ColorPalette } from '@/constants/colors';
 import { useEstilos } from '@/theme/ThemeProvider';
 
 export interface SecurityWatermarkProps {

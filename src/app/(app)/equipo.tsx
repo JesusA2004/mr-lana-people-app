@@ -9,7 +9,7 @@ import { ItemCard } from '@/components/ciclo/ItemCard';
 import { PersonaRow } from '@/components/ciclo/JerarquiaCard';
 import { EmptyMessage, Notice, Screen, SectionTitle } from '@/components/ciclo/Screen';
 import { MotivoModal } from '@/components/MotivoModal';
-import { Colors, FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
 import { useEstilos } from '@/theme/ThemeProvider';
 import { useEquipo, useEquipoPendientes, useVistoBueno } from '@/hooks/queries/useTrabajo';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';

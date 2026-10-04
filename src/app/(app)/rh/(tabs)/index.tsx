@@ -12,7 +12,7 @@ import { PressableScale } from '@/components/PressableScale';
 import { RhIdentityBadge } from '@/components/RhIdentityBadge';
 import { RhPendienteCard } from '@/components/RhPendienteCard';
 import { SkeletonBlock, SkeletonCardList } from '@/components/SkeletonBlock';
-import { Colors, ColorSchemeAtLaunch, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { ColorSchemeAtLaunch, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useRhContratosPorVencer, useRhDocumentosLaboralesPendientes } from '@/hooks/queries/useRhCicloLaboral';

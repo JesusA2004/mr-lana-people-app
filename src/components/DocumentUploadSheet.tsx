@@ -9,7 +9,7 @@ import { Button } from './Button';
 import { PermissionPrimerSheet, type PermissionPrimerKind } from './PermissionPrimerSheet';
 import { PressableScale } from './PressableScale';
 
-import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { toast } from '@/store/toastStore';
 import { getErrorMessage, logError } from '@/utils/errors';

@@ -72,7 +72,7 @@ export const cicloLaboralApi = {
   },
 };
 
-/** Recibos INTERNOS de nómina propios (no fiscales). Solo lectura. */
+/** Recibos de nómina propios. Solo lectura. */
 export const recibosApi = {
   async list(page = 1, perPage = 20): Promise<Paginated<ReciboNomina>> {
     const response = await apiClient.get('/colaborador/recibos', { params: { page, per_page: perPage } });

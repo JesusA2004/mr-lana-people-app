@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { StyleSheet } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 
-import { Colors, type ColorPalette } from '@/constants/colors';
+import { type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 
 export interface SuccessCheckProps {

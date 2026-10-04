@@ -8,7 +8,7 @@ import { PressableScale } from './PressableScale';
 import { ProfileAvatar } from './ProfileAvatar';
 import { RhIdentityBadge } from './RhIdentityBadge';
 
-import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { Motion } from '@/constants/motion';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';

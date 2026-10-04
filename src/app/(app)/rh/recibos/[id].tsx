@@ -15,7 +15,7 @@ import { getActionErrorMessage, logError } from '@/utils/errors';
 import { joinName, slugifyFilename } from '@/utils/formatters';
 import { confirmAction } from '@/utils/confirm';
 
-/** Detalle RH de un recibo interno + PDF (solo si existe) + regenerar PDF (`nomina.recibos.crear`). */
+/** Detalle RH de un recibo de nómina + PDF (solo si existe) + regenerar PDF (`nomina.recibos.crear`). */
 export default function RhReciboScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const query = useRhRecibo(id);

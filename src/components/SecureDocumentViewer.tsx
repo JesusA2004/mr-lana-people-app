@@ -13,7 +13,7 @@ import { PdfViewer } from './PdfViewer';
 import { SecurityWatermark } from './SecurityWatermark';
 import { SkeletonBlock } from './SkeletonBlock';
 
-import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useEstilos } from '@/theme/ThemeProvider';
 import { API_URL } from '@/constants/config';
 import { useAuthStore } from '@/store/authStore';

@@ -5,7 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { BirthdayCelebration } from '@/components/BirthdayCelebration';
 import { ErrorState } from '@/components/ErrorState';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
-import { Colors, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useEstilos } from '@/theme/ThemeProvider';
 import { useBirthdayGreeting } from '@/hooks/queries/useBirthday';
 import { useAuthStore } from '@/store/authStore';

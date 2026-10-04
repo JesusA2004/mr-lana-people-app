@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 
-import { Colors, Radius, type ColorPalette } from '@/constants/colors';
+import { Radius, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { Motion } from '@/constants/motion';
 

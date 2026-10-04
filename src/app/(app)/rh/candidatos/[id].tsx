@@ -14,7 +14,7 @@ import { MotivoModal } from '@/components/MotivoModal';
 import { PressableScale } from '@/components/PressableScale';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Stepper } from '@/components/Stepper';
-import { Colors, FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useRhCandidato, useRhOperarCandidato, type RhCandidatoOperacion } from '@/hooks/queries/useRhCandidatos';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';

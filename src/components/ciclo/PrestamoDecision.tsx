@@ -8,8 +8,8 @@ import { FilterChips } from '@/components/ciclo/FilterChips';
 import { Field, FormSheet } from '@/components/ciclo/FormSheet';
 import { Notice, SectionTitle } from '@/components/ciclo/Screen';
 import { MotivoModal } from '@/components/MotivoModal';
-import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
-import { useEstilos } from '@/theme/ThemeProvider';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useRhDecidirPrestamo } from '@/hooks/queries/useRhCicloLaboral';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { toast } from '@/store/toastStore';
@@ -31,12 +31,12 @@ export interface PrestamoDecisionProps {
   onDone: () => void;
 }
 
-const TONE_COLOR: Record<VistoBuenoTono, { fg: string; bg: string; icon: keyof typeof Ionicons.glyphMap }> = {
+const colorDeTono = (Colors: ColorPalette): Record<VistoBuenoTono, { fg: string; bg: string; icon: keyof typeof Ionicons.glyphMap }> => ({
   success: { fg: Colors.success, bg: Colors.successSoft, icon: 'checkmark-circle' },
   warning: { fg: Colors.warning, bg: Colors.warningSoft, icon: 'time-outline' },
   danger: { fg: Colors.danger, bg: Colors.dangerSoft, icon: 'close-circle' },
   neutral: { fg: Colors.textMuted, bg: Colors.neutralSoft, icon: 'remove-circle-outline' },
-};
+});
 
 /**
  * Decisión de un préstamo desde la solicitud RH: única vía para autorizar
@@ -49,6 +49,7 @@ const TONE_COLOR: Record<VistoBuenoTono, { fg: string; bg: string; icon: keyof t
  * backend sigue siendo la autoridad final (403/422 se muestran tal cual).
  */
 export function PrestamoDecision({ solicitudId, estado, prestamo, onDone }: PrestamoDecisionProps) {
+  const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   const decidir = useRhDecidirPrestamo(solicitudId);
   const { isOffline } = useNetworkStatus();
@@ -62,7 +63,7 @@ export function PrestamoDecision({ solicitudId, estado, prestamo, onDone }: Pres
   const abierta = estado === 'enviada' || estado === 'en_revision';
   const vb = prestamo.visto_bueno;
   const vbInfo = describirVistoBueno(vb);
-  const tone = TONE_COLOR[vbInfo.tone];
+  const tone = colorDeTono(Colors)[vbInfo.tone];
   const plazoTexto = formatPlazoMeses(prestamo.plazo_solicitado);
   const motivoBloqueo = abierta ? motivoNoAutorizable(prestamo) : null;
 

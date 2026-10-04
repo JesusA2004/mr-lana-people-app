@@ -18,17 +18,16 @@ import { StartupFallback } from '@/components/StartupFallback';
 import { ToastHost } from '@/components/ToastHost';
 import { UpdateBanner } from '@/components/UpdateBanner';
 import { Colors, ColorSchemeAtLaunch } from '@/constants/colors';
-import { useColores } from '@/theme/ThemeProvider';
 import { IS_API_URL_CONFIGURED } from '@/constants/config';
 import { useAppConfig } from '@/hooks/queries/useAppRelease';
 import { useAppTheme } from '@/hooks/queries/useAppTheme';
 import { useNotificationResponseRouting } from '@/hooks/useNotificationResponseRouting';
 import { usePushRegistration } from '@/hooks/usePushRegistration';
 import { useAppThemeStore } from '@/store/appThemeStore';
-import { ThemeProvider } from '@/theme/ThemeProvider';
 import { useAuthStore } from '@/store/authStore';
 import { useMaintenanceStore } from '@/store/maintenanceStore';
 import { useOnboardingStore } from '@/store/onboardingStore';
+import { ThemeProvider, useColores } from '@/theme/ThemeProvider';
 import { logError } from '@/utils/errors';
 import { isSplashReady, resolveStartupView } from '@/utils/startup';
 

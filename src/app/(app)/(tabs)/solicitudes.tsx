@@ -11,7 +11,7 @@ import { MascotAssistant } from '@/components/mascot/MascotAssistant';
 import { PressableScale } from '@/components/PressableScale';
 import { RequestCard } from '@/components/RequestCard';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { MascotMessages } from '@/constants/mascotMessages';
 import { requestFamily, type RequestFamily } from '@/constants/requestTypes';

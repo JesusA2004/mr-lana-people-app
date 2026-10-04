@@ -10,7 +10,7 @@ import { ErrorState } from '@/components/ErrorState';
 import { FadeInView } from '@/components/FadeInView';
 import { PressableScale } from '@/components/PressableScale';
 import { SkeletonBlock, SkeletonCardList } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useMiExpediente } from '@/hooks/queries/useCicloLaboral';
 import { useIncorporacion } from '@/hooks/queries/useIncorporacion';
@@ -18,12 +18,12 @@ import type { DocumentoIncorporacion } from '@/types/document';
 import { getDevErrorDetail, getErrorMessage } from '@/utils/errors';
 import { documentStatusGlyph, progressBreakdown, progressHeadline, toExpedienteProgress, type DocumentGlyphTone } from '@/utils/expedienteProgress';
 
-const TONE: Record<DocumentGlyphTone, string> = {
+const tono = (Colors: ColorPalette): Record<DocumentGlyphTone, string> => ({
   success: Colors.success,
   warning: Colors.warning,
   danger: Colors.danger,
   neutral: Colors.textMuted,
-};
+});
 
 /**
  * Mi expediente: cuánto llevo (regla del backend: solo documentos
@@ -129,10 +129,10 @@ function DocumentList({ title, documentos, onOpen }: { title: string; documentos
               accessibilityLabel={`${documento.nombre}: ${glyph.label}`}
               onPress={() => onOpen(documento)}
               style={[styles.row, index < documentos.length - 1 && styles.rowDivider]}>
-              <Ionicons name={glyph.icon} size={22} color={TONE[glyph.tone]} />
+              <Ionicons name={glyph.icon} size={22} color={tono(Colors)[glyph.tone]} />
               <View style={styles.rowText}>
                 <Text style={styles.rowTitle}>{documento.nombre}</Text>
-                <Text style={[styles.rowStatus, { color: TONE[glyph.tone] }]}>{glyph.label}</Text>
+                <Text style={[styles.rowStatus, { color: tono(Colors)[glyph.tone] }]}>{glyph.label}</Text>
               </View>
               <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
             </PressableScale>

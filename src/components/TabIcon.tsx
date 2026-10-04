@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { StyleSheet, Text, View, type ColorValue } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 
-import { Colors, FontSize, type ColorPalette } from '@/constants/colors';
+import { FontSize, type ColorPalette } from '@/constants/colors';
 import { useEstilos } from '@/theme/ThemeProvider';
 import { Motion } from '@/constants/motion';
 

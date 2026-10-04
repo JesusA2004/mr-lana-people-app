@@ -7,7 +7,7 @@ import { FilterChips } from '@/components/ciclo/FilterChips';
 import { ItemCard, LoadMore } from '@/components/ciclo/ItemCard';
 import { EmptyMessage, Screen } from '@/components/ciclo/Screen';
 import { PressableScale } from '@/components/PressableScale';
-import { Colors, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useRhCandidatos } from '@/hooks/queries/useRhCandidatos';
 import { candidatoBadge } from '@/utils/candidato';

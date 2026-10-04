@@ -1,6 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
-import { Colors, Radius, type ColorPalette } from '@/constants/colors';
+import { Radius, type ColorPalette } from '@/constants/colors';
 import { useEstilos } from '@/theme/ThemeProvider';
 
 export interface DemoAvatarIllustrationProps {

@@ -12,7 +12,7 @@ import { MoneyField } from '@/components/forms/MoneyField';
 import { SelectField } from '@/components/forms/SelectField';
 import { Input } from '@/components/Input';
 import { Stepper } from '@/components/Stepper';
-import { Colors, FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { retryUnlessClientError, SENSITIVE_MUTATION } from '@/hooks/queries/queryOptions';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';

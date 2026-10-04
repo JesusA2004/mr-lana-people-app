@@ -8,7 +8,7 @@ import { Card } from '@/components/Card';
 import { Field, FormSheet } from '@/components/ciclo/FormSheet';
 import { EmptyMessage, Notice, Screen, SectionTitle } from '@/components/ciclo/Screen';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Colors, FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useRhCompletarOnboarding, useRhEntregarActivo, useRhOnboarding, useRhRetroalimentar } from '@/hooks/queries/useRhOnboarding';
 import type { OnboardingActivoRh, OnboardingModuloRh } from '@/api/rh/onboarding';

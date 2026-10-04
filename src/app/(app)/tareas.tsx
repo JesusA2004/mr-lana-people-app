@@ -7,7 +7,7 @@ import { Card } from '@/components/Card';
 import { FilterChips } from '@/components/ciclo/FilterChips';
 import { LoadMore } from '@/components/ciclo/ItemCard';
 import { EmptyMessage, Screen } from '@/components/ciclo/Screen';
-import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useLeerTarea, useResolverTarea, useTareas } from '@/hooks/queries/useTrabajo';
@@ -19,12 +19,12 @@ import { formatDateShort } from '@/utils/dates';
 import { getActionErrorMessage, logError } from '@/utils/errors';
 import { resolveTaskRoute } from '@/utils/taskRoutes';
 
-const PRIORIDAD: Record<string, { label: string; color: string; background: string }> = {
+const prioridades = (Colors: ColorPalette): Record<string, { label: string; color: string; background: string }> => ({
   urgente: { label: 'Urgente', color: Colors.danger, background: Colors.dangerSoft },
   alta: { label: 'Alta', color: Colors.warning, background: Colors.warningSoft },
   media: { label: 'Media', color: Colors.info, background: Colors.infoSoft },
   baja: { label: 'Baja', color: Colors.textMuted, background: Colors.neutralSoft },
-};
+});
 
 const FILTROS: { value: TareasEstadoFiltro; label: string }[] = [
   { value: 'abiertas', label: 'Abiertas' },
@@ -98,7 +98,7 @@ export default function TareasScreen() {
       ) : (
         <View style={styles.list}>
           {tareas.map((tarea) => {
-            const prioridad = PRIORIDAD[tarea.prioridad] ?? PRIORIDAD.media;
+            const prioridad = prioridades(Colors)[tarea.prioridad] ?? prioridades(Colors).media;
             const vencida = !!tarea.vence_en && !tarea.resolved_at && new Date(`${tarea.vence_en}T23:59:59`) < new Date();
             return (
               <Card key={tarea.id} onPress={() => abrir(tarea)} style={styles.card}>

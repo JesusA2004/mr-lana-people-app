@@ -11,7 +11,7 @@ import { MotivoModal } from '@/components/MotivoModal';
 import { SecureDocumentViewer } from '@/components/SecureDocumentViewer';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import {
   useRhExpediente,

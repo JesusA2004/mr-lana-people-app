@@ -15,7 +15,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
 import { PressableScale } from '@/components/PressableScale';
 import { SkeletonBlock, SkeletonCardList } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useBirthdayWall, useBirthdayWallMessages, useEliminarMensajeMuro, usePublicarEnMuro } from '@/hooks/queries/useBirthdayWall';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';

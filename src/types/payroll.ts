@@ -1,5 +1,5 @@
 /**
- * Recibo INTERNO de nómina semanal — NO fiscal, no es CFDI, no se timbra.
+ * Recibo de nómina semanal (no se timbra).
  * Espejo de `App\Services\Nomina\ReciboNominaService::aArray()`.
  * El colaborador solo consulta; nunca edita.
  */

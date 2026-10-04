@@ -6,7 +6,7 @@ import { Platform, StyleSheet, Text, View } from 'react-native';
 import { Button } from '../Button';
 import { PressableScale } from '../PressableScale';
 
-import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { formatDateLong, toApiDateString } from '@/utils/dates';
 

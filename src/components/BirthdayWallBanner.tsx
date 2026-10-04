@@ -5,7 +5,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Avatar } from './Avatar';
 import { PressableScale } from './PressableScale';
 
-import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useBirthdayWalls } from '@/hooks/queries/useBirthdayWall';
 import { useAuthStore } from '@/store/authStore';

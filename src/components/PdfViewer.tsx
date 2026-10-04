@@ -5,7 +5,7 @@ import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
 import { SkeletonBlock } from './SkeletonBlock';
 
-import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useEstilos } from '@/theme/ThemeProvider';
 import { construirHtmlVisorPdf, partirEnTrozos } from '@/utils/pdfViewerHtml';
 import { logError } from '@/utils/errors';

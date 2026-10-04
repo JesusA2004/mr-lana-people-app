@@ -16,7 +16,7 @@ import { RH_BADGE_DIAMETER, RhIdentityBadge, type RhIdentityBadgeSize } from '@/
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Stepper } from '@/components/Stepper';
-import { ColorSchemeAtLaunch, Colors, FontSize, Layout, Palettes, Radius, Spacing, type ColorPalette, type ColorToken } from '@/constants/colors';
+import { ColorSchemeAtLaunch, FontSize, Layout, Palettes, Radius, Spacing, type ColorPalette, type ColorToken } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { SHOW_DEV_TOOLS } from '@/constants/config';
 

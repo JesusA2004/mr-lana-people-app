@@ -6,19 +6,19 @@ import { MascotAvatar, type MascotOrientation, type MascotSize } from './MascotA
 
 import { Button } from '@/components/Button';
 import { PressableScale } from '@/components/PressableScale';
-import { Colors, FontSize, Radius, Shadow, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Radius, Shadow, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { Ionicons } from '@expo/vector-icons';
 
 export type MascotTipType = 'info' | 'success' | 'warning' | 'tip';
 export type MascotPriority = 'low' | 'normal' | 'high';
 
-const ACCENT_BY_TYPE: Record<MascotTipType, string> = {
+const acentoPorTipo = (Colors: ColorPalette): Record<MascotTipType, string> => ({
   info: Colors.info,
   success: Colors.success,
   warning: Colors.warning,
   tip: Colors.primary,
-};
+});
 
 export interface MascotAssistantProps {
   message: string;
@@ -56,7 +56,7 @@ export function MascotAssistant({
   const [dismissed, setDismissed] = useState(false);
   if (dismissed) return null;
 
-  const accent = ACCENT_BY_TYPE[type];
+  const accent = acentoPorTipo(Colors)[type];
   const canDismiss = dismissible && priority !== 'high';
 
   return (

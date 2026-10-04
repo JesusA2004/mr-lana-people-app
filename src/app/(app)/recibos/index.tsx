@@ -11,8 +11,8 @@ import { formatDateShort } from '@/utils/dates';
 import { formatCurrencyMXN } from '@/utils/formatters';
 
 /**
- * Mis recibos — recibos INTERNOS de nómina (no fiscales). Solo lectura:
- * `GET /colaborador/recibos` (paginado). People no emite CFDI.
+ * Mis recibos — recibos de nómina. Solo lectura:
+ * `GET /colaborador/recibos` (paginado).
  */
 export default function MisRecibosScreen() {
   const router = useRouter();

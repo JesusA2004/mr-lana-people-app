@@ -11,7 +11,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { Colors, Shadow, type ColorPalette } from '@/constants/colors';
+import { Shadow, type ColorPalette } from '@/constants/colors';
 import { useEstilos } from '@/theme/ThemeProvider';
 
 /** Insignia de marca (logo-mark) — ya no la oveja: "no la usaremos como avatar". */

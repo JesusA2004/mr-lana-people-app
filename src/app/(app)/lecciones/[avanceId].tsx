@@ -8,7 +8,7 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { EmptyMessage, Notice, Screen, SectionTitle } from '@/components/ciclo/Screen';
 import { PressableScale } from '@/components/PressableScale';
-import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useMiProceso, usePresentarLeccion } from '@/hooks/queries/useCicloLaboral';
 import { toast } from '@/store/toastStore';

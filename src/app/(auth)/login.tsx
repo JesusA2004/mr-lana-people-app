@@ -11,7 +11,7 @@ import { z } from 'zod';
 
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
-import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { REMEMBERED_EMAIL_KEY } from '@/constants/config';
 import { useAuthStore } from '@/store/authStore';

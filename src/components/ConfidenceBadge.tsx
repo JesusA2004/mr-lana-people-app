@@ -1,15 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Colors, FontSize, Radius, Spacing } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores } from '@/theme/ThemeProvider';
 import type { ExtractionConfidenceLevel } from '@/types/documentExtraction';
 import { confidenceLabelForLevel } from '@/utils/documentExtraction';
 
-const STYLE_BY_LEVEL: Record<'alta' | 'media' | 'baja', { color: string; background: string; icon: keyof typeof Ionicons.glyphMap }> = {
+const estiloPorNivel = (Colors: ColorPalette): Record<'alta' | 'media' | 'baja', { color: string; background: string; icon: keyof typeof Ionicons.glyphMap }> => ({
   alta: { color: Colors.success, background: Colors.successSoft, icon: 'checkmark-circle' },
   media: { color: Colors.warning, background: Colors.warningSoft, icon: 'alert-circle' },
   baja: { color: Colors.danger, background: Colors.dangerSoft, icon: 'help-circle' },
-};
+});
 
 export interface ConfidenceBadgeProps {
   /** Nivel real que manda el backend (`'alta'`/`'media'`) — nunca un decimal (AGENTS.md de este encargo, sección 9). Ausente se trata como baja. */
@@ -22,7 +23,7 @@ export interface ConfidenceBadgeProps {
  */
 export function ConfidenceBadge({ level }: ConfidenceBadgeProps) {
   const bucket: 'alta' | 'media' | 'baja' = level === 'alta' ? 'alta' : level === 'media' ? 'media' : 'baja';
-  const style = STYLE_BY_LEVEL[bucket];
+  const style = estiloPorNivel(useColores())[bucket];
 
   return (
     <View style={[styles.badge, { backgroundColor: style.background }]}>

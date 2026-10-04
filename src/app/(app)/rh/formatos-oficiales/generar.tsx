@@ -17,7 +17,7 @@ import { PdfViewer } from '@/components/PdfViewer';
 import { SecureDocumentViewer } from '@/components/SecureDocumentViewer';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { Stepper } from '@/components/Stepper';
-import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useRhColaboradores } from '@/hooks/queries/useRhColaboradores';
 import {

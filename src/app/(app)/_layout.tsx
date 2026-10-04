@@ -12,7 +12,7 @@ import { ExperienceSelectorPrimer } from '@/components/ExperienceSelectorPrimer'
 import { LockScreen } from '@/components/LockScreen';
 import { PrivacyOverlay } from '@/components/PrivacyOverlay';
 import { PushPermissionPrimer } from '@/components/PushPermissionPrimer';
-import { Colors, type ColorPalette } from '@/constants/colors';
+import { type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { SHOW_DEV_TOOLS } from '@/constants/config';
 import { useAppPrivacyProtection } from '@/hooks/useAppPrivacyProtection';

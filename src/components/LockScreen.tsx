@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { Button } from './Button';
 import { PressableScale } from './PressableScale';
 
-import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { authenticateWithBiometricsAsync, biometricLabel, getBiometricCapabilityAsync, type BiometricKind } from '@/services/biometricAuth';
 import { useAppLockStore } from '@/store/appLockStore';

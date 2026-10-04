@@ -3,7 +3,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { MascotAvatar, type MascotOrientation, type MascotSize } from './MascotAvatar';
 
-import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useEstilos } from '@/theme/ThemeProvider';
 
 export interface MascotBubbleProps {

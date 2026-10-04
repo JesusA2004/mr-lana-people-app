@@ -10,7 +10,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { PressableScale } from '@/components/PressableScale';
 import { RhBirthdayCard } from '@/components/RhBirthdayCard';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
-import { Colors, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useRhCumpleanosInfinite } from '@/hooks/queries/useRhCumpleanos';
 import type { RhBirthdayPeriodo } from '@/types/rhBirthday';

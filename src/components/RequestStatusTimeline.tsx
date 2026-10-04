@@ -1,16 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Colors, FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import type { RequestStatus } from '@/types/request';
 
 /**
- * Línea de tiempo de una solicitud unificada, sobre los 8 estados reales de
+ * Línea de tiempo de una solicitud unificada, sobre los 7 estados reales de
  * `App\Enums\EstadoSolicitudInterna`.
  *
- * El camino feliz tiene tres hitos (Enviada → En revisión → Resuelta). Los
- * desenlaces que no son "aprobada/cerrada" (rechazada, cancelada) NO se
+ * El camino feliz tiene tres hitos (Enviada → En revisión → Aprobada). Los
+ * desenlaces que no son "aprobada" (rechazada, cancelada) NO se
  * dibujan como un paso más: se muestran como estado final explícito, para
  * que nadie lea una solicitud rechazada como "va avanzando".
  */
@@ -20,7 +20,7 @@ type Milestone = { key: string; label: string };
 const MILESTONES: Milestone[] = [
   { key: 'enviada', label: 'Enviada' },
   { key: 'en_revision', label: 'En revisión' },
-  { key: 'resuelta', label: 'Aprobada / cerrada' },
+  { key: 'resuelta', label: 'Aprobada' },
 ];
 
 /** Cuántos hitos ya se cumplieron para un estado dado. */
@@ -48,7 +48,7 @@ interface FinalState {
   description: string;
 }
 
-const FINAL_STATES: Record<string, FinalState> = {
+const estadosFinales = (Colors: ColorPalette): Record<string, FinalState> => ({
   rechazada: {
     icon: 'close-circle',
     color: Colors.danger,
@@ -63,7 +63,7 @@ const FINAL_STATES: Record<string, FinalState> = {
     title: 'Solicitud cancelada',
     description: 'Tú cancelaste esta solicitud; ya no está en revisión.',
   },
-};
+});
 
 export interface RequestStatusTimelineProps {
   estado?: RequestStatus;
@@ -79,7 +79,7 @@ export interface RequestStatusTimelineProps {
 export function RequestStatusTimeline({ estado, estadoEtiqueta, enviadaEn, revisadoEn, formatFecha }: RequestStatusTimelineProps) {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
-  const final = estado ? FINAL_STATES[estado] : undefined;
+  const final = estado ? estadosFinales(Colors)[estado] : undefined;
 
   if (final) {
     return (

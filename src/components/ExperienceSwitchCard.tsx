@@ -5,7 +5,7 @@ import { Card } from './Card';
 import { ProfileAvatar } from './ProfileAvatar';
 import { RhIdentityBadge } from './RhIdentityBadge';
 
-import { Colors, FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
 import { useEstilos } from '@/theme/ThemeProvider';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useExperienceStore } from '@/store/experienceStore';
