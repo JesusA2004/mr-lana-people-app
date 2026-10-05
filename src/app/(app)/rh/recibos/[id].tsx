@@ -7,7 +7,7 @@ import { ReciboDetail } from '@/components/ciclo/ReciboDetail';
 import { Notice, Screen } from '@/components/ciclo/Screen';
 import { SecureDocumentViewer } from '@/components/SecureDocumentViewer';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
-import { useRhRecibo, useRhRegenerarReciboPdf } from '@/hooks/queries/useRhCicloLaboral';
+import { useRhEmitirRecibo, useRhRecibo, useRhRegenerarReciboPdf } from '@/hooks/queries/useRhCicloLaboral';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from '@/store/toastStore';
 import { hasPermission } from '@/utils/capabilities';
@@ -23,6 +23,7 @@ export default function RhReciboScreen() {
   const bootstrap = useMobileBootstrap(true);
   const user = useAuthStore((state) => state.user);
   const regenerar = useRhRegenerarReciboPdf(Number(id));
+  const emitir = useRhEmitirRecibo(Number(id));
   const [viewerOpen, setViewerOpen] = useState(false);
   const puedeRegenerar = hasPermission(bootstrap.data?.user.permissions, 'nomina.recibos.crear');
 
@@ -51,12 +52,41 @@ export default function RhReciboScreen() {
       {recibo ? (
         <>
           <ReciboDetail recibo={recibo} colaboradorNombre={recibo.colaborador?.nombre} />
-          {recibo.tiene_pdf ? (
+          {recibo.estado === 'borrador' ? (
+            <>
+              <Notice tone="info">
+                Borrador: el colaborador todavía no lo ve. Se emite solo el día de pago; los ajustes de conceptos se hacen desde el portal web
+                (Recibos de nómina).
+              </Notice>
+              {puedeRegenerar ? (
+                <Button
+                  title="Emitir ahora"
+                  leftIcon="send-outline"
+                  loading={emitir.isPending}
+                  onPress={async () => {
+                    const ok = await confirmAction({
+                      title: 'Emitir recibo',
+                      message: 'Se genera el PDF y el colaborador recibe el aviso de que ya puede consultarlo.',
+                      confirmLabel: 'Emitir',
+                    });
+                    if (!ok) return;
+                    emitir.mutate(undefined, {
+                      onSuccess: () => toast.success('Recibo emitido.'),
+                      onError: (error) => {
+                        logError('rhRecibo.emitir', error);
+                        toast.error(getActionErrorMessage(error));
+                      },
+                    });
+                  }}
+                />
+              ) : null}
+            </>
+          ) : recibo.tiene_pdf ? (
             <Button title="Ver comprobante PDF" leftIcon="document-outline" variant="outline" onPress={() => setViewerOpen(true)} />
           ) : (
             <Notice tone="warning">El comprobante PDF aún no está disponible.</Notice>
           )}
-          {puedeRegenerar ? (
+          {puedeRegenerar && recibo.estado !== 'borrador' ? (
             <Button
               title={recibo.tiene_pdf ? 'Regenerar PDF' : 'Generar PDF'}
               variant="ghost"

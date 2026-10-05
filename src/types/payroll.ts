@@ -29,6 +29,9 @@ export interface ReciboNomina {
   total_deducciones: number | null;
   neto: number | null;
   observaciones: string | null;
+  /** Quincenales: `borrador` (solo RH, se emite el día de pago) o `emitido`. */
+  estado: 'borrador' | 'emitido';
+  estado_etiqueta: string;
   /** `false` ⇒ el PDF aún no se generó: la UI NO ofrece botón de PDF. */
   tiene_pdf: boolean;
   leyenda: string;

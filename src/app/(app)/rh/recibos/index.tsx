@@ -47,7 +47,7 @@ export default function RhRecibosScreen() {
               title={recibo.colaborador?.nombre ?? reciboPeriodoLabel(recibo)}
               subtitle={`${reciboPeriodoLabel(recibo)} · ${formatPeriodo(recibo.periodo_inicio, recibo.periodo_fin) ?? ''}`}
               amount={formatCurrencyMXN(recibo.neto)}
-              lines={[recibo.tiene_pdf ? 'PDF disponible' : 'PDF pendiente']}
+              lines={[recibo.estado === 'borrador' ? 'Borrador · se emite el día de pago' : recibo.tiene_pdf ? 'Emitido · PDF disponible' : 'Emitido · PDF pendiente']}
               onPress={() => router.push(`/(app)/rh/recibos/${recibo.id}` as never)}
             />
           ))}

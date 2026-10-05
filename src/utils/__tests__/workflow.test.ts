@@ -53,4 +53,12 @@ describe('mapWorkflowToSteps', () => {
     };
     expect(mapWorkflowToSteps(twoStages)[1]).toEqual({ key: 'gerencia', label: 'Gerencia', status: 'pending' });
   });
+
+  it('etapas sin clave/nombre (forma anterior del backend) nunca dejan la key vacía', () => {
+    const legado = {
+      ...baseWorkflow,
+      flujo: [{ etapa: 'rh', estado: 'pendiente', usuario: null, fecha: null }],
+    } as unknown as Workflow;
+    expect(mapWorkflowToSteps(legado)).toEqual([{ key: 'rh', label: 'Revisión RH', status: 'in_review' }]);
+  });
 });

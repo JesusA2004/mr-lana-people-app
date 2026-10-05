@@ -276,6 +276,19 @@ export function useRhRegenerarReciboPdf(id: number) {
   });
 }
 
+/** Emite un borrador de recibo (PDF + aviso al colaborador). */
+export function useRhEmitirRecibo(id: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    ...SENSITIVE_MUTATION,
+    mutationFn: () => rhRecibosApi.emitir(id),
+    onSuccess: (recibo) => {
+      queryClient.setQueryData(queryKeys.rhRecibo(id), recibo);
+      invalidateCiclo(queryClient, { type: 'rh_recibo', reciboId: id });
+    },
+  });
+}
+
 export function useRhCrearRecibo(colaboradorId: number | string) {
   const queryClient = useQueryClient();
   return useMutation({

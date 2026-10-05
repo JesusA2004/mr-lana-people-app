@@ -40,6 +40,9 @@ export function normalizeRecibo(value: unknown): ReciboNomina {
     total_deducciones: asNumber(raw.total_deducciones),
     neto: asNumber(raw.neto),
     observaciones: asString(raw.observaciones),
+    // Backends anteriores no mandan estado: todo recibo existente ya estaba emitido.
+    estado: raw.estado === 'borrador' ? 'borrador' : 'emitido',
+    estado_etiqueta: asString(raw.estado_etiqueta) ?? (raw.estado === 'borrador' ? 'Borrador' : 'Emitido'),
     // Solo `true` explícito habilita el PDF — nunca un botón que termine en 404.
     tiene_pdf: raw.tiene_pdf === true,
     leyenda: asString(raw.leyenda) ?? LEYENDA_RECIBO,

@@ -1,5 +1,5 @@
 import type { ApprovalStep, ApprovalStepStatus } from '@/types/incorporation';
-import type { Workflow } from '@/types/rh';
+import type { Workflow, WorkflowEtapa } from '@/types/rh';
 
 const REJECTED_STATES = new Set(['rechazada', 'rechazado']);
 const APPROVED_STATES = new Set(['aprobada', 'aprobado']);
@@ -18,7 +18,16 @@ export function mapWorkflowToSteps(workflow: Workflow): ApprovalStep[] {
   const isApproved = APPROVED_STATES.has(workflow.estado);
   const lastIndex = workflow.flujo.length - 1;
 
-  return workflow.flujo.map((etapa, index) => {
+  return workflow.flujo.map((original, index) => {
+    // Backends anteriores mandaban la etapa como `{ etapa: 'rh' }` sin
+    // `clave`/`nombre`: sin este respaldo la lista quedaba con key
+    // undefined ("Each child in a list should have a unique key prop").
+    const legado = original as WorkflowEtapa & { etapa?: string };
+    const clave = legado.clave || legado.etapa || `etapa-${index}`;
+    const etapa: WorkflowEtapa = {
+      clave,
+      nombre: legado.nombre || (workflow.etapa_actual?.clave === clave ? workflow.etapa_actual.nombre : '') || 'Revisión RH',
+    };
     const isCurrent = workflow.etapa_actual?.clave === etapa.clave;
     let status: ApprovalStepStatus = 'pending';
 

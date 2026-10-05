@@ -45,7 +45,16 @@ export default function RhPendientesScreen() {
     true,
   );
 
-  const pendientes = useMemo(() => data?.pages.flatMap((page) => page.data) ?? [], [data]);
+  // Sin duplicados: si entra un pendiente nuevo mientras se pagina, la
+  // página siguiente repite el último de la anterior (misma key).
+  const pendientes = useMemo(() => {
+    const vistos = new Set<string>();
+    return (data?.pages.flatMap((page) => page.data) ?? []).filter((p) => {
+      if (vistos.has(p.id)) return false;
+      vistos.add(p.id);
+      return true;
+    });
+  }, [data]);
 
   return (
     <View style={styles.container}>

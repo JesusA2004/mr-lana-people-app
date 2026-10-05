@@ -315,6 +315,12 @@ export const rhRecibosApi = {
     return normalizeRecibo(extractData<unknown>(response.data));
   },
 
+  /** `POST /rh/recibos/{id}/emitir` — emite un borrador quincenal. */
+  async emitir(id: number | string): Promise<ReciboNomina> {
+    const response = await apiClient.post(`/rh/recibos/${id}/emitir`);
+    return normalizeRecibo(extractData<unknown>(response.data));
+  },
+
   async crear(colaboradorId: number | string, payload: CrearReciboPayload): Promise<ReciboNomina> {
     const response = await apiClient.post(`/rh/colaboradores/${colaboradorId}/recibos`, payload);
     return normalizeRecibo(extractData<unknown>(response.data));

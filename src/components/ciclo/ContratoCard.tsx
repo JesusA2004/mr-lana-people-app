@@ -43,7 +43,7 @@ export function ContratoCard({ contrato, onOpenDocumento }: { contrato: Contrato
       {porVencer ? (
         <Notice tone={(contrato.dias_para_vencer ?? 0) <= 15 ? 'warning' : 'info'}>
           {contrato.dias_para_vencer === 0 ? 'Vence hoy.' : `Vence en ${contrato.dias_para_vencer} día(s).`}
-          {contrato.tipo === 'periodo_prueba' ? ' Tu jefe inmediato realizará la evaluación del periodo de prueba.' : ''}
+          {contrato.tipo === 'periodo_prueba' || contrato.tipo === 'capacitacion_inicial' ? ' Tu jefe inmediato realizará la evaluación del periodo de prueba.' : ''}
         </Notice>
       ) : null}
       <InfoRow label="Documento firmado" value={contrato.documento_id ? (contrato.documento_firmado ? 'Sí' : 'Pendiente') : null} icon="create-outline" />
