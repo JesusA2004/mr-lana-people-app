@@ -23,7 +23,8 @@
     },
     "android": {
       "package": "com.mrlana.people",
-      "versionCode": 2,
+      "versionCode": 4,
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#F6FAF8",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

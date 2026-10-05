@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "850167192036",
+    "project_id": "mr-lana-people",
+    "storage_bucket": "mr-lana-people.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:850167192036:android:7db2a22c1c46989fe10ff1",
+        "android_client_info": {
+          "package_name": "com.mrlana.people"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB0LCCbUiYWhR-7lY80MY47H3yzgl_IHU4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -147,10 +147,13 @@ function RootNavigator() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isInitializing = useAuthStore((state) => state.isInitializing);
   const pendingVerification = useAuthStore((state) => state.pendingVerification);
+  // Contraseña temporal: hasta cambiarla solo existe esa pantalla (el backend
+  // responde 403 «cambio_contrasena_requerido» a todo lo demás).
+  const debeCambiarContrasena = useAuthStore((state) => state.user?.debe_cambiar_contrasena === true);
   const onboardingCompleted = useOnboardingStore((state) => state.completed);
   const isOnboardingLoading = useOnboardingStore((state) => state.isLoading);
 
-  const sessionReady = isAuthenticated && onboardingCompleted && !isOnboardingLoading;
+  const sessionReady = isAuthenticated && !debeCambiarContrasena && onboardingCompleted && !isOnboardingLoading;
   usePushRegistration(sessionReady);
   useNotificationResponseRouting(sessionReady);
 
@@ -158,11 +161,15 @@ function RootNavigator() {
   if (view === 'fallback') return <StartupFallback />;
   if (view === 'session-verification') return <SessionVerificationScreen />;
 
-  const showOnboarding = isAuthenticated && !onboardingCompleted;
+  const showCambioContrasena = isAuthenticated && debeCambiarContrasena;
+  const showOnboarding = isAuthenticated && !showCambioContrasena && !onboardingCompleted;
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors.background } }}>
-      <Stack.Protected guard={isAuthenticated && !showOnboarding}>
+      <Stack.Protected guard={showCambioContrasena}>
+        <Stack.Screen name="cambiar-contrasena" options={{ gestureEnabled: false }} />
+      </Stack.Protected>
+      <Stack.Protected guard={isAuthenticated && !showCambioContrasena && !showOnboarding}>
         <Stack.Screen name="(app)" />
       </Stack.Protected>
       <Stack.Protected guard={showOnboarding}>

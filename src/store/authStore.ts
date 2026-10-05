@@ -37,7 +37,10 @@ interface AuthState {
   /** true mientras un reintento de verificación está en curso. */
   isVerifying: boolean;
   isLoggingOut: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  /** Usuario = primer nombre + primer apellido («Jesus Arizmendi»), no el correo. */
+  login: (username: string, password: string) => Promise<void>;
+  /** Cambia la contraseña temporal y libera la app (POST /cambiar-contrasena). */
+  cambiarContrasena: (actual: string, nueva: string, confirmacion: string) => Promise<void>;
   /** Aplica una sesión ya obtenida fuera de /login (ver registro por QR en incorporacion/qr/[token].tsx). */
   loginWithToken: (token: string, user: AuthUser) => Promise<void>;
   /** LockScreen: confirma la contraseña de la sesión actual sin crear ni revocar tokens (POST /reautenticar). */
@@ -164,8 +167,9 @@ export const useAuthStore = create<AuthState>((set, get) => {
     isVerifying: false,
     isLoggingOut: false,
 
-    async login(email, password) {
-      const response = await authApi.login({ email, password, device_name: DEVICE_NAME });
+    async login(username, password) {
+      // El backend recorta y compara sin mayúsculas/acentos; la contraseña solo con trim().
+      const response = await authApi.login({ username, password, device_name: DEVICE_NAME });
       const token = response.token;
 
       // Axios y Zustand deben cambiar juntos: si cualquier paso posterior
@@ -198,6 +202,12 @@ export const useAuthStore = create<AuthState>((set, get) => {
         await clearPersistedToken();
         throw error;
       }
+    },
+
+    async cambiarContrasena(actual, nueva, confirmacion) {
+      await authApi.cambiarContrasena({ password_actual: actual, password: nueva, password_confirmation: confirmacion });
+      const user = get().user;
+      set({ user: user ? { ...user, debe_cambiar_contrasena: false } : user });
     },
 
     async reauthenticate(password) {

@@ -13,12 +13,13 @@ import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
-import { REMEMBERED_EMAIL_KEY } from '@/constants/config';
+import { REMEMBERED_USERNAME_KEY } from '@/constants/config';
 import { useAuthStore } from '@/store/authStore';
 import { getErrorMessage, logError } from '@/utils/errors';
 
+// Se entra con el USUARIO (primer nombre + primer apellido), no con el correo.
 const loginSchema = z.object({
-  email: z.string().min(1, 'Ingresa tu correo electrónico').email('Ingresa un correo electrónico válido'),
+  username: z.string().trim().min(1, 'Ingresa tu usuario'),
   password: z.string().min(1, 'Ingresa tu contraseña'),
 });
 
@@ -38,24 +39,25 @@ export default function LoginScreen() {
     formState: { errors, isSubmitting },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: '', password: '' },
+    defaultValues: { username: '', password: '' },
   });
 
-  // Recuerda solo el correo (nunca la contraseña) para no tener que
+  // Recuerda solo el usuario (nunca la contraseña) para no tener que
   // volver a escribirlo cada vez que se cierra sesión.
   useEffect(() => {
-    SecureStore.getItemAsync(REMEMBERED_EMAIL_KEY)
+    SecureStore.getItemAsync(REMEMBERED_USERNAME_KEY)
       .then((saved) => {
-        if (saved) setValue('email', saved);
+        if (saved) setValue('username', saved);
       })
       .catch(() => {});
   }, [setValue]);
 
   const onSubmit = async (values: LoginFormValues) => {
     setFormError(null);
+    const username = values.username.trim().replace(/\s+/g, ' ');
     try {
-      await login(values.email.trim(), values.password);
-      void SecureStore.setItemAsync(REMEMBERED_EMAIL_KEY, values.email.trim()).catch(() => {});
+      await login(username, values.password);
+      void SecureStore.setItemAsync(REMEMBERED_USERNAME_KEY, username).catch(() => {});
     } catch (error) {
       logError('login', error);
       setFormError(getErrorMessage(error));
@@ -84,24 +86,24 @@ export default function LoginScreen() {
 
             <Controller
               control={control}
-              name="email"
+              name="username"
               render={({ field: { value, onChange, onBlur } }) => (
                 <Input
-                  label="Correo electrónico"
-                  placeholder="colaborador@mrlana.test"
+                  label="Usuario"
+                  placeholder="Nombre Apellido"
                   value={value}
                   onChangeText={onChange}
                   onBlur={onBlur}
-                  error={errors.email?.message}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
+                  error={errors.username?.message}
+                  autoCapitalize="words"
                   autoCorrect={false}
-                  autoComplete="email"
-                  textContentType="emailAddress"
+                  autoComplete="username"
+                  textContentType="username"
                   returnKeyType="next"
                 />
               )}
             />
+            <Text style={styles.hint}>Tu usuario es tu primer nombre y tu primer apellido, por ejemplo «Jesus Arizmendi».</Text>
 
             <Controller
               control={control}
@@ -215,6 +217,11 @@ const crearEstilos = (Colors: ColorPalette) =>
     fontSize: FontSize.sm,
     color: Colors.textMuted,
     marginTop: -Spacing.md,
+  },
+  hint: {
+    fontSize: FontSize.xs,
+    color: Colors.textMuted,
+    marginTop: -Spacing.sm,
   },
   formError: {
     fontSize: FontSize.sm,

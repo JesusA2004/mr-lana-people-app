@@ -3,7 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { z } from 'zod';
 
@@ -15,16 +15,44 @@ import { Input } from '@/components/Input';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useEstilos } from '@/theme/ThemeProvider';
-import { REMEMBERED_EMAIL_KEY } from '@/constants/config';
+import { REMEMBERED_USERNAME_KEY } from '@/constants/config';
 import { useAuthStore } from '@/store/authStore';
 import type { InvitacionValida } from '@/types/invitation';
 import { getErrorMessage, getValidationErrors, logError, normalizeError } from '@/utils/errors';
+
+const PARTICULAS = ['de', 'del', 'la', 'las', 'los', 'y', 'san', 'santa'];
+
+/**
+ * Usuario PROBABLE (primer nombre + primer apellido, sin acentos) solo para
+ * prellenar el login si se perdió la conexión al registrarse. El definitivo
+ * lo asigna el backend (puede llevar sufijo 2, 3… si se repite).
+ */
+function usuarioProbable(nombre: string, apellidos?: string): string {
+  const limpiar = (t: string) =>
+    t
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/[^A-Za-z\s]/g, ' ')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+  const titulo = (p: string, i: number) => (i > 0 && PARTICULAS.includes(p.toLowerCase()) ? p.toLowerCase() : p.charAt(0).toUpperCase() + p.slice(1).toLowerCase());
+  const paterno: string[] = [];
+
+  for (const palabra of limpiar(apellidos ?? '')) {
+    paterno.push(palabra);
+    if (!PARTICULAS.includes(palabra.toLowerCase())) break;
+  }
+
+  return [limpiar(nombre).slice(0, 1).map(titulo).join(' '), paterno.map(titulo).join(' ')].filter(Boolean).join(' ');
+}
 
 const registroSchema = z
   .object({
     name: z.string().min(1, 'Ingresa tu nombre'),
     apellidos: z.string().optional(),
-    email: z.string().min(1, 'Ingresa tu correo electrónico').email('Ingresa un correo electrónico válido'),
+    // Opcional: se inicia sesión con el usuario, no con el correo.
+    email: z.union([z.literal(''), z.string().trim().email('Ingresa un correo electrónico válido')]).optional(),
     telefono: z.string().optional(),
     password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres'),
     passwordConfirmation: z.string().min(1, 'Confirma tu contraseña'),
@@ -79,7 +107,7 @@ export default function IncorporacionQrScreen() {
    * muestra una recuperación explícita: intentar iniciar sesión con lo que
    * ya capturó, en vez de insistir en crear otra cuenta.
    */
-  const [registrationAmbiguous, setRegistrationAmbiguous] = useState<{ email: string } | null>(null);
+  const [registrationAmbiguous, setRegistrationAmbiguous] = useState<{ usuario: string } | null>(null);
 
   const [retryTick, setRetryTick] = useState(0);
 
@@ -148,20 +176,31 @@ export default function IncorporacionQrScreen() {
       const response = await incorporacionInvitacionApi.registrar(token, {
         name: values.name.trim(),
         apellidos: values.apellidos?.trim() || undefined,
-        email: values.email.trim(),
+        email: values.email?.trim() || undefined,
         password: values.password,
         password_confirmation: values.passwordConfirmation,
         telefono: values.telefono?.trim() || undefined,
       });
 
+      const usuario = response.usuario.username;
+      if (usuario) {
+        void SecureStore.setItemAsync(REMEMBERED_USERNAME_KEY, usuario).catch(() => {});
+      }
+
       await loginWithToken(response.token, {
         id: response.usuario.id,
+        username: usuario,
         name: response.usuario.name,
         apellidos: response.usuario.apellidos ?? undefined,
-        email: response.usuario.email,
+        email: response.usuario.email ?? null,
         roles: response.usuario.roles,
         permisos: response.usuario.permisos,
       });
+
+      // Para las siguientes veces: se entra con el usuario, no con el correo.
+      if (usuario) {
+        Alert.alert('Tu usuario', `Para iniciar sesión usa tu usuario «${usuario}» y la contraseña que acabas de crear.`);
+      }
       // Sin navegación explícita: igual que login.tsx, el cambio de
       // `isAuthenticated` en authStore hace que RootNavigator (Stack.Protected
       // en _layout.tsx) muestre onboarding o (app) automáticamente.
@@ -174,7 +213,7 @@ export default function IncorporacionQrScreen() {
       // respondió y el registro de verdad no se completó, ahí el mensaje
       // normal de validación sigue siendo correcto.
       if (requestSent && isNetworkError) {
-        setRegistrationAmbiguous({ email: values.email.trim() });
+        setRegistrationAmbiguous({ usuario: usuarioProbable(values.name, values.apellidos) });
         return;
       }
 
@@ -210,16 +249,15 @@ export default function IncorporacionQrScreen() {
             <Card style={styles.invalidCard}>
               <Text style={styles.invalidTitle}>Tu registro pudo haberse completado</Text>
               <Text style={styles.invalidText}>
-                Perdimos la conexión justo al crear tu cuenta con {registrationAmbiguous.email}. Es posible que ya haya quedado lista — intenta
-                iniciar sesión antes de registrarte de nuevo.
+                Perdimos la conexión justo al crear tu cuenta. Es posible que ya haya quedado lista — intenta iniciar sesión con tu usuario
+                (primer nombre + primer apellido, probablemente «{registrationAmbiguous.usuario}») antes de registrarte de nuevo.
               </Text>
               <Button
                 title="Intentar iniciar sesión"
                 onPress={() => {
-                  // Reutiliza el mismo mecanismo de "correo recordado" que
-                  // ya prellena login.tsx — no hace falta un param de ruta
-                  // dedicado para esto.
-                  void SecureStore.setItemAsync(REMEMBERED_EMAIL_KEY, registrationAmbiguous.email).catch(() => {});
+                  // Reutiliza el "usuario recordado" que ya prellena
+                  // login.tsx — no hace falta un param de ruta dedicado.
+                  void SecureStore.setItemAsync(REMEMBERED_USERNAME_KEY, registrationAmbiguous.usuario).catch(() => {});
                   router.replace('/(auth)/login');
                 }}
                 style={{ marginTop: Spacing.md }}
@@ -266,7 +304,7 @@ export default function IncorporacionQrScreen() {
                 name="email"
                 render={({ field: { value, onChange, onBlur } }) => (
                   <Input
-                    label="Correo electrónico"
+                    label="Correo electrónico (opcional)"
                     placeholder="tucorreo@ejemplo.com"
                     value={value}
                     onChangeText={onChange}

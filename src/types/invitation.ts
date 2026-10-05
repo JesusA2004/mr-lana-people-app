@@ -41,7 +41,8 @@ export type InvitacionValidarResponse = InvitacionValida | InvitacionInvalida;
 export interface RegistrarQrPayload {
   name: string;
   apellidos?: string;
-  email: string;
+  /** Opcional: se entra con el usuario, no con el correo. */
+  email?: string;
   password: string;
   password_confirmation: string;
   telefono?: string;
@@ -49,9 +50,11 @@ export interface RegistrarQrPayload {
 
 export interface RegistrarQrUsuario {
   id: number | string;
+  /** Usuario para iniciar sesión (primer nombre + primer apellido). */
+  username?: string;
   name: string;
   apellidos?: string | null;
-  email: string;
+  email: string | null;
   estatus: string;
   roles: string[];
   permisos: string[];

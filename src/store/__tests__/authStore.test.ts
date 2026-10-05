@@ -17,6 +17,7 @@ const mockAuthApi = {
   login: jest.fn(),
   me: jest.fn(),
   logout: jest.fn(async () => undefined),
+  cambiarContrasena: jest.fn(),
 };
 const mockRevoke = jest.fn(async () => undefined);
 
@@ -126,17 +127,30 @@ describe('logout', () => {
 describe('login', () => {
   it('éxito: Bearer + token persistido + autenticado', async () => {
     mockAuthApi.login.mockResolvedValue({ token: 'nuevo', usuario: USER });
-    await useAuthStore.getState().login('ana@example.com', 'secreto');
+    await useAuthStore.getState().login('Ana Lopez', 'secreto');
     expect(useAuthStore.getState().isAuthenticated).toBe(true);
     expect(mockClient.token).toBe('nuevo');
     expect(mockSecure.get(TOKEN_KEY)).toBe('nuevo');
+  });
+
+  it('se entra con el USUARIO (nunca el correo) y la contraseña temporal deja pendiente el cambio', async () => {
+    mockAuthApi.login.mockResolvedValue({ token: 'nuevo', usuario: { ...USER, debe_cambiar_contrasena: true } });
+    await useAuthStore.getState().login('Jesus Arizmendi', 'Abc#12xy');
+    expect(mockAuthApi.login).toHaveBeenCalledWith(expect.objectContaining({ username: 'Jesus Arizmendi', password: 'Abc#12xy' }));
+    expect(mockAuthApi.login.mock.calls[0][0]).not.toHaveProperty('email');
+    expect(useAuthStore.getState().user?.debe_cambiar_contrasena).toBe(true);
+
+    mockAuthApi.cambiarContrasena.mockResolvedValue(undefined);
+    await useAuthStore.getState().cambiarContrasena('Abc#12xy', 'NuevaClave#2026', 'NuevaClave#2026');
+    expect(mockAuthApi.cambiarContrasena).toHaveBeenCalledWith({ password_actual: 'Abc#12xy', password: 'NuevaClave#2026', password_confirmation: 'NuevaClave#2026' });
+    expect(useAuthStore.getState().user?.debe_cambiar_contrasena).toBe(false);
   });
 
   it('si SecureStore no puede guardar, se revierte todo: Axios sin token y sin sesión', async () => {
     mockAuthApi.login.mockResolvedValue({ token: 'nuevo', usuario: USER });
     mockSecureFail.set = true;
 
-    await expect(useAuthStore.getState().login('ana@example.com', 'secreto')).rejects.toBeTruthy();
+    await expect(useAuthStore.getState().login('Ana Lopez', 'secreto')).rejects.toBeTruthy();
     expect(mockClient.token).toBeNull();
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
     // Best-effort: invalida en backend el token que ya no se usará.
@@ -152,7 +166,7 @@ describe('login', () => {
 
   it('un login interactivo NUNCA deja la app bloqueada (no tiene sentido pedir desbloqueo justo después de escribir la contraseña)', async () => {
     mockAuthApi.login.mockResolvedValue({ token: 'nuevo', usuario: USER });
-    await useAuthStore.getState().login('ana@example.com', 'secreto');
+    await useAuthStore.getState().login('Ana Lopez', 'secreto');
     expect(useAppLockStore.getState().isLocked).toBe(false);
   });
 });
