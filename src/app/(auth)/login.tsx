@@ -103,8 +103,6 @@ export default function LoginScreen() {
                 />
               )}
             />
-            <Text style={styles.hint}>Tu usuario es tu primer nombre y tu primer apellido, por ejemplo «Jesus Arizmendi».</Text>
-
             <Controller
               control={control}
               name="password"
@@ -217,11 +215,6 @@ const crearEstilos = (Colors: ColorPalette) =>
     fontSize: FontSize.sm,
     color: Colors.textMuted,
     marginTop: -Spacing.md,
-  },
-  hint: {
-    fontSize: FontSize.xs,
-    color: Colors.textMuted,
-    marginTop: -Spacing.sm,
   },
   formError: {
     fontSize: FontSize.sm,
