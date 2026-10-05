@@ -24,7 +24,7 @@ export default function RhPlantillasDocumentalesScreen() {
 
   return (
     <Screen
-      title="Plantillas documentales"
+      title="Documentos maestros"
       subtitle="Consulta"
       isLoading={query.isLoading}
       error={query.error}

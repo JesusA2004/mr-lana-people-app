@@ -43,17 +43,6 @@ export const queryKeys = {
   rhCumpleano: (id: string | number) => ['rh', 'cumpleanos', String(id)] as const,
   rhAniversarios: (params: Record<string, unknown> = {}) => ['rh', 'celebraciones', 'aniversarios', params] as const,
 
-  rhFormatos: (params: Record<string, unknown> = {}) => ['rh', 'formatos', params] as const,
-  rhFormatoPreparation: (plantillaId: string | number, sujetoId: string | number, extra: Record<string, string> = {}) =>
-    ['rh', 'formatos', String(plantillaId), 'preparar', String(sujetoId), extra] as const,
-
-  // Formatos oficiales (PDF fijo + overlay) — sistema real distinto del motor
-  // DOCX legacy de arriba, namespace propio para no mezclar invalidaciones.
-  rhFormatosOficiales: (params: Record<string, unknown> = {}) => ['rh', 'formatos-oficiales', params] as const,
-  rhFormatoOficial: (id: string | number) => ['rh', 'formatos-oficiales', String(id)] as const,
-  rhFormatosOficialesGenerados: (params: Record<string, unknown> = {}) => ['rh', 'formatos-oficiales', 'generados', params] as const,
-  rhFormatosOficialesVariables: ['rh', 'formatos-oficiales', 'variables'] as const,
-
   rhDocumentExtraction: (documentoId: string | number) => ['rh', 'documentos', String(documentoId), 'extraccion'] as const,
 
   rhOrganizacion: ['rh', 'organizacion', 'jerarquia'] as const,

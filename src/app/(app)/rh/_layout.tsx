@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
-import { isExperimentalFeatureEnabled, isFeatureEnabled, isOrganigramaEnabled } from '@/utils/featureFlags';
+import { isFeatureEnabled, isOrganigramaEnabled } from '@/utils/featureFlags';
 import { hasPermission } from '@/utils/capabilities';
 import { isRhModuleEnabled, type RhModule } from '@/utils/modules';
 
@@ -13,7 +13,7 @@ import { isRhModuleEnabled, type RhModule } from '@/utils/modules';
  * sin colisionar con las rutas de Mi espacio.
  *
  * Feature flags profundas (AGENTS.md de este encargo, sección 47): no basta
- * ocultar la card del home — las rutas de cumpleaños/formatos/organigrama
+ * ocultar la card del home — las rutas de cumpleaños/organigrama
  * también se protegen aquí con `Stack.Protected`, mismo patrón que ya usa
  * `(app)/_layout.tsx`. `useMobileBootstrap` reutiliza la misma query
  * (mismo queryKey/staleTime) que el resto de la app — lectura de caché, no
@@ -22,10 +22,6 @@ import { isRhModuleEnabled, type RhModule } from '@/utils/modules';
 export default function RhLayout() {
   const bootstrap = useMobileBootstrap(true);
   const cumpleanosEnabled = isFeatureEnabled(bootstrap.data?.features, 'cumpleanos');
-  // Formatos: fail-CLOSED (bug de producto corregido) — el catálogo/descarga
-  // real del backend queda oculto hasta que `mobile/bootstrap` mande
-  // `features.formatos: true` explícito, ver docs/BACKEND_GAPS_FINAL.md.
-  const formatosEnabled = isExperimentalFeatureEnabled(bootstrap.data?.features, 'formatos');
   const permissions = bootstrap.data?.user.permissions;
   const features = bootstrap.data?.features;
   const moduloOn = (module: RhModule) => isRhModuleEnabled(features, permissions, module);
@@ -54,24 +50,10 @@ export default function RhLayout() {
       <Stack.Screen name="expedientes/[colaborador]" />
       <Stack.Screen name="expedientes/[colaborador]/documentos/[documento]" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
 
-      {/* Formatos oficiales (PDF fijo + overlay real, distinto del motor DOCX
-          legacy de abajo): sin `Stack.Protected` propio — el backend real no
-          documenta un permiso de LISTADO separado (solo `.generar` y
-          `.descargar` para las acciones), así que la app confía en el 403
-          normal de cada endpoint en vez de inventar un nombre de permiso
-          para tapar el módulo completo. */}
-      <Stack.Screen name="formatos-oficiales/index" />
-      <Stack.Screen name="formatos-oficiales/[id]" />
-      <Stack.Screen name="formatos-oficiales/generar" />
 
       <Stack.Protected guard={cumpleanosEnabled}>
         <Stack.Screen name="cumpleanos/index" />
         <Stack.Screen name="cumpleanos/[id]" />
-      </Stack.Protected>
-
-      <Stack.Protected guard={formatosEnabled}>
-        <Stack.Screen name="formatos/index" />
-        <Stack.Screen name="formatos/generar" />
       </Stack.Protected>
 
       <Stack.Protected guard={organigramaEnabled}>

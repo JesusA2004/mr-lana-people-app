@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import { rhDocumentosLaboralesApi } from '@/api/rh/cicloLaboral';
+import { rhDocumentosProcesoApi } from '@/api/rh/documentosProceso';
 import type { LocalUploadFile } from '@/api/upload';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
@@ -39,6 +40,16 @@ import {
 
 type Sheet = null | 'imprimir' | 'firma_fisica' | 'envio' | 'recepcion' | 'archivar' | 'escaneo' | 'cancelar';
 
+/** Atajo desde "Documentos del proceso" (siguiente acción del backend) → paso físico. */
+const ATAJO_A_OPERACION: Record<string, RhDocumentOperation> = {
+  marcar_impreso: 'imprimir',
+  registrar_firma: 'firma_fisica',
+  registrar_envio: 'envio',
+  registrar_recepcion: 'recepcion',
+  subir_escaneo: 'escaneo',
+  archivar: 'archivar',
+};
+
 /**
  * Detalle RH de un documento laboral: datos, bitácora real (`eventos`) y
  * acciones contextuales del ORIGINAL FÍSICO (imprimir, firma física, envío,
@@ -50,7 +61,9 @@ export default function RhDocumentoLaboralScreen() {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  // accion: atajo desde "Documentos del proceso" (siguiente acción que
+  // decidió el backend): abre directo el visor, el Word o el paso físico.
+  const { id, accion } = useLocalSearchParams<{ id: string; accion?: string }>();
   const query = useRhDocumentoLaboral(id);
   const documento = query.data;
   const bootstrap = useMobileBootstrap(true);
@@ -58,14 +71,36 @@ export default function RhDocumentoLaboralScreen() {
   const operar = useRhOperarDocumentoLaboral(Number(id), documento?.colaborador?.id ?? null);
   const { isOffline } = useNetworkStatus();
 
-  const [viewerOpen, setViewerOpen] = useState(false);
-  const [sheet, setSheet] = useState<Sheet>(null);
+  const [viewerOpen, setViewerOpen] = useState(accion === 'ver');
+  const [wordOpen, setWordOpen] = useState(accion === 'word');
+  const [sheetElegido, setSheet] = useState<Sheet>(null);
+  const [atajoConsumido, setAtajoConsumido] = useState(false);
   const [observaciones, setObservaciones] = useState('');
   const [huella, setHuella] = useState(false);
   const [testigo, setTestigo] = useState('');
   const [paqueteria, setPaqueteria] = useState('');
   const [guia, setGuia] = useState('');
   const [comprobante, setComprobante] = useState<LocalUploadFile | null>(null);
+
+  const opsDisponibles = documento ? availableRhDocumentOperations(documento, bootstrap.data?.user.permissions) : [];
+
+  // Paso físico pedido por el atajo: se muestra en cuanto el documento
+  // cargó y la operación está permitida; al cerrarse ya no reaparece.
+  const sheetAtajo: Sheet = !atajoConsumido && accion && ATAJO_A_OPERACION[accion] && opsDisponibles.includes(ATAJO_A_OPERACION[accion]) ? ATAJO_A_OPERACION[accion] : null;
+  const sheet: Sheet = sheetElegido ?? sheetAtajo;
+
+  if (wordOpen && documento) {
+    return (
+      <SecureDocumentViewer
+        path={rhDocumentosProcesoApi.wordPath(documento.id)}
+        title={`${documento.titulo} (Word)`}
+        watermarkLabel={`${joinName(user?.nombre, user?.apellidos) ?? 'RH'} · ${new Date().toLocaleString('es-MX')}`}
+        onClose={() => setWordOpen(false)}
+        allowDownload
+        downloadFileName={slugifyFilename(documento.titulo)}
+      />
+    );
+  }
 
   if (viewerOpen && documento) {
     return (
@@ -80,10 +115,11 @@ export default function RhDocumentoLaboralScreen() {
     );
   }
 
-  const ops = documento ? availableRhDocumentOperations(documento, bootstrap.data?.user.permissions) : [];
+  const ops = opsDisponibles;
 
   const resetForm = () => {
     setSheet(null);
+    setAtajoConsumido(true);
     setObservaciones('');
     setHuella(false);
     setTestigo('');

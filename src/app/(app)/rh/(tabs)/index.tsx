@@ -54,9 +54,6 @@ export default function RhDashboardScreen() {
   // catálogo/OCR funcionando (ver docs/BACKEND_GAPS_FINAL.md: ambos quedan
   // ocultos hasta que el backend mande el flag explícito, decisión de
   // producto de esta auditoría).
-  // Feature experimental Y el permiso del listado (DocumentTemplatePolicy::viewAny → plantillas.ver).
-  const formatosEnabled =
-    isExperimentalFeatureEnabled(bootstrap.data?.features, 'formatos') && hasPermission(bootstrap.data?.user.permissions, 'plantillas.ver');
   const extractionEnabled = isExperimentalFeatureEnabled(bootstrap.data?.features, 'document_extraction');
   const organigramaEnabled = isOrganigramaEnabled(bootstrap.data?.features, bootstrap.data?.user.permissions);
   // Vacantes: el endpoint real ya existe y funciona, pero `mobile/bootstrap`
@@ -108,12 +105,7 @@ export default function RhDashboardScreen() {
     moduloOn('plantilla') && { route: '/(app)/rh/plantilla', icon: 'grid-outline', label: 'Plantilla y cobertura' },
     (organigramaEnabled || organigramaPersonasEnabled) && { route: '/(app)/rh/organizacion', icon: 'git-network-outline', label: 'Organigrama' },
     vacantesEnabled && { route: '/(app)/rh/vacantes', icon: 'briefcase-outline', label: 'Vacantes' },
-    moduloOn('plantillas_documentales') && { route: '/(app)/rh/plantillas-documentales', icon: 'documents-outline', label: 'Plantillas documentales' },
-    formatosEnabled && { route: '/(app)/rh/formatos', icon: 'document-text-outline', label: 'Formatos' },
-    // Formatos oficiales: mismo permiso que el listado del backend
-    // (OfficialFormatPolicy::viewAny → formatos_oficiales.ver); sin él
-    // no se ofrece el acceso (nunca un botón que termina en 403).
-    hasPermission(permissions, 'formatos_oficiales.ver') && { route: '/(app)/rh/formatos-oficiales', icon: 'newspaper-outline', label: 'Formatos oficiales' },
+    moduloOn('plantillas_documentales') && { route: '/(app)/rh/plantillas-documentales', icon: 'documents-outline', label: 'Documentos maestros' },
   ]);
 
   const cumpleanosHoy = useRhCumpleanosInfinite({ periodo: 'hoy' }, cumpleanosEnabled);

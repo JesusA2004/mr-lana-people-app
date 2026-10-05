@@ -5,7 +5,9 @@ import { apiClient } from '../client';
 import type {
   AccionDocumentoProceso,
   DatoFaltanteDocumento,
+  ErrorMotorDocumental,
   ItemDocumentoProceso,
+  PasoLineaTiempo,
   SeccionDocumentosProceso,
   TipoRegistroDocumental,
 } from '@/types/documentosProceso';
@@ -29,6 +31,20 @@ function normalizarAcciones(valor: unknown): AccionDocumentoProceso[] {
   });
 }
 
+function normalizarAccion(valor: unknown): AccionDocumentoProceso | null {
+  if (!valor) return null;
+  const r = asRecord(valor);
+  return r.clave ? { clave: texto(r.clave), etiqueta: texto(r.etiqueta), tipo: texto(r.tipo) } : null;
+}
+
+function normalizarLineaTiempo(valor: unknown): PasoLineaTiempo[] {
+  return asArray(valor).map((p) => {
+    const r = asRecord(p);
+    const estado = texto(r.estado);
+    return { clave: texto(r.clave), etiqueta: texto(r.etiqueta), estado: estado === 'hecho' || estado === 'actual' ? estado : 'pendiente' };
+  });
+}
+
 function normalizarItem(valor: unknown): ItemDocumentoProceso {
   const r = asRecord(valor);
   const documento = r.documento ? asRecord(r.documento) : null;
@@ -45,13 +61,31 @@ function normalizarItem(valor: unknown): ItemDocumentoProceso {
     bloqueo: textoONulo(r.bloqueo),
     formatoFaltante: faltante ? textoONulo(faltante.mensaje) : null,
     masterVersion: master && typeof master.version === 'number' ? master.version : null,
+    masterEtiqueta: master ? textoONulo(master.etiqueta) : null,
     documentoId: documento && typeof documento.id === 'number' ? documento.id : null,
     generadoEn: documento ? textoONulo(documento.generado_en) : null,
+    generadoPor: documento ? textoONulo(documento.generado_por) : null,
     firmado: Boolean(documento?.firmado),
     escaneado: Boolean(documento?.escaneado),
     archivado: Boolean(documento?.archivado),
+    tieneWord: Boolean(documento?.tiene_word),
+    archivoDisponible: documento ? documento.archivo_disponible !== false : true,
+    revisionDeId: documento && typeof documento.revision_de_id === 'number' ? documento.revision_de_id : null,
+    motivoRevision: documento ? textoONulo(documento.motivo_revision) : null,
     requiereHuella: Boolean(requiere.huella),
     requiereTestigos: Boolean(requiere.testigos),
+    lineaTiempo: normalizarLineaTiempo(r.linea_tiempo),
+    siguienteAccion: normalizarAccion(r.siguiente_accion),
+    historial: asArray(r.historial).map((h) => {
+      const x = asRecord(h);
+      return {
+        id: Number(x.id ?? 0),
+        estadoEtiqueta: texto(x.estado_etiqueta),
+        versionPlantilla: typeof x.version_plantilla === 'number' ? x.version_plantilla : null,
+        generadoEn: textoONulo(x.generado_en),
+        motivoCancelacion: textoONulo(x.motivo_cancelacion),
+      };
+    }),
     acciones: normalizarAcciones(r.acciones),
   };
 }
@@ -97,8 +131,45 @@ export function faltantesDeError(error: unknown): { mensaje: string; faltantes: 
         etiqueta: texto(r.etiqueta),
         tipo: texto(r.tipo),
         editable: Boolean(r.editable),
+        persistencia: texto(r.persistencia) || 'colaborador',
+        control: texto(r.control) || 'texto',
+        opciones: asArray(r.opciones).map((o) => ({ value: texto(asRecord(o).value), label: texto(asRecord(o).label) })),
+        sugerencias: asArray(r.sugerencias).map(texto).filter(Boolean),
       };
     }),
+  };
+}
+
+const TITULOS_MOTOR: Record<ErrorMotorDocumental['codigo'], string> = {
+  DOCUMENT_TEMPLATE_MISSING: 'Falta el formato oficial',
+  DOCUMENT_CONVERTER_UNAVAILABLE: 'Motor de conversión no disponible',
+  DOCUMENT_VISUAL_VALIDATION_FAILED: 'Formato sin validar',
+  DOCUMENT_FIELD_OVERFLOW: 'Un dato no cabe en el formato',
+};
+
+/**
+ * Errores esperables del motor documental (422 con code). null si el
+ * error es otro (se muestra con el manejo general).
+ */
+export function errorMotorDeError(error: unknown): ErrorMotorDocumental | null {
+  if (!isAxiosError(error) || error.response?.status !== 422) return null;
+  const data = asRecord(error.response.data);
+  const codigo = texto(data.code) as ErrorMotorDocumental['codigo'];
+  if (!(codigo in TITULOS_MOTOR)) return null;
+  const detalle = asRecord(data.detalle);
+  const campos = asArray(detalle.campos).map((c) => `${texto(asRecord(c).etiqueta)}: ${texto(asRecord(c).razon)}`);
+  const razon = texto(detalle.razon);
+
+  return {
+    codigo,
+    titulo: TITULOS_MOTOR[codigo],
+    mensaje:
+      codigo === 'DOCUMENT_CONVERTER_UNAVAILABLE'
+        ? 'No hay un motor de conversión fiel disponible para generar este documento oficial. Avisa a Sistemas; no se generó un documento aproximado.'
+        : codigo === 'DOCUMENT_VISUAL_VALIDATION_FAILED'
+          ? 'La versión del formato no está validada para generar documentos oficiales. RH debe validarla en Documentos maestros (web).'
+          : texto(data.message),
+    detalles: campos.length ? campos : razon ? [razon] : [],
   };
 }
 
@@ -106,11 +177,19 @@ export interface GenerarDocumentoPayload {
   clave?: string;
   proceso?: string;
   regenerar?: boolean;
+  /** Nueva revisión de un documento YA firmado (permiso + motivo; el firmado se conserva). */
+  revision?: boolean;
+  motivo?: string;
   completar?: Record<string, string>;
   manuales?: Record<string, string>;
 }
 
 export const rhDocumentosProcesoApi = {
+  /** Word llenado del documento (solo quien lo opera; el backend autoriza). */
+  wordPath(documentoId: number | string): string {
+    return `/rh/documentos-proceso/documento/${documentoId}/word`;
+  },
+
   async delColaborador(colaboradorId: number | string): Promise<SeccionDocumentosProceso[]> {
     const response = await apiClient.get(`/rh/documentos-proceso/colaborador/${colaboradorId}`);
     return asArray(asRecord(response.data).data).map(normalizarSeccion);
