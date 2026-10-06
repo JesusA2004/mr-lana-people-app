@@ -85,6 +85,7 @@ export default function PerfilScreen() {
     isSelfServiceModuleEnabled(features, 'prestamos') && { route: '/prestamos', icon: 'cash-outline', title: 'Préstamos', caption: 'Solicita y sigue tus préstamos' },
     isSelfServiceModuleEnabled(features, 'tareas') && { route: '/tareas', icon: 'checkbox-outline', title: 'Tareas', caption: 'Pendientes por atender' },
     esJefe && isSelfServiceModuleEnabled(features, 'equipo') && { route: '/equipo', icon: 'people-outline', title: 'Mi equipo', caption: 'Vistos buenos y evaluaciones' },
+    { route: '/avisos', icon: 'megaphone-outline', title: 'Avisos', caption: 'Mensajes de RH para toda la empresa o para ti' },
     { route: '/ayuda', icon: 'help-buoy-outline', title: 'Ayuda', caption: 'Preguntas frecuentes y contacto' },
   ] as (PerfilLink | false)[]).filter((link): link is PerfilLink => link !== false);
 

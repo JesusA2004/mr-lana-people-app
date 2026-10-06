@@ -45,6 +45,17 @@ export default function RhPerfilScreen() {
           </View>
         ) : null}
 
+        <PressableScale style={styles.linkCard} onPress={() => router.push('/avisos')}>
+          <View style={styles.linkIcon}>
+            <Ionicons name="megaphone-outline" size={20} color={Colors.primaryDark} />
+          </View>
+          <View style={styles.linkText}>
+            <Text style={styles.linkTitle}>Avisos</Text>
+            <Text style={styles.linkCaption}>Mensajes de RH para toda la empresa o para ti</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+        </PressableScale>
+
         <PressableScale style={styles.linkCard} onPress={() => router.push('/configuracion')}>
           <View style={styles.linkIcon}>
             <Ionicons name="settings-outline" size={20} color={Colors.primaryDark} />

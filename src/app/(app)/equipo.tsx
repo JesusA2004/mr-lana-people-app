@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 
+import { ApprovalTimeline } from '@/components/ApprovalTimeline';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { FilterChips } from '@/components/ciclo/FilterChips';
@@ -19,6 +20,7 @@ import { formatDateShort } from '@/utils/dates';
 import { getActionErrorMessage, logError } from '@/utils/errors';
 import { formatCurrencyMXN, humanizeRequestType } from '@/utils/formatters';
 import { haptics } from '@/utils/haptics';
+import { nivelesAprobacionToTimeline } from '@/utils/workflow';
 
 type Tab = 'pendientes' | 'equipo';
 
@@ -134,6 +136,11 @@ export default function MiEquipoScreen() {
                   ) : !solicitud.requiere_visto_bueno ? (
                     <Text style={styles.meta}>Esta solicitud no requiere tu visto bueno; la atiende RH.</Text>
                   ) : null}
+                  {solicitud.vistos_buenos.length > 0 ? (
+                    <View style={styles.timeline}>
+                      <ApprovalTimeline steps={nivelesAprobacionToTimeline(solicitud.vistos_buenos, solicitud.estado)} />
+                    </View>
+                  ) : null}
                   {pendiente ? (
                     <View style={styles.actions}>
                       <Button
@@ -209,6 +216,9 @@ const crearEstilos = (Colors: ColorPalette) =>
   meta: {
     fontSize: FontSize.xs,
     color: Colors.textMuted,
+  },
+  timeline: {
+    marginTop: Spacing.xs,
   },
   actions: {
     flexDirection: 'row',

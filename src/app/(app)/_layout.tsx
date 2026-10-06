@@ -194,6 +194,8 @@ export default function AppLayout() {
           <Stack.Screen name="tareas" />
         </Stack.Protected>
         <Stack.Screen name="notificaciones" />
+        <Stack.Screen name="avisos/index" />
+        <Stack.Screen name="avisos/[id]" />
         <Stack.Screen name="configuracion" />
         <Stack.Screen name="ayuda" />
         <Stack.Screen name="guia" options={{ animation: 'fade' }} />

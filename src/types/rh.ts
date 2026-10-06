@@ -102,6 +102,23 @@ export interface RhAdjunto {
   nombre: string;
 }
 
+/**
+ * Un nivel de la cadena de vistos buenos jerárquicos (Gerente → Regional →
+ * Dirección Comercial, antes de llegar a RH) — `AprobacionJerarquicaService::resumen()`.
+ * `aprobadores` son las cuentas que PUEDEN decidir este nivel; `decidio` es
+ * quién realmente lo hizo (o `null` si sigue pendiente).
+ */
+export interface NivelAprobacion {
+  nivel: string;
+  etiqueta: string;
+  /** `aprobado` | `rechazado` | `pendiente`. */
+  estado: string;
+  aprobadores: string[];
+  decidio: string | null;
+  comentario: string | null;
+  fecha: string | null;
+}
+
 /** `prestamo.visto_bueno` del detalle RH: decisión del jefe inmediato. */
 export interface RhPrestamoVistoBueno {
   requerido: boolean;
@@ -110,6 +127,8 @@ export interface RhPrestamoVistoBueno {
   jefe?: string | null;
   comentario?: string | null;
   fecha?: string | null;
+  /** Misma cadena jerárquica completa (Gerente/Regional/Dirección Comercial) que `vistos_buenos` abajo. */
+  niveles?: NivelAprobacion[];
 }
 
 /**
@@ -140,6 +159,8 @@ export interface RhSolicitud {
   adjuntos: RhAdjunto[];
   acciones_permitidas: AllowedAction[];
   workflow: Workflow;
+  /** Cadena de vistos buenos jerárquicos antes de RH — vacía si este tipo no la requiere. */
+  vistos_buenos?: NivelAprobacion[];
   historial: RhHistorialEntrada[];
   /**
    * Préstamo (contrato 2026-09-22, `Api\V1\Rh\SolicitudController::show()`):

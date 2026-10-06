@@ -5,6 +5,8 @@
  * devuelve subordinados o pendientes.
  */
 
+import type { NivelAprobacion } from './rh';
+
 export interface EquipoSolicitudPendiente {
   id: number;
   folio: string | null;
@@ -18,6 +20,8 @@ export interface EquipoSolicitudPendiente {
   requiere_visto_bueno: boolean;
   /** Decisión ya registrada por el jefe (`aprobado`/`rechazado`...) o `null` si aún no decide. */
   visto_bueno: string | null;
+  /** Cadena completa (Gerente → Regional → Dirección Comercial) — quién sigue después de mí. */
+  vistos_buenos: NivelAprobacion[];
   creada_en: string | null;
 }
 

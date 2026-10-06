@@ -1,4 +1,5 @@
 import type { Evaluacion, EvaluacionCriterio } from '@/types/evaluation';
+import type { NivelAprobacion } from '@/types/rh';
 import type { Tarea, TareasConteos } from '@/types/task';
 import type { EquipoPendientes, VistoBuenoResult } from '@/types/team';
 import { normalizeContrato } from './cicloLaboral';
@@ -14,6 +15,19 @@ import {
   asStringArray,
   normalizeColaboradorRef,
 } from '@/utils/normalize';
+
+export function normalizeNivelAprobacion(value: unknown): NivelAprobacion {
+  const raw = asRecord(value);
+  return {
+    nivel: asString(raw.nivel) ?? '',
+    etiqueta: asString(raw.etiqueta) ?? '',
+    estado: asString(raw.estado) ?? 'pendiente',
+    aprobadores: asStringArray(raw.aprobadores),
+    decidio: asString(raw.decidio),
+    comentario: asString(raw.comentario),
+    fecha: asString(raw.fecha),
+  };
+}
 
 export function normalizeEquipoPendientes(value: unknown): EquipoPendientes {
   const raw = asRecord(value);
@@ -32,6 +46,7 @@ export function normalizeEquipoPendientes(value: unknown): EquipoPendientes {
         monto_solicitado: asNumber(s.monto_solicitado),
         requiere_visto_bueno: asBoolean(s.requiere_visto_bueno),
         visto_bueno: asString(s.visto_bueno),
+        vistos_buenos: asArray(s.vistos_buenos).map(normalizeNivelAprobacion),
         creada_en: asString(s.creada_en),
       };
     }),

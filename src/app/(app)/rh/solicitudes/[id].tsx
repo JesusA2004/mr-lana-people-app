@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { ApprovalTimeline } from '@/components/ApprovalTimeline';
 import { AppHeader } from '@/components/AppHeader';
 import { DocumentosProcesoCard } from '@/components/ciclo/DocumentosProcesoCard';
 import { PrestamoDecision } from '@/components/ciclo/PrestamoDecision';
@@ -34,6 +35,7 @@ import { openRhWeb, rhWebSolicitudPath } from '@/utils/openRhWeb';
 import { canApprove, canRequestCorrection, puedeAprobarSolicitudComplejaMovil, requiereRevisionPortal, usaRechazoGenerico } from '@/utils/rhActions';
 import { blockedApprovalReason, type BlockedApproval } from '@/utils/rhBlockedActions';
 import { confirmAction } from '@/utils/confirm';
+import { nivelesAprobacionToTimeline } from '@/utils/workflow';
 
 /**
  * Detalle de solicitud RH: folio, tipo, estado, colaborador, fechas, motivo,
@@ -82,6 +84,7 @@ export default function RhSolicitudDetailScreen() {
   // Espejo de `actualizarEstado()`: `en_revision` exige la habilidad
 
   const puedeTomar = solicitud?.estado === 'enviada' && hasPermission(permissions, 'solicitudes.revisar');
+  const nivelesTimeline = solicitud ? nivelesAprobacionToTimeline(solicitud.vistos_buenos, solicitud.estado) : [];
 
   function handleActionError(err: unknown) {
     logError('rhSolicitud.accion', err);
@@ -325,7 +328,11 @@ export default function RhSolicitudDetailScreen() {
 
             <Card>
               <Text style={styles.fieldLabel}>Seguimiento</Text>
-              <WorkflowTimeline workflow={solicitud.workflow} />
+              {/* Cadena real de vistos buenos (Gerente → Regional → Dirección
+                  Comercial → RH) cuando este tipo la requiere; si no, el
+                  flujo genérico de RH (`WorkflowTimeline`). Nunca ambos: se
+                  duplicaría el paso final "RH". */}
+              {nivelesTimeline.length > 0 ? <ApprovalTimeline steps={nivelesTimeline} /> : <WorkflowTimeline workflow={solicitud.workflow} />}
             </Card>
 
             {solicitud.historial.length > 0 ? (

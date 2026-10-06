@@ -51,5 +51,9 @@ export interface ApprovalStep {
   key: string;
   label: string;
   status: ApprovalStepStatus;
+  /** Quién decidió este nivel (o quién puede decidirlo si sigue pendiente) — `AprobacionJerarquicaService::resumen()`. */
+  approver?: string | null;
+  /** Fecha ya formateada por quien construye los pasos (la app nunca formatea aquí). */
+  date?: string | null;
   comment?: string | null;
 }

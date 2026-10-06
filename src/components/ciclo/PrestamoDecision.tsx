@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { ApprovalTimeline } from '@/components/ApprovalTimeline';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { FilterChips } from '@/components/ciclo/FilterChips';
@@ -20,6 +21,7 @@ import { formatCurrencyMXN, parseCurrencyInput } from '@/utils/formatters';
 import { haptics } from '@/utils/haptics';
 import { formatPlazoMeses, prestamoAutorizacionInicial, type PeriodicidadPrestamo } from '@/utils/loan';
 import { describirVistoBueno, motivoNoAutorizable, type VistoBuenoTono } from '@/utils/rhActions';
+import { nivelesAprobacionToTimeline } from '@/utils/workflow';
 
 type Periodicidad = PeriodicidadPrestamo;
 
@@ -119,6 +121,15 @@ export function PrestamoDecision({ solicitudId, estado, prestamo, onDone }: Pres
           {vb.comentario ? <Text style={styles.vbComment}>“{vb.comentario}”</Text> : null}
         </View>
       </View>
+
+      {/* Cuando quien solicita es de gerencia o superior, hay un nivel más
+          (Dirección Comercial) además del jefe inmediato — se ve la cadena
+          completa en vez de solo el resumen de arriba. */}
+      {vb.niveles && vb.niveles.length > 1 ? (
+        <View style={styles.timeline}>
+          <ApprovalTimeline steps={nivelesAprobacionToTimeline(vb.niveles, estado)} />
+        </View>
+      ) : null}
 
       {prestamo.prestamo_id != null ? <Notice tone="success">Este préstamo ya fue autorizado (préstamo #{prestamo.prestamo_id}).</Notice> : null}
 
@@ -289,6 +300,9 @@ const crearEstilos = (Colors: ColorPalette) =>
     color: Colors.text,
     marginTop: 2,
     fontStyle: 'italic',
+  },
+  timeline: {
+    marginTop: Spacing.xs,
   },
   actions: {
     flexDirection: 'row',
