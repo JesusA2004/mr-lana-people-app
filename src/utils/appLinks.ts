@@ -95,6 +95,12 @@ export function resolveResourceRoute(data: PushNotificationData): string | null 
     case 'cumpleanos_muro':
       return id ? `/muro-cumpleanos/${id}` : '/notificaciones';
 
+    // Aviso de RH (mensaje + imagen, a toda la empresa o a un colaborador):
+    // siempre la bandeja de avisos, nunca uno concreto (la app marca
+    // "leído" al abrirlo, no antes).
+    case 'aviso_rh':
+      return '/avisos';
+
     case 'push_test':
       return SHOW_DEV_TOOLS ? '/dev/diagnostico-push' : '/notificaciones';
 

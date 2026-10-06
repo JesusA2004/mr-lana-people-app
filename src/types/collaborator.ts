@@ -35,7 +35,18 @@ export interface CollaboratorProfile {
   jefe_directo?: string | null;
   fecha_ingreso?: string | null;
   antiguedad_anios?: number;
+  /** Qué le falta para que PEOPLE pueda generarle documentos (App\Services\DocumentosMaestros\DocumentoProcesoService::completitudAlta). Solo lectura: el colaborador nunca edita el cálculo. */
+  completitud_datos?: CompletitudDatos;
   [key: string]: unknown;
+}
+
+export interface CompletitudDatos {
+  aplica: boolean;
+  porcentaje: number;
+  total: number;
+  completos: number;
+  grupos: Record<string, { etiqueta: string; ok: boolean; faltantes: string[] }>;
+  faltantes: { etiqueta: string; columna: string; documentos: string[] }[];
 }
 
 export interface DashboardVacacionesResumen {

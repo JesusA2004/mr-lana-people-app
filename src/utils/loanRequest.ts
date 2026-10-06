@@ -38,7 +38,12 @@ const ETAPA_A_TIMELINE: Record<string, StepTimelineStatus> = {
 
 /** Etapas del backend → timeline. Un estado desconocido se pinta como pendiente. */
 export function loanStagesToTimeline(etapas: SolicitudPrestamoEtapa[] | undefined) {
-  return (etapas ?? []).map((etapa) => ({ key: etapa.clave, label: etapa.etiqueta, status: ETAPA_A_TIMELINE[etapa.estado] ?? 'pending' }));
+  return (etapas ?? []).map((etapa) => ({
+    key: etapa.clave,
+    label: etapa.etiqueta,
+    status: ETAPA_A_TIMELINE[etapa.estado] ?? 'pending',
+    detail: etapa.aprobador ?? undefined,
+  }));
 }
 
 /** Solicitudes de préstamo que siguen en trámite (aún sin préstamo autorizado o en firma). */

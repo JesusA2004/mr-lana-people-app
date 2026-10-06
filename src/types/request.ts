@@ -207,6 +207,8 @@ export interface SolicitudPrestamoEtapa {
   clave: 'solicitud' | 'visto_bueno' | 'autorizacion' | 'firma' | (string & {});
   etiqueta: string;
   estado: 'hecho' | 'actual' | 'pendiente' | 'rechazado' | (string & {});
+  /** Quién decidió este nivel (o quién puede decidirlo si sigue pendiente). */
+  aprobador?: string | null;
 }
 
 /** Bloque `prestamo` que el backend agrega a una solicitud de préstamo del colaborador. */

@@ -6,6 +6,7 @@ import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
 import { ExperienceSwitchCard } from '@/components/ExperienceSwitchCard';
 import { Card } from '@/components/Card';
+import { Notice } from '@/components/ciclo/Screen';
 import { ErrorState } from '@/components/ErrorState';
 import { FadeInView } from '@/components/FadeInView';
 import { PressableScale } from '@/components/PressableScale';
@@ -159,6 +160,16 @@ export default function PerfilScreen() {
             {personalFilled.length > 0 ? (
               <FadeInView index={2}>
                 <SectionCard icon="person-circle-outline" title="Información personal" fields={personalFilled} />
+              </FadeInView>
+            ) : null}
+
+            {perfil?.completitud_datos?.aplica && perfil.completitud_datos.porcentaje < 100 ? (
+              <FadeInView index={3}>
+                <Notice tone="warning">
+                  Te {perfil.completitud_datos.faltantes.length === 1 ? 'falta' : 'faltan'} {perfil.completitud_datos.faltantes.length}{' '}
+                  {perfil.completitud_datos.faltantes.length === 1 ? 'dato' : 'datos'} para que podamos generarte tus documentos de contratación:{' '}
+                  {perfil.completitud_datos.faltantes.map((f) => f.etiqueta).join(', ')}.
+                </Notice>
               </FadeInView>
             ) : null}
 

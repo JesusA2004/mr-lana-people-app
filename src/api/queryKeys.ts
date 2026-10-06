@@ -11,6 +11,7 @@ export const queryKeys = {
   vacacionesSaldo: ['vacaciones', 'saldo'] as const,
   vacacionesSolicitudes: ['vacaciones', 'solicitudes'] as const,
   notificaciones: ['notificaciones'] as const,
+  avisos: ['avisos'] as const,
   cumpleanosFelicitacionActual: ['cumpleanos', 'felicitacion-actual'] as const,
   celebracionesActivas: ['celebraciones', 'activas'] as const,
   celebracion: (id: string | number) => ['celebraciones', String(id)] as const,

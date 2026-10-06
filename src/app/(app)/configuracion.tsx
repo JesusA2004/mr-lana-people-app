@@ -204,7 +204,6 @@ export default function ConfiguracionScreen() {
           <>
             <Text style={styles.sectionLabel}>Herramientas QA</Text>
             <Card style={{ gap: 0 }} padded={false}>
-              <SettingRow icon="pulse-outline" label="Diagnóstico Push" onPress={() => router.push('/dev/diagnostico-push' as never)} />
               <SettingRow icon="color-palette-outline" label="Design QA" onPress={() => router.push('/dev/design-qa' as never)} last />
             </Card>
           </>

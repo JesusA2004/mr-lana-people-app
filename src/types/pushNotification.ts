@@ -39,6 +39,9 @@ export type PushResourceType =
   | 'contrato_por_vencer'
   // Muro de felicitaciones (`MuroCumpleanosService`): resource_id = greeting
   | 'cumpleanos_muro'
+  // Aviso de RH (mensaje + imagen, a toda la empresa o a un colaborador) —
+  // `App\Services\Avisos\AvisoService`. resource_id = id del aviso.
+  | 'aviso_rh'
   // QA — `POST /dispositivos/push-prueba`
   | 'push_test'
   | (string & {});
