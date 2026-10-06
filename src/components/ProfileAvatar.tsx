@@ -29,7 +29,8 @@ export function ProfileAvatar({ name, fotoUrlApi, fotoUrl, size = 56, ringColor 
   const uri = fotoUrlApi ?? fotoUrl;
 
   if (uri) {
-    return <Avatar name={name} uri={uri} headers={token ? { Authorization: `Bearer ${token}` } : undefined} size={size} ringColor={ringColor} />;
+    // key = uri: una foto nueva (?v= distinto) reinicia el estado de error del Avatar.
+    return <Avatar key={uri} name={name} uri={uri} headers={token ? { Authorization: `Bearer ${token}` } : undefined} size={size} ringColor={ringColor} />;
   }
 
   if (SHOW_DEMO_PROFILE_PHOTO) {

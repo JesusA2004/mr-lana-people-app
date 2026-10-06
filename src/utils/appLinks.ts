@@ -42,6 +42,9 @@ export function resolveResourceRoute(data: PushNotificationData): string | null 
       return '/incorporacion';
     case 'cumpleanos':
       return '/cumpleanos';
+    // Foto de perfil aprobada o rechazada (al colaborador): su perfil.
+    case 'foto_perfil':
+      return '/(app)/(tabs)/perfil';
 
     // Celebraciones unificadas: siempre llevan a la celebración concreta
     // (`resource_id` = id de `BirthdayGreeting`), nunca a una bandeja.
@@ -59,6 +62,9 @@ export function resolveResourceRoute(data: PushNotificationData): string | null 
       return id ? `/(app)/rh/incorporaciones/${id}` : '/(app)/rh/(tabs)/pendientes';
     case 'rh_documento':
       return id ? `/(app)/rh/documentos/${id}` : '/(app)/rh/(tabs)/pendientes';
+    // Cambio de foto por revisar (RH/gerentes): bandeja de cambios de foto.
+    case 'rh_foto_perfil':
+      return '/(app)/rh/cambios-foto';
     case 'rh_cumpleanos':
       // Cuando el aviso resume varios cumpleaños, `resource_id` es null y el
       // backend manda `periodo` — nunca se inventa un id.

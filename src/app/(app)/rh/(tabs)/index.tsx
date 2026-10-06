@@ -105,6 +105,8 @@ export default function RhDashboardScreen() {
     moduloOn('plantilla') && { route: '/(app)/rh/plantilla', icon: 'grid-outline', label: 'Plantilla y cobertura' },
     (organigramaEnabled || organigramaPersonasEnabled) && { route: '/(app)/rh/organizacion', icon: 'git-network-outline', label: 'Organigrama' },
     vacantesEnabled && { route: '/(app)/rh/vacantes', icon: 'briefcase-outline', label: 'Vacantes' },
+    // Mismo permiso que GET /rh/cambios-foto (CambioFotoPerfilPolicy).
+    hasPermission(permissions, 'expedientes.revisar') && { route: '/(app)/rh/cambios-foto', icon: 'image-outline', label: 'Cambios de foto' },
     moduloOn('plantillas_documentales') && { route: '/(app)/rh/plantillas-documentales', icon: 'documents-outline', label: 'Documentos maestros' },
   ]);
 

@@ -28,7 +28,7 @@ import { useSolicitudesConfiguracion } from '@/hooks/queries/useSolicitudesConfi
 import { useVacacionesSaldo } from '@/hooks/queries/useVacaciones';
 import { toast } from '@/store/toastStore';
 import type { KnownRequestType, Solicitud, SolicitudTipoConfig } from '@/types/request';
-import { diffInDaysInclusive, formatDateLong, fromApiDateString } from '@/utils/dates';
+import { formatDateLong, fromApiDateString, toApiDateString } from '@/utils/dates';
 import { getErrorMessage, getValidationErrors, logError } from '@/utils/errors';
 import { haptics } from '@/utils/haptics';
 import { formatCurrencyMXN } from '@/utils/formatters';
@@ -104,33 +104,23 @@ export default function NuevaSolicitudScreen() {
   const currentStepKey = stepKeys[clampedStep];
 
   /**
-   * Estimación de días para vacaciones: se prellena `dias_solicitados` en
-   * cuanto hay rango, pero el colaborador puede corregirlo y el backend es
-   * quien valida contra el saldo real.
+   * Duración (incapacidad, permisos por días): la fecha de término la
+   * calcula el backend como inicio + (días − 1), días NATURALES (incluye
+   * sábado y domingo). Aquí solo se muestra de antemano.
    */
-  const estimatedDays = useMemo(() => {
+  const fechaTermino = useMemo(() => {
+    if (config?.modo_fechas !== 'duracion') return undefined;
     const inicio = fromApiDateString(typeof values.fecha_inicio === 'string' ? values.fecha_inicio : undefined);
-    const fin = fromApiDateString(typeof values.fecha_fin === 'string' ? values.fecha_fin : undefined);
-    if (!inicio || !fin || fin < inicio) return undefined;
-    return diffInDaysInclusive(inicio, fin);
-  }, [values.fecha_inicio, values.fecha_fin]);
+    const dias = typeof values.duracion_dias === 'number' ? values.duracion_dias : Number(values.duracion_dias);
+    if (!inicio || !Number.isInteger(dias) || dias < 1) return undefined;
+    const fin = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate() + dias - 1);
+    return formatDateLong(toApiDateString(fin));
+  }, [config?.modo_fechas, values.fecha_inicio, values.duracion_dias]);
 
-  const setValue = (name: string, value: string | number | undefined) => {
-    setValues((current) => {
-      const next = { ...current, [name]: value };
+  const diasElegidos = Array.isArray(values.dias) ? values.dias.length : 0;
 
-      // Prellenado de `dias_solicitados` al completar el rango: se hace aquí,
-      // al capturar la fecha, y no en un efecto — así no hay un render extra
-      // en cascada. Solo se rellena si el campo sigue vacío: si el
-      // colaborador ya escribió un número, manda el suyo.
-      if (config?.requiere_dias && (name === 'fecha_inicio' || name === 'fecha_fin') && next.dias_solicitados === undefined) {
-        const inicio = fromApiDateString(typeof next.fecha_inicio === 'string' ? next.fecha_inicio : undefined);
-        const fin = fromApiDateString(typeof next.fecha_fin === 'string' ? next.fecha_fin : undefined);
-        if (inicio && fin && fin >= inicio) next.dias_solicitados = diffInDaysInclusive(inicio, fin);
-      }
-
-      return next;
-    });
+  const setValue = (name: string, value: string | number | string[] | undefined) => {
+    setValues((current) => ({ ...current, [name]: value }));
 
     setFieldErrors((current) => {
       if (!current[name]) return current;
@@ -163,15 +153,13 @@ export default function NuevaSolicitudScreen() {
     for (const campo of config.campos) {
       if (!campo.required) continue;
       const value = values[campo.name];
-      if (value === undefined || value === null || String(value).trim() === '') {
+      if (value === undefined || value === null || (Array.isArray(value) ? value.length === 0 : String(value).trim() === '')) {
         errors[campo.name] = `${requestFieldCopy(campo.name).label} es obligatorio`;
       }
     }
 
-    const inicio = fromApiDateString(typeof values.fecha_inicio === 'string' ? values.fecha_inicio : undefined);
-    const fin = fromApiDateString(typeof values.fecha_fin === 'string' ? values.fecha_fin : undefined);
-    if (inicio && fin && fin < inicio) {
-      errors.fecha_fin = 'La fecha de fin no puede ser anterior a la fecha de inicio';
+    if (esVacaciones && typeof diasDisponibles === 'number' && diasElegidos > diasDisponibles) {
+      errors.dias = `Elegiste ${diasElegidos} días y tienes ${diasDisponibles} disponibles.`;
     }
 
     setFieldErrors(errors);
@@ -450,13 +438,21 @@ export default function NuevaSolicitudScreen() {
                   value={values[campo.name]}
                   onChange={(value) => setValue(campo.name, value)}
                   error={fieldErrors[campo.name]}
+                  diasNoSeleccionables={config.dias_no_seleccionables}
                 />
               ))}
             </View>
 
-            {config.requiere_dias && estimatedDays !== undefined ? (
-              <Text style={styles.stepHelper}>
-                Estimamos {estimatedDays} {estimatedDays === 1 ? 'día' : 'días'} naturales en ese rango.
+            {fechaTermino ? (
+              <View style={styles.noteBanner}>
+                <Ionicons name="calendar-outline" size={18} color={Colors.primaryDark} />
+                <Text style={styles.noteText}>Termina el {fechaTermino} (días naturales: incluye sábado y domingo).</Text>
+              </View>
+            ) : null}
+
+            {esVacaciones && typeof diasDisponibles === 'number' ? (
+              <Text style={[styles.stepHelper, diasElegidos > diasDisponibles && { color: Colors.danger }] as object}>
+                Te quedarían {diasDisponibles - diasElegidos} {diasDisponibles - diasElegidos === 1 ? 'día disponible' : 'días disponibles'}.
               </Text>
             ) : null}
           </Animated.View>
@@ -573,8 +569,10 @@ function isInconclusive(error: unknown): boolean {
   return !candidate?.response;
 }
 
-function summaryValue(name: string, value: string | number | undefined): string {
+function summaryValue(name: string, value: string | number | string[] | undefined): string {
   if (value === undefined || value === null || value === '') return '—';
+  if (Array.isArray(value)) return value.length === 0 ? '—' : `${value.length} ${value.length === 1 ? 'día' : 'días'}: ${value.map((d) => formatDateLong(d)).join(', ')}`;
+  if (name === 'duracion_dias') return `${value} ${Number(value) === 1 ? 'día' : 'días'} naturales`;
   if (name === 'monto_solicitado') return formatCurrencyMXN(Number(value));
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return formatDateLong(value);
   return String(value);

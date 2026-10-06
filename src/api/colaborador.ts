@@ -1,6 +1,9 @@
-import { apiClient, extractData } from './client';
+import type { AxiosProgressEvent } from 'axios';
 
-import type { CollaboratorProfile, DashboardData } from '@/types/collaborator';
+import { apiClient, extractData } from './client';
+import { appendFile, multipartHeaders, type LocalUploadFile } from './upload';
+
+import type { CollaboratorProfile, DashboardData, FotoPerfilEstado, SubirFotoRespuesta } from '@/types/collaborator';
 import type { NotificationItem } from '@/types/notification';
 import type { CreateSolicitudPayload, Solicitud } from '@/types/request';
 import type { VacationBalance } from '@/types/vacation';
@@ -41,5 +44,28 @@ export const colaboradorApi = {
   async getNotificaciones(): Promise<NotificationItem[]> {
     const response = await apiClient.get('/colaborador/notificaciones');
     return extractData<NotificationItem[]>(response.data);
+  },
+
+  /** Estado de la foto propia (sin foto / oficial / cambio pendiente + última decisión de RH). */
+  async getEstadoFoto(): Promise<FotoPerfilEstado> {
+    const response = await apiClient.get('/colaborador/foto/estado');
+    return extractData<FotoPerfilEstado>(response.data);
+  },
+
+  /**
+   * Sube la foto propia. Sin foto oficial queda oficial al instante (200);
+   * con foto oficial queda como propuesta para RH (202) y la actual sigue.
+   */
+  async subirFoto(file: LocalUploadFile, onProgress?: (percent: number) => void): Promise<SubirFotoRespuesta> {
+    const formData = new FormData();
+    appendFile(formData, 'foto', file);
+    const response = await apiClient.post('/colaborador/foto', formData, {
+      headers: multipartHeaders,
+      onUploadProgress: (event: AxiosProgressEvent) => {
+        if (!onProgress || !event.total) return;
+        onProgress(Math.round((event.loaded / event.total) * 100));
+      },
+    });
+    return response.data as SubirFotoRespuesta;
   },
 };

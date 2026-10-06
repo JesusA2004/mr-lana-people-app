@@ -254,3 +254,22 @@ export interface RhExpediente {
   acciones_permitidas?: AllowedAction[];
   [key: string]: unknown;
 }
+
+/** Cambio de foto de perfil pendiente de revisión (FotoColaboradorService::filaRevision). */
+export interface RhCambioFoto {
+  id: number;
+  estado: string;
+  etiqueta: string;
+  solicitada_en: string;
+  colaborador: {
+    id: number;
+    nombre: string;
+    numero_empleado: string | null;
+    puesto: string | null;
+    sucursal: string | null;
+  };
+  /** Foto oficial actual (Bearer token). */
+  foto_actual_url: string | null;
+  /** Propuesta pendiente (Bearer token). */
+  foto_propuesta_url: string;
+}

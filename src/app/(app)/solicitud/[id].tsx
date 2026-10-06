@@ -77,10 +77,21 @@ export default function SolicitudDetalleScreen() {
   const allDetails: DetailItem[] = [
     { icon: 'chatbox-ellipses-outline', label: 'Motivo', value: solicitud?.motivo },
     { icon: 'reader-outline', label: 'Observaciones', value: solicitud?.observaciones },
+    // Vacaciones: los días elegidos (pueden no ser corridos).
+    {
+      icon: 'calendar-number-outline',
+      label: `Días de vacaciones${solicitud?.dias?.length ? ` (${solicitud.dias.length})` : ''}`,
+      value: solicitud?.dias?.length ? solicitud.dias.map((dia) => formatDateLong(dia)).join(', ') : undefined,
+    },
+    {
+      icon: 'hourglass-outline',
+      label: 'Duración',
+      value: solicitud?.modo_fechas === 'duracion' && solicitud.dias_solicitados ? `${solicitud.dias_solicitados} ${solicitud.dias_solicitados === 1 ? 'día' : 'días'} naturales` : undefined,
+    },
     {
       icon: 'calendar-outline',
-      label: 'Fechas',
-      value: hasDateRange
+      label: solicitud?.modo_fechas === 'duracion' ? 'Del — al' : 'Fechas',
+      value: hasDateRange && !solicitud?.dias?.length
         ? [solicitud?.fecha_inicio, solicitud?.fecha_fin]
             .filter((value): value is string => Boolean(value))
             .map((value) => formatDateLong(value))

@@ -91,13 +91,21 @@ export const CANCELABLE_REQUEST_STATUSES: readonly RequestStatus[] = [
 ];
 
 /** Tipo de control que el backend pide para un campo de `campos[]`. */
-export type SolicitudCampoTipo = 'text' | 'date' | 'number' | 'select' | (string & {});
+export type SolicitudCampoTipo = 'text' | 'date' | 'dates' | 'number' | 'select' | (string & {});
+
+/** Cómo captura fechas cada tipo (backend App\Enums\ModoFechasSolicitud). */
+export type ModoFechasSolicitud = 'duracion' | 'dias_especificos' | 'horario' | 'fecha_unica' | 'ninguna';
 
 /** Un elemento de `campos[]` en `GET /solicitudes/configuracion`. */
 export interface SolicitudCampo {
   name: string;
   type: SolicitudCampoTipo;
   required: boolean;
+  /** Etiqueta, ayuda y límites que manda el backend (si no, la app usa su propia redacción). */
+  label?: string;
+  ayuda?: string;
+  min?: number;
+  max?: number;
 }
 
 /**
@@ -107,6 +115,10 @@ export interface SolicitudCampo {
 export interface SolicitudTipoConfig {
   clave: RequestType;
   nombre: string;
+  /** duracion: inicio + días naturales (el backend calcula la fecha fin). dias_especificos: vacaciones por días elegidos. */
+  modo_fechas: ModoFechasSolicitud;
+  /** Vacaciones: días de la semana que no se pueden elegir (0 = domingo). */
+  dias_no_seleccionables: number[];
   requiere_fechas: boolean;
   requiere_horario: boolean;
   requiere_dias: boolean;
@@ -214,6 +226,12 @@ export interface Solicitud {
   estado_etiqueta?: string;
   fecha_inicio?: string | null;
   fecha_fin?: string | null;
+  /** Cómo se capturaron las fechas (duración natural, días específicos…). */
+  modo_fechas?: ModoFechasSolicitud;
+  /** Duración en días naturales o cuántos días de vacaciones. */
+  dias_solicitados?: number | null;
+  /** Vacaciones: días específicos elegidos (fuente real). */
+  dias?: string[];
   motivo?: string;
   observaciones?: string | null;
   motivo_rechazo?: string | null;
@@ -268,6 +286,10 @@ export interface CreateSolicitudPayload {
   fecha_inicio?: string;
   fecha_fin?: string;
   dias_solicitados?: number;
+  /** Incapacidad/permisos por días: número de días naturales (el backend calcula la fecha fin). */
+  duracion_dias?: number;
+  /** Vacaciones: días específicos `YYYY-MM-DD` (sin domingos). */
+  dias?: string[];
   monto_solicitado?: number;
   [key: string]: unknown;
 }

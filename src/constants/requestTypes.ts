@@ -78,6 +78,8 @@ const FIELD_COPY: Record<string, RequestFieldCopy> = {
   observaciones: { label: 'Observaciones (opcional)', placeholder: 'Detalle adicional para Recursos Humanos', multiline: true },
   fecha_inicio: { label: 'Fecha de inicio' },
   fecha_fin: { label: 'Fecha de fin' },
+  duracion_dias: { label: 'Número de días', placeholder: '0', helper: 'Días naturales consecutivos (incluye sábado y domingo). La fecha de término se calcula sola.' },
+  dias: { label: 'Días de vacaciones', helper: 'Elige los días que quieres. El domingo no cuenta como vacaciones; el sábado sí.' },
   dias_solicitados: { label: 'Días solicitados', placeholder: '0', helper: 'Recursos Humanos valida el saldo disponible.' },
   monto_solicitado: { label: '¿Cuánto necesitas?', placeholder: '0.00', helper: 'Cantidad en pesos mexicanos.' },
 };

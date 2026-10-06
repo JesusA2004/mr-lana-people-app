@@ -1,6 +1,7 @@
 import { Input } from '../Input';
 
 import { DateField } from './DateField';
+import { DiasVacacionesPicker } from './DiasVacacionesPicker';
 import { MoneyField } from './MoneyField';
 
 import { requestFieldCopy, specialFieldKind } from '@/constants/requestTypes';
@@ -9,10 +10,12 @@ import { fromApiDateString, toApiDateString } from '@/utils/dates';
 
 export interface DynamicRequestFieldProps {
   campo: SolicitudCampo;
-  /** Valor actual; las fechas viajan siempre como `YYYY-MM-DD`, nunca como `Date`. */
-  value: string | number | undefined;
-  onChange: (value: string | number | undefined) => void;
+  /** Valor actual; las fechas viajan siempre como `YYYY-MM-DD`, nunca como `Date`. Lista de días para `dates`. */
+  value: string | number | string[] | undefined;
+  onChange: (value: string | number | string[] | undefined) => void;
   error?: string;
+  /** `dates` (vacaciones): días de la semana que no se pueden elegir (0 = domingo). */
+  diasNoSeleccionables?: number[];
 }
 
 /**
@@ -32,8 +35,10 @@ export function DynamicRequestField({
   value,
   onChange,
   error,
+  diasNoSeleccionables,
 }: DynamicRequestFieldProps) {
   const copy = requestFieldCopy(campo.name);
+  const helper = copy.helper ?? campo.ayuda;
   const label = campo.required ? copy.label : copy.label.includes('opcional') ? copy.label : `${copy.label} (opcional)`;
 
   if (specialFieldKind(campo) === 'money') {
@@ -49,6 +54,20 @@ export function DynamicRequestField({
     );
   }
 
+  if (campo.type === 'dates') {
+    return (
+      <DiasVacacionesPicker
+        label={label}
+        value={Array.isArray(value) ? value : []}
+        onChange={(dias) => onChange(dias)}
+        diasNoSeleccionables={diasNoSeleccionables}
+        maximo={campo.max}
+        helper={helper}
+        error={error}
+      />
+    );
+  }
+
   if (campo.type === 'date') {
     return (
       <DateField
@@ -56,7 +75,7 @@ export function DynamicRequestField({
         value={typeof value === 'string' ? fromApiDateString(value) : undefined}
         onChange={(date) => onChange(toApiDateString(date))}
         error={error}
-        helper={copy.helper}
+        helper={helper}
       />
     );
   }

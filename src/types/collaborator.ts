@@ -26,6 +26,8 @@ export interface CollaboratorProfile {
    * (heredado, protegido por sesión web).
    */
   foto_url_api?: string | null;
+  /** Estado de la foto (primera foto directa; cambios con aprobación de RH). */
+  foto?: FotoPerfilEstado | null;
   puesto?: string | null;
   departamento?: string | null;
   sucursal?: string | null;
@@ -70,4 +72,32 @@ export interface DashboardData {
   solicitudes_recientes?: unknown[];
   notificaciones?: DashboardNotificacionesResumen;
   [key: string]: unknown;
+}
+
+/**
+ * Estado de la foto de perfil (backend: FotoColaboradorService::estadoPara).
+ * - sin_foto: la primera que suba queda oficial al instante.
+ * - oficial: un cambio nuevo queda PENDIENTE de RH; la actual sigue visible.
+ * - cambio_pendiente: ya hay una propuesta esperando a RH (no se envía otra).
+ */
+export interface FotoPerfilEstado {
+  estado: 'sin_foto' | 'oficial' | 'cambio_pendiente';
+  etiqueta: string;
+  foto_url: string | null;
+  puede_subir_directo: boolean;
+  pendiente: { id: number; solicitada_en: string; foto_url: string } | null;
+  ultimo_cambio: {
+    id: number;
+    estado: 'aprobado' | 'rechazado';
+    etiqueta: string;
+    motivo_rechazo: string | null;
+    revisado_en: string | null;
+  } | null;
+}
+
+export interface SubirFotoRespuesta {
+  message: string;
+  resultado: 'oficial' | 'pendiente';
+  foto_url: string | null;
+  foto: FotoPerfilEstado;
 }

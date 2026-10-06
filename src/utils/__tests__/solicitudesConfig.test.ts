@@ -148,3 +148,65 @@ describe('buildCreatePayload', () => {
     expect(() => buildCreatePayload(config, { motivo: 'Renuncia' })).toThrow();
   });
 });
+
+describe('fechas por tipo (backend: FechasSolicitudService)', () => {
+  const catalogo = {
+    tipos: [
+      {
+        clave: 'incapacidad',
+        nombre: 'Incapacidad',
+        modo_fechas: 'duracion',
+        requiere_fechas: true,
+        campos: [
+          { name: 'fecha_inicio', type: 'date', required: true, label: 'Fecha de inicio' },
+          { name: 'duracion_dias', type: 'number', required: true, min: 1, max: 365, ayuda: 'Días naturales' },
+          { name: 'motivo', type: 'text', required: true },
+        ],
+      },
+      {
+        clave: 'vacaciones',
+        nombre: 'Vacaciones',
+        modo_fechas: 'dias_especificos',
+        dias_no_seleccionables: [0],
+        requiere_fechas: true,
+        requiere_dias: true,
+        campos: [
+          { name: 'dias', type: 'dates', required: true, max: 60 },
+          { name: 'motivo', type: 'text', required: true },
+        ],
+      },
+    ],
+  };
+
+  it('incapacidad manda inicio + número de días, nunca fecha_fin', () => {
+    const tipos = normalizeSolicitudesConfiguracion(catalogo);
+    const config = findTipoConfig(tipos, 'incapacidad')!;
+
+    expect(config.modo_fechas).toBe('duracion');
+    expect(config.campos[1]).toMatchObject({ name: 'duracion_dias', min: 1, max: 365, ayuda: 'Días naturales' });
+    expect(buildCreatePayload(config, { motivo: 'IMSS', fecha_inicio: '2026-10-14', duracion_dias: '5', fecha_fin: '2026-12-31' })).toEqual({
+      tipo: 'incapacidad',
+      motivo: 'IMSS',
+      fecha_inicio: '2026-10-14',
+      duracion_dias: 5,
+    });
+  });
+
+  it('vacaciones manda la lista de días ordenada y sin repetidos', () => {
+    const tipos = normalizeSolicitudesConfiguracion(catalogo);
+    const config = findTipoConfig(tipos, 'vacaciones')!;
+
+    expect(config.modo_fechas).toBe('dias_especificos');
+    expect(config.dias_no_seleccionables).toEqual([0]);
+    expect(config.campos[0].type).toBe('dates');
+    expect(
+      buildCreatePayload(config, { motivo: 'Viaje', dias: ['2026-10-17', '2026-10-12', '2026-10-13', '2026-10-12', '2026-10-14', '2026-10-16'] }),
+    ).toEqual({ tipo: 'vacaciones', motivo: 'Viaje', dias: ['2026-10-12', '2026-10-13', '2026-10-14', '2026-10-16', '2026-10-17'] });
+  });
+
+  it('un backend anterior sin modo_fechas se deduce de sus banderas', () => {
+    const tipos = normalizeSolicitudesConfiguracion({ tipos: [{ clave: 'permiso_tiempo', nombre: 'Permiso', requiere_horario: true, campos: [] }] });
+
+    expect(tipos[0].modo_fechas).toBe('horario');
+  });
+});

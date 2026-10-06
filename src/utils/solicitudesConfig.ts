@@ -1,4 +1,4 @@
-import type { CreateSolicitudPayload, RequestType, SolicitudCampo, SolicitudCampoTipo, SolicitudTipoConfig } from '@/types/request';
+import type { CreateSolicitudPayload, ModoFechasSolicitud, RequestType, SolicitudCampo, SolicitudCampoTipo, SolicitudTipoConfig } from '@/types/request';
 
 /**
  * Normalización defensiva del catálogo de solicitudes.
@@ -11,7 +11,13 @@ import type { CreateSolicitudPayload, RequestType, SolicitudCampo, SolicitudCamp
  * dos formas solo como red de seguridad.
  */
 
-const CAMPO_TIPOS: SolicitudCampoTipo[] = ['text', 'date', 'number', 'select'];
+const CAMPO_TIPOS: SolicitudCampoTipo[] = ['text', 'date', 'dates', 'number', 'select'];
+
+const MODOS_FECHAS: ModoFechasSolicitud[] = ['duracion', 'dias_especificos', 'horario', 'fecha_unica', 'ninguna'];
+
+function asNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
 
 function asBoolean(value: unknown, fallback = false): boolean {
   return typeof value === 'boolean' ? value : fallback;
@@ -33,7 +39,15 @@ function normalizeCampo(raw: unknown): SolicitudCampo | null {
   // del encargo: "quedar preparado para tipos futuros").
   const type: SolicitudCampoTipo = rawType && CAMPO_TIPOS.includes(rawType) ? rawType : 'text';
 
-  return { name, type, required: asBoolean(record.required) };
+  return {
+    name,
+    type,
+    required: asBoolean(record.required),
+    label: asString(record.label),
+    ayuda: asString(record.ayuda),
+    min: asNumber(record.min),
+    max: asNumber(record.max),
+  };
 }
 
 /**
@@ -60,9 +74,18 @@ function normalizeTipo(raw: unknown): SolicitudTipoConfig | null {
 
   const requiereColaboradorObjetivo = asBoolean(record.requiere_colaborador_objetivo);
 
+  const modo = asString(record.modo_fechas) as ModoFechasSolicitud | undefined;
+
   return {
     clave,
     nombre: asString(record.nombre) ?? clave,
+    // Backend anterior (sin modo_fechas): se deduce de sus banderas.
+    modo_fechas: modo && MODOS_FECHAS.includes(modo) ? modo : asBoolean(record.requiere_horario) ? 'horario' : asBoolean(record.requiere_fechas) ? 'duracion' : 'ninguna',
+    dias_no_seleccionables: Array.isArray(record.dias_no_seleccionables)
+      ? record.dias_no_seleccionables.filter((d): d is number => typeof d === 'number')
+      : clave === 'vacaciones'
+        ? [0]
+        : [],
     requiere_fechas: asBoolean(record.requiere_fechas),
     requiere_horario: asBoolean(record.requiere_horario),
     requiere_dias: asBoolean(record.requiere_dias),
@@ -116,7 +139,7 @@ export function findTipoConfig(tipos: SolicitudTipoConfig[] | undefined, clave: 
 }
 
 /** Valores capturados por el wizard, siempre indexados por el `name` del campo. */
-export type DynamicFormValues = Record<string, string | number | undefined>;
+export type DynamicFormValues = Record<string, string | number | string[] | undefined>;
 
 /**
  * Arma el payload de `POST /solicitudes` usando EXCLUSIVAMENTE los campos
@@ -134,13 +157,19 @@ export function buildCreatePayload(config: SolicitudTipoConfig, values: DynamicF
     motivo: String(values.motivo ?? '').trim(),
   };
 
-  const numericFields = new Set(['dias_solicitados', 'monto_solicitado']);
+  const numericFields = new Set(['dias_solicitados', 'monto_solicitado', 'duracion_dias']);
 
   for (const campo of config.campos) {
     if (campo.name === 'motivo' || CAMPOS_NO_AUTOSERVICIO.has(campo.name)) continue;
 
     const raw = values[campo.name];
     if (raw === undefined || raw === null || raw === '') continue;
+
+    // Lista de días (vacaciones): se manda como arreglo, ordenado y sin repetidos.
+    if (Array.isArray(raw)) {
+      if (raw.length > 0) payload[campo.name] = [...new Set(raw)].sort();
+      continue;
+    }
 
     if (numericFields.has(campo.name)) {
       const numeric = typeof raw === 'number' ? raw : Number(String(raw).replace(/[^0-9.-]/g, ''));

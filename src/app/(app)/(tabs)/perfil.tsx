@@ -9,7 +9,7 @@ import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
 import { FadeInView } from '@/components/FadeInView';
 import { PressableScale } from '@/components/PressableScale';
-import { ProfileAvatar } from '@/components/ProfileAvatar';
+import { EditableProfileAvatar } from '@/components/EditableProfileAvatar';
 import { SecurityWatermark } from '@/components/SecurityWatermark';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
@@ -118,7 +118,15 @@ export default function PerfilScreen() {
           <>
             <FadeInView index={0}>
               <Card style={styles.headerCard}>
-                <ProfileAvatar name={nombre} fotoUrlApi={perfil?.foto_url_api} fotoUrl={perfil?.foto_url} size={96} ringColor={Colors.primary} />
+                <EditableProfileAvatar
+                  name={nombre}
+                  fotoUrlApi={perfil?.foto_url_api}
+                  fotoUrl={perfil?.foto_url}
+                  estado={perfil?.foto}
+                  size={96}
+                  ringColor={Colors.primary}
+                  mostrarEstado
+                />
                 <Text style={styles.name}>{nombre ?? 'Colaborador'}</Text>
                 {perfil?.puesto ? <Text style={styles.role}>{perfil.puesto}</Text> : null}
                 {perfil?.empresa || perfil?.sucursal ? (

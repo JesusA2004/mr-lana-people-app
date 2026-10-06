@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/AppHeader';
 import { Avatar } from '@/components/Avatar';
+import { EditableProfileAvatar } from '@/components/EditableProfileAvatar';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { PressableScale } from '@/components/PressableScale';
@@ -14,6 +15,7 @@ import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constant
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { SHOW_DEV_TOOLS } from '@/constants/config';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
+import { usePerfil } from '@/hooks/queries/usePerfil';
 import { authenticateWithBiometricsAsync, biometricLabel, getBiometricCapabilityAsync, type BiometricKind } from '@/services/biometricAuth';
 import {
   getPushPermissionStatusAsync,
@@ -43,6 +45,7 @@ export default function ConfiguracionScreen() {
   const setBiometricEnabled = useBiometricStore((state) => state.setEnabled);
 
   const bootstrap = useMobileBootstrap(true);
+  const perfil = usePerfil();
   const puedeCambiarExperiencia = canSwitchExperience(experienceAvailability(bootstrap.data?.capabilities, bootstrap.data?.features));
 
   const nombre = joinName(user?.nombre, user?.apellidos);
@@ -106,10 +109,16 @@ export default function ConfiguracionScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.sectionLabel}>Cuenta</Text>
         <Card style={styles.userCard}>
-          <Avatar name={nombre} size={48} />
+          {/* Con expediente: tocar la foto la agrega o pide el cambio a RH. */}
+          {perfil.data?.foto ? (
+            <EditableProfileAvatar name={nombre} fotoUrlApi={perfil.data.foto_url_api} fotoUrl={perfil.data.foto_url} estado={perfil.data.foto} size={56} />
+          ) : (
+            <Avatar name={nombre} size={48} />
+          )}
           <View style={styles.userInfo}>
             <Text style={styles.userName}>{nombre ?? 'Colaborador'}</Text>
             {user?.correo ? <Text style={styles.userEmail}>{user.correo}</Text> : null}
+            {perfil.data?.foto ? <Text style={styles.userEmail}>{perfil.data.foto.estado === 'cambio_pendiente' ? 'Cambio de foto pendiente de aprobación' : perfil.data.foto.etiqueta}</Text> : null}
           </View>
         </Card>
 
