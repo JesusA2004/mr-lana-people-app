@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { FiltroChips } from '@/components/FiltroChips';
 import { AppHeader } from '@/components/AppHeader';
 import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
@@ -116,21 +117,7 @@ export default function RhVacantesScreen() {
         ) : null}
       </View>
 
-      <FlatList
-        horizontal
-        data={ESTADO_FILTERS}
-        keyExtractor={(item) => item.value}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterRow}
-        renderItem={({ item }) => (
-          <PressableScale
-            haptic={false}
-            onPress={() => setEstado(item.value)}
-            style={[styles.filterChip, estado === item.value && styles.filterChipActive] as object}>
-            <Text style={[styles.filterLabel, estado === item.value && styles.filterLabelActive]}>{item.label}</Text>
-          </PressableScale>
-        )}
-      />
+      <FiltroChips opciones={ESTADO_FILTERS} valor={estado} onChange={setEstado} />
 
       <FlatList
         data={vacantes}
@@ -270,19 +257,6 @@ const crearEstilos = (Colors: ColorPalette) =>
     borderColor: Colors.border,
   },
   searchInput: { flex: 1, fontSize: FontSize.sm, color: Colors.text },
-  filterRow: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.md, gap: Spacing.sm },
-  filterChip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginRight: Spacing.sm,
-  },
-  filterChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  filterLabel: { fontSize: FontSize.xs, fontWeight: '700', color: Colors.textMuted },
-  filterLabelActive: { color: Colors.white },
   listContent: { width: '100%', maxWidth: Layout.maxContentWidth, alignSelf: 'center', padding: Spacing.lg, paddingTop: 0, flexGrow: 1 },
   total: { fontSize: FontSize.xs, color: Colors.textMuted, fontWeight: '600', marginBottom: Spacing.md },
   card: { gap: Spacing.sm },

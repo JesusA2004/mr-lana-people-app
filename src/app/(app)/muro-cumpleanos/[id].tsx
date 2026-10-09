@@ -26,6 +26,7 @@ import { confirmAction } from '@/utils/confirm';
 import { formatDateLong, formatDateTime } from '@/utils/dates';
 import { getActionErrorMessage, getErrorMessage, isNotFoundError, logError } from '@/utils/errors';
 import { haptics } from '@/utils/haptics';
+import { volverAtras } from '@/utils/navegacion';
 
 const MAX_CHARS = 500;
 const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
@@ -186,7 +187,7 @@ export default function MuroCumpleanosScreen() {
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <AppHeader title="Muro de cumpleaños" showBack onBackPress={() => router.back()} />
+      <AppHeader title="Muro de cumpleaños" showBack onBackPress={() => volverAtras(router)} />
       {wall.isLoading ? (
         <View style={styles.loading}>
           <SkeletonBlock height={220} radius={Radius.xl} />

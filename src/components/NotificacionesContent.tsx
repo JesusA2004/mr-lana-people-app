@@ -18,6 +18,7 @@ import { toast } from '@/store/toastStore';
 import type { NotificationItem } from '@/types/notification';
 import { experienceForPush, resolveResourceRoute } from '@/utils/appLinks';
 import { openCrossExperienceRoute } from '@/utils/crossNavigation';
+import { volverAtras } from '@/utils/navegacion';
 import { getErrorMessage, logError } from '@/utils/errors';
 import { notificationStyle } from '@/utils/notificationStyle';
 
@@ -123,7 +124,7 @@ export function NotificacionesContent({ showBack = false }: NotificacionesConten
       <AppHeader
         title="Notificaciones"
         showBack={showBack}
-        onBackPress={showBack ? () => router.back() : undefined}
+        onBackPress={showBack ? () => volverAtras(router) : undefined}
         right={
           unreadCount > 0 ? (
             <PressableScale haptic={false} onPress={handleMarkAllAsRead} disabled={markAllAsRead.isPending} style={styles.markAllButton}>

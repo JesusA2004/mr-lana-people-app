@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { FiltroChips } from '@/components/FiltroChips';
 import { Button } from '@/components/Button';
 import { AppHeader } from '@/components/AppHeader';
 import { ErrorState } from '@/components/ErrorState';
@@ -108,36 +109,8 @@ export default function SolicitudesScreen() {
 
       {!isLoading && solicitudes.length > 0 ? (
         <>
-          <FlatList
-            horizontal
-            data={FAMILY_FILTERS}
-            keyExtractor={(item) => item.value}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filterRow}
-            renderItem={({ item }) => (
-              <PressableScale
-                haptic={false}
-                onPress={() => setFamily(item.value)}
-                style={[styles.filterChip, family === item.value && styles.filterChipActive] as object}>
-                <Text style={[styles.filterLabel, family === item.value && styles.filterLabelActive]}>{item.label}</Text>
-              </PressableScale>
-            )}
-          />
-          <FlatList
-            horizontal
-            data={STATUS_FILTERS}
-            keyExtractor={(item) => item.value}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filterRow}
-            renderItem={({ item }) => (
-              <PressableScale
-                haptic={false}
-                onPress={() => setEstado(item.value)}
-                style={[styles.statusChip, estado === item.value && styles.statusChipActive] as object}>
-                <Text style={[styles.statusLabel, estado === item.value && styles.statusLabelActive]}>{item.label}</Text>
-              </PressableScale>
-            )}
-          />
+          <FiltroChips opciones={FAMILY_FILTERS} valor={family} onChange={setFamily} />
+          <FiltroChips opciones={STATUS_FILTERS} valor={estado} onChange={setEstado} />
         </>
       ) : null}
 
@@ -227,51 +200,6 @@ const crearEstilos = (Colors: ColorPalette) =>
     flex: 1,
     fontSize: FontSize.sm,
     color: Colors.text,
-  },
-  filterRow: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.md,
-    gap: Spacing.sm,
-  },
-  filterChip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginRight: Spacing.sm,
-  },
-  filterChipActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  filterLabel: {
-    fontSize: FontSize.xs,
-    fontWeight: '700',
-    color: Colors.textMuted,
-  },
-  filterLabelActive: {
-    color: Colors.white,
-  },
-  statusChip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.surfaceMuted,
-    marginRight: Spacing.sm,
-  },
-  statusChipActive: {
-    backgroundColor: Colors.primarySoft,
-  },
-  statusLabel: {
-    fontSize: FontSize.xs,
-    fontWeight: '600',
-    color: Colors.textMuted,
-  },
-  statusLabelActive: {
-    color: Colors.primaryDark,
-    fontWeight: '800',
   },
   listContent: {
     width: '100%',

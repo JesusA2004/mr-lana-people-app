@@ -10,6 +10,13 @@ import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useBirthdayWalls } from '@/hooks/queries/useBirthdayWall';
 import { useAuthStore } from '@/store/authStore';
 
+/** "7 de octubre" (sin año) a partir de "2026-10-07". */
+function formatDayMonth(fecha?: string | null): string {
+  const [anio, mes, dia] = (fecha ?? '').slice(0, 10).split('-').map(Number);
+  if (!anio || !mes || !dia) return '';
+  return new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'long' }).format(new Date(anio, mes - 1, dia));
+}
+
 /**
  * Accesos a los muros de cumpleaños ABIERTOS (Inicio de Mi espacio y de
  * Gestión RH). No aparece nada si no hay muros abiertos o si el backend
@@ -30,7 +37,14 @@ export function BirthdayWallBanner({ enabled = true, max = 3 }: { enabled?: bool
       {abiertos.map((wall) => {
         const nombre = wall.cumpleanero.nombre ?? 'Un compañero';
         const primerNombre = nombre.split(' ')[0];
-        const title = wall.es_mi_muro ? '¡Tus compañeros te están felicitando!' : wall.es_hoy ? `Hoy cumple ${nombre}` : `Cumpleaños de ${nombre}`;
+        // Un muro sigue abierto unos días después: si ya pasó, se dice
+        // cuándo fue (nunca parece «cumpleaños de hoy» cuando no lo es).
+        const fecha = formatDayMonth(wall.fecha);
+        const title = wall.es_mi_muro
+          ? '¡Tus compañeros te están felicitando!'
+          : wall.es_hoy
+            ? `Hoy cumple ${nombre}`
+            : `${nombre} cumplió años${fecha ? ` el ${fecha}` : ''}`;
         const subtitle = wall.es_mi_muro
           ? `${wall.mensajes_count} ${wall.mensajes_count === 1 ? 'felicitación' : 'felicitaciones'} en tu muro`
           : `Déjale una felicitación a ${primerNombre}${wall.mensajes_count > 0 ? ` · ${wall.mensajes_count} ya lo hicieron` : ''}`;

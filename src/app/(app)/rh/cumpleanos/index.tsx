@@ -3,11 +3,11 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { FiltroChips } from '@/components/FiltroChips';
 import { AppHeader } from '@/components/AppHeader';
 import { ErrorState } from '@/components/ErrorState';
 import { FadeInView } from '@/components/FadeInView';
 import { EmptyState } from '@/components/EmptyState';
-import { PressableScale } from '@/components/PressableScale';
 import { RhBirthdayCard } from '@/components/RhBirthdayCard';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
 import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
@@ -80,22 +80,7 @@ export default function RhCumpleanosListScreen() {
         />
       </View>
 
-      <FlatList
-        horizontal
-        data={FILTERS}
-        keyExtractor={(item) => item.value}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterRow}
-        renderItem={({ item }) => (
-          <PressableScale
-            haptic={false}
-            accessibilityLabel={item.label}
-            onPress={() => setPeriodo(item.value)}
-            style={[styles.filterChip, periodo === item.value && styles.filterChipActive] as object}>
-            <Text style={[styles.filterLabel, periodo === item.value && styles.filterLabelActive]}>{item.label}</Text>
-          </PressableScale>
-        )}
-      />
+      <FiltroChips opciones={FILTERS} valor={periodo} onChange={setPeriodo} />
 
       <FlatList
         data={items}
@@ -204,32 +189,6 @@ const crearEstilos = (Colors: ColorPalette) =>
     flex: 1,
     fontSize: FontSize.sm,
     color: Colors.text,
-  },
-  filterRow: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.md,
-    gap: Spacing.sm,
-  },
-  filterChip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginRight: Spacing.sm,
-  },
-  filterChipActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  filterLabel: {
-    fontSize: FontSize.xs,
-    fontWeight: '700',
-    color: Colors.textMuted,
-  },
-  filterLabelActive: {
-    color: Colors.white,
   },
   listContent: {
     width: '100%',

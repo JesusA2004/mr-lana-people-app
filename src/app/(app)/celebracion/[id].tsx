@@ -25,6 +25,7 @@ import { toast } from '@/store/toastStore';
 import type { CelebracionMensaje } from '@/types/celebracion';
 import { formatDateLong, formatDateTime } from '@/utils/dates';
 import { getActionErrorMessage, getErrorMessage, isNotFoundError, logError } from '@/utils/errors';
+import { volverAtras } from '@/utils/navegacion';
 import { haptics } from '@/utils/haptics';
 
 const MAX_CHARS = 500;
@@ -189,7 +190,7 @@ export default function CelebracionScreen() {
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <AppHeader title="Celebración" showBack onBackPress={() => router.back()} />
+      <AppHeader title="Celebración" showBack onBackPress={() => volverAtras(router)} />
       {celebracion.isLoading ? (
         <View style={styles.loading}>
           <SkeletonBlock height={220} radius={Radius.xl} />

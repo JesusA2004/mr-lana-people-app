@@ -190,6 +190,14 @@ const SHARED_PUSH_TYPES = new Set<PushResourceType>([
   'evaluacion_devuelta',
   'evaluacion_capturada',
   'cumpleanos_muro',
+  // Celebraciones: sus pantallas (/cumpleanos, /celebracion/{id}) son
+  // compartidas. Cambiar de experiencia al tocarlas desmontaba la pila de
+  // Gestión RH y dejaba a Notificaciones sin pantalla a la cual regresar.
+  'cumpleanos',
+  'aniversario_laboral',
+  'cumpleanos_general',
+  'aniversario_general',
+  'celebracion_mensaje',
   'push_test',
 ]);
 
