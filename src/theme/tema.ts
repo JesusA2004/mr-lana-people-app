@@ -13,35 +13,34 @@ function valido(valor: string | undefined): valor is string {
 }
 
 /**
- * Paleta final = base (claro/oscuro según el sistema) + colores
+ * Paleta final = base clara (la app no tiene modo oscuro) + colores
  * institucionales de Administración → Configuración → Apariencia
- * (`GET /app/theme`). Solo se aceptan hex válidos. En oscuro NO se pisan
- * fondo/superficie (un fondo claro de la web dejaría texto ilegible): ahí
- * solo cambian los colores de marca.
+ * (`GET /app/theme`). Solo se aceptan hex válidos. El gris verdoso de
+ * Apariencia no se usa como texto secundario: no alcanza contraste sobre
+ * el fondo crema.
  */
-export function construirTema(scheme: ColorScheme, remoto: AppThemeColors | null | undefined): Tema {
-  const base = Palettes[scheme];
-  const colors: ColorPalette = { ...base };
+export function construirTema(remoto: AppThemeColors | null | undefined): Tema {
+  const colors: ColorPalette = { ...Palettes.light };
 
   if (remoto) {
     const marca: [keyof ColorPalette, string | undefined][] = [
       ['primary', remoto.primary],
-      ['primaryDark', scheme === 'light' ? remoto.primaryAlt : undefined],
-      ['secondary', remoto.secondary],
-      ['info', remoto.accent ?? remoto.secondary],
-      ['rhAccent', remoto.accent ?? remoto.secondary],
+      ['primaryDark', remoto.primaryAlt],
+      ['secondary', remoto.gold ?? remoto.secondary],
+      ['info', remoto.accent ?? remoto.navy],
+      ['rhAccent', remoto.gold ?? remoto.accent],
       ['success', remoto.success],
       ['danger', remoto.danger],
-      ['warning', remoto.gold],
+      // Bronce: el oro claro no se lee como texto de advertencia.
+      ['warning', remoto.goldDark ?? remoto.gold],
       ['rhInk', remoto.deepGreen ?? remoto.navy],
+      ['background', remoto.background],
+      ['surface', remoto.surface],
     ];
-    if (scheme === 'light') {
-      marca.push(['background', remoto.background], ['surface', remoto.surface], ['textMuted', remoto.muted]);
-    }
     for (const [clave, valor] of marca) {
       if (valido(valor)) colors[clave] = valor.trim();
     }
   }
 
-  return { scheme, colors };
+  return { scheme: 'light', colors };
 }

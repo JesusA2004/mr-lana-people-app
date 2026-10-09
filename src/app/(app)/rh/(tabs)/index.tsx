@@ -12,7 +12,7 @@ import { PressableScale } from '@/components/PressableScale';
 import { RhIdentityBadge } from '@/components/RhIdentityBadge';
 import { RhPendienteCard } from '@/components/RhPendienteCard';
 import { SkeletonBlock, SkeletonCardList } from '@/components/SkeletonBlock';
-import { ColorSchemeAtLaunch, FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useRhContratosPorVencer, useRhDocumentosLaboralesPendientes } from '@/hooks/queries/useRhCicloLaboral';
@@ -390,8 +390,7 @@ const crearEstilos = (Colors: ColorPalette) =>
   eyebrow: {
     fontSize: FontSize.xs,
     fontWeight: '800',
-    // En oscuro la tinta RH no contrasta como texto: se usa el acento.
-    color: ColorSchemeAtLaunch === 'dark' ? Colors.rhAccent : Colors.rhInk,
+    color: Colors.rhInk,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },

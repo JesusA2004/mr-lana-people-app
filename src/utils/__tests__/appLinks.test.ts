@@ -27,6 +27,7 @@ const CASOS: [type: string, resourceId: number | null, route: string, experience
   ['recibo_nomina', 88, '/recibos/88', 'colaborador'],
   ['prestamo_autorizado', 15, '/prestamos/15', 'colaborador'],
   ['expediente_incompleto', 7, '/(app)/(tabs)/expediente', 'colaborador'],
+  ['datos_faltantes', 7, '/completar-datos', 'colaborador'],
   ['alta_activada', 7, '/(app)/(tabs)', 'colaborador'],
   ['visto_bueno_pendiente', 44, '/equipo', null],
   ['evaluacion_pendiente', 61, '/evaluaciones/61', null],

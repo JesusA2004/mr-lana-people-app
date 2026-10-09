@@ -31,6 +31,11 @@ export const solicitudesApi = {
     return response.data as PaginatedResponse<Solicitud>;
   },
 
+  /** Formato oficial de permiso (`GET /solicitudes/{id}/permiso-pdf`): 403 hasta que RH lo autoriza. */
+  permisoPdfPath(id: number | string): string {
+    return `/solicitudes/${id}/permiso-pdf`;
+  },
+
   async getById(id: number | string): Promise<Solicitud> {
     const response = await apiClient.get(`/solicitudes/${id}`);
     return extractData<Solicitud>(response.data);

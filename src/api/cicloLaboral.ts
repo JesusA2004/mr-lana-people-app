@@ -16,6 +16,49 @@ export interface DocumentosPendientes {
   por_firmar: LaborDocument[];
 }
 
+/** Control con el que se captura un dato faltante (`ActualizacionDatosService::camposCaptura`). */
+export type TipoCapturaDato = 'text' | 'date' | 'tel' | 'email' | 'number' | 'opciones';
+
+export interface DatoFaltante {
+  campo: string;
+  etiqueta: string;
+  tipo: TipoCapturaDato;
+  opciones?: { value: string; label: string }[];
+}
+
+/** `GET /colaborador/datos-faltantes` — «Completa tu información». */
+export interface DatosFaltantes {
+  completo: boolean;
+  faltan: DatoFaltante[];
+  /** Ya hay una actualización de datos esperando a RH: no se pide otra. */
+  solicitud_en_revision: boolean;
+}
+
+const TIPOS_CAPTURA: TipoCapturaDato[] = ['text', 'date', 'tel', 'email', 'number', 'opciones'];
+
+function normalizeDatosFaltantes(raw: unknown): DatosFaltantes {
+  const record = asRecord(raw);
+  const faltan = asArray(record.faltan)
+    .map((item): DatoFaltante | null => {
+      const fila = asRecord(item);
+      if (typeof fila.campo !== 'string') return null;
+      const tipo = TIPOS_CAPTURA.includes(fila.tipo as TipoCapturaDato) ? (fila.tipo as TipoCapturaDato) : 'text';
+      const opciones = asArray(fila.opciones)
+        .map((o) => asRecord(o))
+        .filter((o) => typeof o.value === 'string')
+        .map((o) => ({ value: String(o.value), label: typeof o.label === 'string' ? o.label : String(o.value) }));
+      return {
+        campo: fila.campo,
+        etiqueta: typeof fila.etiqueta === 'string' ? fila.etiqueta : fila.campo,
+        tipo: tipo === 'opciones' && opciones.length === 0 ? 'text' : tipo,
+        opciones: opciones.length > 0 ? opciones : undefined,
+      };
+    })
+    .filter((dato): dato is DatoFaltante => dato !== null);
+
+  return { completo: record.completo === true || faltan.length === 0, faltan, solicitud_en_revision: record.solicitud_en_revision === true };
+}
+
 /**
  * Autoservicio del ciclo laboral — `GET/POST /api/v1/colaborador/*`
  * (`CicloLaboralColaboradorController`, backend 2026-09-22). Siempre la
@@ -29,6 +72,11 @@ export const cicloLaboralApi = {
   async alta(): Promise<AltaChecklist> {
     const response = await apiClient.get('/colaborador/alta');
     return normalizeAlta(extractData<unknown>(response.data));
+  },
+
+  async datosFaltantes(): Promise<DatosFaltantes> {
+    const response = await apiClient.get('/colaborador/datos-faltantes');
+    return normalizeDatosFaltantes(extractData<unknown>(response.data));
   },
 
   async expediente(): Promise<MiExpediente> {

@@ -143,6 +143,8 @@ export default function AppLayout() {
             options={{ presentation: 'modal', animation: 'slide_from_bottom', gestureEnabled: false }}
           />
           <Stack.Screen name="solicitud/[id]" />
+          {/* «Completa tu información»: propone datos faltantes; RH los autoriza. */}
+          <Stack.Screen name="completar-datos" />
           {/* Solicitar préstamo es una solicitud: disponible aunque el módulo Préstamos esté apagado. */}
           <Stack.Screen name="prestamos/solicitar" />
           <Stack.Screen name="expediente/[tipoId]" />

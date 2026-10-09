@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { solicitudesApi } from '@/api/solicitudes';
 import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
@@ -11,6 +12,7 @@ import { ErrorState } from '@/components/ErrorState';
 import { MascotAssistant } from '@/components/mascot/MascotAssistant';
 import { StepTimeline } from '@/components/ciclo/StepTimeline';
 import { RequestStatusTimeline } from '@/components/RequestStatusTimeline';
+import { SecureDocumentViewer } from '@/components/SecureDocumentViewer';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { SolicitudFormatoOficialCard } from '@/components/SolicitudFormatoOficialCard';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -22,7 +24,7 @@ import { toast } from '@/store/toastStore';
 import { canCancelSolicitud } from '@/types/request';
 import { formatDateLong, formatDateTime } from '@/utils/dates';
 import { getDevErrorDetail, getErrorMessage, logError } from '@/utils/errors';
-import { formatCurrencyMXN, humanizeRequestType } from '@/utils/formatters';
+import { formatCurrencyMXN, humanizeRequestType, slugifyFilename } from '@/utils/formatters';
 import { haptics } from '@/utils/haptics';
 import { loanStagesToTimeline } from '@/utils/loanRequest';
 import { getSolicitudStory, prestamoNextAction } from '@/utils/solicitudStory';
@@ -55,6 +57,7 @@ export default function SolicitudDetalleScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [confirmVisible, setConfirmVisible] = useState(false);
+  const [formatoAbierto, setFormatoAbierto] = useState(false);
 
   const { data: solicitud, isLoading, isError, error, refetch } = useSolicitud(id);
   const cancelMutation = useCancelSolicitud();
@@ -74,7 +77,15 @@ export default function SolicitudDetalleScreen() {
   const montoRaw = solicitud?.prestamo?.monto_solicitado ?? solicitud?.monto_solicitado;
   const monto = typeof montoRaw === 'number' && Number.isFinite(montoRaw) ? montoRaw : undefined;
 
+  const permiso = solicitud?.permiso ?? null;
+
   const allDetails: DetailItem[] = [
+    // Permiso oficial: lo mismo que lleva el formato impreso.
+    { icon: 'time-outline', label: 'Permiso solicitado', value: permiso?.tipo_etiqueta },
+    { icon: 'log-out-outline', label: 'Hora de salida', value: permiso?.hora_salida ? `${permiso.hora_salida} h` : undefined },
+    { icon: 'log-in-outline', label: 'Hora de entrada', value: permiso?.hora_entrada ? `${permiso.hora_entrada} h` : undefined },
+    { icon: 'wallet-outline', label: 'Tipo de permiso', value: permiso?.goce_etiqueta },
+    { icon: 'ribbon-outline', label: 'Causal', value: permiso?.causal_etiqueta },
     { icon: 'chatbox-ellipses-outline', label: 'Motivo', value: solicitud?.motivo },
     { icon: 'reader-outline', label: 'Observaciones', value: solicitud?.observaciones },
     // Vacaciones: los días elegidos (pueden no ser corridos).
@@ -155,6 +166,18 @@ export default function SolicitudDetalleScreen() {
       },
     });
   };
+
+  if (formatoAbierto && solicitud && permiso?.pdf_disponible) {
+    return (
+      <SecureDocumentViewer
+        path={solicitudesApi.permisoPdfPath(solicitud.id)}
+        title={`Permiso ${solicitud.folio ?? ''}`.trim()}
+        onClose={() => setFormatoAbierto(false)}
+        allowDownload
+        downloadFileName={slugifyFilename(`permiso-${solicitud.folio ?? solicitud.id}`)}
+      />
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -252,6 +275,33 @@ export default function SolicitudDetalleScreen() {
                 el día que el Resource mande documentos_generados/
                 formatos_oficiales — hoy no manda ninguno de los dos. */}
             <SolicitudFormatoOficialCard solicitud={solicitud} />
+
+            {/* Formato oficial de permiso: solo existe cuando RH lo autorizó
+                (antes el backend responde 403); se imprime para las tres firmas. */}
+            {permiso ? (
+              <Card style={styles.permisoCard}>
+                <View style={styles.rejectionHeader}>
+                  <Ionicons
+                    name={permiso.pdf_disponible ? 'document-text' : 'lock-closed-outline'}
+                    size={18}
+                    color={permiso.pdf_disponible ? Colors.primary : Colors.textMuted}
+                  />
+                  <Text style={styles.sectionTitle}>Formato de permiso</Text>
+                </View>
+                {permiso.pdf_disponible ? (
+                  <>
+                    <Text style={styles.detailValue}>
+                      Autorizado por {permiso.autorizado_por ?? 'Recursos Humanos'}
+                      {permiso.autorizado_en ? ` el ${formatDateTime(permiso.autorizado_en)}` : ''}. Imprímelo para las firmas de tu jefe
+                      inmediato, Recursos Humanos y la tuya.
+                    </Text>
+                    <Button title="Ver formato oficial" leftIcon="document-outline" variant="outline" onPress={() => setFormatoAbierto(true)} />
+                  </>
+                ) : (
+                  <Text style={styles.detailValue}>El formato se genera cuando Recursos Humanos autoriza tu permiso.</Text>
+                )}
+              </Card>
+            ) : null}
 
             {solicitud.adjuntos && solicitud.adjuntos.length > 0 ? (
               <Card>
@@ -449,6 +499,7 @@ const crearEstilos = (Colors: ColorPalette) =>
     color: Colors.text,
     marginTop: 2,
   },
+  permisoCard: { gap: Spacing.sm },
   sectionTitle: {
     fontSize: FontSize.xs,
     fontWeight: '800',

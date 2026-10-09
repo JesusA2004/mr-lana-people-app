@@ -37,6 +37,7 @@ export type PushResourceType =
   | 'evaluacion_devuelta'
   | 'evaluacion_capturada'
   | 'contrato_por_vencer'
+  | 'datos_faltantes'
   // Muro de felicitaciones (`MuroCumpleanosService`): resource_id = greeting
   | 'cumpleanos_muro'
   // Aviso de RH (mensaje + imagen, a toda la empresa o a un colaborador) —

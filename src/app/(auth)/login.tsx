@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Image } from 'expo-image';
+import { StatusBar } from 'expo-status-bar';
 import * as SecureStore from 'expo-secure-store';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -11,8 +12,8 @@ import { z } from 'zod';
 
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
-import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
-import { useColores, useEstilos } from '@/theme/ThemeProvider';
+import { FontSize, LoginColors, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 import { REMEMBERED_USERNAME_KEY } from '@/constants/config';
 import { useAuthStore } from '@/store/authStore';
 import { getErrorMessage, logError } from '@/utils/errors';
@@ -25,8 +26,13 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
+/**
+ * Login: la ÚNICA pantalla oscura de la app, por diseño (petróleo profundo,
+ * oro y crema, como el login web). No depende del modo del sistema: el
+ * resto de la app es solo claro. La tarjeta del formulario se mantiene
+ * clara para que los campos se lean igual que en el resto de la app.
+ */
 export default function LoginScreen() {
-  const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const login = useAuthStore((state) => state.login);
@@ -66,16 +72,19 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <StatusBar style="light" />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.flex}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.brand}>
-            <Image
-              source={require('@/assets/images/brand/logo-mark.png')}
-              style={styles.logo}
-              contentFit="contain"
-            />
+            <View style={styles.logoBadge}>
+              <Image
+                source={require('@/assets/images/brand/logo-mark.png')}
+                style={styles.logo}
+                contentFit="contain"
+              />
+            </View>
             <Text style={styles.brandTitle}>MR. LANA</Text>
             <Text style={styles.brandSubtitle}>PEOPLE</Text>
           </View>
@@ -152,7 +161,7 @@ export default function LoginScreen() {
               accessibilityLabel="Escanear código QR de incorporación"
               onPress={() => router.push('/(auth)/escanear-qr')}
               style={({ pressed }) => [styles.qrButton, pressed && styles.qrButtonPressed]}>
-              <Ionicons name="qr-code-outline" size={20} color={Colors.primaryDark} />
+              <Ionicons name="qr-code-outline" size={20} color={LoginColors.cream} />
               <Text style={styles.qrButtonText}>Escanear código QR</Text>
             </Pressable>
           </View>
@@ -166,7 +175,7 @@ const crearEstilos = (Colors: ColorPalette) =>
   StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: LoginColors.background,
   },
   flex: {
     flex: 1,
@@ -181,28 +190,38 @@ const crearEstilos = (Colors: ColorPalette) =>
     alignItems: 'center',
     gap: Spacing.xs / 2,
   },
+  logoBadge: {
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.surface,
+    borderWidth: 2,
+    borderColor: LoginColors.gold,
+    marginBottom: Spacing.md,
+  },
   logo: {
-    width: 84,
-    height: 84,
-    marginBottom: Spacing.sm,
+    width: 72,
+    height: 72,
   },
   brandTitle: {
     fontSize: FontSize.xxxl,
     fontWeight: '800',
-    color: Colors.text,
+    color: LoginColors.text,
     letterSpacing: 1,
   },
   brandSubtitle: {
     fontSize: FontSize.lg,
     fontWeight: '700',
-    color: Colors.primary,
+    color: LoginColors.gold,
     letterSpacing: 6,
   },
   form: {
     backgroundColor: Colors.surface,
     borderRadius: Radius.xl,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: LoginColors.divider,
     padding: Spacing.xl,
     gap: Spacing.lg,
   },
@@ -239,22 +258,22 @@ const crearEstilos = (Colors: ColorPalette) =>
   qrDividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: Colors.border,
+    backgroundColor: LoginColors.divider,
   },
   qrDividerText: {
     fontSize: FontSize.xs,
-    color: Colors.textMuted,
+    color: LoginColors.textMuted,
     fontWeight: '700',
   },
   qrTitle: {
     fontSize: FontSize.md,
     fontWeight: '800',
-    color: Colors.text,
+    color: LoginColors.text,
     textAlign: 'center',
   },
   qrSubtitle: {
     fontSize: FontSize.sm,
-    color: Colors.textMuted,
+    color: LoginColors.textMuted,
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -267,8 +286,8 @@ const crearEstilos = (Colors: ColorPalette) =>
     minHeight: 48,
     borderRadius: Radius.md,
     borderWidth: 1.5,
-    borderColor: Colors.primarySoft,
-    backgroundColor: Colors.primarySoft,
+    borderColor: LoginColors.gold,
+    backgroundColor: LoginColors.qrBackground,
     marginTop: Spacing.xs,
   },
   qrButtonPressed: {
@@ -277,6 +296,6 @@ const crearEstilos = (Colors: ColorPalette) =>
   qrButtonText: {
     fontSize: FontSize.md,
     fontWeight: '700',
-    color: Colors.primaryDark,
+    color: LoginColors.cream,
   },
 });

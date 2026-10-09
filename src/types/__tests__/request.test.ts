@@ -2,8 +2,9 @@ import { solicitudResource } from '@/test/fixtures/backend';
 import { canCancelSolicitud, CANCELABLE_REQUEST_STATUSES, FINAL_REQUEST_STATUSES, REQUEST_STATUSES, REQUEST_TYPES } from '../request';
 
 describe('catálogos de solicitudes', () => {
-  it('replica los 17 casos de TipoSolicitudInterna con sus claves exactas', () => {
-    expect(REQUEST_TYPES).toHaveLength(17);
+  it('replica los 18 casos de TipoSolicitudInterna con sus claves exactas', () => {
+    expect(REQUEST_TYPES).toHaveLength(18);
+    expect(REQUEST_TYPES).toContain('permiso');
     expect(REQUEST_TYPES).toContain('prestamo');
     expect(REQUEST_TYPES).toContain('solicitud_general');
     expect(REQUEST_TYPES).toContain('permiso_especial_cumpleanos');

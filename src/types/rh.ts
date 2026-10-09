@@ -181,7 +181,17 @@ export interface RhSolicitud {
   fecha_efectiva?: string;
   tipo_baja?: string;
   colaborador_objetivo?: RhColaboradorResumen;
+  /** Actualización de datos: qué cambia en el expediente al autorizar. */
+  datos_propuestos?: RhDatoPropuesto[] | null;
   [key: string]: unknown;
+}
+
+/** `ActualizacionDatosService::comparativo()`. */
+export interface RhDatoPropuesto {
+  campo: string;
+  etiqueta: string;
+  actual: string | null;
+  propuesto: string;
 }
 
 export interface RhVacacion {

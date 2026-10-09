@@ -16,7 +16,7 @@ import { RH_BADGE_DIAMETER, RhIdentityBadge, type RhIdentityBadgeSize } from '@/
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Stepper } from '@/components/Stepper';
-import { ColorSchemeAtLaunch, FontSize, Layout, Palettes, Radius, Spacing, type ColorPalette, type ColorToken } from '@/constants/colors';
+import { FontSize, Layout, Palettes, Radius, Spacing, type ColorPalette, type ColorToken } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { SHOW_DEV_TOOLS } from '@/constants/config';
 
@@ -60,15 +60,14 @@ export default function DesignQaScreen() {
 
   return (
     <View style={styles.container}>
-      <AppHeader title="Design QA" subtitle={`Tema actual: ${ColorSchemeAtLaunch === 'dark' ? 'oscuro' : 'claro'}`} showBack onBackPress={() => router.back()} />
+      <AppHeader title="Design QA" subtitle="Tema único: claro" showBack onBackPress={() => router.back()} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.inner}>
-          <Notice tone="info">Para ver el otro tema, cambia el tema del sistema y vuelve a abrir la app. Las paletas de abajo son referencia estática.</Notice>
+          <Notice tone="info">La app es solo clara (crema/pastel). El login es oscuro por diseño.</Notice>
 
           <SectionTitle>Paletas (referencia)</SectionTitle>
           <View style={styles.palettes}>
             <PaletteColumn title="Light" palette={Palettes.light} />
-            <PaletteColumn title="Dark" palette={Palettes.dark} />
           </View>
 
           <SectionTitle>RhIdentityBadge</SectionTitle>

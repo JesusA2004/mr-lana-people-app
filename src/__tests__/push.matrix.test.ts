@@ -23,6 +23,7 @@ const CASOS: Caso[] = [
   { type: 'recibo_nomina', related_type: 'ReciboNomina', destinatario: 'colaborador' },
   { type: 'prestamo_autorizado', related_type: 'Prestamo', destinatario: 'colaborador' },
   { type: 'expediente_incompleto', related_type: 'Colaborador', destinatario: 'colaborador' },
+  { type: 'datos_faltantes', related_type: 'Colaborador', destinatario: 'colaborador' },
   { type: 'alta_activada', related_type: 'Colaborador', destinatario: 'colaborador' },
   { type: 'onboarding_habilitado', related_type: 'OnboardingProceso', destinatario: 'colaborador' },
   { type: 'onboarding_reevaluacion', related_type: 'OnboardingAvance', destinatario: 'colaborador' },

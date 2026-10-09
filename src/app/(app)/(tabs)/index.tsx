@@ -21,7 +21,7 @@ import { MascotMessages } from '@/constants/mascotMessages';
 import { useBirthdayGreeting } from '@/hooks/queries/useBirthday';
 import { useCelebracionesActivas } from '@/hooks/queries/useCelebraciones';
 import { LoQueNecesitasHacer } from '@/components/ciclo/LoQueNecesitasHacer';
-import { useMiProceso, useMisPrestamos, useMisRecibos } from '@/hooks/queries/useCicloLaboral';
+import { useDatosFaltantes, useMiProceso, useMisPrestamos, useMisRecibos } from '@/hooks/queries/useCicloLaboral';
 import { useDashboard } from '@/hooks/queries/useDashboard';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useEquipo, useEquipoPendientes, useTareasConteos } from '@/hooks/queries/useTrabajo';
@@ -76,6 +76,8 @@ export default function DashboardScreen() {
   // FUENTE ÚNICA del estado del ciclo: el backend dice qué toca hacer
   // (documentos, firmas, lecciones…). La app no recalcula etapas.
   const miProceso = useMiProceso();
+  // «Completa tu información»: datos personales que faltan (RH los autoriza).
+  const datosFaltantes = useDatosFaltantes();
   const recibos = useMisRecibos(recibosEnabled);
   const prestamos = useMisPrestamos(prestamosEnabled);
   const tareasConteos = useTareasConteos(tareasEnabled);
@@ -176,6 +178,7 @@ export default function DashboardScreen() {
             onRefresh={() => {
               void refetch();
               void miProceso.refetch();
+              void datosFaltantes.refetch();
               if (tareasEnabled) void tareasConteos.refetch();
               if (equipoEnabled) void equipoPendientes.refetch();
             }}
@@ -213,6 +216,30 @@ export default function DashboardScreen() {
                 actionLabel={priorityMascot.actionLabel}
                 onAction={priorityMascot.onAction}
               />
+            ) : null}
+
+            {datosFaltantes.data && !datosFaltantes.data.completo ? (
+              <FadeInView index={0}>
+                <PressableScale
+                  accessibilityLabel="Completar mi información"
+                  onPress={() => router.push('/completar-datos' as never)}
+                  style={styles.datosCard}>
+                  <View style={styles.datosIcon}>
+                    <Ionicons name={datosFaltantes.data.solicitud_en_revision ? 'hourglass-outline' : 'id-card-outline'} size={22} color={Colors.white} />
+                  </View>
+                  <View style={styles.datosText}>
+                    <Text style={styles.datosTitle}>
+                      {datosFaltantes.data.solicitud_en_revision ? 'Tus datos están en revisión' : 'Completa tu información'}
+                    </Text>
+                    <Text style={styles.datosSubtitle} numberOfLines={2}>
+                      {datosFaltantes.data.solicitud_en_revision
+                        ? 'Recursos Humanos está revisando los datos que enviaste.'
+                        : `Falta: ${datosFaltantes.data.faltan.map((d) => d.etiqueta).join(', ')}`}
+                    </Text>
+                  </View>
+                  {datosFaltantes.data.solicitud_en_revision ? null : <Text style={styles.datosAction}>Completar</Text>}
+                </PressableScale>
+              </FadeInView>
             ) : null}
 
             <FadeInView index={0}>
@@ -522,6 +549,21 @@ const crearEstilos = (Colors: ColorPalette) =>
     minHeight: 40,
     paddingHorizontal: Spacing.md,
   },
+  datosCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    padding: Spacing.md,
+    borderRadius: Radius.lg,
+    backgroundColor: Colors.warningSoft,
+    borderWidth: 1,
+    borderColor: Colors.warning,
+  },
+  datosIcon: { width: 44, height: 44, borderRadius: Radius.md, backgroundColor: Colors.warning, alignItems: 'center', justifyContent: 'center' },
+  datosText: { flex: 1 },
+  datosTitle: { fontSize: FontSize.md, fontWeight: '800', color: Colors.text },
+  datosSubtitle: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: 2 },
+  datosAction: { fontSize: FontSize.sm, fontWeight: '800', color: Colors.primaryDark },
   statGrid: {
     flexDirection: 'row',
     gap: Spacing.md,

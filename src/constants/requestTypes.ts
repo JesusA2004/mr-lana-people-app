@@ -21,6 +21,7 @@ export interface RequestTypePresentation {
 
 // `baja_colaborador` no aparece: el colaborador no la crea (proceso de RH).
 const PRESENTATION: Partial<Record<KnownRequestType, RequestTypePresentation>> = {
+  permiso: { icon: 'time-outline', description: 'Faltar, salir temprano o llegar tarde.', family: 'permisos' },
   vacaciones: { icon: 'airplane-outline', description: 'Toma tus días con goce de sueldo.', family: 'vacaciones' },
   permiso_con_goce: { icon: 'checkmark-done-outline', description: 'Ausencia manteniendo tu sueldo.', family: 'permisos' },
   permiso_sin_goce: { icon: 'exit-outline', description: 'Ausencia sin percepción salarial.', family: 'permisos' },
@@ -90,6 +91,16 @@ const FALLBACK_FIELD_COPY = (name: string): RequestFieldCopy => ({
 
 export function requestFieldCopy(name: string): RequestFieldCopy {
   return FIELD_COPY[name] ?? FALLBACK_FIELD_COPY(name);
+}
+
+/**
+ * Redacción de un campo concreto: la etiqueta que manda el backend (ej.
+ * «Fecha del permiso», «Causal del permiso especial») manda sobre la local;
+ * placeholder y ayuda siguen saliendo de aquí.
+ */
+export function campoCopy(campo: Pick<SolicitudCampo, 'name' | 'label'>): RequestFieldCopy {
+  const base = requestFieldCopy(campo.name);
+  return campo.label ? { ...base, label: campo.label } : base;
 }
 
 /** Campo especial que se dibuja con un control dedicado en vez del control genérico de su `type`. */

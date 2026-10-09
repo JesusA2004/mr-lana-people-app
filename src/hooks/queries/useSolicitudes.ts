@@ -18,6 +18,7 @@ function invalidateSolicitudes(queryClient: QueryClient, id?: string | number): 
   void queryClient.invalidateQueries({ queryKey: queryKeys.bootstrap });
   void queryClient.invalidateQueries({ queryKey: queryKeys.vacacionesSaldo });
   void queryClient.invalidateQueries({ queryKey: queryKeys.notificaciones });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.datosFaltantes });
 }
 
 /** Solo primera página — usada donde basta una lectura rápida (badge del tab Solicitudes). */

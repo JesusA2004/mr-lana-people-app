@@ -10,6 +10,8 @@ export function pushCicloKeys(type: PushNotificationData['type']): readonly (rea
       return [queryKeys.misRecibos];
     case 'prestamo_autorizado':
       return [queryKeys.misPrestamos, queryKeys.solicitudes];
+    case 'datos_faltantes':
+      return [queryKeys.datosFaltantes, queryKeys.miExpediente];
     case 'expediente_incompleto':
     case 'alta_activada':
       return [queryKeys.miAlta, queryKeys.miExpediente, queryKeys.incorporacion, queryKeys.tareas];

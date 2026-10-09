@@ -1,5 +1,5 @@
 import { configuracionResponse } from '../../test/fixtures/backend';
-import { buildCreatePayload, creatableRequestTypes, findTipoConfig, normalizeSolicitudesConfiguracion } from '../solicitudesConfig';
+import { buildCreatePayload, campoVisible, creatableRequestTypes, findTipoConfig, normalizeSolicitudesConfiguracion } from '../solicitudesConfig';
 
 describe('normalizeSolicitudesConfiguracion', () => {
   it('lee la envoltura REAL del backend: { tipos: [...] }, nunca { data: [...] }', () => {
@@ -208,5 +208,50 @@ describe('fechas por tipo (backend: FechasSolicitudService)', () => {
     const tipos = normalizeSolicitudesConfiguracion({ tipos: [{ clave: 'permiso_tiempo', nombre: 'Permiso', requiere_horario: true, campos: [] }] });
 
     expect(tipos[0].modo_fechas).toBe('horario');
+  });
+});
+
+describe('permiso oficial (modalidad, goce y causal)', () => {
+  // Forma REAL de `SolicitudesService::camposPermiso()`.
+  const permiso = normalizeSolicitudesConfiguracion({
+    tipos: [
+      {
+        clave: 'permiso',
+        nombre: 'Permiso',
+        modo_fechas: 'duracion',
+        campos: [
+          { name: 'permiso_tipo', type: 'opciones', required: true, label: 'Permiso solicitado', opciones: [{ value: 'faltar', label: 'Permiso para faltar' }, { value: 'salir_temprano', label: 'Permiso para salir temprano' }, { value: 'llegar_tarde', label: 'Permiso para llegar tarde' }] },
+          { name: 'fecha_inicio', type: 'date', required: true, label: 'Fecha del permiso' },
+          { name: 'duracion_dias', type: 'number', required: true, mostrar_si: { campo: 'permiso_tipo', valores: ['faltar'] } },
+          { name: 'hora_salida', type: 'time', required: true, mostrar_si: { campo: 'permiso_tipo', valores: ['salir_temprano'] } },
+          { name: 'hora_entrada', type: 'time', required: true, mostrar_si: { campo: 'permiso_tipo', valores: ['llegar_tarde'] } },
+          { name: 'permiso_goce', type: 'opciones', required: true, opciones: [{ value: 'con_goce', label: 'Con goce de sueldo' }, { value: 'sin_goce', label: 'Sin goce de sueldo' }, { value: 'especial', label: 'Permiso especial' }] },
+          { name: 'permiso_causal', type: 'opciones', required: true, opciones: [{ value: 'cumpleanos', label: 'Cumpleaños' }], mostrar_si: { campo: 'permiso_goce', valores: ['especial'] } },
+          { name: 'observaciones', type: 'text', required: false },
+        ],
+      },
+    ],
+  })[0];
+
+  it('conserva las opciones, la hora y las condiciones que manda el backend', () => {
+    const tipoCampo = permiso.campos.find((c) => c.name === 'permiso_tipo');
+    expect(tipoCampo?.type).toBe('opciones');
+    expect(tipoCampo?.opciones).toHaveLength(3);
+    expect(permiso.campos.find((c) => c.name === 'hora_salida')?.type).toBe('time');
+    expect(permiso.campos.find((c) => c.name === 'permiso_causal')?.mostrar_si).toEqual({ campo: 'permiso_goce', valores: ['especial'] });
+  });
+
+  it('salir temprano con goce: manda la hora de salida y NUNCA días, hora de entrada ni causal', () => {
+    const values = { permiso_tipo: 'salir_temprano', fecha_inicio: '2026-10-20', duracion_dias: 3, hora_salida: '15:00', hora_entrada: '10:00', permiso_goce: 'con_goce', permiso_causal: 'cumpleanos' };
+
+    expect(permiso.campos.filter((c) => campoVisible(c, values)).map((c) => c.name)).not.toContain('permiso_causal');
+    expect(buildCreatePayload(permiso, values)).toEqual({ tipo: 'permiso', motivo: '', permiso_tipo: 'salir_temprano', fecha_inicio: '2026-10-20', hora_salida: '15:00', permiso_goce: 'con_goce' });
+  });
+
+  it('faltar con permiso especial: manda días y causal', () => {
+    const payload = buildCreatePayload(permiso, { permiso_tipo: 'faltar', fecha_inicio: '2026-10-20', duracion_dias: 1, permiso_goce: 'especial', permiso_causal: 'cumpleanos' });
+
+    expect(payload).toMatchObject({ permiso_tipo: 'faltar', duracion_dias: 1, permiso_goce: 'especial', permiso_causal: 'cumpleanos' });
+    expect(payload).not.toHaveProperty('hora_salida');
   });
 });

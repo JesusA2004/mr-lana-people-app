@@ -58,6 +58,7 @@ export const queryKeys = {
   misContratos: ['colaborador', 'contratos'] as const,
   misRecibos: ['colaborador', 'recibos'] as const,
   miRecibo: (id: string | number) => ['colaborador', 'recibos', String(id)] as const,
+  datosFaltantes: ['colaborador', 'datos-faltantes'] as const,
   misPrestamos: ['colaborador', 'prestamos'] as const,
   miPrestamo: (id: string | number) => ['colaborador', 'prestamos', String(id)] as const,
   miJerarquia: ['colaborador', 'jerarquia'] as const,

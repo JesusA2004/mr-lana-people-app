@@ -1,60 +1,58 @@
-import { Appearance } from 'react-native';
-
 /**
  * Sistema de diseño centralizado de MR. LANA PEOPLE.
  *
- * Los valores de marca (primary/secondary) se tomaron de la fuente de verdad
- * del backend Laravel (resources/css/app.css -> --brand-primary / --brand-secondary
- * en https://github.com/JesusA2004/capacitaciones) para que la app móvil
- * comparta identidad visual con la plataforma web.
+ * SOLO CLARO: la app no tiene modo oscuro y nunca sigue la configuración
+ * claro/oscuro de Android/iOS (app.json `userInterfaceStyle: light`). El
+ * interior usa la paleta oficial suavizada — crema, salvia, menta, olivo
+ * claro y oro suave — igual que la web (resources/css/app.css del
+ * backend). El LOGIN es la única pantalla oscura y lo es por diseño
+ * (`LoginColors`), no por un tema.
  *
- * Modo oscuro (app.json `userInterfaceStyle: automatic`): la paleta se
- * resuelve UNA vez al arrancar según el tema del sistema, antes de que
- * cualquier `StyleSheet.create` la lea — por eso toda la app (incluidos los
- * estilos estáticos) queda en el mismo tema y nunca "mitad oscura / mitad
- * clara". `_layout.tsx` fija además la apariencia nativa (Alert, pickers,
- * teclado) a ese mismo esquema; un cambio de tema del sistema con la app
- * abierta se aplica en la siguiente apertura. Documentado en
- * docs/UI_UX_SYSTEM.md.
- *
- * Cambiar la paleta exacta de la marca debe requerir tocar solo este archivo.
+ * Administración → Apariencia puede ajustar los colores de marca (ver
+ * `src/theme/tema.ts`). Cambiar la paleta exacta de la marca debe requerir
+ * tocar solo este archivo.
  */
 
-export type ColorScheme = 'light' | 'dark';
+export type ColorScheme = 'light';
 
 const LightColors = {
-  background: '#F6FAF8',
-  surface: '#FFFFFF',
-  surfaceMuted: '#F0F4F2',
+  background: '#FBF8F2',
+  surface: '#FFFDF9',
+  surfaceMuted: '#F5EFE4',
   /** Superficie elevada sobre `surface` (sheets, menús). */
-  surfaceRaised: '#FFFFFF',
+  surfaceRaised: '#FFFDF9',
 
-  primary: '#4CB838',
-  /** Verde de marca para TEXTO/íconos sobre superficies claras o `primarySoft`. */
-  primaryDark: '#3C9A2C',
-  primarySoft: '#E4F5E0',
+  /** Petróleo suavizado: botones principales, encabezados. */
+  primary: '#315B59',
+  /** Tono más profundo para TEXTO/íconos de marca sobre fondos claros o `primarySoft`. */
+  primaryDark: '#284B49',
+  /** Menta: fondo suave de marca. */
+  primarySoft: '#E8F0EA',
 
-  secondary: '#2DC7D3',
-  secondarySoft: '#E0F7F8',
+  /** Oro suave: acento. */
+  secondary: '#C7A66B',
+  /** Crema. */
+  secondarySoft: '#F3E8D3',
 
-  text: '#111111',
-  textMuted: '#6B7280',
-  textInverse: '#FFFFFF',
+  text: '#303A38',
+  textMuted: '#707874',
+  textInverse: '#FFFDF9',
 
-  border: '#E7EAE8',
-  divider: '#EDEDED',
+  border: '#E7DED1',
+  divider: '#EDE5D8',
 
-  success: '#1CA64F',
-  successSoft: '#E3F6EA',
-  warning: '#CB8400',
-  warningSoft: '#FCF0DA',
-  danger: '#EF4444',
-  dangerSoft: '#FDEAEA',
-  info: '#2DC7D3',
-  infoSoft: '#E0F7F8',
+  success: '#3F7558',
+  successSoft: '#DCEBDD',
+  /** Bronce legible sobre `warningSoft`. */
+  warning: '#8A6A36',
+  warningSoft: '#F6EACB',
+  danger: '#B0524A',
+  dangerSoft: '#F5DDDA',
+  info: '#3D6F71',
+  infoSoft: '#DDEBEC',
 
-  neutral: '#6B7280',
-  neutralSoft: '#EEF0F1',
+  neutral: '#707874',
+  neutralSoft: '#EFE9DF',
 
   /**
    * Acento de celebración (cumpleaños, felicitaciones). Existe para poder
@@ -62,104 +60,59 @@ const LightColors = {
    * (`NotificacionesService::ESTILOS`) a un token propio, en vez de pintar
    * el hexadecimal que manda el backend.
    */
-  celebration: '#D4457F',
-  celebrationSoft: '#FCE7F0',
+  celebration: '#B65D80',
+  celebrationSoft: '#F6E3EB',
 
   /**
-   * Identidad "Gestión RH": tinta verde profunda (derivada del verde de
-   * marca) + neutros, con el cian de marca como acento discreto. Hace que la
-   * experiencia administrativa se sienta distinta de Mi espacio sin
-   * convertirse en otra marca. Ver `RhIdentityBadge`.
+   * Identidad "Gestión RH": petróleo suavizado + salvia, con el oro como
+   * acento discreto. Hace que la experiencia administrativa se sienta
+   * distinta de Mi espacio sin convertirse en otra marca. Ver `RhIdentityBadge`.
    */
-  rhInk: '#12352C',
-  rhInkSoft: '#E3EEEA',
-  rhAccent: '#2DC7D3',
+  rhInk: '#315B59',
+  rhInkSoft: '#DCE8DF',
+  rhAccent: '#C7A66B',
   /** Texto/ícono sobre `rhInk`. */
-  onRhInk: '#FFFFFF',
+  onRhInk: '#FFFDF9',
 
   /** Barra/aviso de alto contraste (banner offline). */
-  inverseSurface: '#1B211E',
-  onInverseSurface: '#FFFFFF',
+  inverseSurface: '#303A38',
+  onInverseSurface: '#FFFDF9',
   /** Marca de agua de documentos sensibles. */
-  watermark: 'rgba(17, 17, 17, 0.06)',
-  skeleton: '#E6ECE9',
-  skeletonHighlight: '#F3F6F5',
+  watermark: 'rgba(48, 58, 56, 0.06)',
+  skeleton: '#EFE7DA',
+  skeletonHighlight: '#F8F3EA',
 
-  overlay: 'rgba(17, 17, 17, 0.5)',
-  /** Primer plano sobre color sólido (botón primario, badge). Constante en ambos temas. */
+  overlay: 'rgba(48, 58, 56, 0.45)',
+  /** Primer plano sobre color sólido (botón primario, badge). */
   white: '#FFFFFF',
-  /** Fondo de medios (cámara, visor de PDF). Constante en ambos temas. */
+  /** Fondo de medios (cámara, visor de PDF). */
   black: '#111111',
 };
 
 export type ColorPalette = { [K in keyof typeof LightColors]: string };
 
-const DarkColors: ColorPalette = {
-  background: '#0E1311',
-  surface: '#161C19',
-  surfaceMuted: '#1E2622',
-  surfaceRaised: '#1C2420',
+/** Esquema único de la app (fijo: no hay modo oscuro). */
+export const ColorSchemeAtLaunch: ColorScheme = 'light';
 
-  primary: '#52BF3E',
-  primaryDark: '#7FD36D',
-  primarySoft: '#1B3317',
+export const Colors: ColorPalette = LightColors;
 
-  secondary: '#2DC7D3',
-  secondarySoft: '#123236',
+/** Paleta completa — para la pantalla `__DEV__` Design QA. */
+export const Palettes: Record<ColorScheme, ColorPalette> = { light: LightColors };
 
-  text: '#ECF1EE',
-  textMuted: '#9BA7A2',
-  textInverse: '#111111',
-
-  border: '#2A3430',
-  divider: '#252E2A',
-
-  success: '#23B35A',
-  successSoft: '#15311F',
-  warning: '#E0A12A',
-  warningSoft: '#352812',
-  danger: '#F05A5A',
-  dangerSoft: '#3A1B1B',
-  info: '#38CDD8',
-  infoSoft: '#123236',
-
-  neutral: '#9BA7A2',
-  neutralSoft: '#222A27',
-
-  celebration: '#E2679A',
-  celebrationSoft: '#3A1B29',
-
-  rhInk: '#1D4A3E',
-  rhInkSoft: '#17302A',
-  rhAccent: '#38CDD8',
-  onRhInk: '#FFFFFF',
-
-  inverseSurface: '#E4EAE7',
-  onInverseSurface: '#111111',
-  watermark: 'rgba(255, 255, 255, 0.05)',
-  skeleton: '#222B27',
-  skeletonHighlight: '#2B3531',
-
-  overlay: 'rgba(0, 0, 0, 0.62)',
-  white: '#FFFFFF',
-  black: '#0A0A0A',
-};
-
-function resolveScheme(): ColorScheme {
-  try {
-    return Appearance.getColorScheme() === 'dark' ? 'dark' : 'light';
-  } catch {
-    return 'light';
-  }
-}
-
-/** Esquema con el que arrancó la app (fijo durante toda la sesión, ver comentario arriba). */
-export const ColorSchemeAtLaunch: ColorScheme = resolveScheme();
-
-export const Colors: ColorPalette = ColorSchemeAtLaunch === 'dark' ? DarkColors : LightColors;
-
-/** Paletas completas — solo para la pantalla `__DEV__` Design QA (comparar ambos temas lado a lado). */
-export const Palettes: Record<ColorScheme, ColorPalette> = { light: LightColors, dark: DarkColors };
+/**
+ * Login: oscuro POR DISEÑO (petróleo profundo, oro y crema con el logo
+ * negativo), igual que el login web. No depende del sistema ni del tema.
+ */
+export const LoginColors = {
+  background: '#0D3E43',
+  backgroundAlt: '#174A4A',
+  gold: '#C7A66B',
+  cream: '#E9D6B0',
+  text: '#FFFDF9',
+  textMuted: 'rgba(255, 253, 249, 0.72)',
+  divider: 'rgba(233, 214, 176, 0.25)',
+  qrBackground: 'rgba(199, 166, 107, 0.16)',
+} as const;
 
 export type ColorToken = keyof ColorPalette;
 
@@ -193,27 +146,26 @@ export const FontSize = {
 
 /**
  * Compatible Android (elevation) / iOS (shadow*). Tres niveles nada más — no
- * inventar sombras nuevas por pantalla. En oscuro la sombra casi no se ve:
- * la jerarquía la dan `border` y `surfaceRaised`.
+ * inventar sombras nuevas por pantalla. Sombra cálida y mínima.
  */
-const shadowOpacityScale = ColorSchemeAtLaunch === 'dark' ? 2.5 : 1;
+const shadowOpacityScale = 1;
 export const Shadow = {
   sm: {
-    shadowColor: '#000000',
+    shadowColor: '#303A38',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04 * shadowOpacityScale,
     shadowRadius: 6,
     elevation: 1,
   },
   md: {
-    shadowColor: '#000000',
+    shadowColor: '#303A38',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06 * shadowOpacityScale,
     shadowRadius: 12,
     elevation: 2,
   },
   lg: {
-    shadowColor: '#000000',
+    shadowColor: '#303A38',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.1 * shadowOpacityScale,
     shadowRadius: 20,

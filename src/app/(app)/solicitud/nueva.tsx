@@ -22,17 +22,17 @@ import { SuccessCheck } from '@/components/SuccessCheck';
 import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { MascotMessages } from '@/constants/mascotMessages';
-import { requestFieldCopy, requestTypePresentation, SPECIAL_LEAVE_COPY } from '@/constants/requestTypes';
+import { campoCopy, requestTypePresentation, SPECIAL_LEAVE_COPY } from '@/constants/requestTypes';
 import { useCreateSolicitud } from '@/hooks/queries/useSolicitudes';
 import { useSolicitudesConfiguracion } from '@/hooks/queries/useSolicitudesConfiguracion';
 import { useVacacionesSaldo } from '@/hooks/queries/useVacaciones';
 import { toast } from '@/store/toastStore';
-import type { KnownRequestType, Solicitud, SolicitudTipoConfig } from '@/types/request';
+import type { KnownRequestType, Solicitud, SolicitudCampo, SolicitudTipoConfig } from '@/types/request';
 import { formatDateLong, fromApiDateString, toApiDateString } from '@/utils/dates';
 import { getErrorMessage, getValidationErrors, logError } from '@/utils/errors';
 import { haptics } from '@/utils/haptics';
 import { formatCurrencyMXN } from '@/utils/formatters';
-import { buildCreatePayload, creatableRequestTypes, findTipoConfig, type DynamicFormValues } from '@/utils/solicitudesConfig';
+import { buildCreatePayload, campoVisible, creatableRequestTypes, findTipoConfig, type DynamicFormValues } from '@/utils/solicitudesConfig';
 
 interface PickedFile {
   uri: string;
@@ -83,6 +83,10 @@ export default function NuevaSolicitudScreen() {
   const [sentSolicitud, setSentSolicitud] = useState<Solicitud | null>(null);
 
   const config = findTipoConfig(tipos, selectedTipo);
+  // Campos condicionales (permiso: hora solo al salir temprano/llegar tarde,
+  // causal solo si es especial): solo los que aplican se ven, validan y envían.
+  const camposVisibles = useMemo(() => (config?.campos ?? []).filter((campo) => campoVisible(campo, values)), [config, values]);
+  const pideHora = (config?.campos ?? []).some((campo) => campo.type === 'time');
   const presentation = requestTypePresentation(selectedTipo);
 
   // El saldo solo importa para vacaciones; se consulta siempre (es barato y
@@ -150,11 +154,11 @@ export default function NuevaSolicitudScreen() {
     if (!config) return false;
     const errors: Record<string, string> = {};
 
-    for (const campo of config.campos) {
+    for (const campo of camposVisibles) {
       if (!campo.required) continue;
       const value = values[campo.name];
       if (value === undefined || value === null || (Array.isArray(value) ? value.length === 0 : String(value).trim() === '')) {
-        errors[campo.name] = `${requestFieldCopy(campo.name).label} es obligatorio`;
+        errors[campo.name] = `${campoCopy(campo).label} es obligatorio`;
       }
     }
 
@@ -419,7 +423,7 @@ export default function NuevaSolicitudScreen() {
               </View>
             ) : null}
 
-            {config.requiere_horario ? (
+            {config.requiere_horario && !pideHora ? (
               <View style={styles.noteBanner}>
                 <Ionicons name="time-outline" size={18} color={Colors.primaryDark} />
                 {/* El backend solo pide `fecha_inicio` para los tipos por horas
@@ -431,7 +435,7 @@ export default function NuevaSolicitudScreen() {
             ) : null}
 
             <View style={styles.fieldList}>
-              {config.campos.map((campo) => (
+              {camposVisibles.map((campo) => (
                 <DynamicRequestField
                   key={campo.name}
                   campo={campo}
@@ -507,12 +511,12 @@ export default function NuevaSolicitudScreen() {
 
             <Card style={{ gap: Spacing.md }}>
               <SummaryRow icon={presentation.icon} label="Tipo" value={config.nombre} />
-              {config.campos.map((campo) => (
+              {camposVisibles.map((campo) => (
                 <SummaryRow
                   key={campo.name}
                   icon="ellipse-outline"
-                  label={requestFieldCopy(campo.name).label}
-                  value={summaryValue(campo.name, values[campo.name])}
+                  label={campoCopy(campo).label}
+                  value={summaryValue(campo, values[campo.name])}
                 />
               ))}
               {config.permite_adjuntos ? (
@@ -569,8 +573,11 @@ function isInconclusive(error: unknown): boolean {
   return !candidate?.response;
 }
 
-function summaryValue(name: string, value: string | number | string[] | undefined): string {
+function summaryValue(campo: SolicitudCampo, value: string | number | string[] | undefined): string {
+  const { name } = campo;
   if (value === undefined || value === null || value === '') return '—';
+  if (campo.opciones) return campo.opciones.find((opcion) => opcion.value === value)?.label ?? String(value);
+  if (campo.type === 'time') return `${String(value)} h`;
   if (Array.isArray(value)) return value.length === 0 ? '—' : `${value.length} ${value.length === 1 ? 'día' : 'días'}: ${value.map((d) => formatDateLong(d)).join(', ')}`;
   if (name === 'duracion_dias') return `${value} ${Number(value) === 1 ? 'día' : 'días'} naturales`;
   if (name === 'monto_solicitado') return formatCurrencyMXN(Number(value));

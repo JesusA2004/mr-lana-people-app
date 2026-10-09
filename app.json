@@ -9,7 +9,7 @@
       "mrlanapeopleapp",
       "mrlanapeople"
     ],
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "ios": {
       "bundleIdentifier": "com.mrlana.people",
       "buildNumber": "1",
@@ -26,7 +26,7 @@
       "versionCode": 6,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "backgroundColor": "#F6FAF8",
+        "backgroundColor": "#0D3E43",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
@@ -58,9 +58,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#F6FAF8",
+          "backgroundColor": "#FBF8F2",
           "image": "./assets/images/brand/logo-mark.png",
-          "imageWidth": 96
+          "imageWidth": 160
         }
       ],
       "expo-secure-store",
@@ -69,8 +69,8 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/brand/logo-mark.png",
-          "color": "#4CB838"
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#0D3E43"
         }
       ],
       [

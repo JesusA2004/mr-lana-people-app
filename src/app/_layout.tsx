@@ -17,7 +17,7 @@ import { SessionVerificationScreen } from '@/components/SessionVerificationScree
 import { StartupFallback } from '@/components/StartupFallback';
 import { ToastHost } from '@/components/ToastHost';
 import { UpdateBanner } from '@/components/UpdateBanner';
-import { Colors, ColorSchemeAtLaunch } from '@/constants/colors';
+import { Colors } from '@/constants/colors';
 import { IS_API_URL_CONFIGURED } from '@/constants/config';
 import { useAppConfig } from '@/hooks/queries/useAppRelease';
 import { useAppTheme } from '@/hooks/queries/useAppTheme';
@@ -33,17 +33,17 @@ import { isSplashReady, resolveStartupView } from '@/utils/startup';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-// La paleta se resolvió al arrancar (ver `constants/colors.ts`): la UI nativa
-// (Alert, date pickers, teclado) se fija al mismo esquema para que nunca haya
-// diálogos claros sobre pantallas oscuras (o al revés).
+// Solo claro (ver `constants/colors.ts`): la UI nativa (Alert, date pickers,
+// teclado) se fija a claro aunque el teléfono esté en modo oscuro.
 try {
-  Appearance.setColorScheme(ColorSchemeAtLaunch);
+  Appearance.setColorScheme('light');
 } catch (error) {
   logError('Appearance.setColorScheme', error);
 }
 SystemUI.setBackgroundColorAsync(Colors.background).catch(() => {});
 
-const STATUS_BAR_STYLE = ColorSchemeAtLaunch === 'dark' ? 'light' : 'dark';
+/** Íconos oscuros sobre los fondos crema (el login fija los suyos en claro). */
+const STATUS_BAR_STYLE = 'dark';
 
 /**
  * Plazo máximo del splash nativo. La restauración ya tiene sus propios

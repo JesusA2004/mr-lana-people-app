@@ -3,8 +3,10 @@ import { Input } from '../Input';
 import { DateField } from './DateField';
 import { DiasVacacionesPicker } from './DiasVacacionesPicker';
 import { MoneyField } from './MoneyField';
+import { OpcionesField } from './OpcionesField';
+import { TimeField } from './TimeField';
 
-import { requestFieldCopy, specialFieldKind } from '@/constants/requestTypes';
+import { campoCopy, specialFieldKind } from '@/constants/requestTypes';
 import type { SolicitudCampo } from '@/types/request';
 import { fromApiDateString, toApiDateString } from '@/utils/dates';
 
@@ -26,7 +28,7 @@ export interface DynamicRequestFieldProps {
  *
  * Orden de decisión:
  *   1. Campos con control dedicado por su significado (`monto_solicitado` → dinero).
- *   2. El `type` que mandó el backend (`date`/`number`/`select`/`text`).
+ *   2. El `type` que mandó el backend (`date`/`time`/`opciones`/`number`/`text`).
  *   3. Texto, para cualquier `type` futuro que la app todavía no conozca —
  *      el usuario puede seguir enviando la solicitud.
  */
@@ -37,7 +39,7 @@ export function DynamicRequestField({
   error,
   diasNoSeleccionables,
 }: DynamicRequestFieldProps) {
-  const copy = requestFieldCopy(campo.name);
+  const copy = campoCopy(campo);
   const helper = copy.helper ?? campo.ayuda;
   const label = campo.required ? copy.label : copy.label.includes('opcional') ? copy.label : `${copy.label} (opcional)`;
 
@@ -78,6 +80,23 @@ export function DynamicRequestField({
         helper={helper}
       />
     );
+  }
+
+  if (campo.type === 'opciones' && campo.opciones) {
+    return (
+      <OpcionesField
+        label={label}
+        value={typeof value === 'string' ? value : undefined}
+        opciones={campo.opciones}
+        onChange={(next) => onChange(next)}
+        error={error}
+        helper={helper}
+      />
+    );
+  }
+
+  if (campo.type === 'time') {
+    return <TimeField label={label} value={typeof value === 'string' ? value : undefined} onChange={(next) => onChange(next)} error={error} helper={helper} />;
   }
 
   if (campo.type === 'number') {

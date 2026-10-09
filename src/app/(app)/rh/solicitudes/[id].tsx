@@ -246,6 +246,22 @@ export default function RhSolicitudDetailScreen() {
               </Card>
             ) : null}
 
+            {solicitud.datos_propuestos?.length ? (
+              <Card style={styles.fieldCard}>
+                <Text style={styles.fieldLabel}>
+                  {solicitud.estado === 'aprobada' ? 'Datos actualizados en el expediente' : 'Datos que se actualizarán al autorizar'}
+                </Text>
+                {solicitud.datos_propuestos.map((dato) => (
+                  <FieldRow
+                    key={dato.campo}
+                    icon="create-outline"
+                    label={dato.etiqueta}
+                    value={`${dato.actual ?? 'Sin capturar'} → ${dato.propuesto}`}
+                  />
+                ))}
+              </Card>
+            ) : null}
+
             {solicitud.motivo_rechazo ? (
               <Card style={[styles.fieldCard, styles.rejectionCard]}>
                 <Text style={styles.fieldLabel}>Motivo de rechazo</Text>

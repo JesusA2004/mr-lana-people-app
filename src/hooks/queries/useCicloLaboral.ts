@@ -78,6 +78,11 @@ export function useMisRecibos(enabled = true) {
   });
 }
 
+/** «Completa tu información»: datos personales que faltan en el expediente. */
+export function useDatosFaltantes(enabled = true) {
+  return useQuery({ queryKey: queryKeys.datosFaltantes, queryFn: cicloLaboralApi.datosFaltantes, enabled, retry: retryUnlessClientError });
+}
+
 export function useMiRecibo(id: string | number | undefined) {
   return useQuery({
     queryKey: queryKeys.miRecibo(id ?? ''),

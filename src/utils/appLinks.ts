@@ -80,6 +80,9 @@ export function resolveResourceRoute(data: PushNotificationData): string | null 
       return id ? `/prestamos/${id}` : '/prestamos';
     case 'expediente_incompleto':
       return '/(app)/(tabs)/expediente';
+    // RH avisó que faltan datos personales («Avisar al colaborador»).
+    case 'datos_faltantes':
+      return '/completar-datos';
     case 'alta_activada':
       return '/(app)/(tabs)';
     case 'visto_bueno_pendiente':
@@ -235,6 +238,7 @@ const KNOWN_COLLABORATOR_TYPES = new Set<PushResourceType>([
   'recibo_nomina',
   'prestamo_autorizado',
   'expediente_incompleto',
+  'datos_faltantes',
   'alta_activada',
 ]);
 

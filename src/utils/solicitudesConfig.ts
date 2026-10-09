@@ -1,4 +1,13 @@
-import type { CreateSolicitudPayload, ModoFechasSolicitud, RequestType, SolicitudCampo, SolicitudCampoTipo, SolicitudTipoConfig } from '@/types/request';
+import type {
+  CreateSolicitudPayload,
+  ModoFechasSolicitud,
+  RequestType,
+  SolicitudCampo,
+  SolicitudCampoCondicion,
+  SolicitudCampoOpcion,
+  SolicitudCampoTipo,
+  SolicitudTipoConfig,
+} from '@/types/request';
 
 /**
  * Normalización defensiva del catálogo de solicitudes.
@@ -11,7 +20,7 @@ import type { CreateSolicitudPayload, ModoFechasSolicitud, RequestType, Solicitu
  * dos formas solo como red de seguridad.
  */
 
-const CAMPO_TIPOS: SolicitudCampoTipo[] = ['text', 'date', 'dates', 'number', 'select'];
+const CAMPO_TIPOS: SolicitudCampoTipo[] = ['text', 'date', 'dates', 'number', 'select', 'opciones', 'time'];
 
 const MODOS_FECHAS: ModoFechasSolicitud[] = ['duracion', 'dias_especificos', 'horario', 'fecha_unica', 'ninguna'];
 
@@ -27,6 +36,27 @@ function asString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
 }
 
+function normalizeOpciones(raw: unknown): SolicitudCampoOpcion[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const opciones = raw
+    .map((item) => {
+      if (!item || typeof item !== 'object') return null;
+      const record = item as Record<string, unknown>;
+      const value = asString(record.value);
+      return value ? { value, label: asString(record.label) ?? value } : null;
+    })
+    .filter((opcion): opcion is SolicitudCampoOpcion => opcion !== null);
+  return opciones.length > 0 ? opciones : undefined;
+}
+
+function normalizeCondicion(raw: unknown): SolicitudCampoCondicion | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const record = raw as Record<string, unknown>;
+  const campo = asString(record.campo);
+  const valores = Array.isArray(record.valores) ? record.valores.filter((v): v is string => typeof v === 'string') : [];
+  return campo && valores.length > 0 ? { campo, valores } : undefined;
+}
+
 function normalizeCampo(raw: unknown): SolicitudCampo | null {
   if (!raw || typeof raw !== 'object') return null;
   const record = raw as Record<string, unknown>;
@@ -37,7 +67,9 @@ function normalizeCampo(raw: unknown): SolicitudCampo | null {
   // Un `type` que la app todavía no dibuja se degrada a texto en vez de
   // desaparecer: el usuario puede seguir enviando la solicitud (sección 6
   // del encargo: "quedar preparado para tipos futuros").
-  const type: SolicitudCampoTipo = rawType && CAMPO_TIPOS.includes(rawType) ? rawType : 'text';
+  const opciones = normalizeOpciones(record.opciones);
+  // `opciones` sin opciones válidas no se puede dibujar como selector: texto.
+  const type: SolicitudCampoTipo = rawType && CAMPO_TIPOS.includes(rawType) && (rawType !== 'opciones' || opciones) ? rawType : 'text';
 
   return {
     name,
@@ -47,6 +79,8 @@ function normalizeCampo(raw: unknown): SolicitudCampo | null {
     ayuda: asString(record.ayuda),
     min: asNumber(record.min),
     max: asNumber(record.max),
+    opciones,
+    mostrar_si: normalizeCondicion(record.mostrar_si),
   };
 }
 
@@ -142,6 +176,17 @@ export function findTipoConfig(tipos: SolicitudTipoConfig[] | undefined, clave: 
 export type DynamicFormValues = Record<string, string | number | string[] | undefined>;
 
 /**
+ * ¿El campo aplica con lo capturado hasta ahora? (`mostrar_si`: la causal
+ * solo en un permiso especial, la hora de salida solo al salir temprano…).
+ * Un campo oculto ni se valida ni se envía: el backend lo rechazaría.
+ */
+export function campoVisible(campo: SolicitudCampo, values: DynamicFormValues): boolean {
+  if (!campo.mostrar_si) return true;
+  const actual = values[campo.mostrar_si.campo];
+  return typeof actual === 'string' && campo.mostrar_si.valores.includes(actual);
+}
+
+/**
  * Arma el payload de `POST /solicitudes` usando EXCLUSIVAMENTE los campos
  * que el tipo declaró. Nunca se mandan claves de más: `plazo_meses` en una
  * incapacidad o `fecha_fin` en un préstamo solo confundirían la validación
@@ -160,7 +205,7 @@ export function buildCreatePayload(config: SolicitudTipoConfig, values: DynamicF
   const numericFields = new Set(['dias_solicitados', 'monto_solicitado', 'duracion_dias']);
 
   for (const campo of config.campos) {
-    if (campo.name === 'motivo' || CAMPOS_NO_AUTOSERVICIO.has(campo.name)) continue;
+    if (campo.name === 'motivo' || CAMPOS_NO_AUTOSERVICIO.has(campo.name) || !campoVisible(campo, values)) continue;
 
     const raw = values[campo.name];
     if (raw === undefined || raw === null || raw === '') continue;

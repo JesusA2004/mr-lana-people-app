@@ -31,6 +31,7 @@
 
 /** Claves exactas de `App\Enums\TipoSolicitudInterna`. */
 export const REQUEST_TYPES = [
+  'permiso',
   'vacaciones',
   'permiso_con_goce',
   'permiso_sin_goce',
@@ -91,7 +92,19 @@ export const CANCELABLE_REQUEST_STATUSES: readonly RequestStatus[] = [
 ];
 
 /** Tipo de control que el backend pide para un campo de `campos[]`. */
-export type SolicitudCampoTipo = 'text' | 'date' | 'dates' | 'number' | 'select' | (string & {});
+export type SolicitudCampoTipo = 'text' | 'date' | 'dates' | 'number' | 'select' | 'opciones' | 'time' | (string & {});
+
+/** Opción de un campo `opciones` (ej. modalidad, goce y causal del permiso oficial). */
+export interface SolicitudCampoOpcion {
+  value: string;
+  label: string;
+}
+
+/** El campo solo se muestra (y se envía) si `campo` vale alguno de `valores`. */
+export interface SolicitudCampoCondicion {
+  campo: string;
+  valores: string[];
+}
 
 /** Cómo captura fechas cada tipo (backend App\Enums\ModoFechasSolicitud). */
 export type ModoFechasSolicitud = 'duracion' | 'dias_especificos' | 'horario' | 'fecha_unica' | 'ninguna';
@@ -106,6 +119,10 @@ export interface SolicitudCampo {
   ayuda?: string;
   min?: number;
   max?: number;
+  /** Solo `opciones`: valores permitidos con su etiqueta. */
+  opciones?: SolicitudCampoOpcion[];
+  /** Campo condicional (ej. la causal solo en un permiso especial). */
+  mostrar_si?: SolicitudCampoCondicion;
 }
 
 /**
@@ -255,7 +272,28 @@ export interface Solicitud {
   formatos_oficiales?: SolicitudFormatoOficial[];
   /** Solo en préstamos: monto pedido y avance (visto bueno → RH → firma). */
   prestamo?: SolicitudPrestamoSeguimiento | null;
+  /** Solo en permisos: modalidad, goce, causal y si RH ya lo autorizó. */
+  permiso?: SolicitudPermisoResumen | null;
+  /** Ruta del formato oficial de permiso; solo responde cuando RH ya lo autorizó. */
+  permiso_pdf?: string | null;
   [key: string]: unknown;
+}
+
+/** `SolicitudesService::resumenPermiso()` — Formato de Permiso oficial. */
+export interface SolicitudPermisoResumen {
+  tipo: string | null;
+  tipo_etiqueta: string | null;
+  goce: string | null;
+  goce_etiqueta: string | null;
+  causal: string | null;
+  causal_etiqueta: string | null;
+  hora_salida: string | null;
+  hora_entrada: string | null;
+  dias: number | null;
+  autorizado_por_rh: boolean;
+  autorizado_por: string | null;
+  autorizado_en: string | null;
+  pdf_disponible: boolean;
 }
 
 /**
@@ -266,6 +304,7 @@ export interface Solicitud {
  * nunca para inventar un documento que no llegó.
  */
 export const REQUEST_TYPES_WITH_OFFICIAL_FORMAT: readonly KnownRequestType[] = [
+  'permiso',
   'vacaciones',
   'permiso_con_goce',
   'permiso_sin_goce',
