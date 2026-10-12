@@ -38,6 +38,16 @@ export type PushResourceType =
   | 'evaluacion_capturada'
   | 'contrato_por_vencer'
   | 'datos_faltantes'
+  // Inducción Mr. Lana (`EvaluacionInduccionService`) — mismo `type` para el
+  // colaborador y RH en aprobada/reforzamiento: decide `accion`.
+  | 'induccion_evaluacion_disponible'
+  | 'induccion_evaluacion_presentada'
+  | 'induccion_evaluacion_aprobada'
+  | 'induccion_requiere_reforzamiento'
+  | 'induccion_reevaluacion_habilitada'
+  // Periodo de prueba: excepción de Dirección General.
+  | 'excepcion_periodo_prueba_solicitada'
+  | 'excepcion_periodo_prueba_resuelta'
   // Muro de felicitaciones (`MuroCumpleanosService`): resource_id = greeting
   | 'cumpleanos_muro'
   // Aviso de RH (mensaje + imagen, a toda la empresa o a un colaborador) —

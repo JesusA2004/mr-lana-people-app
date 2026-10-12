@@ -1,3 +1,5 @@
+import type { EvaluacionInduccion, InduccionResumen } from './induccion';
+
 /**
  * "Lo que necesitas hacer" del colaborador — `GET /colaborador/mi-proceso`
  * (`CicloLaboralService::misPendientes`). El backend es la ÚNICA fuente del
@@ -50,6 +52,10 @@ export interface MiProceso {
   lecciones: Leccion[];
   documentos: { requeridos: number; aprobados: number; faltantes: number } | null;
   todoListo: boolean;
+  /** Inducción Mr. Lana: progreso por capítulos (null si su proceso no la incluye). */
+  induccion: InduccionResumen | null;
+  /** Evaluación oficial de inducción (null hasta que el backend la habilita). */
+  evaluacionInduccion: EvaluacionInduccion | null;
 }
 
 export interface ResultadoLeccion {

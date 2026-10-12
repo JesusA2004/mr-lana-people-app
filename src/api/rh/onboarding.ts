@@ -45,10 +45,39 @@ export interface OnboardingRh {
   puedeCompletar: boolean;
 }
 
+export interface EventoTimeline {
+  fecha: string | null;
+  titulo: string;
+  descripcion: string | null;
+  actor: string | null;
+  etapa: string;
+}
+
 export interface FichaOnboardingRh {
   nombre: string;
   puesto: string | null;
   onboarding: OnboardingRh | null;
+  /** Historial único de la persona (TimelineService), más reciente primero. */
+  timeline: EventoTimeline[];
+}
+
+/**
+ * Historial de la persona (`ciclo.timeline`): alta, contrato, inducción,
+ * salario, vacaciones, solicitudes, periodo de prueba, baja/reingreso. Los
+ * eventos técnicos sin traducción (etapa `general`) no se muestran.
+ */
+export function normalizeTimeline(raw: unknown): EventoTimeline[] {
+  return asArray(raw)
+    .map((e) => asRecord(e))
+    .map((e) => ({
+      fecha: asString(e.fecha),
+      titulo: asString(e.titulo) ?? '',
+      descripcion: asString(e.descripcion),
+      actor: asString(e.actor),
+      etapa: asString(e.etapa) ?? 'general',
+    }))
+    .filter((e) => e.titulo !== '' && e.etapa !== 'general')
+    .sort((a, b) => (b.fecha ?? '').localeCompare(a.fecha ?? ''));
 }
 
 export function normalizeOnboardingRh(raw: unknown): OnboardingRh | null {
@@ -114,6 +143,7 @@ export const rhOnboardingApi = {
       nombre: asString(persona.nombre) ?? asString(persona.nombre_completo) ?? 'Colaborador',
       puesto: asString(persona.puesto),
       onboarding: normalizeOnboardingRh(data.onboarding),
+      timeline: normalizeTimeline(asRecord(data.ciclo).timeline),
     };
   },
 

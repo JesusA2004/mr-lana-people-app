@@ -279,7 +279,7 @@ export interface RhExpedienteDocumento {
 }
 
 export interface RhExpediente {
-  colaborador: RhColaboradorResumen & { estatus?: string };
+  colaborador: RhColaboradorResumen & { estatus?: string; correo_corporativo?: string | null; telefono_corporativo?: string | null };
   estado: string;
   documentos: RhExpedienteDocumento[];
   acciones_permitidas?: AllowedAction[];

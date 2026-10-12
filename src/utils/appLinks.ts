@@ -126,6 +126,41 @@ export function resolveResourceRoute(data: PushNotificationData): string | null 
     case 'contratos_listos':
       return colaboradorId ? `/(app)/rh/colaboradores/${colaboradorId}` : '/(app)/rh/(tabs)/pendientes';
 
+    // Inducción Mr. Lana (`EvaluacionInduccionService`). Al colaborador: su
+    // pantalla de inducción (estado, evaluación, resultado, reforzamiento).
+    // `induccion`/`induccion_evaluacion` son alias genéricos aceptados.
+    case 'induccion':
+    case 'induccion_evaluacion':
+    case 'induccion_evaluacion_disponible':
+    case 'induccion_reevaluacion_habilitada':
+      return '/induccion';
+    // A RH: calificar casos prácticos → ficha de onboarding de la persona.
+    case 'induccion_evaluacion_presentada':
+      return colaboradorId ? `/(app)/rh/onboarding/${colaboradorId}` : '/(app)/rh/(tabs)/pendientes';
+    // Mismo `type` para el colaborador y para RH: decide `accion` (el aviso del
+    // colaborador lleva ver/presentar_evaluacion_induccion; el de RH,
+    // retroalimentar_induccion o ver_onboarding_colaborador).
+    case 'induccion_evaluacion_aprobada':
+    case 'induccion_requiere_reforzamiento':
+    case 'induccion_reforzamiento':
+      if (data.accion === 'ver_evaluacion_induccion' || data.accion === 'presentar_evaluacion_induccion') return '/induccion';
+      return colaboradorId ? `/(app)/rh/onboarding/${colaboradorId}` : '/induccion';
+
+    // Periodo de prueba (FO-RH-EPP-001): Evaluaciones es compartida (jefe/RH/DG).
+    case 'evaluacion_periodo':
+    case 'evaluacion_periodo_validacion':
+      return id ? `/evaluaciones/${id}` : '/evaluaciones';
+    // Excepción de Dirección General: `resource_id` es la SOLICITUD de
+    // excepción (no la evaluación), por eso se abre la bandeja.
+    case 'excepcion_periodo':
+    case 'excepcion_periodo_prueba_solicitada':
+    case 'excepcion_periodo_prueba_resuelta':
+      return '/evaluaciones';
+    // Contrato por tiempo indeterminado generado: ficha de la persona (RH) o
+    // sus contratos (colaborador).
+    case 'contrato_indeterminado':
+      return colaboradorId ? `/(app)/rh/colaboradores/${colaboradorId}` : '/contratos';
+
     default:
       // Eventos de reclutamiento/reingreso (`candidato_preautorizado`,
       // `candidato_autorizado_rh`, `reingreso_solicitado`...): el backend
@@ -151,7 +186,22 @@ export function resolveResourceRoute(data: PushNotificationData): string | null 
 }
 
 /** Rutas que SOLO existen en Mi espacio (árbol del colaborador). */
-const RUTAS_COLABORADOR = ['/(app)/(tabs)', '/lecciones', '/solicitud/', '/expediente/', '/documentos-laborales', '/recibos', '/prestamos', '/contratos', '/incorporacion', '/jerarquia'];
+const RUTAS_COLABORADOR = [
+  '/(app)/(tabs)',
+  '/lecciones',
+  '/solicitud/',
+  '/expediente/',
+  '/documentos-laborales',
+  '/recibos',
+  '/prestamos',
+  '/contratos',
+  '/incorporacion',
+  '/jerarquia',
+  '/induccion',
+];
+
+/** Pantallas COMPARTIDAS aunque su prefijo sea de Mi espacio (modo presentación). */
+const RUTAS_COMPARTIDAS = ['/induccion/presentacion', '/directorio'];
 
 /**
  * Experiencia en la que vive una ruta: así un aviso de un tipo nuevo nunca
@@ -161,6 +211,7 @@ const RUTAS_COLABORADOR = ['/(app)/(tabs)', '/lecciones', '/solicitud/', '/exped
 export function experienceForRoute(route: string | null | undefined): Experience | null {
   if (!route) return null;
   if (route.startsWith('/(app)/rh/') || route.startsWith('/rh/')) return 'rh';
+  if (RUTAS_COMPARTIDAS.some((r) => route === r || route.startsWith(`${r}?`))) return null;
   return RUTAS_COLABORADOR.some((r) => route === r || route.startsWith(r)) ? 'colaborador' : null;
 }
 
@@ -199,6 +250,13 @@ const SHARED_PUSH_TYPES = new Set<PushResourceType>([
   'aniversario_general',
   'celebracion_mensaje',
   'push_test',
+  // Periodo de prueba y excepción de Dirección General: Evaluaciones es
+  // compartida (jefe, RH y DG la usan desde cualquier experiencia).
+  'evaluacion_periodo',
+  'evaluacion_periodo_validacion',
+  'excepcion_periodo',
+  'excepcion_periodo_prueba_solicitada',
+  'excepcion_periodo_prueba_resuelta',
 ]);
 
 const RH_PUSH_TYPES = new Set<PushResourceType>([
@@ -218,6 +276,8 @@ const RH_PUSH_TYPES = new Set<PushResourceType>([
   'pago_por_programar',
   'cita_finiquito',
   'reingreso_solicitado',
+  // Inducción: calificar casos prácticos (RH).
+  'induccion_evaluacion_presentada',
 ]);
 
 /**
@@ -248,6 +308,13 @@ const KNOWN_COLLABORATOR_TYPES = new Set<PushResourceType>([
   'expediente_incompleto',
   'datos_faltantes',
   'alta_activada',
+  // Inducción del propio colaborador. Los tipos que comparten nombre con RH
+  // (aprobada / reforzamiento) NO van aquí: su experiencia sale de la ruta
+  // resuelta con `accion` (experienceForRoute).
+  'induccion',
+  'induccion_evaluacion',
+  'induccion_evaluacion_disponible',
+  'induccion_reevaluacion_habilitada',
 ]);
 
 /**

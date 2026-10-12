@@ -56,6 +56,28 @@ export default function RhPerfilScreen() {
           <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
         </PressableScale>
 
+        <PressableScale style={styles.linkCard} onPress={() => router.push('/induccion/presentacion')}>
+          <View style={styles.linkIcon}>
+            <Ionicons name="easel-outline" size={20} color={Colors.primaryDark} />
+          </View>
+          <View style={styles.linkText}>
+            <Text style={styles.linkTitle}>Presentar inducción</Text>
+            <Text style={styles.linkCaption}>Los 7 capítulos para una sesión por Meet o en sala</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+        </PressableScale>
+
+        <PressableScale style={styles.linkCard} onPress={() => router.push('/directorio')}>
+          <View style={styles.linkIcon}>
+            <Ionicons name="people-circle-outline" size={20} color={Colors.primaryDark} />
+          </View>
+          <View style={styles.linkText}>
+            <Text style={styles.linkTitle}>Directorio</Text>
+            <Text style={styles.linkCaption}>Contacto corporativo de cualquier colaborador</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+        </PressableScale>
+
         <PressableScale style={styles.linkCard} onPress={() => router.push('/configuracion')}>
           <View style={styles.linkIcon}>
             <Ionicons name="settings-outline" size={20} color={Colors.primaryDark} />

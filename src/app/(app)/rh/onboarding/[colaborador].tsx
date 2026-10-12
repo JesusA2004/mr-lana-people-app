@@ -11,9 +11,10 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useRhCompletarOnboarding, useRhEntregarActivo, useRhOnboarding, useRhRetroalimentar } from '@/hooks/queries/useRhOnboarding';
-import type { OnboardingActivoRh, OnboardingModuloRh } from '@/api/rh/onboarding';
+import type { EventoTimeline, OnboardingActivoRh, OnboardingModuloRh } from '@/api/rh/onboarding';
 import { toast } from '@/store/toastStore';
 import { confirmAction } from '@/utils/confirm';
+import { formatDateShort } from '@/utils/dates';
 import { getActionErrorMessage, logError } from '@/utils/errors';
 import { formatoCalificacion } from '@/utils/miProceso';
 
@@ -185,6 +186,8 @@ export default function RhOnboardingScreen() {
         </>
       )}
 
+      {(query.data?.timeline.length ?? 0) > 0 ? <HistorialPersona eventos={query.data?.timeline ?? []} /> : null}
+
       <FormSheet
         visible={moduloRefuerzo !== null}
         title="Retroalimentación"
@@ -252,3 +255,37 @@ const crearEstilos = (Colors: ColorPalette) =>
     color: Colors.textMuted,
   },
 });
+
+/** Cuántos eventos se ven sin tocar "Ver todo". */
+const EVENTOS_VISIBLES = 12;
+
+/**
+ * Historial único de la persona (TimelineService): alta, contrato,
+ * inducción, salario, vacaciones, solicitudes, periodo de prueba,
+ * renovación, baja/reingreso — más reciente primero.
+ */
+function HistorialPersona({ eventos }: { eventos: EventoTimeline[] }) {
+  const styles = useEstilos(crearEstilos);
+  const [todos, setTodos] = useState(false);
+  const visibles = todos ? eventos : eventos.slice(0, EVENTOS_VISIBLES);
+
+  return (
+    <>
+      <SectionTitle>Historial</SectionTitle>
+      <Card style={styles.gap}>
+        {visibles.map((e, i) => (
+          <View key={`${e.fecha ?? ''}-${i}`} style={styles.gap}>
+            <Text style={styles.titulo}>{e.titulo}</Text>
+            <Text style={styles.muted}>
+              {[e.fecha ? formatDateShort(e.fecha) : null, e.actor].filter(Boolean).join(' · ')}
+            </Text>
+            {e.descripcion ? <Text style={styles.muted}>{e.descripcion}</Text> : null}
+          </View>
+        ))}
+        {eventos.length > EVENTOS_VISIBLES ? (
+          <Button title={todos ? 'Ver menos' : `Ver todo (${eventos.length})`} variant="ghost" onPress={() => setTodos((v) => !v)} />
+        ) : null}
+      </Card>
+    </>
+  );
+}

@@ -15,6 +15,7 @@ import { SecurityWatermark } from '@/components/SecurityWatermark';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
+import { useMiProceso } from '@/hooks/queries/useCicloLaboral';
 import { useIncorporacion } from '@/hooks/queries/useIncorporacion';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { usePerfil } from '@/hooks/queries/usePerfil';
@@ -32,6 +33,7 @@ export default function PerfilScreen() {
   const router = useRouter();
   const { data: perfil, isLoading, isError, error, refetch, isRefetching } = usePerfil();
   const incorporacion = useIncorporacion();
+  const miProceso = useMiProceso();
   const bootstrap = useMobileBootstrap(true);
   const equipo = useEquipo(isSelfServiceModuleEnabled(bootstrap.data?.features, 'equipo'));
 
@@ -62,7 +64,11 @@ export default function PerfilScreen() {
   const laboralFilled = laboralFields.filter((field) => Boolean(field.value));
 
   const personalFields: { icon: keyof typeof Ionicons.glyphMap; label: string; value?: string }[] = [
-    { icon: 'mail-outline', label: 'Correo', value: perfil?.correo },
+    { icon: 'mail-outline', label: 'Correo de acceso', value: perfil?.correo },
+    // Contacto corporativo capturado por RH: si no lo tiene, la fila no se
+    // muestra (nunca se usa el correo de acceso como corporativo).
+    { icon: 'briefcase-outline', label: 'Correo corporativo', value: perfil?.correo_corporativo ?? undefined },
+    { icon: 'call-outline', label: 'Teléfono corporativo', value: perfil?.telefono_corporativo ?? undefined },
   ];
   const personalFilled = personalFields.filter((field) => Boolean(field.value));
 
@@ -85,6 +91,8 @@ export default function PerfilScreen() {
     isSelfServiceModuleEnabled(features, 'prestamos') && { route: '/prestamos', icon: 'cash-outline', title: 'Préstamos', caption: 'Solicita y sigue tus préstamos' },
     isSelfServiceModuleEnabled(features, 'tareas') && { route: '/tareas', icon: 'checkbox-outline', title: 'Tareas', caption: 'Pendientes por atender' },
     esJefe && isSelfServiceModuleEnabled(features, 'equipo') && { route: '/equipo', icon: 'people-outline', title: 'Mi equipo', caption: 'Vistos buenos y evaluaciones' },
+    { route: '/directorio', icon: 'people-circle-outline', title: 'Directorio', caption: 'Contacto corporativo de tus compañeros' },
+    { route: miProceso.data?.induccion ? '/induccion' : '/induccion/presentacion', icon: 'book-outline', title: 'Inducción Mr. Lana', caption: 'Los 7 capítulos y tu evaluación' },
     { route: '/avisos', icon: 'megaphone-outline', title: 'Avisos', caption: 'Mensajes de RH para toda la empresa o para ti' },
     { route: '/ayuda', icon: 'help-buoy-outline', title: 'Ayuda', caption: 'Preguntas frecuentes y contacto' },
   ] as (PerfilLink | false)[]).filter((link): link is PerfilLink => link !== false);

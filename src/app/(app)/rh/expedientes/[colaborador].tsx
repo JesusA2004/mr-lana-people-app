@@ -115,6 +115,13 @@ export default function RhExpedienteDetailScreen() {
                   .filter(Boolean)
                   .join(' · ')}
               </Text>
+              {/* Contacto corporativo (no el correo de acceso ni datos personales); se omite si no lo tiene. */}
+              {expediente.colaborador.correo_corporativo ? (
+                <Text style={styles.collaboratorMeta}>Correo corporativo: {expediente.colaborador.correo_corporativo}</Text>
+              ) : null}
+              {expediente.colaborador.telefono_corporativo ? (
+                <Text style={styles.collaboratorMeta}>Teléfono corporativo: {expediente.colaborador.telefono_corporativo}</Text>
+              ) : null}
             </Card>
 
             <Text style={styles.sectionTitle}>Documentos</Text>

@@ -36,6 +36,24 @@ export function resolveTaskRoute(tarea: Pick<Tarea, 'tipo' | 'accion' | 'related
     case 'EvaluacionPeriodoPrueba':
       return id ? { route: `/evaluaciones/${id}`, experience: null } : { route: '/evaluaciones', experience: null };
 
+    // Excepción de Dirección General al periodo de prueba: se decide desde
+    // Evaluaciones (pantalla compartida); la solicitud no tiene detalle propio.
+    case 'SolicitudExcepcionPeriodoPrueba':
+      return { route: '/evaluaciones', experience: null };
+
+    // Evaluación de inducción: presentarla es del propio colaborador; calificar
+    // casos prácticos y el reforzamiento son de RH (ficha de onboarding).
+    case 'EvaluacionInduccion':
+    case 'EvaluacionInduccionIntento':
+      if (tarea.tipo === 'induccion_evaluacion_pendiente' || tarea.accion === 'presentar_evaluacion_induccion') {
+        return { route: '/induccion', experience: 'colaborador' };
+      }
+      return colaboradorId ? { route: `/(app)/rh/onboarding/${colaboradorId}`, experience: 'rh' } : null;
+
+    case 'OnboardingAvance':
+    case 'OnboardingProceso':
+      return colaboradorId ? { route: `/(app)/rh/onboarding/${colaboradorId}`, experience: 'rh' } : null;
+
     case 'Colaborador':
       if (tarea.accion === 'subir_documentos') return { route: '/(app)/(tabs)/expediente', experience: 'colaborador' };
       if (tarea.accion === 'revisar_expediente' && id) return { route: `/(app)/rh/expedientes/${id}`, experience: 'rh' };

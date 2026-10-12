@@ -151,6 +151,10 @@ export default function AppLayout() {
           {/* Lecciones de bienvenida: las decide mi-proceso (backend). */}
           <Stack.Screen name="lecciones/index" />
           <Stack.Screen name="lecciones/[avanceId]" />
+          {/* Inducción Mr. Lana: progreso y evaluación del propio colaborador (estado en mi-proceso). */}
+          <Stack.Screen name="induccion/index" />
+          <Stack.Screen name="induccion/capitulos" />
+          <Stack.Screen name="induccion/evaluacion" />
           <Stack.Protected guard={incorporacionEnabled}>
             <Stack.Screen name="incorporacion" />
           </Stack.Protected>
@@ -195,6 +199,9 @@ export default function AppLayout() {
         <Stack.Protected guard={tareasEnabled}>
           <Stack.Screen name="tareas" />
         </Stack.Protected>
+        {/* Compartidas: directorio de contacto corporativo e inducción en modo presentación (RH por Meet). */}
+        <Stack.Screen name="directorio" />
+        <Stack.Screen name="induccion/presentacion" />
         <Stack.Screen name="notificaciones" />
         <Stack.Screen name="avisos/index" />
         <Stack.Screen name="avisos/[id]" />

@@ -29,6 +29,7 @@ import type { Solicitud } from '@/types/request';
 import { getErrorMessage } from '@/utils/errors';
 import { formatDateShort, getGreeting } from '@/utils/dates';
 import { isFeatureEnabled } from '@/utils/featureFlags';
+import { textoProgreso } from '@/utils/induccion';
 import { formatCurrencyMXN, joinName, pluralize } from '@/utils/formatters';
 import { prestamoEstadoLabel, prestamoVigente } from '@/utils/loan';
 import { hasAnyPermission, isSelfServiceModuleEnabled } from '@/utils/modules';
@@ -76,6 +77,7 @@ export default function DashboardScreen() {
   // FUENTE ÚNICA del estado del ciclo: el backend dice qué toca hacer
   // (documentos, firmas, lecciones…). La app no recalcula etapas.
   const miProceso = useMiProceso();
+  const induccion = miProceso.data?.induccion ?? null;
   // «Completa tu información»: datos personales que faltan (RH los autoriza).
   const datosFaltantes = useDatosFaltantes();
   const recibos = useMisRecibos(recibosEnabled);
@@ -251,6 +253,26 @@ export default function DashboardScreen() {
               />
             </FadeInView>
 
+            {/* Inducción Mr. Lana: progreso guardado en el servidor (mi-proceso). */}
+            {induccion ? (
+              <FadeInView index={1}>
+                <Card style={styles.laborDocsCard} onPress={() => router.push('/induccion')}>
+                  <View style={styles.laborDocsHeaderRow}>
+                    <Text style={styles.laborDocsTitle}>{induccion.titulo}</Text>
+                    <Text style={styles.expedientePercent}>{induccion.porcentaje} %</Text>
+                  </View>
+                  <Text style={styles.laborDocsItem}>{textoProgreso(induccion)}</Text>
+                  <Text style={styles.expedienteCaption}>
+                    {miProceso.data?.evaluacionInduccion?.puedePresentar
+                      ? 'Tu evaluación está lista · Realizar evaluación'
+                      : induccion.completado
+                        ? 'Contenido completado'
+                        : 'Toca para continuar donde te quedaste'}
+                  </Text>
+                </Card>
+              </FadeInView>
+            ) : null}
+
             <View style={styles.statGrid}>
               {vacacionesEnabled ? (
                 <FadeInView index={1} style={styles.statFlex}>
@@ -371,6 +393,12 @@ export default function DashboardScreen() {
               {(miProceso.data?.lecciones.length ?? 0) > 0 ? (
                 <QuickAction icon="school-outline" label="Mis lecciones" onPress={() => router.push('/lecciones')} />
               ) : null}
+              <QuickAction icon="people-circle-outline" label="Directorio" onPress={() => router.push('/directorio')} />
+              <QuickAction
+                icon="book-outline"
+                label="Inducción"
+                onPress={() => router.push(induccion ? '/induccion' : '/induccion/presentacion')}
+              />
               <QuickAction icon="help-buoy-outline" label="Ayuda" onPress={() => router.push('/ayuda')} />
             </View>
 

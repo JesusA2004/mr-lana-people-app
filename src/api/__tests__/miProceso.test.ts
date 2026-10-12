@@ -38,7 +38,7 @@ describe('mi-proceso (fuente única del Inicio)', () => {
     expect(data.lecciones).toHaveLength(1);
     expect(data.lecciones[0]).toMatchObject({ avanceId: 4, estado: 'bloqueada', calificacion: null, preguntas: [] });
     expect(data.documentos).toBeNull();
-    expect(normalizeMiProceso(undefined)).toEqual({ pendientes: [], lecciones: [], documentos: null, todoListo: false });
+    expect(normalizeMiProceso(undefined)).toEqual({ pendientes: [], lecciones: [], documentos: null, todoListo: false, induccion: null, evaluacionInduccion: null });
   });
 
   it('lecciones: preguntas, mínimo y resultado del intento', () => {

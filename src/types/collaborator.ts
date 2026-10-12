@@ -10,7 +10,11 @@ export interface CollaboratorProfile {
   nombre?: string;
   apellidos?: string;
   nombre_completo?: string;
+  /** Correo de ACCESO (login). Nunca se usa como correo corporativo. */
   correo?: string;
+  /** Contacto corporativo capturado por RH; null si no tiene (nunca se inventa). */
+  correo_corporativo?: string | null;
+  telefono_corporativo?: string | null;
   numero_empleado?: string;
   /**
    * Ruta protegida por sesión web (`rh.expedientes.foto`), NO por Bearer

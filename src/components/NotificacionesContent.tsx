@@ -86,6 +86,9 @@ export function NotificacionesContent({ showBack = false }: NotificacionesConten
       resource_id: item.data?.resource_id ?? undefined,
       periodo: item.data?.periodo ?? undefined,
       related_type: item.data?.related_type ?? undefined,
+      // Avisos con el mismo `type` para RH y colaborador (inducción) se
+      // distinguen por `accion`.
+      accion: item.data?.accion ?? undefined,
       colaborador_id: item.data?.colaborador_id ?? undefined,
     };
     const resolved = resolveResourceRoute(datos);

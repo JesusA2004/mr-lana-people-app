@@ -1,3 +1,4 @@
+import { normalizeEvaluacionInduccion, normalizeInduccionResumen } from './induccion';
 import type { Leccion, LeccionEstado, MiProceso, MiProcesoDestino, MiProcesoPendiente, ResultadoLeccion } from '@/types/miProceso';
 import { asArray, asBoolean, asId, asNumber, asRecord, asRecordOrNull, asString, asStringArray } from '@/utils/normalize';
 
@@ -75,6 +76,8 @@ export function normalizeMiProceso(raw: unknown): MiProceso {
         }
       : null,
     todoListo: asBoolean(r.todo_listo),
+    induccion: normalizeInduccionResumen(r.induccionContenido),
+    evaluacionInduccion: normalizeEvaluacionInduccion(r.evaluacionInduccion),
   };
 }
 

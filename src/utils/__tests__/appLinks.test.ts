@@ -1,4 +1,4 @@
-import { experienceForPushType, isPushForCurrentUser, normalizeResourceId, resolveResourceRoute } from '../appLinks';
+import { experienceForPush, experienceForPushType, experienceForRoute, isPushForCurrentUser, normalizeResourceId, resolveResourceRoute } from '../appLinks';
 
 /**
  * Cada tipo aquí está CONFIRMADO contra un emisor real del backend
@@ -35,6 +35,17 @@ const CASOS: [type: string, resourceId: number | null, route: string, experience
   ['evaluacion_devuelta', 61, '/evaluaciones/61', null],
   ['evaluacion_capturada', 61, '/evaluaciones/61', null],
   ['contrato_por_vencer', 90, '/(app)/rh/contratos/por-vencer', 'rh'],
+  // Inducción Mr. Lana (EvaluacionInduccionService).
+  ['induccion_evaluacion_disponible', 3, '/induccion', 'colaborador'],
+  ['induccion_reevaluacion_habilitada', 3, '/induccion', 'colaborador'],
+  ['induccion', null, '/induccion', 'colaborador'],
+  ['induccion_evaluacion', null, '/induccion', 'colaborador'],
+  // Periodo de prueba / excepción de Dirección General: pantallas compartidas.
+  ['evaluacion_periodo', 61, '/evaluaciones/61', null],
+  ['evaluacion_periodo_validacion', 61, '/evaluaciones/61', null],
+  ['excepcion_periodo', 4, '/evaluaciones', null],
+  ['excepcion_periodo_prueba_solicitada', 4, '/evaluaciones', null],
+  ['excepcion_periodo_prueba_resuelta', 4, '/evaluaciones', null],
 ];
 
 describe('resolveResourceRoute — tipos reales del backend', () => {
@@ -137,5 +148,37 @@ describe('isPushForCurrentUser — cambio de cuenta en el mismo teléfono', () =
 
   it('pushes sin user_id (backend anterior) se aceptan: el backend sigue protegiendo el recurso', () => {
     expect(isPushForCurrentUser({ type: 'solicitud' }, 8)).toBe(true);
+  });
+});
+
+describe('deep links de inducción con el mismo `type` para colaborador y RH', () => {
+  it('el colaborador (accion ver/presentar_evaluacion_induccion) abre su inducción', () => {
+    const datos = { type: 'induccion_requiere_reforzamiento', resource_id: 9, accion: 'ver_evaluacion_induccion', colaborador_id: 44 };
+    const ruta = resolveResourceRoute(datos);
+    expect(ruta).toBe('/induccion');
+    expect(experienceForPush(datos, ruta)).toBe('colaborador');
+  });
+
+  it('RH (accion retroalimentar_induccion / ver_onboarding_colaborador) abre la ficha de onboarding', () => {
+    for (const accion of ['retroalimentar_induccion', 'ver_onboarding_colaborador']) {
+      const datos = { type: 'induccion_evaluacion_aprobada', resource_id: 9, accion, colaborador_id: 44 };
+      const ruta = resolveResourceRoute(datos);
+      expect(ruta).toBe('/(app)/rh/onboarding/44');
+      expect(experienceForPush(datos, ruta)).toBe('rh');
+    }
+  });
+
+  it('casos prácticos por calificar (RH) y contrato indeterminado', () => {
+    expect(resolveResourceRoute({ type: 'induccion_evaluacion_presentada', resource_id: 9, colaborador_id: 44 })).toBe('/(app)/rh/onboarding/44');
+    expect(experienceForPushType('induccion_evaluacion_presentada')).toBe('rh');
+    expect(resolveResourceRoute({ type: 'contrato_indeterminado', resource_id: 2, colaborador_id: 44 })).toBe('/(app)/rh/colaboradores/44');
+    expect(resolveResourceRoute({ type: 'contrato_indeterminado', resource_id: 2 })).toBe('/contratos');
+  });
+
+  it('el modo presentación y el directorio son compartidos (no cambian de experiencia)', () => {
+    expect(experienceForRoute('/induccion/presentacion')).toBeNull();
+    expect(experienceForRoute('/directorio')).toBeNull();
+    expect(experienceForRoute('/induccion')).toBe('colaborador');
+    expect(experienceForRoute('/induccion/evaluacion')).toBe('colaborador');
   });
 });

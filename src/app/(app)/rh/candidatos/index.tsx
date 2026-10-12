@@ -35,7 +35,7 @@ const FILTROS: { value: Filtro; label: string }[] = [
   { value: 'preseleccion_gerente', label: 'Preautorización' },
   { value: 'autorizacion_rh_pendiente', label: 'Autorización RH' },
   { value: 'en_contratacion', label: 'En contratación' },
-  { value: 'contratado', label: 'Contratados' },
+  { value: 'contratado', label: 'Capacitación inicial y laborando' },
 ];
 
 /** Reclutamiento — `GET /rh/candidatos` (permiso `candidatos.ver`, alcance). */
