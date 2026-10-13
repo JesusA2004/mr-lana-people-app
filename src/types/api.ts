@@ -8,6 +8,8 @@
 export interface ApiErrorPayload {
   message?: string;
   errors?: Record<string, string[]>;
+  /** Código estable de error de negocio (p. ej. `archivo_no_disponible`). */
+  codigo?: string;
 }
 
 export interface PaginationMeta {

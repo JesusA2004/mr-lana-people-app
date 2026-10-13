@@ -10,41 +10,42 @@ import { retryUnlessClientError } from './queryOptions';
  * Inducción Mr. Lana. El estado (resumen, evaluación, reintento) SIEMPRE
  * sale de `mi-proceso` (backend); estas consultas solo traen el contenido.
  */
-export function useCapitulosInduccion(avanceId: number | null) {
-  return useQuery({
-    queryKey: queryKeys.induccionCapitulos(avanceId ?? 0),
-    queryFn: () => induccionApi.capitulos(avanceId as number),
-    enabled: avanceId !== null && avanceId > 0,
-    retry: retryUnlessClientError,
-  });
-}
-
+/** El PDF oficial de la inducción (título, ruta, páginas). */
 export function usePresentacionInduccion(enabled = true) {
-  return useQuery({ queryKey: queryKeys.induccionPresentacion, queryFn: induccionApi.presentacion, enabled, retry: retryUnlessClientError });
-}
-
-/** Organigrama vigente de una vista; cacheado (la estructura cambia poco). */
-export function useOrganigramaInduccion(vista: string) {
   return useQuery({
-    queryKey: queryKeys.induccionOrganigrama(vista),
-    queryFn: () => induccionApi.organigrama(vista),
-    staleTime: 5 * 60 * 1000,
+    queryKey: queryKeys.induccionPresentacion,
+    queryFn: induccionApi.presentacion,
+    enabled,
+    staleTime: 10 * 60 * 1000,
     retry: retryUnlessClientError,
   });
 }
 
 /**
- * Registra un capítulo visto en el servidor y actualiza el resumen de
+ * Registra una página MOSTRADA en el servidor y actualiza el resumen de
  * mi-proceso con lo que responde el backend (nunca un cálculo local).
  */
-export function useRegistrarCapitulo(avanceId: number | null) {
+export function useRegistrarPaginaInduccion(avanceId: number | null) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (capitulo: string) => induccionApi.registrarProgreso(avanceId as number, capitulo),
+    mutationFn: (pagina: number) => induccionApi.registrarPagina(avanceId as number, pagina),
     onSuccess: (resumen) => {
       if (resumen) {
         queryClient.setQueryData<MiProceso>(queryKeys.miProceso, (prev) => (prev ? { ...prev, induccion: resumen } : prev));
       }
+    },
+  });
+}
+
+/** «Terminé la inducción» → habilita la evaluación (si corresponde). */
+export function useTerminarInduccion(avanceId: number | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => induccionApi.terminar(avanceId as number),
+    onSuccess: ({ resumen, evaluacion }) => {
+      queryClient.setQueryData<MiProceso>(queryKeys.miProceso, (prev) =>
+        prev ? { ...prev, ...(resumen ? { induccion: resumen } : {}), ...(evaluacion ? { evaluacionInduccion: evaluacion } : {}) } : prev,
+      );
       void queryClient.invalidateQueries({ queryKey: queryKeys.miProceso });
     },
   });

@@ -62,9 +62,7 @@ export const queryKeys = {
   misPrestamos: ['colaborador', 'prestamos'] as const,
   miPrestamo: (id: string | number) => ['colaborador', 'prestamos', String(id)] as const,
   miJerarquia: ['colaborador', 'jerarquia'] as const,
-  // Inducción Mr. Lana (capítulos, organigramas, evaluación) y directorio.
-  induccionCapitulos: (avanceId: string | number) => ['colaborador', 'induccion', 'capitulos', String(avanceId)] as const,
-  induccionOrganigrama: (vista: string) => ['induccion', 'organigrama', vista] as const,
+  // Inducción Mr. Lana (PDF oficial, evaluación) y directorio.
   induccionPresentacion: ['induccion', 'presentacion'] as const,
   induccionEvaluacionContenido: ['colaborador', 'induccion', 'evaluacion'] as const,
   directorio: (filtros: Record<string, unknown> = {}) => ['directorio', filtros] as const,

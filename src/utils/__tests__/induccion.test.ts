@@ -1,11 +1,11 @@
-import { normalizeContenidoEvaluacion, normalizeEvaluacionInduccion, normalizeInduccionResumen } from '@/api/normalizers/induccion';
+import { normalizeContenidoEvaluacion, normalizeEvaluacionInduccion, normalizeInduccionResumen, normalizePdfInduccion } from '@/api/normalizers/induccion';
 import { normalizeMiProceso } from '@/api/normalizers/miProceso';
-import type { CapituloInduccion, ContenidoEvaluacionInduccion, EvaluacionInduccion, IntentoInduccion } from '@/types/induccion';
+import type { ContenidoEvaluacionInduccion, EvaluacionInduccion, IntentoInduccion } from '@/types/induccion';
 import {
   evaluacionCompleta,
   faseInduccion,
   fechaLegible,
-  indiceParaRetomar,
+  paginasFaltantes,
   preguntasFaltantes,
   resultadoInduccion,
   textoProgreso,
@@ -15,10 +15,10 @@ import {
 const resumen = normalizeInduccionResumen({
   avance_id: 12,
   titulo: 'Inducción Mr. Lana',
-  total_capitulos: 7,
-  capitulos_vistos: 6,
-  porcentaje: 86,
-  ultima_capitulo: 'modelo_negocio',
+  total_paginas: 30,
+  paginas_vistas: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+  ultima_pagina: 12,
+  porcentaje: 40,
   completado: false,
 });
 
@@ -47,23 +47,29 @@ describe('inducción: carga y progreso (datos del servidor)', () => {
       pendientes: [],
       lecciones: [],
       todo_listo: false,
-      induccionContenido: { avance_id: 12, total_capitulos: 7, capitulos_vistos: 6, porcentaje: 86, completado: false },
+      induccionContenido: { avance_id: 12, total_paginas: 30, paginas_vistas: [1, 2], porcentaje: 6, completado: false },
       evaluacionInduccion: { id: 3, estado: 'disponible', puede_presentar: true, intentos: [] },
     });
 
     expect(proceso.induccion?.avanceId).toBe(12);
-    expect(proceso.induccion?.porcentaje).toBe(86);
+    expect(proceso.induccion?.porcentaje).toBe(6);
+    expect(proceso.induccion?.paginasVistas).toEqual([1, 2]);
     expect(proceso.evaluacionInduccion?.puedePresentar).toBe(true);
   });
 
-  it('"6 de 7 capítulos" y retoma en el último capítulo registrado', () => {
-    expect(resumen && textoProgreso(resumen)).toBe('6 de 7 capítulos');
-    const capitulos = ['quienes_somos', 'mision', 'cultura', 'organigrama', 'reglamento', 'modelo_negocio', 'factor_humano'].map(
-      (clave, i): CapituloInduccion => ({ clave, numero: i + 1, titulo: clave, subtitulo: null, bloques: [] }),
-    );
-    expect(indiceParaRetomar(capitulos, 'modelo_negocio')).toBe(5);
-    expect(indiceParaRetomar(capitulos, null)).toBe(0);
-    expect(indiceParaRetomar(capitulos, 'capitulo_inexistente')).toBe(0);
+  it('"12 de 30 páginas", retoma en la última página y cuenta las que faltan', () => {
+    expect(resumen && textoProgreso(resumen)).toBe('12 de 30 páginas');
+    expect(resumen?.ultimaPagina).toBe(12);
+    expect(paginasFaltantes(resumen, 30)).toBe(18);
+    expect(paginasFaltantes(null, 30)).toBe(30);
+  });
+
+  it('el PDF oficial se pide por ruta de API (Bearer), nunca por URL absoluta', () => {
+    expect(normalizePdfInduccion({ url: 'https://people.mr-lana.com/api/v1/induccion/pdf', titulo: 'Inducción Mr. Lana', total_paginas: 30 })).toEqual({
+      path: '/induccion/pdf',
+      titulo: 'Inducción Mr. Lana',
+      totalPaginas: 30,
+    });
   });
 });
 

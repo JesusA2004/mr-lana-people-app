@@ -1,12 +1,9 @@
 import type {
-  BloqueCapitulo,
-  CapituloInduccion,
-  CapitulosInduccion,
   ContenidoEvaluacionInduccion,
   EvaluacionInduccion,
   InduccionResumen,
   IntentoInduccion,
-  MiniOrganigramaNodo,
+  PdfInduccion,
 } from '@/types/induccion';
 import { asArray, asBoolean, asId, asNullableBoolean, asNumber, asRecord, asRecordOrNull, asString, asStringArray } from '@/utils/normalize';
 
@@ -18,104 +15,23 @@ export function normalizeInduccionResumen(raw: unknown): InduccionResumen | null
   return {
     avanceId,
     titulo: asString(r.titulo) ?? 'Inducción Mr. Lana',
-    totalCapitulos: asNumber(r.total_capitulos) ?? 0,
-    capitulosVistos: asNumber(r.capitulos_vistos) ?? 0,
-    clavesVistas: asStringArray(r.claves_vistas),
+    totalPaginas: asNumber(r.total_paginas) ?? 0,
+    paginasVistas: Array.isArray(r.paginas_vistas) ? r.paginas_vistas.map((p) => asNumber(p)).filter((p): p is number => p !== null) : [],
+    ultimaPagina: asNumber(r.ultima_pagina),
     porcentaje: Math.max(0, Math.min(100, asNumber(r.porcentaje) ?? 0)),
-    ultimoCapitulo: asString(r.ultima_capitulo),
     completado: asBoolean(r.completado),
   };
 }
 
-/** Un bloque desconocido (backend más nuevo) se descarta: nunca se pinta JSON crudo. */
-function normalizeBloque(raw: unknown): BloqueCapitulo | null {
+/** `data.pdf` del backend: {url, titulo, total_paginas}. La URL absoluta se reduce a ruta de API. */
+export function normalizePdfInduccion(raw: unknown): PdfInduccion {
   const r = asRecord(raw);
-  switch (r.tipo) {
-    case 'parrafo': {
-      const texto = asString(r.texto);
-      return texto ? { tipo: 'parrafo', titulo: asString(r.titulo), texto } : null;
-    }
-    case 'destacado': {
-      const texto = asString(r.texto);
-      return texto ? { tipo: 'destacado', texto } : null;
-    }
-    case 'datos':
-      return {
-        tipo: 'datos',
-        items: asArray(r.items)
-          .map((i) => asRecord(i))
-          .map((i) => ({ etiqueta: asString(i.etiqueta) ?? '', valor: asString(i.valor) ?? '' }))
-          .filter((i) => i.etiqueta || i.valor),
-      };
-    case 'lista':
-      return { tipo: 'lista', titulo: asString(r.titulo), texto: asString(r.texto), destacado: asBoolean(r.destacado), items: asStringArray(r.items) };
-    case 'tarjetas':
-      return {
-        tipo: 'tarjetas',
-        titulo: asString(r.titulo),
-        items: asArray(r.items)
-          .map((i) => asRecord(i))
-          .map((i) => ({ titulo: asString(i.titulo) ?? '', texto: asString(i.texto) ?? '', nota: asString(i.nota) }))
-          .filter((i) => i.titulo || i.texto),
-      };
-    case 'organigrama_dinamico': {
-      const vista = asString(r.vista);
-      return vista ? { tipo: 'organigrama_dinamico', vista, titulo: asString(r.titulo) ?? 'Organigrama', nota: asString(r.nota) } : null;
-    }
-    case 'cierre':
-      return { tipo: 'cierre', titulo: asString(r.titulo) ?? '', texto: asString(r.texto) ?? '' };
-    default:
-      return null;
-  }
-}
-
-export function normalizeCapitulo(raw: unknown): CapituloInduccion | null {
-  const r = asRecord(raw);
-  const clave = asString(r.clave);
-  if (!clave) return null;
-
+  const url = asString(r.url) ?? '';
+  const indice = url.indexOf('/api/v1/');
   return {
-    clave,
-    numero: asNumber(r.numero) ?? 0,
-    titulo: asString(r.titulo) ?? clave,
-    subtitulo: asString(r.subtitulo),
-    bloques: asArray(r.bloques)
-      .map(normalizeBloque)
-      .filter((b): b is BloqueCapitulo => b !== null),
-  };
-}
-
-export function normalizeCapitulos(raw: unknown): CapituloInduccion[] {
-  return asArray(raw)
-    .map(normalizeCapitulo)
-    .filter((c): c is CapituloInduccion => c !== null);
-}
-
-export function normalizeCapitulosInduccion(raw: unknown): CapitulosInduccion {
-  const r = asRecord(raw);
-  return {
-    avanceId: asId(r.avance_id) ?? 0,
-    capitulos: normalizeCapitulos(r.capitulos),
-    resumen: normalizeInduccionResumen(r.resumen),
-  };
-}
-
-export function normalizeMiniOrganigrama(raw: unknown): MiniOrganigramaNodo | null {
-  const r = asRecordOrNull(raw);
-  const id = asId(r?.id);
-  if (!r || id === null) return null;
-
-  return {
-    id,
-    nombre: asString(r.nombre) ?? 'Puesto',
-    // Solo nombre/sucursal de cada ocupante: la app nunca necesita más.
-    ocupantes: asArray(r.ocupantes)
-      .map((o) => asRecord(o))
-      .map((o) => ({ id: asId(o.id) ?? 0, nombre: asString(o.nombre) ?? '', sucursal: asString(o.sucursal) }))
-      .filter((o) => o.nombre !== ''),
-    hijos: asArray(r.hijos)
-      .map(normalizeMiniOrganigrama)
-      .filter((h): h is MiniOrganigramaNodo => h !== null),
+    path: indice >= 0 ? url.slice(indice + '/api/v1'.length) : '/induccion/pdf',
+    titulo: asString(r.titulo) ?? 'Inducción Mr. Lana',
+    totalPaginas: asNumber(r.total_paginas) ?? 0,
   };
 }
 

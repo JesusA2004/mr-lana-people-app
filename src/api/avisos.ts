@@ -15,6 +15,17 @@ export const avisosApi = {
     return response.data as PaginatedResponse<AvisoItem>;
   },
 
+  /** `GET /avisos/{id}` — un aviso concreto (el push abre este, no la bandeja). */
+  async getOne(id: number | string): Promise<AvisoItem> {
+    const response = await apiClient.get(`/avisos/${id}`);
+    return (response.data as { data: AvisoItem }).data;
+  },
+
+  /** Ruta (relativa a la API) del adjunto, imagen o PDF — siempre con Bearer. */
+  archivoPath(id: number | string): string {
+    return `/avisos/${id}/archivo`;
+  },
+
   /** `POST /avisos/{id}/leido` — se llama al abrir el aviso, nunca antes. */
   async marcarLeido(id: number | string): Promise<void> {
     await apiClient.post(`/avisos/${id}/leido`);

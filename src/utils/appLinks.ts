@@ -98,11 +98,10 @@ export function resolveResourceRoute(data: PushNotificationData): string | null 
     case 'cumpleanos_muro':
       return id ? `/muro-cumpleanos/${id}` : '/notificaciones';
 
-    // Aviso de RH (mensaje + imagen, a toda la empresa o a un colaborador):
-    // siempre la bandeja de avisos, nunca uno concreto (la app marca
-    // "leído" al abrirlo, no antes).
+    // Aviso de RH (mensaje + imagen o PDF): el aviso concreto (lo marca
+    // leído al abrirlo); sin id, la bandeja.
     case 'aviso_rh':
-      return '/avisos';
+      return id ? `/avisos/${id}` : '/avisos';
 
     case 'push_test':
       return SHOW_DEV_TOOLS ? '/dev/diagnostico-push' : '/notificaciones';
@@ -169,7 +168,7 @@ export function resolveResourceRoute(data: PushNotificationData): string | null 
       // como respaldo en vez de enumerar cada evento uno por uno.
       if (data.related_type === 'Candidato') return id ? `/(app)/rh/candidatos/${id}` : '/(app)/rh/candidatos';
       if (data.related_type === 'Reingreso') return '/(app)/rh/reingresos';
-      if (data.related_type === 'CierreLaboral') return id ? `/(app)/rh/cierres/${id}` : '/(app)/rh/cierres';
+      if (data.related_type === 'CierreLaboral') return id ? `/(app)/rh/cierres/${id}` : '/(app)/rh/(tabs)/pendientes';
       if (data.related_type === 'SolicitudInterna') return id ? `/(app)/rh/solicitudes/${id}` : '/(app)/rh/(tabs)/pendientes';
       if (data.related_type === 'EvaluacionPeriodoPrueba') return id ? `/evaluaciones/${id}` : '/evaluaciones';
       if (data.related_type === 'OnboardingAvance' || data.related_type === 'OnboardingProceso') {

@@ -3,6 +3,7 @@ import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
+import { avisosApi } from '@/api/avisos';
 import { AppHeader } from '@/components/AppHeader';
 import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
@@ -57,12 +58,17 @@ export default function AvisosScreen() {
           ) : isError ? (
             <ErrorState message={getErrorMessage(error)} onRetry={() => void refetch()} />
           ) : (
-            <EmptyState icon="megaphone-outline" title="Sin avisos" message="Todavía no tienes avisos de RH." />
+            <EmptyState icon="megaphone-outline" title="No tienes avisos todavía" message="Cuando RH envíe un aviso, aparecerá aquí." />
           )
         }
       />
     </View>
   );
+}
+
+/** Imagen del aviso: el adjunto nuevo o, en backends anteriores, `imagen_path`. */
+function esImagen(aviso: AvisoItem): boolean {
+  return aviso.archivo ? aviso.archivo.tipo === 'imagen' : Boolean(aviso.imagen_path);
 }
 
 function AvisoCard({ aviso, authHeaders, onPress }: { aviso: AvisoItem; authHeaders?: Record<string, string>; onPress: () => void }) {
@@ -72,9 +78,9 @@ function AvisoCard({ aviso, authHeaders, onPress }: { aviso: AvisoItem; authHead
 
   return (
     <PressableScale haptic={false} onPress={onPress} style={[styles.card, unread && styles.cardUnread] as object}>
-      {aviso.imagen_path ? (
+      {esImagen(aviso) ? (
         <Image
-          source={{ uri: `${API_URL}/avisos/${aviso.id}/imagen`, headers: authHeaders }}
+          source={{ uri: `${API_URL}${avisosApi.archivoPath(aviso.id)}`, headers: authHeaders }}
           style={styles.image}
           contentFit="cover"
           transition={180}
@@ -82,7 +88,7 @@ function AvisoCard({ aviso, authHeaders, onPress }: { aviso: AvisoItem; authHead
         />
       ) : (
         <View style={styles.iconWrapper}>
-          <Ionicons name="megaphone-outline" size={22} color={Colors.primaryDark} />
+          <Ionicons name={aviso.archivo?.tipo === 'pdf' ? 'document-text-outline' : 'megaphone-outline'} size={22} color={Colors.primaryDark} />
         </View>
       )}
 

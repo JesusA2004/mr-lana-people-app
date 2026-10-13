@@ -1,77 +1,93 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMemo } from 'react';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 
+import { AppHeader } from '@/components/AppHeader';
+import { Button } from '@/components/Button';
 import { EmptyMessage, Screen } from '@/components/ciclo/Screen';
-import { LectorCapitulos } from '@/components/induccion/LectorCapitulos';
+import { VisorPdfPaginado } from '@/components/VisorPdfPaginado';
 import { useMiProceso } from '@/hooks/queries/useCicloLaboral';
-import { useCapitulosInduccion, useRegistrarCapitulo } from '@/hooks/queries/useInduccion';
+import { usePresentacionInduccion, useRegistrarPaginaInduccion, useTerminarInduccion } from '@/hooks/queries/useInduccion';
+import { useColores } from '@/theme/ThemeProvider';
 import { toast } from '@/store/toastStore';
 import { getActionErrorMessage, logError } from '@/utils/errors';
-import { indiceParaRetomar } from '@/utils/induccion';
+import { paginasFaltantes } from '@/utils/induccion';
 
 /**
- * Capítulos de la Inducción Mr. Lana del colaborador. Cada capítulo visto se
- * registra en el SERVIDOR antes de avanzar (nunca solo local): así se retoma
- * donde se quedó en cualquier dispositivo y en la web.
+ * La inducción del colaborador = el PDF OFICIAL (mismo que la web), página
+ * por página. Cada página MOSTRADA se registra en el servidor (se retoma
+ * en cualquier dispositivo); al recorrerlas todas, «Terminé la inducción»
+ * habilita la evaluación. (La ruta conserva su nombre por los enlaces ya
+ * publicados.)
  */
-export default function CapitulosInduccionScreen() {
+export default function InduccionLecturaScreen() {
+  const Colors = useColores();
   const router = useRouter();
-  const { indice } = useLocalSearchParams<{ indice?: string }>();
   const proceso = useMiProceso();
   const resumen = proceso.data?.induccion ?? null;
   const avanceId = resumen?.avanceId ?? null;
-  const query = useCapitulosInduccion(avanceId);
-  const registrar = useRegistrarCapitulo(avanceId);
+  const pdf = usePresentacionInduccion();
+  const registrar = useRegistrarPaginaInduccion(avanceId);
+  const terminar = useTerminarInduccion(avanceId);
+  const [vistas, setVistas] = useState<Set<number>>(() => new Set(resumen?.paginasVistas ?? []));
+  const total = pdf.data?.totalPaginas ?? resumen?.totalPaginas ?? 0;
+  const faltan = paginasFaltantes(resumen ? { ...resumen, paginasVistas: [...vistas] } : null, total);
 
-  const capitulos = useMemo(() => query.data?.capitulos ?? [], [query.data]);
-  const resumenServidor = query.data?.resumen ?? resumen;
+  const alMostrar = (numero: number) => {
+    if (avanceId === null || vistas.has(numero)) return;
+    setVistas((previas) => new Set(previas).add(numero));
+    registrar.mutate(numero, {
+      onError: (error) => {
+        // Sin bloquear la lectura: se vuelve a reportar al mostrarla otra vez.
+        logError('induccion.pagina', error);
+        setVistas((previas) => {
+          const copia = new Set(previas);
+          copia.delete(numero);
+          return copia;
+        });
+      },
+    });
+  };
 
-  // Vistos según el servidor: claves exactas (si un backend anterior solo
-  // manda el conteo, se toman los primeros N como respaldo).
-  const vistos = useMemo(() => {
-    const claves = resumenServidor?.clavesVistas ?? [];
-    return new Set(claves.length > 0 ? claves : capitulos.slice(0, resumenServidor?.capitulosVistos ?? 0).map((c) => c.clave));
-  }, [capitulos, resumenServidor?.clavesVistas, resumenServidor?.capitulosVistos]);
-  const indiceInicial = indice !== undefined && /^\d+$/.test(indice) ? Number(indice) : indiceParaRetomar(capitulos, resumenServidor?.ultimoCapitulo ?? null);
-
-  const registrarVisto = async (clave: string) => {
-    if (vistos.has(clave)) return;
+  const alTerminar = async () => {
     try {
-      await registrar.mutateAsync(clave);
+      const resultado = await terminar.mutateAsync();
+      toast.success('¡Terminaste la inducción!');
+      router.replace(resultado.evaluacion?.puedePresentar ? '/induccion/evaluacion' : '/induccion');
     } catch (error) {
-      logError('induccion.progreso', error);
+      logError('induccion.terminar', error);
       toast.error(getActionErrorMessage(error));
-      throw error;
     }
   };
 
+  if (proceso.isLoading || pdf.isLoading || avanceId === null || !pdf.data) {
+    return (
+      <Screen title="Inducción Mr. Lana" isLoading={proceso.isLoading || pdf.isLoading} error={proceso.error ?? pdf.error} onRetry={() => void pdf.refetch()}>
+        {avanceId === null ? <EmptyMessage message="Tu proceso no incluye la inducción en este momento." /> : null}
+      </Screen>
+    );
+  }
+
   return (
-    <Screen
-      title="Inducción Mr. Lana"
-      isLoading={proceso.isLoading || (avanceId !== null && query.isLoading)}
-      error={proceso.error ?? query.error}
-      onRetry={() => void query.refetch()}
-      refreshing={query.isRefetching}
-      onRefresh={() => void query.refetch()}>
-      {avanceId === null ? (
-        <EmptyMessage message="Tu proceso no incluye la inducción en este momento." />
-      ) : capitulos.length === 0 ? (
-        <EmptyMessage message="La inducción todavía no tiene contenido cargado." />
-      ) : (
-        <LectorCapitulos
-          key={`${avanceId}-${indiceInicial}`}
-          capitulos={capitulos}
-          indiceInicial={indiceInicial}
-          vistos={vistos}
-          onCapituloVisto={registrarVisto}
-          ocupado={registrar.isPending}
-          textoTerminar="Terminar inducción"
-          onTerminar={() => {
-            toast.success('¡Completaste la inducción!');
-            router.replace('/induccion');
-          }}
-        />
-      )}
-    </Screen>
+    <View style={[styles.container, { backgroundColor: Colors.background }]}>
+      <AppHeader title="Inducción Mr. Lana" showBack onBackPress={() => router.back()} />
+      <VisorPdfPaginado
+        path={pdf.data.path}
+        cacheName={`induccion-${pdf.data.totalPaginas}.pdf`}
+        titulo={pdf.data.titulo}
+        paginaInicial={resumen?.ultimaPagina ?? 1}
+        onPagina={alMostrar}
+        nota={resumen?.completado ? null : faltan > 0 ? `Te faltan ${faltan} página(s)` : null}
+        accionFinal={
+          resumen?.completado ? undefined : (
+            <Button title="Terminé la inducción" fullWidth={false} leftIcon="checkmark-circle-outline" disabled={faltan > 0} loading={terminar.isPending} onPress={alTerminar} />
+          )
+        }
+      />
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+});

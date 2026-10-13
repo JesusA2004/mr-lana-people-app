@@ -8,12 +8,11 @@ import { Card } from '@/components/Card';
 import { EmptyMessage, Notice, Screen, SectionTitle } from '@/components/ciclo/Screen';
 import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useMiProceso } from '@/hooks/queries/useCicloLaboral';
-import { useCapitulosInduccion } from '@/hooks/queries/useInduccion';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { faseInduccion, fechaLegible, resultadoInduccion, textoProgreso, ultimoIntentoCalificado } from '@/utils/induccion';
 
 /**
- * Inducción Mr. Lana: progreso por capítulos (guardado en el servidor),
+ * Inducción Mr. Lana: avance por páginas del PDF oficial (guardado en el servidor),
  * acceso para retomar y estado de la evaluación oficial. TODO el estado
  * sale de `mi-proceso`; la app no decide si la evaluación está habilitada
  * ni califica nada.
@@ -25,15 +24,13 @@ export default function InduccionScreen() {
   const proceso = useMiProceso();
   const resumen = proceso.data?.induccion ?? null;
   const evaluacion = proceso.data?.evaluacionInduccion ?? null;
-  const capitulos = useCapitulosInduccion(resumen?.avanceId ?? null);
   const fase = faseInduccion(resumen, evaluacion);
   const calificado = ultimoIntentoCalificado(evaluacion);
   const resultado = calificado ? resultadoInduccion(calificado) : null;
-  const vistos = resumen?.capitulosVistos ?? 0;
+  const vistos = resumen?.paginasVistas.length ?? 0;
 
   const refrescar = () => {
     void proceso.refetch();
-    void capitulos.refetch();
   };
 
   return (
@@ -65,7 +62,7 @@ export default function InduccionScreen() {
             <AnimatedProgressBar percent={resumen.porcentaje} />
             <Text style={styles.estado}>{resumen.completado ? 'Contenido completado' : vistos === 0 ? 'Sin iniciar' : 'En curso'}</Text>
             <Button
-              title={resumen.completado ? 'Repasar capítulos' : vistos === 0 ? 'Comenzar' : 'Continuar'}
+              title={resumen.completado ? 'Repasar la inducción' : vistos === 0 ? 'Comenzar' : 'Continuar'}
               variant={resumen.completado ? 'outline' : 'primary'}
               rightIcon="arrow-forward"
               onPress={() => router.push('/induccion/capitulos')}
@@ -84,10 +81,10 @@ export default function InduccionScreen() {
           ) : null}
 
           {fase === 'contenido' && resumen.completado ? (
-            <Notice tone="info">Terminaste los capítulos. Tu evaluación se habilita en cuanto el sistema la active.</Notice>
+            <Notice tone="info">Terminaste la inducción. Tu evaluación se habilita en cuanto el sistema la active.</Notice>
           ) : null}
           {fase === 'contenido' && !resumen.completado ? (
-            <Notice tone="info">Al terminar los {resumen.totalCapitulos} capítulos se habilita tu evaluación de inducción.</Notice>
+            <Notice tone="info">Al recorrer las {resumen.totalPaginas} páginas y tocar «Terminé la inducción» se habilita tu evaluación.</Notice>
           ) : null}
 
           {fase === 'pendiente_rh' ? (
@@ -122,21 +119,6 @@ export default function InduccionScreen() {
             </Card>
           ) : null}
 
-          {capitulos.data?.capitulos.length ? (
-            <>
-              <SectionTitle>Capítulos</SectionTitle>
-              {capitulos.data.capitulos.map((c, i) => {
-                const visto = resumen.clavesVistas.length > 0 ? resumen.clavesVistas.includes(c.clave) : i < vistos;
-                return (
-                  <Card key={c.clave} style={styles.capitulo} onPress={() => router.push({ pathname: '/induccion/capitulos', params: { indice: String(i) } })}>
-                    <Text style={styles.capituloNumero}>{c.numero || i + 1}</Text>
-                    <Text style={[styles.flex, styles.capituloTitulo]}>{c.titulo}</Text>
-                    <Ionicons name={visto ? 'checkmark-circle' : 'chevron-forward'} size={20} color={visto ? Colors.success : Colors.textMuted} />
-                  </Card>
-                );
-              })}
-            </>
-          ) : null}
         </>
       )}
     </Screen>
@@ -171,7 +153,4 @@ const crearEstilos = (Colors: ColorPalette) =>
     etiquetaTexto: { fontSize: FontSize.sm, fontWeight: '800' },
     etiquetaTextoExito: { color: Colors.success },
     etiquetaTextoAviso: { color: Colors.warning },
-    capitulo: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, minHeight: 56 },
-    capituloNumero: { width: 28, fontSize: FontSize.lg, fontWeight: '300', color: Colors.secondary, textAlign: 'center' },
-    capituloTitulo: { fontSize: FontSize.md, fontWeight: '600', color: Colors.text },
   });

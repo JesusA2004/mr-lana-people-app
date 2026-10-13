@@ -18,7 +18,7 @@ import { useEstilos } from '@/theme/ThemeProvider';
 import { API_URL } from '@/constants/config';
 import { useAuthStore } from '@/store/authStore';
 import { extensionForSniffedType, isPreviewableSniffedType, sniffFileType, type SniffedFileType } from '@/utils/fileSniff';
-import { getErrorMessage, logError } from '@/utils/errors';
+import { ARCHIVO_NO_DISPONIBLE_MESSAGE, logError, normalizeError } from '@/utils/errors';
 import { uniqueTempFileName } from '@/utils/tempFileName';
 
 export interface SecureDocumentViewerProps {
@@ -173,7 +173,10 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
       } catch (error) {
         if (cancelled) return;
         logError('SecureDocumentViewer', error);
-        setErrorMessage(getErrorMessage(error));
+        // El HEAD no trae cuerpo: un 409 aquí es siempre «el registro
+        // existe pero su archivo no» (no un conflicto de edición).
+        const normalizado = normalizeError(error);
+        setErrorMessage(normalizado.status === 409 ? ARCHIVO_NO_DISPONIBLE_MESSAGE : normalizado.message);
         setStatus('error');
       }
     })();

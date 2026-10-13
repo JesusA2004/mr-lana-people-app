@@ -1,5 +1,4 @@
 import type {
-  CapituloInduccion,
   ContenidoEvaluacionInduccion,
   EvaluacionInduccion,
   InduccionResumen,
@@ -8,8 +7,8 @@ import type {
 } from '@/types/induccion';
 
 /**
- * Lógica de PRESENTACIÓN de la inducción. El estado real (qué capítulos
- * están vistos, si la evaluación está habilitada, la calificación, el
+ * Lógica de PRESENTACIÓN de la inducción. El estado real (qué páginas
+ * del PDF oficial están vistas, si la evaluación está habilitada, la calificación, el
  * reintento) lo decide el backend; aquí solo se traduce a texto y se
  * elige qué mostrar. Nunca se califica en el teléfono.
  */
@@ -42,17 +41,16 @@ export function faseInduccion(resumen: InduccionResumen | null, evaluacion: Eval
   return 'contenido';
 }
 
-/** "6 de 7 capítulos" — los números vienen del servidor. */
+/** "12 de 30 páginas" — los números vienen del servidor. */
 export function textoProgreso(resumen: InduccionResumen): string {
-  const total = resumen.totalCapitulos;
-  return `${Math.min(resumen.capitulosVistos, total)} de ${total} ${total === 1 ? 'capítulo' : 'capítulos'}`;
+  const total = resumen.totalPaginas;
+  return `${Math.min(resumen.paginasVistas.length, total)} de ${total} ${total === 1 ? 'página' : 'páginas'}`;
 }
 
-/** Capítulo donde se retoma: el último registrado en el servidor (o el primero). */
-export function indiceParaRetomar(capitulos: CapituloInduccion[], ultimoCapitulo: string | null): number {
-  if (!ultimoCapitulo) return 0;
-  const indice = capitulos.findIndex((c) => c.clave === ultimoCapitulo);
-  return indice >= 0 ? indice : 0;
+/** Páginas que aún no se han mostrado (para «Te faltan N»). */
+export function paginasFaltantes(resumen: InduccionResumen | null, total: number): number {
+  if (!resumen || total <= 0) return total;
+  return Math.max(0, total - new Set(resumen.paginasVistas.filter((p) => p >= 1 && p <= total)).size);
 }
 
 /** Último intento ya calificado por completo (A+B+C+D). */

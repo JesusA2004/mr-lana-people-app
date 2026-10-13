@@ -1,5 +1,5 @@
 /**
- * Inducción Mr. Lana (7 capítulos) y su evaluación oficial (FO-RH-EI, 30
+ * Inducción Mr. Lana (el PDF oficial, página por página) y su evaluación oficial (FO-RH-EI, 30
  * puntos) — contrato real de `App\Http\Controllers\Api\V1\MiProcesoController`
  * y `App\Services\Onboarding\EvaluacionInduccionService` (capacitaciones).
  *
@@ -11,44 +11,20 @@
 export interface InduccionResumen {
   avanceId: number;
   titulo: string;
-  totalCapitulos: number;
-  capitulosVistos: number;
-  /** Claves exactas vistas (se puede saltar entre capítulos); [] si el backend no las manda. */
-  clavesVistas: string[];
+  /** Avance por páginas MOSTRADAS del PDF oficial (servidor). */
+  totalPaginas: number;
+  paginasVistas: number[];
+  ultimaPagina: number | null;
   porcentaje: number;
-  ultimoCapitulo: string | null;
   completado: boolean;
 }
 
-export type BloqueCapitulo =
-  | { tipo: 'parrafo'; titulo: string | null; texto: string }
-  | { tipo: 'destacado'; texto: string }
-  | { tipo: 'datos'; items: { etiqueta: string; valor: string }[] }
-  | { tipo: 'lista'; titulo: string | null; texto: string | null; destacado: boolean; items: string[] }
-  | { tipo: 'tarjetas'; titulo: string | null; items: { titulo: string; texto: string; nota: string | null }[] }
-  | { tipo: 'organigrama_dinamico'; vista: string; titulo: string; nota: string | null }
-  | { tipo: 'cierre'; titulo: string; texto: string };
-
-export interface CapituloInduccion {
-  clave: string;
-  numero: number;
+/** El PDF oficial de la inducción (`data.pdf` del backend). */
+export interface PdfInduccion {
+  /** Ruta relativa a la API (Bearer). */
+  path: string;
   titulo: string;
-  subtitulo: string | null;
-  bloques: BloqueCapitulo[];
-}
-
-export interface CapitulosInduccion {
-  avanceId: number;
-  capitulos: CapituloInduccion[];
-  resumen: InduccionResumen | null;
-}
-
-/** Nodo del mini-organigrama dinámico (puesto real + ocupantes + hijos). */
-export interface MiniOrganigramaNodo {
-  id: number;
-  nombre: string;
-  ocupantes: { id: number; nombre: string; sucursal: string | null }[];
-  hijos: MiniOrganigramaNodo[];
+  totalPaginas: number;
 }
 
 export type EstadoEvaluacionInduccion =

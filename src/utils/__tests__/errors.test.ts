@@ -31,3 +31,14 @@ describe('normalizeError — caso QR: registro con red ambigua', () => {
     expect(result.isNetworkError).toBeUndefined();
   });
 });
+
+describe('normalizeError — archivo de un registro existente no disponible (409)', () => {
+  it('muestra el mensaje humano del backend, no el de conflicto de edición', () => {
+    const r = normalizeError(axiosError({ response: { status: 409, data: { codigo: 'archivo_no_disponible', message: 'El recibo existe, pero su PDF no está disponible por ahora.' } } }));
+    expect(r.message).toBe('El recibo existe, pero su PDF no está disponible por ahora.');
+  });
+
+  it('un 409 sin ese código sigue siendo «la información cambió»', () => {
+    expect(normalizeError(axiosError({ response: { status: 409, data: {} } })).message).toContain('cambió');
+  });
+});

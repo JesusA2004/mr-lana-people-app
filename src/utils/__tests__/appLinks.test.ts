@@ -106,7 +106,7 @@ describe('resolveResourceRoute — eventos de ciclo laboral por `related_type` (
 
   it('cierre laboral: abre el cierre si hay resource_id, el listado si no', () => {
     expect(resolveResourceRoute({ type: 'cierre_preautorizacion', resource_id: 7, related_type: 'CierreLaboral' })).toBe('/(app)/rh/cierres/7');
-    expect(resolveResourceRoute({ type: 'pago_por_programar', resource_id: null, related_type: 'CierreLaboral' })).toBe('/(app)/rh/cierres');
+    expect(resolveResourceRoute({ type: 'pago_por_programar', resource_id: null, related_type: 'CierreLaboral' })).toBe('/(app)/rh/(tabs)/pendientes');
   });
 
   it('un related_type desconocido sigue sin inventar ruta', () => {
@@ -180,5 +180,12 @@ describe('deep links de inducción con el mismo `type` para colaborador y RH', (
     expect(experienceForRoute('/directorio')).toBeNull();
     expect(experienceForRoute('/induccion')).toBe('colaborador');
     expect(experienceForRoute('/induccion/evaluacion')).toBe('colaborador');
+  });
+});
+
+describe('aviso de RH: el push abre el aviso concreto', () => {
+  it('con id va al detalle; sin id, a la bandeja', () => {
+    expect(resolveResourceRoute({ type: 'aviso_rh', resource_id: 5 })).toBe('/avisos/5');
+    expect(resolveResourceRoute({ type: 'aviso_rh', resource_id: null })).toBe('/avisos');
   });
 });

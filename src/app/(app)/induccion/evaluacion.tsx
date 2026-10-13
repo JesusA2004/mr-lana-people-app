@@ -70,7 +70,7 @@ export default function EvaluacionInduccionScreen() {
       error={proceso.error ?? contenido.error}
       onRetry={() => void contenido.refetch()}>
       {!puedePresentar ? (
-        <EmptyMessage message="Tu evaluación todavía no está disponible. Termina los capítulos de la inducción o espera a que Recursos Humanos la habilite." />
+        <EmptyMessage message="Tu evaluación todavía no está disponible. Termina la inducción o espera a que Recursos Humanos la habilite." />
       ) : !contenido.data ? null : (
         <>
           <Notice tone="info">

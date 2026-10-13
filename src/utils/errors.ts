@@ -92,6 +92,10 @@ function isAxiosError(error: unknown): error is AxiosError<ApiErrorPayload> {
  * timeout) cae siempre en el mismo mensaje amistoso: nunca debe "tronar" la
  * app ni mostrar detalles técnicos.
  */
+/** Código estable del backend (409) cuando el registro existe pero su archivo no. */
+export const ARCHIVO_NO_DISPONIBLE_CODIGO = 'archivo_no_disponible';
+export const ARCHIVO_NO_DISPONIBLE_MESSAGE = 'El documento existe, pero su archivo no está disponible por ahora. Recursos Humanos puede generarlo de nuevo.';
+
 export function normalizeError(error: unknown): NormalizedError {
   if (error instanceof AppError) {
     return { message: error.userMessage };
@@ -119,6 +123,11 @@ export function normalizeError(error: unknown): NormalizedError {
       case 404:
         return { message: safeBackendMessage(data?.message) ?? NOT_AVAILABLE_MESSAGE, status };
       case 409:
+        // El registro existe pero su archivo no (backend:
+        // ArchivoGeneradoNoDisponibleException) — nunca un 404 genérico.
+        if (data?.codigo === ARCHIVO_NO_DISPONIBLE_CODIGO) {
+          return { message: safeBackendMessage(data?.message) ?? ARCHIVO_NO_DISPONIBLE_MESSAGE, status };
+        }
         return { message: 'Esta información cambió mientras tanto. Actualiza la pantalla e inténtalo de nuevo.', status };
       case 422:
         if (isMissingTemplatePayload(data?.errors)) {
