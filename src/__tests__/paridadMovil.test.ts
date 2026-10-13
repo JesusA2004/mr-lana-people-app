@@ -4,13 +4,13 @@ import { resolveTaskRoute } from '@/utils/taskRoutes';
 import { existeRuta, rutasDeLaApp } from '@/testing/navegacionInventario';
 
 /**
- * Paridad móvil 1.1.0: inducción, directorio, pendientes nuevos de RH/
+ * Paridad móvil 1.2.0: inducción, directorio, pendientes nuevos de RH/
  * gerente, recibos impresos y configuración de build.
  */
 describe('configuración de la app', () => {
-  it('versionCode 8, versión 1.1.0 y el paquete Android intacto', () => {
-    expect(appConfig.expo.android.versionCode).toBe(8);
-    expect(appConfig.expo.version).toBe('1.1.0');
+  it('versionCode 9, versión 1.2.0 y el paquete Android intacto', () => {
+    expect(appConfig.expo.android.versionCode).toBe(9);
+    expect(appConfig.expo.version).toBe('1.2.0');
     expect(appConfig.expo.android.package).toBe('com.mrlana.people');
     expect(appConfig.expo.android.googleServicesFile).toBe('./google-services.json');
   });
