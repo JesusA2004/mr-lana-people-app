@@ -31,7 +31,6 @@ import {
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { toast } from '@/store/toastStore';
 import { ALTA_STEPS, altaBloqueos, altaStepIndex, canActivarAlta } from '@/utils/alta';
-import { hasPermission } from '@/utils/capabilities';
 import { formatDateLong } from '@/utils/dates';
 import { getActionErrorMessage, getErrorMessage, logError } from '@/utils/errors';
 import { formatCurrencyMXN } from '@/utils/formatters';
@@ -39,6 +38,7 @@ import { haptics } from '@/utils/haptics';
 import { laborDocumentBadgeStatus, laborDocumentKicker } from '@/utils/laborDocuments';
 import { visibleColaboradorSections } from '@/utils/modules';
 import { toExpedienteProgress } from '@/utils/expedienteProgress';
+import { openRhWeb } from '@/utils/openRhWeb';
 
 /**
  * Detalle RH del colaborador: resumen (siempre) + secciones del ciclo
@@ -129,18 +129,17 @@ export default function RhColaboradorDetailScreen() {
             ) : null}
 
             {sections.has('recibos') || sections.has('prestamos') || sections.has('actas') || sections.has('cierre') ? (
+              /* Nómina, préstamos, actas y cierres se administran en el
+                 Portal Web; la app resuelve lo que llega a Pendientes. */
               <Card style={styles.gap}>
                 <Text style={styles.sectionTitle}>Más</Text>
-                {sections.has('recibos') ? <LinkRow icon="receipt-outline" label="Recibos de nómina" onPress={() => goWith('/(app)/rh/recibos')} /> : null}
-                {hasPermission(permissions, 'nomina.recibos.crear') ? (
-                  <LinkRow icon="add-circle-outline" label="Nuevo recibo de nómina" onPress={() => goWith('/(app)/rh/recibos/nuevo')} />
-                ) : null}
-                {sections.has('prestamos') ? <LinkRow icon="cash-outline" label="Préstamos" onPress={() => goWith('/(app)/rh/prestamos')} /> : null}
+                {/* Las actas solo se capturan desde la app. */}
                 {sections.has('actas') ? <LinkRow icon="reader-outline" label="Actas" onPress={() => goWith('/(app)/rh/actas')} /> : null}
-                {sections.has('cierre') && hasPermission(permissions, 'cierres.gestionar') ? (
-                  <LinkRow icon="exit-outline" label="Iniciar cierre laboral" danger onPress={() => goWith('/(app)/rh/cierres/nuevo')} />
-                ) : null}
-                {sections.has('cierre') ? <LinkRow icon="list-outline" label="Cierres laborales" onPress={() => router.push('/(app)/rh/cierres' as never)} /> : null}
+                <LinkRow
+                  icon="open-outline"
+                  label="Recibos, préstamos y cierre: continuar en el Portal Web"
+                  onPress={() => void openRhWeb(`rh/expedientes/${id}`)}
+                />
               </Card>
             ) : null}
           </>

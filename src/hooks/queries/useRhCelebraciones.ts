@@ -1,22 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { rhCelebracionesApi, type RhAniversariosParams } from '@/api/rh/celebraciones';
-import { queryKeys } from '@/api/queryKeys';
+import { rhCelebracionesApi } from '@/api/rh/celebraciones';
 import type { TipoCelebracion } from '@/types/celebracion';
-
-/**
- * `GET /rh/celebraciones/aniversarios` no pagina (arreglo plano por rango
- * de fechas, igual que la web) — a diferencia de `useRhCumpleanosInfinite`,
- * esto es una consulta simple.
- */
-export function useRhAniversarios(params: RhAniversariosParams, enabled = true) {
-  return useQuery({
-    queryKey: queryKeys.rhAniversarios(params as Record<string, unknown>),
-    queryFn: () => rhCelebracionesApi.aniversarios(params),
-    enabled,
-    staleTime: 60_000,
-  });
-}
 
 function useInvalidateAniversarios() {
   const queryClient = useQueryClient();

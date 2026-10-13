@@ -7,20 +7,14 @@ import {
   rhCierresApi,
   rhContratosApi,
   rhDocumentosLaboralesApi,
-  rhEstructuraApi,
   rhPrestamosApi,
-  rhRecibosApi,
   type AutorizarPrestamoPayload,
-  type CrearReciboPayload,
   type EnvioPayload,
   type FirmaFisicaPayload,
-  type ImportarRecibosPayload,
-  type IndicadoresParams,
   type RhDocumentosLaboralesParams,
-  type RhRecibosParams,
 } from '@/api/rh/cicloLaboral';
 import type { LocalUploadFile } from '@/api/upload';
-import type { FiniquitoConceptoPayload, GuardarActaPayload, IniciarCierrePayload } from '@/types/rhCiclo';
+import type { FiniquitoConceptoPayload, GuardarActaPayload } from '@/types/rhCiclo';
 import { nextPageOf } from '@/utils/normalize';
 import { invalidateCiclo } from './cicloInvalidate';
 import { retryUnlessClientError, SENSITIVE_MUTATION } from './queryOptions';
@@ -94,15 +88,6 @@ export function useRhDocumentosLaborales(params: Omit<RhDocumentosLaboralesParam
   });
 }
 
-export function useRhDocumentosLaboralesPendientes(enabled = true) {
-  return useQuery({
-    queryKey: queryKeys.rhDocumentosLaboralesPendientes,
-    queryFn: rhDocumentosLaboralesApi.pendientes,
-    enabled,
-    retry: retryUnlessClientError,
-  });
-}
-
 export function useRhDocumentoLaboral(id: string | number | undefined) {
   return useQuery({
     queryKey: queryKeys.rhDocumentoLaboral(id ?? ''),
@@ -152,36 +137,12 @@ export function useRhOperarDocumentoLaboral(id: number, colaboradorId?: number |
 
 // ------------------------------------------------------------ Cierres
 
-export function useRhCierres(estado: string | undefined, enabled = true) {
-  const params = estado ? { estado } : {};
-  return useInfiniteQuery({
-    queryKey: queryKeys.rhCierresList(params),
-    queryFn: ({ pageParam }) => rhCierresApi.list({ ...params, page: pageParam }),
-    initialPageParam: 1,
-    getNextPageParam: nextPageOf,
-    enabled,
-    retry: retryUnlessClientError,
-  });
-}
-
 export function useRhCierre(id: string | number | undefined) {
   return useQuery({
     queryKey: queryKeys.rhCierre(id ?? ''),
     queryFn: () => rhCierresApi.get(id as string | number),
     enabled: id !== undefined && id !== '',
     retry: retryUnlessClientError,
-  });
-}
-
-export function useRhIniciarCierre(colaboradorId: number | string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    ...SENSITIVE_MUTATION,
-    mutationFn: (payload: IniciarCierrePayload) => rhCierresApi.iniciar(colaboradorId, payload),
-    onSuccess: (cierre) => {
-      queryClient.setQueryData(queryKeys.rhCierre(cierre.id), cierre);
-      invalidateCiclo(queryClient, { type: 'rh_cierre', cierreId: cierre.id, colaboradorId });
-    },
   });
 }
 
@@ -244,87 +205,7 @@ export function useRhOperarCierre(id: number, colaboradorId?: number | null) {
 
 // ------------------------------------------------------------ Recibos
 
-export function useRhRecibos(params: Omit<RhRecibosParams, 'page'>, enabled = true) {
-  return useInfiniteQuery({
-    queryKey: queryKeys.rhRecibosList(params as Record<string, unknown>),
-    queryFn: ({ pageParam }) => rhRecibosApi.list({ ...params, page: pageParam }),
-    initialPageParam: 1,
-    getNextPageParam: nextPageOf,
-    enabled,
-    retry: retryUnlessClientError,
-  });
-}
-
-export function useRhRecibo(id: string | number | undefined) {
-  return useQuery({
-    queryKey: queryKeys.rhRecibo(id ?? ''),
-    queryFn: () => rhRecibosApi.get(id as string | number),
-    enabled: id !== undefined && id !== '',
-    retry: retryUnlessClientError,
-  });
-}
-
-export function useRhRegenerarReciboPdf(id: number) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    ...SENSITIVE_MUTATION,
-    mutationFn: () => rhRecibosApi.regenerarPdf(id),
-    onSuccess: (recibo) => {
-      queryClient.setQueryData(queryKeys.rhRecibo(id), recibo);
-      invalidateCiclo(queryClient, { type: 'rh_recibo', reciboId: id });
-    },
-  });
-}
-
-/** Emite un borrador de recibo (PDF + aviso al colaborador). */
-export function useRhEmitirRecibo(id: number) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    ...SENSITIVE_MUTATION,
-    mutationFn: () => rhRecibosApi.emitir(id),
-    onSuccess: (recibo) => {
-      queryClient.setQueryData(queryKeys.rhRecibo(id), recibo);
-      invalidateCiclo(queryClient, { type: 'rh_recibo', reciboId: id });
-    },
-  });
-}
-
-export function useRhCrearRecibo(colaboradorId: number | string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    ...SENSITIVE_MUTATION,
-    mutationFn: (payload: CrearReciboPayload) => rhRecibosApi.crear(colaboradorId, payload),
-    onSuccess: (recibo) => {
-      queryClient.setQueryData(queryKeys.rhRecibo(recibo.id), recibo);
-      invalidateCiclo(queryClient, { type: 'rh_recibo', reciboId: recibo.id });
-    },
-  });
-}
-
-export function useRhImportarRecibos() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    ...SENSITIVE_MUTATION,
-    mutationFn: (payload: ImportarRecibosPayload) => rhRecibosApi.importar(payload),
-    onSuccess: (result) => {
-      if (!result.simulacion) invalidateCiclo(queryClient, { type: 'rh_recibo' });
-    },
-  });
-}
-
 // ------------------------------------------------------------ Préstamos
-
-export function useRhPrestamos(filtros: { estado?: string; colaborador_id?: string | number }, enabled = true) {
-  const params = Object.fromEntries(Object.entries(filtros).filter(([, v]) => v !== undefined && v !== '')) as { estado?: string; colaborador_id?: string | number };
-  return useInfiniteQuery({
-    queryKey: queryKeys.rhPrestamosList(params),
-    queryFn: ({ pageParam }) => rhPrestamosApi.list({ ...params, page: pageParam }),
-    initialPageParam: 1,
-    getNextPageParam: nextPageOf,
-    enabled,
-    retry: retryUnlessClientError,
-  });
-}
 
 export function useRhPrestamo(id: string | number | undefined) {
   return useQuery({
@@ -436,49 +317,3 @@ export function useRhOperarActa(id: number) {
 
 // ------------------------------------------------------------ Estructura
 
-export function useRhCobertura(params: { sucursal_id?: number }, enabled = true) {
-  return useQuery({
-    queryKey: queryKeys.rhCobertura(params),
-    queryFn: () => rhEstructuraApi.cobertura(params),
-    enabled,
-    retry: retryUnlessClientError,
-  });
-}
-
-export function useRhIndicadores(params: IndicadoresParams, enabled = true) {
-  return useQuery({
-    queryKey: queryKeys.rhIndicadores(params as Record<string, unknown>),
-    queryFn: () => rhEstructuraApi.indicadores(params),
-    enabled,
-    retry: retryUnlessClientError,
-    staleTime: 5 * 60_000,
-  });
-}
-
-export function useRhOrganigramaPersonas(params: { sucursal_id?: number }, enabled = true) {
-  return useQuery({
-    queryKey: queryKeys.rhOrganigramaPersonas(params),
-    queryFn: () => rhEstructuraApi.organigrama(params),
-    enabled,
-    retry: retryUnlessClientError,
-    staleTime: 5 * 60_000,
-  });
-}
-
-export function useRhVacante(id: string | number | undefined) {
-  return useQuery({
-    queryKey: queryKeys.rhVacante(id ?? ''),
-    queryFn: () => rhEstructuraApi.vacante(id as string | number),
-    enabled: id !== undefined && id !== '',
-    retry: retryUnlessClientError,
-  });
-}
-
-export function useRhPlantillasDocumentales(enabled = true) {
-  return useQuery({
-    queryKey: queryKeys.rhPlantillasDocumentales,
-    queryFn: rhEstructuraApi.plantillasDocumentales,
-    enabled,
-    retry: retryUnlessClientError,
-  });
-}

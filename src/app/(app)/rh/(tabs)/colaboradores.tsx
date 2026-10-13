@@ -17,6 +17,7 @@ import { useRhColaboradores } from '@/hooks/queries/useRhColaboradores';
 import type { RhColaborador } from '@/types/rh';
 import { hasPermission } from '@/utils/capabilities';
 import { getErrorMessage } from '@/utils/errors';
+import { openRhWeb } from '@/utils/openRhWeb';
 
 /** Directorio RH (AGENTS.md sección 13): buscador rápido, solo datos que la API devuelve — el expediente vive en `rh/expedientes`. */
 export default function RhColaboradoresScreen() {
@@ -43,7 +44,8 @@ export default function RhColaboradoresScreen() {
         subtitle={data?.meta?.total ? `${data.meta.total} en total` : undefined}
         right={
           puedeAlta ? (
-            <PressableScale accessibilityLabel="Dar de alta a un colaborador" onPress={() => router.push('/(app)/rh/colaboradores/nuevo' as never)} style={styles.addButton}>
+            // Altas: Portal Web (invitación QR / alta completa).
+            <PressableScale accessibilityLabel="Dar de alta en el Portal Web" onPress={() => void openRhWeb('rh/incorporacion/invitaciones')} style={styles.addButton}>
               <Ionicons name="person-add-outline" size={20} color={Colors.primaryDark} />
             </PressableScale>
           ) : undefined

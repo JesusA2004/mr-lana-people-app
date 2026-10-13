@@ -62,7 +62,7 @@ export default function RhPerfilScreen() {
           </View>
           <View style={styles.linkText}>
             <Text style={styles.linkTitle}>Presentar inducción</Text>
-            <Text style={styles.linkCaption}>Los 7 capítulos para una sesión por Meet o en sala</Text>
+            <Text style={styles.linkCaption}>El documento oficial, para una sesión por Meet o en sala</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
         </PressableScale>

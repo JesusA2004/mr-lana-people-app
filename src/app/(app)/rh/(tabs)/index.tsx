@@ -15,14 +15,14 @@ import { SkeletonBlock, SkeletonCardList } from '@/components/SkeletonBlock';
 import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
-import { useRhContratosPorVencer, useRhDocumentosLaboralesPendientes } from '@/hooks/queries/useRhCicloLaboral';
+import { useRhContratosPorVencer } from '@/hooks/queries/useRhCicloLaboral';
 import { useRhCumpleanosInfinite } from '@/hooks/queries/useRhCumpleanos';
 import { useRhDashboard } from '@/hooks/queries/useRhDashboard';
 import { useTareasConteos } from '@/hooks/queries/useTrabajo';
 import { useAuthStore } from '@/store/authStore';
 import { hasPermission } from '@/utils/capabilities';
 import { getErrorMessage } from '@/utils/errors';
-import { isExperimentalFeatureEnabled, isFeatureEnabled, isOrganigramaEnabled } from '@/utils/featureFlags';
+import { isExperimentalFeatureEnabled, isFeatureEnabled } from '@/utils/featureFlags';
 import { joinName } from '@/utils/formatters';
 import { isRhModuleEnabled, type RhModule } from '@/utils/modules';
 import { openRhWeb } from '@/utils/openRhWeb';
@@ -55,59 +55,30 @@ export default function RhDashboardScreen() {
   // ocultos hasta que el backend mande el flag explícito, decisión de
   // producto de esta auditoría).
   const extractionEnabled = isExperimentalFeatureEnabled(bootstrap.data?.features, 'document_extraction');
-  const organigramaEnabled = isOrganigramaEnabled(bootstrap.data?.features, bootstrap.data?.user.permissions);
-  // Vacantes: el endpoint real ya existe y funciona, pero `mobile/bootstrap`
-  // no manda un feature flag para este módulo. Se usa el MISMO permiso que
-  // protege el endpoint en el backend (`vacantes.ver`, ver
-  // `Rh\VacanteController::index`): ni fail-open ciego, ni fail-closed sobre
-  // algo que sí sirve.
-  const vacantesEnabled = hasPermission(bootstrap.data?.user.permissions, 'vacantes.ver');
 
   const permissions = bootstrap.data?.user.permissions;
   const features = bootstrap.data?.features;
   const moduloOn = (module: RhModule) => isRhModuleEnabled(features, permissions, module);
-  const organigramaPersonasEnabled = moduloOn('organigrama_personas');
   const tareas = useTareasConteos(true);
   const tareasCount = tareas.data?.abiertas ?? 0;
-  const docsPendientes = useRhDocumentosLaboralesPendientes(moduloOn('documentos_laborales'));
-  // Badge = etapas que RH opera (la firma del colaborador no es acción de RH).
-  const docsPendientesTotal = docsPendientes.data
-    ? docsPendientes.data.imprimir + docsPendientes.data.firma_fisica + docsPendientes.data.enviar + docsPendientes.data.recibir + docsPendientes.data.escanear
-    : undefined;
   const porVencer = useRhContratosPorVencer(30, moduloOn('contratos'));
 
 
   type Modulo = { route: string; icon: keyof typeof Ionicons.glyphMap; label: string; badge?: number };
   const only = (items: (Modulo | false)[]) => items.filter((m): m is Modulo => m !== false);
 
-  // Accesos principales: lo que RH usa a diario (4 como máximo, con peso
-  // visual). Todo lo demás va en "Más herramientas", en lista. Cada módulo
-  // aparece SOLO con el permiso real que exige su endpoint (`utils/modules.ts`).
-  const principales = only([
+  // La app de RH es para RESOLVER rápido (web = administrar): solo atajos
+  // a lo que se decide desde el teléfono. Nómina, documentos maestros,
+  // importadores, reportes, catálogos y configuración viven en el Portal
+  // Web (tarjeta «Continuar en el Portal Web»). Cada atajo aparece SOLO
+  // con el permiso real que exige su endpoint (`utils/modules.ts`).
+  const atajos = only([
     // Mismo permiso que GET /rh/colaboradores; un gerente sin él ve a su gente en «Mi equipo».
-    hasPermission(permissions, 'rh.colaboradores.ver') && { route: '/(app)/rh/(tabs)/colaboradores', icon: 'people-outline', label: 'Personas' },
-    { route: '/(app)/rh/(tabs)/pendientes', icon: 'file-tray-full-outline', label: 'Solicitudes', badge: data?.resumen.solicitudes },
-    moduloOn('documentos_laborales') && { route: '/(app)/rh/documentos-laborales', icon: 'folder-outline', label: 'Documentos', badge: docsPendientesTotal },
-    moduloOn('prestamos') && { route: '/(app)/rh/prestamos', icon: 'cash-outline', label: 'Préstamos' },
-  ]);
-
-  const herramientas = only([
+    hasPermission(permissions, 'rh.colaboradores.ver') && { route: '/(app)/rh/(tabs)/colaboradores', icon: 'search-outline', label: 'Buscar persona' },
     moduloOn('candidatos') && { route: '/(app)/rh/candidatos', icon: 'people-circle-outline', label: 'Candidatos' },
-    moduloOn('contratos') && { route: '/(app)/rh/contratos/por-vencer', icon: 'hourglass-outline', label: 'Contratos por vencer', badge: porVencer.data?.contratos.length },
     moduloOn('evaluaciones') && { route: '/evaluaciones', icon: 'clipboard-outline', label: 'Evaluaciones' },
-    moduloOn('actas') && { route: '/(app)/rh/actas', icon: 'reader-outline', label: 'Actas administrativas' },
-    moduloOn('cierres') && { route: '/(app)/rh/cierres', icon: 'exit-outline', label: 'Cierres y finiquitos' },
-    moduloOn('reingresos') && { route: '/(app)/rh/reingresos', icon: 'refresh-circle-outline', label: 'Reingresos' },
-    moduloOn('recibos') && { route: '/(app)/rh/recibos', icon: 'receipt-outline', label: 'Recibos de nómina' },
-    cumpleanosEnabled && { route: '/(app)/rh/cumpleanos', icon: 'gift-outline', label: 'Cumpleaños' },
-    hasPermission(permissions, 'celebraciones.ver') && { route: '/(app)/rh/aniversarios', icon: 'ribbon-outline', label: 'Aniversarios' },
-    moduloOn('indicadores') && { route: '/(app)/rh/indicadores', icon: 'stats-chart-outline', label: 'Indicadores' },
-    moduloOn('plantilla') && { route: '/(app)/rh/plantilla', icon: 'grid-outline', label: 'Plantilla y cobertura' },
-    (organigramaEnabled || organigramaPersonasEnabled) && { route: '/(app)/rh/organizacion', icon: 'git-network-outline', label: 'Organigrama' },
-    vacantesEnabled && { route: '/(app)/rh/vacantes', icon: 'briefcase-outline', label: 'Vacantes' },
     // Mismo permiso que GET /rh/cambios-foto (CambioFotoPerfilPolicy).
     hasPermission(permissions, 'expedientes.revisar') && { route: '/(app)/rh/cambios-foto', icon: 'image-outline', label: 'Cambios de foto' },
-    moduloOn('plantillas_documentales') && { route: '/(app)/rh/plantillas-documentales', icon: 'documents-outline', label: 'Documentos maestros' },
   ]);
 
   const cumpleanosHoy = useRhCumpleanosInfinite({ periodo: 'hoy' }, cumpleanosEnabled);
@@ -253,37 +224,19 @@ export default function RhDashboardScreen() {
 
               <BirthdayWallBanner enabled={cumpleanosEnabled} />
 
-              <ModuleSection title="Accesos principales" modulos={principales} onOpen={open} />
-              <ToolList title="Más herramientas" modulos={herramientas} onOpen={open} />
+              <ModuleSection title="Resolver" modulos={atajos} onOpen={open} />
 
-              <Text style={styles.sectionTitle} accessibilityRole="header">
-                Recientes
-              </Text>
-              {data.recientes.length === 0 ? (
-                <Card>
-                  <View style={styles.emptyRow}>
-                    <Ionicons name="checkmark-done-circle-outline" size={22} color={Colors.textMuted} />
-                    <Text style={styles.emptyText}>Sin actividad reciente.</Text>
-                  </View>
-                </Card>
-              ) : (
-                <View style={styles.list}>
-                  {data.recientes.map((pendiente, index) => (
-                    <FadeInView key={pendiente.id} index={index}>
-                      <RhPendienteCard pendiente={pendiente} onPress={() => open(rhPendienteDetailRoute(pendiente))} />
-                    </FadeInView>
-                  ))}
-                </View>
-              )}
-
-              {/* Lo que sigue siendo del portal web (alta de colaboradores,
-                  plantillas DOCX, reportes, configuración): el camino queda a
-                  la vista, sin "próximamente". */}
-              <PressableScale onPress={() => void openRhWeb()} style={styles.webCta}>
+              {/* Administración (nómina, documentos maestros, altas,
+                  importaciones, reportes, configuración): Portal Web. */}
+              <PressableScale
+                onPress={() => void openRhWeb()}
+                style={styles.webCta}
+                accessibilityRole="link"
+                accessibilityLabel="Continuar en el Portal Web">
                 <Ionicons name="open-outline" size={18} color={Colors.primaryDark} />
                 <View style={styles.rowText}>
-                  <Text style={styles.rowTitle}>Abrir Portal RH</Text>
-                  <Text style={styles.rowSubtitle}>Plantillas DOCX, reportes y configuración.</Text>
+                  <Text style={styles.rowTitle}>Continuar en el Portal Web</Text>
+                  <Text style={styles.rowSubtitle}>Nómina, documentos, altas, reportes y configuración se administran ahí.</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
               </PressableScale>
@@ -310,41 +263,6 @@ function ModuleSection({ title, modulos, onOpen }: { title: string; modulos: Mod
           <ModuleTile key={modulo.route} icon={modulo.icon} label={modulo.label} badge={modulo.badge} onPress={() => onOpen(modulo.route)} />
         ))}
       </ModuleGrid>
-    </View>
-  );
-}
-
-/** Herramientas secundarias: lista compacta (menos peso visual que los accesos principales). */
-function ToolList({ title, modulos, onOpen }: { title: string; modulos: ModuloItem[]; onOpen: (route: string) => void }) {
-  const Colors = useColores();
-  const styles = useEstilos(crearEstilos);
-  if (modulos.length === 0) return null;
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle} accessibilityRole="header">
-        {title}
-      </Text>
-      <Card padded={false}>
-        {modulos.map((modulo, index) => (
-          <PressableScale
-            key={modulo.route}
-            haptic={false}
-            accessibilityLabel={`${modulo.label}${modulo.badge ? `, ${modulo.badge} pendientes` : ''}`}
-            onPress={() => onOpen(modulo.route)}
-            style={[styles.toolRow, index < modulos.length - 1 && styles.toolRowDivider]}>
-            <Ionicons name={modulo.icon} size={20} color={Colors.primaryDark} />
-            <Text style={styles.toolLabel} numberOfLines={2}>
-              {modulo.label}
-            </Text>
-            {modulo.badge ? (
-              <View style={styles.toolBadge}>
-                <Text style={styles.toolBadgeText}>{modulo.badge > 99 ? '99+' : modulo.badge}</Text>
-              </View>
-            ) : null}
-            <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
-          </PressableScale>
-        ))}
-      </Card>
     </View>
   );
 }
@@ -419,38 +337,6 @@ const crearEstilos = (Colors: ColorPalette) =>
   },
   section: {
     gap: Spacing.md,
-  },
-  toolRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    minHeight: 52,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-  },
-  toolRowDivider: {
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.divider,
-  },
-  toolLabel: {
-    flex: 1,
-    fontSize: FontSize.md,
-    fontWeight: '600',
-    color: Colors.text,
-  },
-  toolBadge: {
-    minWidth: 22,
-    height: 22,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.danger,
-    paddingHorizontal: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  toolBadgeText: {
-    color: Colors.white,
-    fontSize: 11,
-    fontWeight: '800',
   },
   statGrid: {
     flexDirection: 'row',
