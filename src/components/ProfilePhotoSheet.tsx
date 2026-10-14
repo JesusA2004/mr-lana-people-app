@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image as ExpoImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
 import { Image, Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -223,7 +224,9 @@ function AvisoFoto({ uri }: { uri: string }) {
 function ProposalImage({ uri, style }: { uri: string; style: object }) {
   const privado = usePrivateAsset(uri);
   if (privado.status !== 'ready' || !privado.uri) return <View style={style} />;
-  return <Image source={{ uri: privado.uri }} style={style} accessibilityLabel="Foto propuesta" />;
+  // expo-image con contentFit explícito: mismo criterio que Avatar.tsx para
+  // una foto privada cacheada, evita el recorte visto en Android.
+  return <ExpoImage source={{ uri: privado.uri }} style={style} contentFit="cover" contentPosition="center" accessibilityLabel="Foto propuesta" />;
 }
 
 function Opcion({ icon, label, onPress }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void }) {

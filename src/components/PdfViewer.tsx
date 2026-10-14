@@ -137,6 +137,13 @@ function AndroidPdfViewer({ fileUri, style, onError }: { fileUri: string; style?
         // Sin red: el visor no carga nada de fuera (pdf.js va dentro del HTML).
         onShouldStartLoadWithRequest={(request) => request.url.startsWith('about:')}
         onMessage={handleMessage}
+        // Documentos largos (contrato, finiquito, acta) con muchas páginas
+        // renderizadas a canvas pueden agotar la memoria del proceso de
+        // render de Android: sin este handler, el WebView se queda en
+        // blanco/cargando para siempre, sin ningún mensaje de error — se ve
+        // igual que "el documento no abre". Se trata como el mismo error
+        // que uno de pdf.js, con la misma salida (guardar/compartir).
+        onRenderProcessGone={() => fallar(new Error('Android: render process terminado (sin memoria) al mostrar el PDF.'))}
         style={styles.webview}
       />
       {cargando ? (

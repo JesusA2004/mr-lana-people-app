@@ -1,3 +1,4 @@
+import { Image as ExpoImage } from 'expo-image';
 import { useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 
@@ -39,8 +40,19 @@ export function Avatar({ name, uri, headers, size = 56, ringColor }: AvatarProps
 
   if (esPrivada) {
     if (privado.status === 'ready' && privado.uri) {
+      // expo-image (no <Image> de RN): contentFit/contentPosition explícitos
+      // evitan el render inconsistente en Android que recortaba la foto
+      // (se veía solo un fragmento superior) — ver AGENTS.md foto de perfil.
       return (
-        <Image source={{ uri: privado.uri }} style={[styles.image, dimension, ringStyle]} accessibilityLabel="Foto de perfil" />
+        <View style={[dimension, ringStyle, styles.imageWrap]}>
+          <ExpoImage
+            source={{ uri: privado.uri }}
+            style={styles.imageFill}
+            contentFit="cover"
+            contentPosition="center"
+            accessibilityLabel="Foto de perfil"
+          />
+        </View>
       );
     }
     if (privado.status === 'loading') {
@@ -69,6 +81,14 @@ const crearEstilos = (Colors: ColorPalette) =>
   StyleSheet.create({
   image: {
     backgroundColor: Colors.surfaceMuted,
+  },
+  imageWrap: {
+    backgroundColor: Colors.surfaceMuted,
+    overflow: 'hidden',
+  },
+  imageFill: {
+    width: '100%',
+    height: '100%',
   },
   fallback: {
     backgroundColor: Colors.primarySoft,

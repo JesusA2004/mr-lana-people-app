@@ -59,6 +59,9 @@ export interface DashboardVacacionesResumen {
   vigencia_fin?: string | null;
   dias_generados?: number;
   dias_usados?: number;
+  dias_usados_people?: number;
+  dias_usados_historicos?: number;
+  dias_usados_total?: number;
   dias_en_solicitud?: number;
   dias_disponibles?: number;
   [key: string]: unknown;

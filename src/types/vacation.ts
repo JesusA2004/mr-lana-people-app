@@ -13,8 +13,14 @@ export interface VacationBalance {
   vigencia_inicio?: string | null;
   vigencia_fin?: string | null;
   dias_generados?: number;
+  /** Solo lo usado dentro de PEOPLE — para el total visible usa `dias_usados_total`. */
   dias_usados?: number;
+  dias_usados_people?: number;
+  dias_usados_historicos?: number;
+  dias_usados_total?: number;
   dias_en_solicitud?: number;
+  dias_ajustes_historicos?: number;
+  ajustes_a_favor?: number;
   dias_disponibles?: number;
   /** false antes de cumplir el primer año (o sin colaborador vinculado) — el wizard de vacaciones no debe mostrarse. */
   puede_solicitar?: boolean;

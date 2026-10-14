@@ -58,7 +58,12 @@ export function construirHtmlVisorPdf(): string {
     lib.getDocument({ data: bytes, isEvalSupported: false }).promise.then(function(pdf){
       var cont = document.getElementById('paginas');
       var ancho = Math.max(window.innerWidth - 16, 200);
-      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      // Tope más bajo que el visor paginado (2): aquí TODAS las páginas
+      // quedan en memoria a la vez (nunca solo una), así que un documento
+      // largo (contrato, finiquito, acta) en un Android de gama media podía
+      // agotar la memoria del proceso de render y quedarse en blanco sin
+      // ningún error (ver PdfViewer.tsx: onRenderProcessGone).
+      var dpr = Math.min(window.devicePixelRatio || 1, 1.5);
       var n = 1;
       function siguiente(){
         if (n > pdf.numPages) { avisar('rendered', {pages: pdf.numPages}); return; }

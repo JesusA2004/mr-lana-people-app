@@ -77,7 +77,16 @@ export default function VacacionesScreen() {
                 <BalanceTile label="Generados" value={saldo?.dias_generados} icon="trending-up-outline" />
               </FadeInView>
               <FadeInView index={1} style={styles.tileFlex}>
-                <BalanceTile label="Usados" value={saldo?.dias_usados} icon="checkmark-done-outline" />
+                <BalanceTile
+                  label="Usados"
+                  value={saldo?.dias_usados_total ?? saldo?.dias_usados}
+                  icon="checkmark-done-outline"
+                  caption={
+                    saldo?.dias_usados_historicos && saldo.dias_usados_historicos > 0
+                      ? `${saldo.dias_usados_people ?? 0} en PEOPLE + ${saldo.dias_usados_historicos} históricos`
+                      : undefined
+                  }
+                />
               </FadeInView>
               <FadeInView index={2} style={styles.tileFlex}>
                 <BalanceTile label="Disponibles" value={saldo?.dias_disponibles} icon="airplane-outline" highlight />
@@ -158,11 +167,13 @@ function BalanceTile({
   value,
   icon,
   highlight = false,
+  caption,
 }: {
   label: string;
   value?: number;
   icon: keyof typeof Ionicons.glyphMap;
   highlight?: boolean;
+  caption?: string;
 }) {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
@@ -171,6 +182,11 @@ function BalanceTile({
       <Ionicons name={icon} size={20} color={highlight ? Colors.primaryDark : Colors.textMuted} />
       <Text style={[styles.tileValue, highlight && styles.tileValueHighlight]}>{typeof value === 'number' ? value : '—'}</Text>
       <Text style={styles.tileLabel}>{label}</Text>
+      {caption ? (
+        <Text style={styles.tileCaption} numberOfLines={2}>
+          {caption}
+        </Text>
+      ) : null}
     </Card>
   );
 }
@@ -237,6 +253,10 @@ const crearEstilos = (Colors: ColorPalette) =>
     fontSize: FontSize.xs,
     color: Colors.textMuted,
     fontWeight: '600',
+  },
+  tileCaption: {
+    fontSize: 10,
+    color: Colors.textMuted,
   },
   sectionTitle: {
     fontSize: FontSize.lg,
