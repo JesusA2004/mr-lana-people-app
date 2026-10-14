@@ -80,8 +80,14 @@ export function LockScreen({ visible }: LockScreenProps) {
       attemptedRef.current = false;
       return;
     }
-    if (!biometricEnabled || attemptedRef.current) return;
+    if (attemptedRef.current) return;
+    // Se marca como intentado de inmediato, exista o no biometría habilitada:
+    // si `biometricEnabled` pasa de false a true MIENTRAS esta pantalla sigue
+    // visible (p. ej. el usuario la activa desde otro flujo), no debe
+    // disparar un segundo intento automático de huella en esta misma sesión
+    // de bloqueo.
     attemptedRef.current = true;
+    if (!biometricEnabled) return;
 
     void getBiometricCapabilityAsync().then((capability) => {
       setBiometricType(capability.primaryType);

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { PermissionPrimerSheet } from './PermissionPrimerSheet';
 
 import { getBiometricCapabilityAsync, authenticateWithBiometricsAsync } from '@/services/biometricAuth';
+import { useAppLockStore } from '@/store/appLockStore';
 import { useAuthStore } from '@/store/authStore';
 import { useBiometricStore } from '@/store/biometricStore';
 import { toast } from '@/store/toastStore';
@@ -14,9 +15,17 @@ const SHOW_DELAY_MS = 1600;
  * ofrece UNA sola vez, después del primer login, y solo si el dispositivo
  * de verdad tiene biometría registrada (V4 sección 31). Montado en
  * `(app)/_layout.tsx`, igual que `PushPermissionPrimer`.
+ *
+ * Nunca debe ofrecerse mientras `LockScreen` sigue visible (arranque en frío
+ * con sesión restaurada, `authStore.restoreSession()` → `appLockStore.lock()`):
+ * activar la biometría ahí mismo disparaba, acto seguido, un segundo intento
+ * automático de huella de `LockScreen` para desbloquear — un doble prompt
+ * nativo que el usuario nunca pidió. `isLocked` distingue exactamente ese
+ * caso de un login interactivo (que nunca pasa por `lock()`).
  */
 export function BiometricEnrollPrimer() {
   const userId = useAuthStore((state) => state.user?.id ?? null);
+  const isLocked = useAppLockStore((state) => state.isLocked);
   const isLoading = useBiometricStore((state) => state.isLoading);
   const hasBeenPrompted = useBiometricStore((state) => state.hasBeenPrompted);
   const enabled = useBiometricStore((state) => state.enabled);
@@ -32,7 +41,7 @@ export function BiometricEnrollPrimer() {
   }, [load, userId]);
 
   useEffect(() => {
-    if (isLoading || hasBeenPrompted || enabled || evaluated.current) return;
+    if (isLoading || hasBeenPrompted || enabled || isLocked || evaluated.current) return;
     evaluated.current = true;
 
     const timer = setTimeout(() => {
@@ -46,7 +55,7 @@ export function BiometricEnrollPrimer() {
     }, SHOW_DELAY_MS);
 
     return () => clearTimeout(timer);
-  }, [isLoading, hasBeenPrompted, enabled, markPrompted]);
+  }, [isLoading, hasBeenPrompted, enabled, isLocked, markPrompted]);
 
   const handleClose = () => {
     setVisible(false);
