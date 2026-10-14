@@ -6,7 +6,6 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { apiClient } from '@/api/client';
 import { Button } from './Button';
 import { ErrorState } from './ErrorState';
 import { PdfViewer } from './PdfViewer';
@@ -18,8 +17,38 @@ import { useEstilos } from '@/theme/ThemeProvider';
 import { API_URL } from '@/constants/config';
 import { useAuthStore } from '@/store/authStore';
 import { extensionForSniffedType, isPreviewableSniffedType, sniffFileType, type SniffedFileType } from '@/utils/fileSniff';
-import { ARCHIVO_NO_DISPONIBLE_MESSAGE, logError, normalizeError } from '@/utils/errors';
+import { logError } from '@/utils/errors';
 import { uniqueTempFileName } from '@/utils/tempFileName';
+
+/**
+ * El mensaje de `UnableToDownloadException` de expo-file-system siempre
+ * incluye el status HTTP real tal cual lo devolvió el servidor — Android:
+ * "HTTP 404"; iOS: "server returned HTTP 404" (ver
+ * node_modules/expo-file-system/{android,ios}/.../FileSystemDownloadTask.*).
+ * Se usa para no depender de un HEAD previo (sección 38-39 del encargo): la
+ * descarga real YA es la verificación de acceso.
+ */
+function statusFromDownloadError(error: unknown): number | undefined {
+  if (!(error instanceof Error)) return undefined;
+  const match = /HTTP\s*(\d{3})/i.exec(error.message);
+  return match ? Number(match[1]) : undefined;
+}
+
+function mensajeParaStatus(status: number | undefined): string {
+  switch (status) {
+    case 401:
+      return 'Tu sesión ha expirado. Vuelve a iniciar sesión.';
+    case 403:
+      return 'No tienes permiso para ver este archivo.';
+    case 404:
+      return 'Este archivo ya no está disponible.';
+    case 503:
+      return 'El almacenamiento no está disponible. Intenta nuevamente.';
+    default:
+      if (status !== undefined && status >= 500) return 'Tuvimos un problema de nuestro lado. Intenta más tarde.';
+      return 'No pudimos cargar este archivo. Verifica tu conexión e intenta de nuevo.';
+  }
+}
 
 export interface SecureDocumentViewerProps {
   /** Ruta relativa a la API (ej. `rhDocumentosApi.verPath(id)`) — nunca una URL absoluta expuesta al cliente. */
@@ -71,25 +100,29 @@ type ViewerStatus = 'loading' | 'ready' | 'error' | 'unsupported';
  * en vez de pedir el archivo completo como `ArrayBuffer` en JS (costoso en
  * memoria para PDFs de varios MB) se usa `File.createDownloadTask` de
  * expo-file-system — el cuerpo de la respuesta se escribe directo a disco
- * desde nativo, sin pasar por un buffer de JS completo. Como esa API
- * nativa no expone el status HTTP ni los headers de la respuesta, primero
- * se hace un `HEAD` con el cliente axios normal (mismos interceptores de
- * siempre: 401 real cierra sesión, 403/404/etc. se normalizan igual que en
- * el resto de la app) — si el HEAD falla, nunca se llega a descargar nada.
- * El tipo de archivo se determina leyendo la firma binaria del archivo YA
- * en disco (nunca confiar en `Content-Type` ni en la extensión del
- * título), y el archivo se renombra a su extensión real antes de
- * mostrarlo — necesario para que el visor de PDF nativo de Android/iOS
- * reconozca `file://...pdf` dentro del WebView.
+ * desde nativo, sin pasar por un buffer de JS completo. NUNCA se hace un
+ * `HEAD` previo (puede fallar distinto al GET real con streamed responses/
+ * proxy/NAS — sección 38 del encargo móvil): la descarga ES la verificación
+ * de acceso. Cuando el servidor responde con un status distinto de 2xx, la
+ * promesa de `downloadAsync()` se rechaza con un error cuyo mensaje incluye
+ * el código HTTP real (`statusFromDownloadError()`), así que el status se
+ * puede distinguir sin necesidad de un segundo request. El tipo de archivo
+ * se determina leyendo la firma binaria del archivo YA en disco (nunca
+ * confiar en `Content-Type` ni en la extensión del título), y el archivo se
+ * renombra a su extensión real antes de mostrarlo — necesario para que el
+ * visor de PDF nativo de Android/iOS reconozca `file://...pdf` dentro del
+ * WebView.
  */
 export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, allowDownload = false, downloadFileName }: SecureDocumentViewerProps) {
   const styles = useEstilos(crearEstilos);
   const token = useAuthStore((state) => state.token);
+  const logout = useAuthStore((state) => state.logout);
   const [status, setStatus] = useState<ViewerStatus>('loading');
   const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined);
   const [fileUri, setFileUri] = useState<string | null>(null);
   const [sniffedType, setSniffedType] = useState<SniffedFileType | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     void ScreenCapture.preventScreenCaptureAsync(DOCUMENT_VIEWER_PROTECTION_KEY);
@@ -106,16 +139,7 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
     (async () => {
       setStatus('loading');
       try {
-        // 1) Chequeo de acceso vía axios (mismo pipeline de interceptores
-        // que el resto de la app: 401 real → cierra sesión, no un timeout
-        // ni un error de red; 403/404/etc. → mensaje normalizado). Laravel
-        // registra HEAD automáticamente para toda ruta GET, así que corre
-        // las mismas verificaciones de permiso/alcance del controlador
-        // antes de que el body se genere.
-        await apiClient.head(path, { signal: controller.signal });
-        if (cancelled) return;
-
-        // 2) Descarga real, directo a disco, sin ArrayBuffer completo en JS.
+        // Descarga real, directo a disco, sin ArrayBuffer completo en JS.
         const tempFile = new File(Paths.cache, uniqueTempFileName('bin'));
         // Se guarda la referencia ANTES de `downloadAsync()`, no después:
         // si el componente se desmonta (o `path` cambia) a mitad de la
@@ -136,12 +160,12 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
         }
         downloadedFile = downloaded;
 
-        // 3) Nunca confiar en extensión/Content-Type: se reconoce el tipo
+        // Nunca confiar en extensión/Content-Type: se reconoce el tipo
         // real por firma binaria, leyendo solo los primeros bytes.
         const head = new Uint8Array(await downloaded.slice(0, 8).arrayBuffer());
         const sniffed = sniffFileType(head);
 
-        // 4) Renombra a la extensión real (necesario para que el WebView
+        // Renombra a la extensión real (necesario para que el WebView
         // reconozca un PDF local por su extensión, y para que
         // "Guardar o compartir" ofrezca la extensión correcta).
         const finalFile = new File(Paths.cache, uniqueTempFileName(extensionForSniffedType(sniffed)));
@@ -158,10 +182,11 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
         // "Guardar o compartir" jamás aparecía para un documento
         // perfectamente válido.
         //
-        // El tamaño ya se validó (`size === 0` lanzó arriba) y el HEAD +
-        // la descarga completa tuvieron éxito: un archivo no-vacío que no
-        // es PDF/PNG/JPEG sigue siendo un archivo VÁLIDO, solo que este
-        // visor no sabe dibujarlo (p. ej. DOCX). Estados conceptuales:
+        // El tamaño ya se validó (`size === 0` lanzó arriba) y la descarga
+        // completa tuvo éxito (un status no-2xx ya habría rechazado la
+        // promesa más arriba): un archivo no-vacío que no es PDF/PNG/JPEG
+        // sigue siendo un archivo VÁLIDO, solo que este visor no sabe
+        // dibujarlo (p. ej. DOCX). Estados conceptuales:
         //   - previewable      → PDF/PNG/JPEG: se dibuja en el visor.
         //   - downloadable-only → cualquier otro tipo no vacío (DOCX,
         //     binarios no reconocidos): no se previsualiza, pero SIGUE
@@ -173,10 +198,9 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
       } catch (error) {
         if (cancelled) return;
         logError('SecureDocumentViewer', error);
-        // El HEAD no trae cuerpo: un 409 aquí es siempre «el registro
-        // existe pero su archivo no» (no un conflicto de edición).
-        const normalizado = normalizeError(error);
-        setErrorMessage(normalizado.status === 409 ? ARCHIVO_NO_DISPONIBLE_MESSAGE : normalizado.message);
+        const httpStatus = statusFromDownloadError(error);
+        if (httpStatus === 401) void logout();
+        setErrorMessage(mensajeParaStatus(httpStatus));
         setStatus('error');
       }
     })();
@@ -194,7 +218,7 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
         // No crítico: el sistema operativo limpia `Paths.cache` eventualmente.
       }
     };
-  }, [path, token]);
+  }, [path, token, retryCount, logout]);
 
   const handleSaveOrShare = async () => {
     if (!fileUri) return;
@@ -276,7 +300,7 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
             <SkeletonBlock height={420} radius={Radius.lg} />
           </View>
         ) : status === 'error' ? (
-          <ErrorState message={errorMessage} />
+          <ErrorState message={errorMessage} onRetry={() => setRetryCount((c) => c + 1)} />
         ) : status === 'unsupported' ? (
           <View style={styles.unsupportedBox}>
             <Text style={styles.unsupportedText}>Este archivo no puede previsualizarse.</Text>
