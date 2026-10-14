@@ -8,8 +8,8 @@ import { existeRuta, rutasDeLaApp } from '@/testing/navegacionInventario';
  * gerente, recibos impresos y configuración de build.
  */
 describe('configuración de la app', () => {
-  it('versionCode 11, versión 1.2.0 y el paquete Android intacto', () => {
-    expect(appConfig.expo.android.versionCode).toBe(11);
+  it('versionCode 12, versión 1.2.0 y el paquete Android intacto', () => {
+    expect(appConfig.expo.android.versionCode).toBe(12);
     expect(appConfig.expo.version).toBe('1.2.0');
     expect(appConfig.expo.android.package).toBe('com.mrlana.people');
     expect(appConfig.expo.android.googleServicesFile).toBe('./google-services.json');
