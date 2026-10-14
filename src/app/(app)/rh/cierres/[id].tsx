@@ -40,7 +40,13 @@ type Sheet = null | 'aviso' | 'calcular' | 'concepto' | 'firmado' | 'pago' | 'ca
 export default function RhCierreDetailScreen() {
   const styles = useEstilos(crearEstilos);
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  // `seccion`/`documento` llegan del "Ir" de una notificación de cierre
+  // (DestinoNotificacionService::cierreUrl() en el backend, ver appLinks.ts):
+  // nunca abren otra pantalla, solo resaltan el bloque correspondiente de
+  // ESTA (sección 25-28 de la unificación de notificaciones).
+  const { id, seccion, documento } = useLocalSearchParams<{ id: string; seccion?: string; documento?: string }>();
+  const resaltarAviso = seccion === 'aviso' || seccion === 'renuncia';
+  const resaltarFiniquito = seccion === 'finiquito';
   const query = useRhCierre(id);
   const cierre = query.data;
   const bootstrap = useMobileBootstrap(true);
@@ -134,7 +140,9 @@ export default function RhCierreDetailScreen() {
             {cierreSiguientePaso(cierre) ? <Notice tone="info">{cierreSiguientePaso(cierre)}</Notice> : null}
             <InfoRow label="Motivo" value={cierre.motivo} />
             <InfoRow label="Fecha efectiva" value={formatDateLong(cierre.fecha_efectiva)} icon="calendar-outline" />
-            <InfoRow label="Aviso / renuncia" value={formatDateTime(cierre.aviso_registrado_en)} />
+            <View style={resaltarAviso ? styles.resaltado : undefined}>
+              <InfoRow label="Aviso / renuncia" value={formatDateTime(cierre.aviso_registrado_en)} />
+            </View>
             <InfoRow label="Pago confirmado" value={formatDateTime(cierre.pago_confirmado_en)} />
             <InfoRow label="Referencia de pago" value={cierre.referencia_pago} />
             <InfoRow label="Baja ejecutada" value={formatDateTime(cierre.baja_ejecutada_en)} />
@@ -151,7 +159,7 @@ export default function RhCierreDetailScreen() {
 
           <DocumentosProcesoCard origen={{ tipo: 'cierre', id: cierre.id }} />
 
-          <Card style={styles.gap}>
+          <Card style={[styles.gap, resaltarFiniquito && styles.resaltado] as object}>
             <SectionTitle>Finiquito</SectionTitle>
             {!cierre.finiquito ? (
               <Text style={styles.muted}>Todavía no se calcula el finiquito.</Text>
@@ -176,12 +184,14 @@ export default function RhCierreDetailScreen() {
                 <InfoRow label="Total deducciones" value={formatCurrencyMXN(cierre.finiquito.total_deducciones)} />
                 <InfoRow label="Neto" value={formatCurrencyMXN(cierre.finiquito.neto)} emphasis />
                 {cierre.finiquito.documento_id ? (
-                  <Button
-                    title="Ver documento de finiquito"
-                    variant="outline"
-                    leftIcon="document-text-outline"
-                    onPress={() => router.push(`/(app)/rh/documentos-laborales/${cierre.finiquito?.documento_id}` as never)}
-                  />
+                  <View style={documento === String(cierre.finiquito.documento_id) ? styles.resaltado : undefined}>
+                    <Button
+                      title="Ver documento de finiquito"
+                      variant="outline"
+                      leftIcon="document-text-outline"
+                      onPress={() => router.push(`/(app)/rh/documentos-laborales/${cierre.finiquito?.documento_id}` as never)}
+                    />
+                  </View>
                 ) : null}
               </>
             )}
@@ -372,6 +382,13 @@ const crearEstilos = (Colors: ColorPalette) =>
   StyleSheet.create({
   gap: {
     gap: Spacing.sm,
+  },
+  resaltado: {
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primarySoft,
+    padding: Spacing.xs,
   },
   header: {
     flexDirection: 'row',

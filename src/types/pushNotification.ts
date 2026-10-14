@@ -79,4 +79,6 @@ export interface PushNotificationData {
   user_id?: number | string | null;
   /** Persona del recurso (avance de onboarding, contrato, cierre…): abre su ficha sin adivinar. */
   colaborador_id?: number | string | null;
+  /** Cierre laboral: documento exacto (finiquito/renuncia/aviso) a resaltar — ver `accion` para la sección. */
+  document_id?: number | string | null;
 }

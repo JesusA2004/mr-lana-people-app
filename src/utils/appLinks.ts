@@ -168,7 +168,7 @@ export function resolveResourceRoute(data: PushNotificationData): string | null 
       // como respaldo en vez de enumerar cada evento uno por uno.
       if (data.related_type === 'Candidato') return id ? `/(app)/rh/candidatos/${id}` : '/(app)/rh/candidatos';
       if (data.related_type === 'Reingreso') return '/(app)/rh/reingresos';
-      if (data.related_type === 'CierreLaboral') return id ? `/(app)/rh/cierres/${id}` : '/(app)/rh/(tabs)/pendientes';
+      if (data.related_type === 'CierreLaboral') return id ? `/(app)/rh/cierres/${id}${cierreQuery(data)}` : '/(app)/rh/(tabs)/pendientes';
       if (data.related_type === 'SolicitudInterna') return id ? `/(app)/rh/solicitudes/${id}` : '/(app)/rh/(tabs)/pendientes';
       if (data.related_type === 'EvaluacionPeriodoPrueba') return id ? `/evaluaciones/${id}` : '/evaluaciones';
       if (data.related_type === 'OnboardingAvance' || data.related_type === 'OnboardingProceso') {
@@ -227,6 +227,32 @@ export function normalizeResourceId(raw: PushNotificationData['resource_id']): s
     return value > 0 ? String(value) : null;
   }
   return null;
+}
+
+/**
+ * Query string para `/(app)/rh/cierres/[id]` (nunca otra pantalla, sección
+ * 25-28 de la unificación de notificaciones): `accion` del payload
+ * (`ver_finiquito`/`ver_renuncia`/`ver_aviso`/`ver_baja`, ver
+ * DestinoNotificacionService en el backend) decide qué bloque resalta la
+ * pantalla; `document_id`, si viene, resalta además el botón del documento
+ * exacto.
+ */
+function cierreQuery(data: PushNotificationData): string {
+  const seccion = (() => {
+    const accion = typeof data.accion === 'string' ? data.accion : null;
+    if (accion?.includes('renuncia')) return 'renuncia';
+    if (accion?.includes('aviso')) return 'aviso';
+    if (accion?.includes('finiquito')) return 'finiquito';
+    return null;
+  })();
+  const documento = normalizeResourceId(data.document_id);
+
+  const params = new URLSearchParams();
+  if (seccion) params.set('seccion', seccion);
+  if (documento) params.set('documento', documento);
+
+  const query = params.toString();
+  return query ? `?${query}` : '';
 }
 
 /**
