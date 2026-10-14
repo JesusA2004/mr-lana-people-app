@@ -32,6 +32,8 @@ export interface DatosFaltantes {
   faltan: DatoFaltante[];
   /** Ya hay una actualización de datos esperando a RH: no se pide otra. */
   solicitud_en_revision: boolean;
+  /** Faltante accionable aparte (nunca mezclado con `faltan`): "Foto de perfil" + botón "Subir foto". */
+  fotoPendiente: boolean;
 }
 
 const TIPOS_CAPTURA: TipoCapturaDato[] = ['text', 'date', 'tel', 'email', 'number', 'opciones'];
@@ -56,7 +58,12 @@ function normalizeDatosFaltantes(raw: unknown): DatosFaltantes {
     })
     .filter((dato): dato is DatoFaltante => dato !== null);
 
-  return { completo: record.completo === true || faltan.length === 0, faltan, solicitud_en_revision: record.solicitud_en_revision === true };
+  return {
+    completo: record.completo === true || faltan.length === 0,
+    faltan,
+    solicitud_en_revision: record.solicitud_en_revision === true,
+    fotoPendiente: record.foto_pendiente === true,
+  };
 }
 
 /**

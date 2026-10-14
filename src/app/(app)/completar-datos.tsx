@@ -98,6 +98,17 @@ export default function CompletarDatosScreen() {
       onRetry={() => void query.refetch()}
       refreshing={query.isRefetching}
       onRefresh={() => void query.refetch()}>
+      {datos?.fotoPendiente ? (
+        <Card style={styles.fotoCard}>
+          <Ionicons name="camera-outline" size={28} color={Colors.warning} />
+          <View style={styles.fotoTexto}>
+            <Text style={styles.fotoTitulo}>Te falta tu foto de perfil</Text>
+            <Text style={styles.exitoTexto}>Súbela desde tu Perfil para que tu expediente quede completo.</Text>
+          </View>
+          <Button title="Subir foto" leftIcon="camera-outline" variant="outline" onPress={() => router.push('/(app)/(tabs)/perfil')} />
+        </Card>
+      ) : null}
+
       {datos ? (
         datos.completo ? (
           <Card style={styles.completo}>
@@ -167,6 +178,9 @@ function CampoDato({ dato, valor, error, onChange }: { dato: DatoFaltante; valor
 const crearEstilos = (Colors: ColorPalette) =>
   StyleSheet.create({
     campos: { gap: Spacing.lg },
+    fotoCard: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.lg },
+    fotoTexto: { flex: 1, gap: 2 },
+    fotoTitulo: { fontSize: FontSize.md, fontWeight: '700', color: Colors.text },
     completo: { alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.xl },
     exito: { alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.xl },
     exitoTitulo: { fontSize: FontSize.xl, fontWeight: '800', color: Colors.text, textAlign: 'center' },
