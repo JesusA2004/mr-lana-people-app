@@ -139,6 +139,11 @@ export default function NuevaSolicitudScreen() {
       router.push('/prestamos/solicitar' as never);
       return;
     }
+    if (clave === 'vacaciones' && saldoQuery.data?.puede_solicitar === false) {
+      haptics.warning();
+      toast.warning(saldoQuery.data.motivo_no_disponible ?? 'Todavía no puedes solicitar vacaciones.');
+      return;
+    }
     if (clave === selectedTipo) return;
     // Cambiar de tipo cambia los campos: arrastrar valores de otro tipo solo
     // produciría un 422 con claves que este tipo ni pide.
@@ -393,7 +398,13 @@ export default function NuevaSolicitudScreen() {
             ) : (
               <View style={styles.typeList}>
                 {tipos.map((tipo) => (
-                  <TypeCard key={tipo.clave} tipo={tipo} active={selectedTipo === tipo.clave} onPress={() => selectTipo(tipo.clave)} />
+                  <TypeCard
+                    key={tipo.clave}
+                    tipo={tipo}
+                    active={selectedTipo === tipo.clave}
+                    disabled={tipo.clave === 'vacaciones' && saldoQuery.data?.puede_solicitar === false}
+                    onPress={() => selectTipo(tipo.clave)}
+                  />
                 ))}
               </View>
             )}
@@ -585,19 +596,31 @@ function summaryValue(campo: SolicitudCampo, value: string | number | string[] |
   return String(value);
 }
 
-function TypeCard({ tipo, active, onPress }: { tipo: SolicitudTipoConfig; active: boolean; onPress: () => void }) {
+function TypeCard({
+  tipo,
+  active,
+  disabled,
+  onPress,
+}: {
+  tipo: SolicitudTipoConfig;
+  active: boolean;
+  disabled?: boolean;
+  onPress: () => void;
+}) {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   const presentation = requestTypePresentation(tipo.clave);
 
   return (
-    <PressableScale onPress={onPress} style={[styles.typeCard, active && styles.typeCardActive] as object}>
+    <PressableScale onPress={onPress} style={[styles.typeCard, active && styles.typeCardActive, disabled && styles.typeCardDisabled] as object}>
       <View style={[styles.typeIcon, active && styles.typeIconActive]}>
         <Ionicons name={presentation.icon} size={22} color={active ? Colors.white : Colors.primaryDark} />
       </View>
       <View style={styles.typeText}>
         <Text style={styles.typeLabel}>{tipo.nombre}</Text>
-        <Text style={styles.typeDescription}>{presentation.description}</Text>
+        <Text style={styles.typeDescription}>
+          {disabled ? 'Disponible al cumplir tu primer año' : presentation.description}
+        </Text>
       </View>
       {active ? <Ionicons name="checkmark-circle" size={22} color={Colors.primary} /> : null}
     </PressableScale>
@@ -699,6 +722,7 @@ const crearEstilos = (Colors: ColorPalette) =>
     borderColor: Colors.border,
   },
   typeCardActive: { borderColor: Colors.primary, backgroundColor: Colors.primarySoft },
+  typeCardDisabled: { opacity: 0.5 },
   typeIcon: {
     width: 44,
     height: 44,

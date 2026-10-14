@@ -87,7 +87,14 @@ export default function VacacionesScreen() {
               </FadeInView>
             </View>
 
-            <Button title="Solicitar vacaciones" leftIcon="add-circle-outline" onPress={solicitar} />
+            {saldo?.puede_solicitar === false ? (
+              <View style={styles.avisoPrimerAnio}>
+                <Ionicons name="time-outline" size={18} color={Colors.primaryDark} />
+                <Text style={styles.avisoPrimerAnioTexto}>{saldo.motivo_no_disponible}</Text>
+              </View>
+            ) : (
+              <Button title="Solicitar vacaciones" leftIcon="add-circle-outline" onPress={solicitar} />
+            )}
 
             {proximas.length > 0 ? (
               <>
@@ -111,8 +118,8 @@ export default function VacacionesScreen() {
                 message={MascotMessages.vacaciones}
                 type="tip"
                 dismissible={false}
-                actionLabel="Solicitar vacaciones"
-                onAction={solicitar}
+                actionLabel={saldo?.puede_solicitar === false ? undefined : 'Solicitar vacaciones'}
+                onAction={saldo?.puede_solicitar === false ? undefined : solicitar}
               />
             ) : historial.length === 0 ? (
               <Card style={styles.emptyCard}>
@@ -187,6 +194,19 @@ const crearEstilos = (Colors: ColorPalette) =>
     fontSize: FontSize.xs,
     color: Colors.textMuted,
     fontWeight: '600',
+  },
+  avisoPrimerAnio: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+    padding: Spacing.md,
+    borderRadius: Radius.lg,
+    backgroundColor: Colors.primarySoft,
+  },
+  avisoPrimerAnioTexto: {
+    flex: 1,
+    fontSize: FontSize.sm,
+    color: Colors.text,
   },
   balanceGrid: {
     flexDirection: 'row',

@@ -16,6 +16,12 @@ export interface VacationBalance {
   dias_usados?: number;
   dias_en_solicitud?: number;
   dias_disponibles?: number;
+  /** false antes de cumplir el primer año (o sin colaborador vinculado) — el wizard de vacaciones no debe mostrarse. */
+  puede_solicitar?: boolean;
+  /** Mensaje amigable cuando `puede_solicitar` es false (ej. "...al cumplir tu primer año el dd/mm/aaaa"). */
+  motivo_no_disponible?: string | null;
+  /** Fecha (YYYY-MM-DD) en la que cumple su primer año, solo cuando `puede_solicitar` es false. */
+  fecha_disponible_desde?: string | null;
   [key: string]: unknown;
 }
 
