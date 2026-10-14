@@ -136,17 +136,11 @@ export default function DashboardScreen() {
         onAction: () => router.push('/(app)/(tabs)/vacaciones'),
       };
     }
-    if (noLeidas > 0) {
-      return {
-        type: 'info' as const,
-        priority: 'normal' as const,
-        message: `Tienes ${noLeidas} ${noLeidas === 1 ? 'notificación nueva' : 'notificaciones nuevas'}.`,
-        actionLabel: 'Ver notificaciones',
-        onAction: () => router.push('/notificaciones'),
-      };
-    }
+    // "Tienes N notificaciones nuevas" se quitó de aquí (sección 42-44 de la
+    // unificación de notificaciones): la campana ya comunica la cantidad —
+    // repetirlo en una card grande del Mascot era redundante.
     return null;
-  }, [solicitudesRecientes, diasEnSolicitud, noLeidas, router]);
+  }, [solicitudesRecientes, diasEnSolicitud, router]);
 
   return (
     <View style={styles.container}>

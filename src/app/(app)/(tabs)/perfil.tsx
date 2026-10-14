@@ -93,7 +93,7 @@ export default function PerfilScreen() {
     esJefe && isSelfServiceModuleEnabled(features, 'equipo') && { route: '/equipo', icon: 'people-outline', title: 'Mi equipo', caption: 'Vistos buenos y evaluaciones' },
     { route: '/directorio', icon: 'people-circle-outline', title: 'Directorio', caption: 'Contacto corporativo de tus compañeros' },
     { route: miProceso.data?.induccion ? '/induccion' : '/induccion/presentacion', icon: 'book-outline', title: 'Inducción Mr. Lana', caption: 'El documento oficial y tu evaluación' },
-    { route: '/avisos', icon: 'megaphone-outline', title: 'Avisos', caption: 'Mensajes de RH para toda la empresa o para ti' },
+    { route: '/notificaciones', icon: 'notifications-outline', title: 'Notificaciones', caption: 'Avisos de RH, tus solicitudes y celebraciones' },
     { route: '/ayuda', icon: 'help-buoy-outline', title: 'Ayuda', caption: 'Preguntas frecuentes y contacto' },
   ] as (PerfilLink | false)[]).filter((link): link is PerfilLink => link !== false);
 

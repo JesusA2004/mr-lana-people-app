@@ -39,6 +39,10 @@ export function useMarkNotificacionLeida() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.notificaciones });
       void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
+      // El badge del ícono del sistema depende de bootstrap.counts.notifications
+      // (ver useNotificationBadgeSync): sin esto quedaba desactualizado aunque
+      // Dashboard y campana ya mostraran el contador correcto.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.bootstrap });
     },
   });
 }
@@ -66,6 +70,7 @@ export function useMarkAllNotificacionesLeidas() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.notificaciones });
       void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.bootstrap });
     },
   });
 }
