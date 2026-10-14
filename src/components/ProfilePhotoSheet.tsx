@@ -11,7 +11,7 @@ import { PressableScale } from './PressableScale';
 import type { LocalUploadFile } from '@/api/upload';
 import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useSubirFotoPerfil } from '@/hooks/queries/useFotoPerfil';
-import { useAuthStore } from '@/store/authStore';
+import { usePrivateAsset } from '@/hooks/usePrivateAsset';
 import { toast } from '@/store/toastStore';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import type { FotoPerfilEstado } from '@/types/collaborator';
@@ -221,8 +221,9 @@ function AvisoFoto({ uri }: { uri: string }) {
 }
 
 function ProposalImage({ uri, style }: { uri: string; style: object }) {
-  const token = useAuthStore((s) => s.token);
-  return <Image source={{ uri, headers: token ? { Authorization: `Bearer ${token}` } : undefined }} style={style} accessibilityLabel="Foto propuesta" />;
+  const privado = usePrivateAsset(uri);
+  if (privado.status !== 'ready' || !privado.uri) return <View style={style} />;
+  return <Image source={{ uri: privado.uri }} style={style} accessibilityLabel="Foto propuesta" />;
 }
 
 function Opcion({ icon, label, onPress }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void }) {

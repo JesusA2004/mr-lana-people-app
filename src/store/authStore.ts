@@ -10,6 +10,7 @@ import { useAppLockStore } from '@/store/appLockStore';
 import { clearPendingPushNavigation } from '@/store/pendingNavigationStore';
 import type { AuthUser } from '@/types/auth';
 import { AppError, isTransientError, logError } from '@/utils/errors';
+import { clearPrivateAssetCache } from '@/utils/privateAssetCache';
 
 /** Plazo para avisar al backend del logout: salir de la cuenta nunca espera más que esto por la red. */
 export const LOGOUT_REQUEST_TIMEOUT_MS = 5000;
@@ -112,10 +113,14 @@ export const useAuthStore = create<AuthState>((set, get) => {
    * siempre queda fuera de su cuenta.
    */
   function clearSessionState() {
+    const userIdSaliente = get().user?.id ?? null;
     setAuthToken(null);
     set({ token: null, user: null, isAuthenticated: false, pendingVerification: false, isVerifying: false });
     // Datos del colaborador anterior no deben sobrevivir en caché si otra persona inicia sesión en el mismo dispositivo.
     safely('queryClient.clear', () => queryClient.clear());
+    // Fotos/assets privados cacheados en disco (sección 89/91): nunca deben
+    // sobrevivir para la siguiente cuenta en este mismo dispositivo.
+    if (userIdSaliente !== null) safely('privateAssetCache.clear', () => clearPrivateAssetCache(userIdSaliente));
     // No dejar el auto-lock esperando un desbloqueo que ya no aplica.
     safely('appLock.reset', () => useAppLockStore.getState().reset());
     // La experiencia (Mi espacio/Gestión RH) y la preferencia biométrica NO
