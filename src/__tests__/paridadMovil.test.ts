@@ -24,7 +24,7 @@ describe('configuración de la app', () => {
 describe('pantallas nuevas registradas', () => {
   const rutas = rutasDeLaApp();
 
-  it.each(['/induccion', '/induccion/capitulos', '/induccion/evaluacion', '/induccion/presentacion', '/directorio'])('%s existe', (ruta) => {
+  it.each(['/induccion', '/induccion/capitulos', '/induccion/evaluacion', '/induccion/presentacion', '/directorio', '/descriptivo-puesto'])('%s existe', (ruta) => {
     expect(existeRuta(ruta, rutas)).toBe(true);
   });
 });
@@ -41,6 +41,13 @@ describe('Mis pendientes: tareas nuevas de inducción y periodo de prueba', () =
   it('presentar la evaluación de inducción abre directo la pantalla para contestarla', () => {
     expect(resolveTaskRoute({ ...base, tipo: 'induccion_evaluacion_pendiente', accion: 'presentar_evaluacion_induccion', related_type: 'EvaluacionInduccion' })).toEqual({
       route: '/induccion/evaluacion',
+      experience: 'colaborador',
+    });
+  });
+
+  it('leer el descriptivo de puesto (tras aprobar la inducción) abre su pantalla en Mi espacio', () => {
+    expect(resolveTaskRoute({ ...base, tipo: 'descriptivo_puesto_por_acusar', accion: 'acusar_descriptivo_puesto', related_type: 'AcuseDescriptivoPuesto' })).toEqual({
+      route: '/descriptivo-puesto',
       experience: 'colaborador',
     });
   });

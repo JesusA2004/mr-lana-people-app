@@ -23,12 +23,14 @@ import { useCelebracionesActivas } from '@/hooks/queries/useCelebraciones';
 import { LoQueNecesitasHacer } from '@/components/ciclo/LoQueNecesitasHacer';
 import { useDatosFaltantes, useMiProceso, useMisPrestamos, useMisRecibos } from '@/hooks/queries/useCicloLaboral';
 import { useDashboard } from '@/hooks/queries/useDashboard';
+import { useMiDescriptivoPuesto } from '@/hooks/queries/useDescriptivoPuesto';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useEquipo, useEquipoPendientes, useTareasConteos } from '@/hooks/queries/useTrabajo';
 import type { Solicitud } from '@/types/request';
 import { getErrorMessage } from '@/utils/errors';
 import { formatDateShort, getGreeting } from '@/utils/dates';
 import { isFeatureEnabled } from '@/utils/featureFlags';
+import { descriptivoPendiente } from '@/utils/descriptivoPuesto';
 import { textoProgreso } from '@/utils/induccion';
 import { formatCurrencyMXN, joinName, pluralize } from '@/utils/formatters';
 import { prestamoEstadoLabel, prestamoVigente } from '@/utils/loan';
@@ -78,6 +80,9 @@ export default function DashboardScreen() {
   // (documentos, firmas, lecciones…). La app no recalcula etapas.
   const miProceso = useMiProceso();
   const induccion = miProceso.data?.induccion ?? null;
+  // Descriptivo de puesto que RH envió tras aprobar la inducción: pendiente de «OK, enterado».
+  const descriptivo = useMiDescriptivoPuesto();
+  const descriptivoPorLeer = descriptivoPendiente(descriptivo.data);
   // «Completa tu información»: datos personales que faltan (RH los autoriza).
   const datosFaltantes = useDatosFaltantes();
   const recibos = useMisRecibos(recibosEnabled);
@@ -246,6 +251,19 @@ export default function DashboardScreen() {
                 onRetry={() => void miProceso.refetch()}
               />
             </FadeInView>
+
+            {descriptivoPorLeer && descriptivo.data ? (
+              <FadeInView index={1}>
+                <Card style={styles.laborDocsCard} onPress={() => router.push('/descriptivo-puesto')}>
+                  <View style={styles.laborDocsHeaderRow}>
+                    <Text style={styles.laborDocsTitle}>Lee tu descriptivo de puesto</Text>
+                    <Ionicons name="briefcase-outline" size={20} color={Colors.primary} />
+                  </View>
+                  <Text style={styles.laborDocsItem}>{descriptivo.data.descriptivo.nombrePuesto}</Text>
+                  <Text style={styles.expedienteCaption}>Tus actividades y responsabilidades · Confirma que estás enterado</Text>
+                </Card>
+              </FadeInView>
+            ) : null}
 
             {/* Inducción Mr. Lana: progreso guardado en el servidor (mi-proceso). */}
             {induccion ? (

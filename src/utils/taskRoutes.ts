@@ -50,6 +50,10 @@ export function resolveTaskRoute(tarea: Pick<Tarea, 'tipo' | 'accion' | 'related
       }
       return colaboradorId ? { route: `/(app)/rh/onboarding/${colaboradorId}`, experience: 'rh' } : null;
 
+    // Descriptivo de puesto enviado por RH: leerlo y dar «OK, enterado» es del propio colaborador.
+    case 'AcuseDescriptivoPuesto':
+      return { route: '/descriptivo-puesto', experience: 'colaborador' };
+
     case 'OnboardingAvance':
     case 'OnboardingProceso':
       return colaboradorId ? { route: `/(app)/rh/onboarding/${colaboradorId}`, experience: 'rh' } : null;

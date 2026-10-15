@@ -23,6 +23,8 @@ export function pushCicloKeys(type: PushNotificationData['type']): readonly (rea
       return [queryKeys.evaluaciones, queryKeys.equipoPendientes, queryKeys.tareas];
     case 'contrato_por_vencer':
       return [queryKeys.rhContratos, queryKeys.tareas];
+    case 'descriptivo_puesto_enviado':
+      return [queryKeys.miDescriptivoPuesto, queryKeys.tareas];
     case 'aniversario_laboral':
     case 'cumpleanos_general':
     case 'aniversario_general':

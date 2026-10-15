@@ -53,6 +53,9 @@ const CASOS: Caso[] = [
   { type: 'pago_por_programar', related_type: 'CierreLaboral', destinatario: 'rh' },
   { type: 'cita_finiquito', related_type: 'CierreLaboral', destinatario: 'rh' },
   { type: 'reingreso_solicitado', related_type: 'Reingreso', destinatario: 'rh' },
+  // Descriptivo de puesto tras la inducción (AcuseDescriptivoPuestoService).
+  { type: 'descriptivo_puesto_enviado', related_type: 'AcuseDescriptivoPuesto', destinatario: 'colaborador' },
+  { type: 'descriptivo_puesto_acusado', related_type: 'AcuseDescriptivoPuesto', destinatario: 'rh' },
 ];
 
 describe('matriz de push / deep links', () => {

@@ -45,6 +45,10 @@ export type PushResourceType =
   | 'induccion_evaluacion_aprobada'
   | 'induccion_requiere_reforzamiento'
   | 'induccion_reevaluacion_habilitada'
+  // Descriptivo de puesto (`AcuseDescriptivoPuestoService`): enviado al
+  // colaborador / enterado (a quien se lo envió, RH).
+  | 'descriptivo_puesto_enviado'
+  | 'descriptivo_puesto_acusado'
   // Periodo de prueba: excepción de Dirección General.
   | 'excepcion_periodo_prueba_solicitada'
   | 'excepcion_periodo_prueba_resuelta'

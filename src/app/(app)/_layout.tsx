@@ -155,6 +155,8 @@ export default function AppLayout() {
           <Stack.Screen name="induccion/index" />
           <Stack.Screen name="induccion/capitulos" />
           <Stack.Screen name="induccion/evaluacion" />
+          {/* Descriptivo de puesto que RH envía tras aprobar la inducción: leer + «OK, enterado». */}
+          <Stack.Screen name="descriptivo-puesto" />
           <Stack.Protected guard={incorporacionEnabled}>
             <Stack.Screen name="incorporacion" />
           </Stack.Protected>

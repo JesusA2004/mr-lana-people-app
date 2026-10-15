@@ -41,6 +41,8 @@ const CASOS: [type: string, resourceId: number | null, route: string, experience
   ['induccion_reevaluacion_habilitada', 3, '/induccion/evaluacion', 'colaborador'],
   ['induccion', null, '/induccion', 'colaborador'],
   ['induccion_evaluacion', null, '/induccion', 'colaborador'],
+  // Descriptivo de puesto (AcuseDescriptivoPuestoService): leerlo y dar «OK, enterado».
+  ['descriptivo_puesto_enviado', 5, '/descriptivo-puesto', 'colaborador'],
   // Periodo de prueba / excepción de Dirección General: pantallas compartidas.
   ['evaluacion_periodo', 61, '/evaluaciones/61', null],
   ['evaluacion_periodo_validacion', 61, '/evaluaciones/61', null],

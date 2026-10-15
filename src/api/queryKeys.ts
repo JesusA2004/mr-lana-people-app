@@ -65,6 +65,8 @@ export const queryKeys = {
   // Inducción Mr. Lana (PDF oficial, evaluación) y directorio.
   induccionPresentacion: ['induccion', 'presentacion'] as const,
   induccionEvaluacionContenido: ['colaborador', 'induccion', 'evaluacion'] as const,
+  // Descriptivo de puesto que RH envía tras aprobar la inducción.
+  miDescriptivoPuesto: ['colaborador', 'descriptivo-puesto'] as const,
   directorio: (filtros: Record<string, unknown> = {}) => ['directorio', filtros] as const,
   directorioOpciones: ['directorio', 'opciones'] as const,
 

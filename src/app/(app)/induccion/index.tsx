@@ -8,6 +8,8 @@ import { Card } from '@/components/Card';
 import { EmptyMessage, Notice, Screen, SectionTitle } from '@/components/ciclo/Screen';
 import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useMiProceso } from '@/hooks/queries/useCicloLaboral';
+import { useMiDescriptivoPuesto } from '@/hooks/queries/useDescriptivoPuesto';
+import { descriptivoPendiente } from '@/utils/descriptivoPuesto';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { faseInduccion, fechaLegible, resultadoInduccion, textoProgreso, ultimoIntentoCalificado } from '@/utils/induccion';
 
@@ -28,6 +30,9 @@ export default function InduccionScreen() {
   const calificado = ultimoIntentoCalificado(evaluacion);
   const resultado = calificado ? resultadoInduccion(calificado) : null;
   const vistos = resumen?.paginasVistas.length ?? 0;
+  // Al aprobar, RH te envía tu descriptivo de puesto (lees + «OK, enterado»).
+  const descriptivo = useMiDescriptivoPuesto();
+  const descriptivoPorLeer = descriptivoPendiente(descriptivo.data);
 
   const refrescar = () => {
     void proceso.refetch();
@@ -109,6 +114,23 @@ export default function InduccionScreen() {
                 </Text>
               </View>
               {resultado.mensaje ? <Text style={styles.heroTexto}>{resultado.mensaje}</Text> : null}
+            </Card>
+          ) : null}
+
+          {descriptivo.data ? (
+            <Card style={styles.bloque}>
+              <Text style={styles.bloqueTitulo}>Tu descriptivo de puesto</Text>
+              <Text style={styles.heroTexto}>
+                {descriptivoPorLeer
+                  ? 'Recursos Humanos te envió tus actividades y responsabilidades. Léelas y confirma que estás enterado.'
+                  : 'Ya confirmaste que estás enterado. Puedes volver a consultarlo cuando quieras.'}
+              </Text>
+              <Button
+                title={descriptivoPorLeer ? 'Leer descriptivo de puesto' : 'Ver descriptivo de puesto'}
+                variant={descriptivoPorLeer ? 'primary' : 'outline'}
+                leftIcon="briefcase-outline"
+                onPress={() => router.push('/descriptivo-puesto')}
+              />
             </Card>
           ) : null}
 

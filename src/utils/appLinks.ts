@@ -151,6 +151,14 @@ export function resolveResourceRoute(data: PushNotificationData): string | null 
       if (data.accion === 'ver_evaluacion_induccion' || data.accion === 'presentar_evaluacion_induccion') return '/induccion';
       return colaboradorId ? `/(app)/rh/onboarding/${colaboradorId}` : '/induccion';
 
+    // Descriptivo de puesto (`AcuseDescriptivoPuestoService`): al colaborador,
+    // leerlo y dar su «OK, enterado»; a RH (quien lo envió), la ficha de
+    // onboarding de la persona.
+    case 'descriptivo_puesto_enviado':
+      return '/descriptivo-puesto';
+    case 'descriptivo_puesto_acusado':
+      return colaboradorId ? `/(app)/rh/onboarding/${colaboradorId}` : '/(app)/rh/(tabs)/pendientes';
+
     // Periodo de prueba (FO-RH-EPP-001): Evaluaciones es compartida (jefe/RH/DG).
     case 'evaluacion_periodo':
     case 'evaluacion_periodo_validacion':
@@ -203,6 +211,7 @@ const RUTAS_COLABORADOR = [
   '/incorporacion',
   '/jerarquia',
   '/induccion',
+  '/descriptivo-puesto',
 ];
 
 /** Pantallas COMPARTIDAS aunque su prefijo sea de Mi espacio (modo presentación). */
@@ -309,6 +318,8 @@ const RH_PUSH_TYPES = new Set<PushResourceType>([
   'reingreso_solicitado',
   // Inducción: calificar casos prácticos (RH).
   'induccion_evaluacion_presentada',
+  // El colaborador dio por enterado su descriptivo de puesto (a RH).
+  'descriptivo_puesto_acusado',
 ]);
 
 /**
@@ -346,6 +357,7 @@ const KNOWN_COLLABORATOR_TYPES = new Set<PushResourceType>([
   'induccion_evaluacion',
   'induccion_evaluacion_disponible',
   'induccion_reevaluacion_habilitada',
+  'descriptivo_puesto_enviado',
 ]);
 
 /**
