@@ -17,6 +17,8 @@ export interface InduccionResumen {
   ultimaPagina: number | null;
   porcentaje: number;
   completado: boolean;
+  /** Fecha ISO en que Recursos Humanos te la presentó en una sesión (o null). */
+  presentadaPorRhEn: string | null;
 }
 
 /** El PDF oficial de la inducción (`data.pdf` del backend). */

@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, Share, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
@@ -10,20 +11,23 @@ import { Field, FormSheet } from '@/components/ciclo/FormSheet';
 import { InfoRow } from '@/components/ciclo/InfoRow';
 import { Notice, Screen, SectionTitle } from '@/components/ciclo/Screen';
 import { DocumentUploadSheet, type PickedDocumentFile } from '@/components/DocumentUploadSheet';
+import { DateField } from '@/components/forms/DateField';
 import { MotivoModal } from '@/components/MotivoModal';
 import { PressableScale } from '@/components/PressableScale';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Stepper } from '@/components/Stepper';
 import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
-import { useRhCandidato, useRhOperarCandidato, type RhCandidatoOperacion } from '@/hooks/queries/useRhCandidatos';
+import { useRhCandidato, useRhIniciarContratacion, useRhOperarCandidato, type RhCandidatoOperacion } from '@/hooks/queries/useRhCandidatos';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { toast } from '@/store/toastStore';
+import type { ContratacionQr, IniciarContratacionPayload } from '@/types/rhCandidato';
 import { candidatoBadge } from '@/utils/candidato';
-import { formatDateLong } from '@/utils/dates';
+import { confirmAction } from '@/utils/confirm';
+import { buildIniciarContratacionPayload, mensajeCompartirQr, MODALIDADES_CONTRATACION } from '@/utils/contratacion';
+import { formatDateLong, formatDateTime } from '@/utils/dates';
 import { getActionErrorMessage, logError } from '@/utils/errors';
 import { haptics } from '@/utils/haptics';
-import { openRhWeb, rhWebCandidatoPath } from '@/utils/openRhWeb';
 
 const OPCIONES_DESCARTE: { value: 'no_viable' | 'no_seleccionado' | 'no_respondio' | 'desistio'; label: string }[] = [
   { value: 'no_viable', label: 'No viable' },
@@ -46,7 +50,8 @@ type Sheet =
   | 'autorizar'
   | 'rechazar'
   | 'devolver'
-  | 'descartar';
+  | 'descartar'
+  | 'contratacion';
 
 /**
  * Ficha de reclutamiento por pasos (perfil → entrevista → psicométricas →
@@ -56,9 +61,10 @@ type Sheet =
  * sale de `ciclo.acciones_permitidas` (permiso + alcance resueltos en el
  * backend): la app nunca decide por rol.
  *
- * `iniciar_contratacion` (generar el QR de registro, de un solo uso) vive
- * solo en el Portal RH: la API móvil no devuelve el token del QR, así que
- * iniciarla desde aquí lo dejaría inservible. La app manda al portal.
+ * `iniciar_contratacion`: captura lo laboral (sueldo, ingreso, modalidad),
+ * confirma y llama al mismo `ContratacionCandidatoService` que la web; el
+ * backend responde la liga y el QR de registro (de un solo uso) para
+ * mostrarlo o compartirlo. Es idempotente: repetirlo devuelve el mismo QR.
  */
 export default function RhCandidatoDetailScreen() {
   const styles = useEstilos(crearEstilos);
@@ -87,6 +93,13 @@ export default function RhCandidatoDetailScreen() {
   const [comentario, setComentario] = useState('');
   const [descarteEstado, setDescarteEstado] = useState<'no_viable' | 'no_seleccionado' | 'no_respondio' | 'desistio'>('no_viable');
   const [descarteMotivo, setDescarteMotivo] = useState('');
+  const contratar = useRhIniciarContratacion(Number(id));
+  const [sueldo, setSueldo] = useState('');
+  const [fechaIngreso, setFechaIngreso] = useState<Date>(() => new Date());
+  const [modalidad, setModalidad] = useState<IniciarContratacionPayload['tipo_contratacion']>('capacitacion_inicial');
+  const [fechaFin, setFechaFin] = useState<Date | null>(null);
+  const [errorContratacion, setErrorContratacion] = useState<string | undefined>();
+  const [qr, setQr] = useState<ContratacionQr | null>(null);
 
   const acciones = ciclo?.acciones_permitidas ?? [];
   const has = (clave: string) => acciones.some((a) => a.clave === clave);
@@ -105,6 +118,67 @@ export default function RhCandidatoDetailScreen() {
     setRefRelacion('');
     setComentario('');
     setDescarteMotivo('');
+    setSueldo('');
+    setFechaIngreso(new Date());
+    setModalidad('capacitacion_inicial');
+    setFechaFin(null);
+    setErrorContratacion(undefined);
+  };
+
+  const iniciarContratacion = async () => {
+    const armado = buildIniciarContratacionPayload({ sueldo, fechaIngreso, modalidad, fechaFin });
+    if ('error' in armado) {
+      setErrorContratacion(armado.error);
+      return;
+    }
+    setErrorContratacion(undefined);
+
+    const confirmado = await confirmAction({
+      title: 'Generar QR de contratación',
+      message: 'Se crea a la persona en contratación (sin duplicarla) y se genera su QR de registro, temporal y de un solo uso. ¿Continuar?',
+      confirmLabel: 'Generar QR',
+    });
+    if (!confirmado) return;
+
+    contratar.mutate(armado.payload, {
+      onSuccess: (resultado) => {
+        haptics.success();
+        toast.success(resultado.reutilizada ? 'El candidato ya estaba en contratación: este es su QR vigente.' : 'Contratación iniciada: comparte el QR con el candidato.');
+        cerrarSheet();
+        setQr(resultado);
+      },
+      onError: (error) => {
+        logError('rhCandidato.iniciarContratacion', error);
+        haptics.error();
+        toast.error(getActionErrorMessage(error));
+      },
+    });
+  };
+
+  const compartirQr = async () => {
+    if (!qr) return;
+    try {
+      await Share.share({ message: mensajeCompartirQr(qr, candidato?.nombre), url: qr.registro_url });
+    } catch (error) {
+      logError('rhCandidato.compartirQr', error);
+    }
+  };
+
+  const copiarLiga = async () => {
+    if (!qr) return;
+    await Clipboard.setStringAsync(qr.registro_url);
+    haptics.success();
+    toast.success('Liga copiada.');
+  };
+
+  const abrirLiga = async () => {
+    if (!qr) return;
+    try {
+      await Linking.openURL(qr.registro_url);
+    } catch (error) {
+      logError('rhCandidato.abrirLiga', error);
+      toast.error('No se pudo abrir la liga en este dispositivo.');
+    }
   };
 
   const ejecutar = (op: RhCandidatoOperacion, exito: string) =>
@@ -258,14 +332,7 @@ export default function RhCandidatoDetailScreen() {
               {has('devolver_rh') ? <Button title="Devolver a referencias" variant="ghost" disabled={isOffline} onPress={() => setSheet('devolver')} /> : null}
               {has('rechazar_rh') ? <Button title="Rechazar" variant="danger" disabled={isOffline} onPress={() => setSheet('rechazar')} /> : null}
               {has('iniciar_contratacion') ? (
-                <>
-                  <Notice tone="info">La contratación (QR de registro del candidato) se genera desde el Portal RH en la web.</Notice>
-                  <Button
-                    title="Continuar en el Portal RH"
-                    leftIcon="open-outline"
-                    onPress={() => void openRhWeb(rhWebCandidatoPath(candidato.id))}
-                  />
-                </>
+                <Button title="Generar QR de contratación" leftIcon="qr-code-outline" disabled={isOffline} onPress={() => setSheet('contratacion')} />
               ) : null}
               {has('descartar') ? <Button title="Cerrar proceso del candidato" variant="ghost" disabled={isOffline} onPress={() => setSheet('descartar')} /> : null}
             </Card>
@@ -475,6 +542,55 @@ export default function RhCandidatoDetailScreen() {
             <Field label="Motivo" value={descarteMotivo} onChangeText={setDescarteMotivo} multiline maxLength={2000} />
           </FormSheet>
 
+          <FormSheet
+            visible={sheet === 'contratacion'}
+            title="Generar QR de contratación"
+            description="La sucursal y el puesto salen de la vacante del candidato. Captura solo los datos laborales."
+            confirmLabel="Continuar"
+            submitting={contratar.isPending}
+            confirmDisabled={sueldo.trim() === ''}
+            onCancel={cerrarSheet}
+            onConfirm={() => void iniciarContratacion()}>
+            <Field label="Sueldo mensual" value={sueldo} onChangeText={setSueldo} keyboardType="decimal-pad" placeholder="0.00" error={errorContratacion} />
+            <DateField label="Fecha de ingreso" value={fechaIngreso} onChange={setFechaIngreso} />
+            <View style={styles.chips}>
+              <FilterChips options={MODALIDADES_CONTRATACION} value={modalidad} onChange={setModalidad} />
+            </View>
+            <DateField
+              label="Fin del periodo (opcional)"
+              value={fechaFin ?? undefined}
+              onChange={setFechaFin}
+              helper="Vacío = según la duración del puesto."
+              placeholder="Según el puesto"
+            />
+          </FormSheet>
+
+          <FormSheet
+            visible={qr !== null}
+            title="QR de registro"
+            description="Que el candidato lo escanee o abra la liga para crear su cuenta. Es personal, temporal y de un solo uso."
+            confirmLabel="Listo"
+            onCancel={() => setQr(null)}
+            onConfirm={() => setQr(null)}>
+            {qr ? (
+              <View style={styles.qrBox}>
+                {qr.qr_png ? (
+                  <Image source={{ uri: qr.qr_png }} style={styles.qrImage} resizeMode="contain" accessibilityLabel="Código QR de registro" />
+                ) : (
+                  <Notice tone="info">No se pudo dibujar el QR: comparte la liga.</Notice>
+                )}
+                {qr.codigo ? <Text style={styles.muted}>Código: {qr.codigo}</Text> : null}
+                {qr.expira_en ? <Text style={styles.muted}>Vence: {formatDateTime(qr.expira_en)}</Text> : null}
+                <Text style={styles.qrLink} selectable numberOfLines={3}>
+                  {qr.registro_url}
+                </Text>
+                <Button title="Compartir" leftIcon="share-social-outline" onPress={() => void compartirQr()} />
+                <Button title="Copiar liga" variant="outline" leftIcon="copy-outline" onPress={() => void copiarLiga()} />
+                <Button title="Abrir liga" variant="ghost" leftIcon="open-outline" onPress={() => void abrirLiga()} />
+              </View>
+            ) : null}
+          </FormSheet>
+
           <DocumentUploadSheet
             visible={attachOpen}
             title={sheet === 'socioeconomico' ? 'Adjuntar foto, PDF o video' : 'Adjuntar archivo'}
@@ -569,5 +685,20 @@ const crearEstilos = (Colors: ColorPalette) =>
     flex: 1,
     fontSize: FontSize.sm,
     color: Colors.text,
+  },
+  qrBox: {
+    gap: Spacing.sm,
+    alignItems: 'stretch',
+  },
+  qrImage: {
+    width: 240,
+    height: 240,
+    alignSelf: 'center',
+    backgroundColor: Colors.surface,
+  },
+  qrLink: {
+    fontSize: FontSize.xs,
+    color: Colors.primaryDark,
+    textAlign: 'center',
   },
 });

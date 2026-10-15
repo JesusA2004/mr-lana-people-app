@@ -46,7 +46,7 @@ export function resolveTaskRoute(tarea: Pick<Tarea, 'tipo' | 'accion' | 'related
     case 'EvaluacionInduccion':
     case 'EvaluacionInduccionIntento':
       if (tarea.tipo === 'induccion_evaluacion_pendiente' || tarea.accion === 'presentar_evaluacion_induccion') {
-        return { route: '/induccion', experience: 'colaborador' };
+        return { route: '/induccion/evaluacion', experience: 'colaborador' };
       }
       return colaboradorId ? { route: `/(app)/rh/onboarding/${colaboradorId}`, experience: 'rh' } : null;
 

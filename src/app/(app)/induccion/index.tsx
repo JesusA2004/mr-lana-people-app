@@ -84,7 +84,12 @@ export default function InduccionScreen() {
             <Notice tone="info">Terminaste la inducción. Tu evaluación se habilita en cuanto el sistema la active.</Notice>
           ) : null}
           {fase === 'contenido' && !resumen.completado ? (
-            <Notice tone="info">Al recorrer las {resumen.totalPaginas} páginas y tocar «Terminé la inducción» se habilita tu evaluación.</Notice>
+            <Notice tone="info">
+              Recursos Humanos te presentará la inducción y al terminar te enviará tu evaluación. También puedes recorrer las {resumen.totalPaginas} páginas y tocar «Terminé la inducción».
+            </Notice>
+          ) : null}
+          {resumen.presentadaPorRhEn ? (
+            <Notice tone="info">Recursos Humanos te presentó la inducción el {fechaLegible(resumen.presentadaPorRhEn)}.</Notice>
           ) : null}
 
           {fase === 'pendiente_rh' ? (

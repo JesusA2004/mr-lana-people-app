@@ -1,12 +1,14 @@
 import { apiClient, extractData } from '../client';
-import { normalizeCandidatoFicha, normalizeCandidatoFila } from '../normalizers/rhCandidato';
+import { normalizeCandidatoFicha, normalizeCandidatoFila, normalizeContratacionQr } from '../normalizers/rhCandidato';
 import { appendFile, multipartHeaders, type LocalUploadFile } from '../upload';
 
 import type {
   CandidatoFicha,
   CandidatoFila,
+  ContratacionQr,
   DescartarPayload,
   EvaluarFiltroPayload,
+  IniciarContratacionPayload,
   RegistrarEntrevistaPayload,
   RegistrarReferenciaPayload,
   RegistrarSocioeconomicoPayload,
@@ -119,5 +121,15 @@ export const rhCandidatosApi = {
   async descartar(id: number | string, payload: DescartarPayload): Promise<CandidatoFicha> {
     const response = await apiClient.post(`/rh/candidatos/${id}/descartar`, payload);
     return normalizeCandidatoFicha(extractData<unknown>(response.data));
+  },
+
+  /**
+   * Inicia la contratación (crea al colaborador y su QR de registro de un
+   * solo uso) — mismo `ContratacionCandidatoService` que la web. Idempotente:
+   * si ya había un QR vigente, el backend devuelve esa misma invitación.
+   */
+  async iniciarContratacion(id: number | string, payload: IniciarContratacionPayload): Promise<ContratacionQr> {
+    const response = await apiClient.post(`/rh/candidatos/${id}/contratar`, payload);
+    return normalizeContratacionQr(response.data);
   },
 };

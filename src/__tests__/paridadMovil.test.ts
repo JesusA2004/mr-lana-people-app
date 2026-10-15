@@ -38,9 +38,9 @@ describe('recibos de nómina: se entregan impresos', () => {
 describe('Mis pendientes: tareas nuevas de inducción y periodo de prueba', () => {
   const base = { related_id: 9, colaborador: { id: 44, nombre: 'Ana', numero_empleado: null } } as const;
 
-  it('presentar la evaluación de inducción abre la inducción del colaborador', () => {
+  it('presentar la evaluación de inducción abre directo la pantalla para contestarla', () => {
     expect(resolveTaskRoute({ ...base, tipo: 'induccion_evaluacion_pendiente', accion: 'presentar_evaluacion_induccion', related_type: 'EvaluacionInduccion' })).toEqual({
-      route: '/induccion',
+      route: '/induccion/evaluacion',
       experience: 'colaborador',
     });
   });

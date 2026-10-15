@@ -133,9 +133,12 @@ export function resolveResourceRoute(data: PushNotificationData): string | null 
     // `induccion`/`induccion_evaluacion` son alias genéricos aceptados.
     case 'induccion':
     case 'induccion_evaluacion':
+      return '/induccion';
+    // «Contesta la evaluación de la Inducción Mr. Lana» (RH presionó «Enviar
+    // evaluación», o se habilitó la reevaluación): directo a contestarla.
     case 'induccion_evaluacion_disponible':
     case 'induccion_reevaluacion_habilitada':
-      return '/induccion';
+      return '/induccion/evaluacion';
     // A RH: calificar casos prácticos → ficha de onboarding de la persona.
     case 'induccion_evaluacion_presentada':
       return colaboradorId ? `/(app)/rh/onboarding/${colaboradorId}` : '/(app)/rh/(tabs)/pendientes';

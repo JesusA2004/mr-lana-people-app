@@ -12,6 +12,7 @@ import type {
   CicloAprobacionResumen,
   CicloPaso,
   CicloTimelineEvento,
+  ContratacionQr,
   EstadoCiclo,
 } from '@/types/rhCandidato';
 import { asArray, asBoolean, asId, asNumber, asRecord, asRecordOrNull, asString } from '@/utils/normalize';
@@ -223,5 +224,20 @@ export function normalizeCandidatoFicha(value: unknown): CandidatoFicha {
   return {
     candidato: normalizeCandidatoDetalle(raw.candidato),
     ciclo: normalizeEstadoCiclo(raw.ciclo),
+  };
+}
+
+export function normalizeContratacionQr(value: unknown): ContratacionQr {
+  const raw = asRecord(value);
+  const invitacion = asRecord(raw.invitacion);
+  const png = asString(invitacion.qr_png);
+  return {
+    colaborador_id: asId(raw.colaborador_id),
+    invitacion_id: asId(invitacion.invitacion_id),
+    codigo: asString(invitacion.codigo),
+    expira_en: asString(invitacion.expira_en),
+    registro_url: asString(invitacion.registro_url) ?? '',
+    qr_png: png && png.startsWith('data:image/png;base64,') ? png : null,
+    reutilizada: asBoolean(raw.reutilizada),
   };
 }

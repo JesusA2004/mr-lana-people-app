@@ -6,6 +6,7 @@ import type { LocalUploadFile } from '@/api/upload';
 import type {
   DescartarPayload,
   EvaluarFiltroPayload,
+  IniciarContratacionPayload,
   RegistrarEntrevistaPayload,
   RegistrarReferenciaPayload,
   RegistrarSocioeconomicoPayload,
@@ -85,6 +86,22 @@ export function useRhOperarCandidato(id: number) {
     },
     onSuccess: (ficha) => {
       queryClient.setQueryData(queryKeys.rhCandidato(id), ficha);
+      invalidateCiclo(queryClient, { type: 'rh_candidato', candidatoId: id });
+    },
+  });
+}
+
+/**
+ * `iniciar_contratacion`: responde el QR/liga de registro (no la ficha), así
+ * que la ficha se vuelve a pedir al servidor en vez de tocarla a mano.
+ */
+export function useRhIniciarContratacion(id: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    ...SENSITIVE_MUTATION,
+    mutationFn: (payload: IniciarContratacionPayload) => rhCandidatosApi.iniciarContratacion(id, payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.rhCandidato(id) });
       invalidateCiclo(queryClient, { type: 'rh_candidato', candidatoId: id });
     },
   });

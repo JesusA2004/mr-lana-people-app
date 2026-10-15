@@ -37,8 +37,8 @@ const CASOS: [type: string, resourceId: number | null, route: string, experience
   ['evaluacion_capturada', 61, '/evaluaciones/61', null],
   ['contrato_por_vencer', 90, '/(app)/rh/contratos/por-vencer', 'rh'],
   // Inducción Mr. Lana (EvaluacionInduccionService).
-  ['induccion_evaluacion_disponible', 3, '/induccion', 'colaborador'],
-  ['induccion_reevaluacion_habilitada', 3, '/induccion', 'colaborador'],
+  ['induccion_evaluacion_disponible', 3, '/induccion/evaluacion', 'colaborador'],
+  ['induccion_reevaluacion_habilitada', 3, '/induccion/evaluacion', 'colaborador'],
   ['induccion', null, '/induccion', 'colaborador'],
   ['induccion_evaluacion', null, '/induccion', 'colaborador'],
   // Periodo de prueba / excepción de Dirección General: pantallas compartidas.

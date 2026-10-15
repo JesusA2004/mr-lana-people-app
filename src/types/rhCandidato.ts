@@ -250,3 +250,27 @@ export interface DescartarPayload {
   estado: 'no_viable' | 'no_seleccionado' | 'no_respondio' | 'desistio';
   motivo: string;
 }
+
+/** `ContratarCandidatoRequest` — datos laborales para iniciar la contratación (la plaza sale de la vacante). */
+export interface IniciarContratacionPayload {
+  sueldo_mensual: number;
+  fecha_ingreso: string;
+  tipo_contratacion: 'capacitacion_inicial' | 'indeterminado';
+  fecha_fin_contrato?: string | null;
+}
+
+/**
+ * `POST /rh/candidatos/{id}/contratar` — QR de registro de un solo uso
+ * (`ContratacionCandidatoService::datosQr`). Idempotente: si ya había un QR
+ * vigente, `reutilizada` = true y es la MISMA invitación.
+ */
+export interface ContratacionQr {
+  colaborador_id: number | null;
+  invitacion_id: number | null;
+  codigo: string | null;
+  expira_en: string | null;
+  registro_url: string;
+  /** PNG en data URI; null si el servidor no pudo dibujarlo (se comparte la liga). */
+  qr_png: string | null;
+  reutilizada: boolean;
+}

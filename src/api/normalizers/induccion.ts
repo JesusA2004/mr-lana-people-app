@@ -20,6 +20,7 @@ export function normalizeInduccionResumen(raw: unknown): InduccionResumen | null
     ultimaPagina: asNumber(r.ultima_pagina),
     porcentaje: Math.max(0, Math.min(100, asNumber(r.porcentaje) ?? 0)),
     completado: asBoolean(r.completado),
+    presentadaPorRhEn: asString(r.presentada_por_rh_en) ?? null,
   };
 }
 
