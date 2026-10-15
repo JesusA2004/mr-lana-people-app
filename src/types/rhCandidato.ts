@@ -231,7 +231,6 @@ export interface RegistrarSocioeconomicoPayload {
   };
   riesgos?: string | null;
   observaciones?: string | null;
-  resultado: 'viable' | 'no_viable';
   visitador_user_id?: number | null;
 }
 

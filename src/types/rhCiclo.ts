@@ -98,13 +98,11 @@ export interface FiniquitoConceptoPayload {
 
 // ---------------------------------------------------------------- Actas
 
-/** `App\Enums\TipoActa`. */
-export const TIPOS_ACTA: { value: string; label: string }[] = [
-  { value: 'administrativa', label: 'Acta administrativa' },
-  { value: 'hechos', label: 'Acta de hechos' },
-  { value: 'carta_responsiva', label: 'Carta responsiva' },
-  { value: 'auditoria', label: 'Acta de auditoría' },
-];
+/**
+ * Actas: SOLO CONSULTA en la app. Se levantan y completan en el Portal RH
+ * (formato único «Acta administrativa circunstanciada»); el `tipo` y su
+ * etiqueta vienen de la API (`tipo_etiqueta`), también en actas históricas.
+ */
 
 /** `App\Enums\EstadoActa`. */
 export type EstadoActa = 'borrador' | 'generada' | 'firmada' | 'cerrada' | 'cancelada';
@@ -128,8 +126,58 @@ export interface ActaAnexo {
   id: number;
   nombre: string | null;
   descripcion: string | null;
+  fecha_identificacion: string | null;
+  relacion_hechos: string | null;
   mime: string | null;
   size: number | null;
+}
+
+/** Persona del acta resuelta por el backend desde un colaborador real (`ActaService::fichaPersona`). */
+export interface ActaPersona {
+  colaborador_id: number | null;
+  nombre: string | null;
+  puesto: string | null;
+  area: string | null;
+}
+
+export interface ActaTestigoHechos extends ActaPersona {
+  relacion: string | null;
+  relacion_etiqueta: string | null;
+  relacion_otro: string | null;
+  declaro: boolean;
+  manifestacion: string | null;
+}
+
+export interface ActaTestigoAsistencia extends ActaPersona {
+  manifestacion: string | null;
+}
+
+/** `actas.circunstanciada` (`ActaService::resolverCircunstanciada`). */
+export interface ActaCircunstanciada {
+  disposiciones: string | null;
+  incidencia: {
+    tipo: string | null;
+    tipo_etiqueta: string | null;
+    otro: string | null;
+    fecha_hechos: string | null;
+    hora_hechos: string | null;
+    lugar_hechos: string | null;
+  };
+  responsable: {
+    caracter: string | null;
+    caracter_etiqueta: string | null;
+    nombre: string | null;
+    puesto: string | null;
+    area: string | null;
+    manifestacion: string | null;
+  };
+  jefe: ActaPersona & { participa: boolean; manifestacion: string | null };
+  testigos_hechos: ActaTestigoHechos[];
+  testigos_asistencia: ActaTestigoAsistencia[];
+  trabajador: { manifesto: boolean | null; manifestacion: string | null; elementos: string | null };
+  incidencias_levantamiento: string | null;
+  cierre: { fecha: string | null; hora: string | null };
+  entrega: { estado: string; motivo: string | null; por: string | null; en: string | null };
 }
 
 export interface Acta {
@@ -137,6 +185,8 @@ export interface Acta {
   folio: string | null;
   tipo: string;
   tipo_etiqueta: string | null;
+  /** Resumen para listados (en la circunstanciada, el tipo de incidencia). */
+  motivo: string | null;
   estado: EstadoActa | string;
   colaborador: ColaboradorRef | null;
   fecha: string | null;
@@ -150,19 +200,9 @@ export interface Acta {
   testigos?: ActaTestigo[];
   declaraciones?: ActaDeclaracion[];
   motivo_negativa?: string | null;
+  circunstanciada?: ActaCircunstanciada | null;
   seguimiento?: ActaSeguimiento[];
   anexos?: ActaAnexo[];
-}
-
-/** `GuardarActaRequest` — el usuario captura HECHOS; la app no redacta texto jurídico. */
-export interface GuardarActaPayload {
-  tipo?: string;
-  fecha: string;
-  hora?: string | null;
-  lugar?: string | null;
-  hechos: string;
-  testigos?: ActaTestigo[];
-  declaraciones?: ActaDeclaracion[];
 }
 
 // ---------------------------------------------------------------- Estructura

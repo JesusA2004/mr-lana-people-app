@@ -93,7 +93,13 @@ export function NotificacionesContent({ showBack = false }: NotificacionesConten
     };
     const resolved = resolveResourceRoute(datos);
 
-    if (resolved) {
+    if (type === 'recibo_nomina') {
+      // Aviso viejo: los recibos ya no se consultan en la app.
+      toast.info('Tu recibo de nómina te lo entrega Recursos Humanos impreso.');
+    }
+
+    // Ya estamos en el centro de notificaciones: no se apila otra vez.
+    if (resolved && resolved !== '/notificaciones') {
       // Puede vivir en el otro árbol (ej. RH en Mi espacio toca un aviso de
       // documento laboral por archivar): mismo mecanismo que el tap de push.
       openCrossExperienceRoute(resolved, experienceForPush(datos, resolved));

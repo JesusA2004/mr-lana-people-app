@@ -20,7 +20,6 @@ type Filtro =
   | 'psicometricas_pendientes'
   | 'socioeconomico_pendiente'
   | 'referencias_pendientes'
-  | 'preseleccion_gerente'
   | 'autorizacion_rh_pendiente'
   | 'en_contratacion'
   | 'contratado';
@@ -32,7 +31,6 @@ const FILTROS: { value: Filtro; label: string }[] = [
   { value: 'psicometricas_pendientes', label: 'Psicométricas' },
   { value: 'socioeconomico_pendiente', label: 'Socioeconómico' },
   { value: 'referencias_pendientes', label: 'Referencias' },
-  { value: 'preseleccion_gerente', label: 'Preautorización' },
   { value: 'autorizacion_rh_pendiente', label: 'Autorización RH' },
   { value: 'en_contratacion', label: 'En contratación' },
   { value: 'contratado', label: 'Capacitación inicial y laborando' },

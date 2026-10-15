@@ -41,9 +41,9 @@ export type RhCandidatoOperacion =
   | { tipo: 'registrar_resultados_psicometricas'; resumen: string; archivos: LocalUploadFile[] }
   | { tipo: 'revisar_psicometricas'; payload: EvaluarFiltroPayload }
   | { tipo: 'registrar_socioeconomico'; payload: RegistrarSocioeconomicoPayload; evidencias: LocalUploadFile[] }
+  | { tipo: 'revisar_socioeconomico'; payload: EvaluarFiltroPayload }
   | { tipo: 'registrar_referencia'; payload: RegistrarReferenciaPayload }
   | { tipo: 'concluir_referencias'; payload: EvaluarFiltroPayload }
-  | { tipo: 'preautorizar'; comentario?: string | null }
   | { tipo: 'autorizar_rh'; comentario?: string | null }
   | { tipo: 'rechazar_rh'; motivo: string }
   | { tipo: 'devolver_rh'; motivo: string }
@@ -67,12 +67,12 @@ export function useRhOperarCandidato(id: number) {
           return rhCandidatosApi.revisarPsicometricas(id, op.payload);
         case 'registrar_socioeconomico':
           return rhCandidatosApi.registrarSocioeconomico(id, op.payload, op.evidencias);
+        case 'revisar_socioeconomico':
+          return rhCandidatosApi.revisarSocioeconomico(id, op.payload);
         case 'registrar_referencia':
           return rhCandidatosApi.registrarReferencia(id, op.payload);
         case 'concluir_referencias':
           return rhCandidatosApi.concluirReferencias(id, op.payload);
-        case 'preautorizar':
-          return rhCandidatosApi.preautorizar(id, op.comentario);
         case 'autorizar_rh':
           return rhCandidatosApi.autorizarRh(id, op.comentario);
         case 'rechazar_rh':

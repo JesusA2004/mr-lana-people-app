@@ -66,7 +66,6 @@ export default function RhLayout() {
       <Stack.Protected guard={moduloOn('actas')}>
         <Stack.Screen name="actas/index" />
         <Stack.Screen name="actas/[id]" />
-        <Stack.Screen name="actas/editar" />
       </Stack.Protected>
       <Stack.Protected guard={moduloOn('candidatos')}>
         <Stack.Screen name="candidatos/index" />

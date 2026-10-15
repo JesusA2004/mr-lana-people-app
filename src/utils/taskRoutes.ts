@@ -79,7 +79,9 @@ export function resolveTaskRoute(tarea: Pick<Tarea, 'tipo' | 'accion' | 'related
       return id ? { route: `/(app)/rh/cierres/${id}`, experience: 'rh' } : null;
 
     case 'ReciboNomina':
-      return id ? { route: `/recibos/${id}`, experience: 'colaborador' } : null;
+      // Recibos impresos (features.recibos = false): una tarea vieja abre el
+      // inicio, nunca /recibos/{id}.
+      return { route: '/(app)/(tabs)', experience: 'colaborador' };
 
     case 'ActaAdministrativa':
       return id ? { route: `/(app)/rh/actas/${id}`, experience: 'rh' } : null;

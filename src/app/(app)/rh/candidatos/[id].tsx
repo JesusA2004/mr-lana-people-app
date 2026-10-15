@@ -23,6 +23,7 @@ import { candidatoBadge } from '@/utils/candidato';
 import { formatDateLong } from '@/utils/dates';
 import { getActionErrorMessage, logError } from '@/utils/errors';
 import { haptics } from '@/utils/haptics';
+import { openRhWeb, rhWebCandidatoPath } from '@/utils/openRhWeb';
 
 const OPCIONES_DESCARTE: { value: 'no_viable' | 'no_seleccionado' | 'no_respondio' | 'desistio'; label: string }[] = [
   { value: 'no_viable', label: 'No viable' },
@@ -41,7 +42,7 @@ type Sheet =
   | 'socioeconomico'
   | 'referencia'
   | 'referencias_concluir'
-  | 'preautorizar'
+  | 'socio_revision'
   | 'autorizar'
   | 'rechazar'
   | 'devolver'
@@ -49,9 +50,15 @@ type Sheet =
 
 /**
  * Ficha de reclutamiento por pasos (perfil → entrevista → psicométricas →
- * socioeconómico → referencias → preautorización → autorización RH). Cada
- * botón sale de `ciclo.acciones_permitidas` (el backend ya resolvió permiso +
- * alcance + separación preautoriza/autoriza): la app nunca decide por rol.
+ * revisión psicométrica → carga socioeconómico → revisión socioeconómica →
+ * referencias → autorización RH → contratación). Cargar un resultado no es
+ * decidir: la revisión (viable / no viable) es una acción aparte. Cada botón
+ * sale de `ciclo.acciones_permitidas` (permiso + alcance resueltos en el
+ * backend): la app nunca decide por rol.
+ *
+ * `iniciar_contratacion` (generar el QR de registro, de un solo uso) vive
+ * solo en el Portal RH: la API móvil no devuelve el token del QR, así que
+ * iniciarla desde aquí lo dejaría inservible. La app manda al portal.
  */
 export default function RhCandidatoDetailScreen() {
   const styles = useEstilos(crearEstilos);
@@ -241,23 +248,41 @@ export default function RhCandidatoDetailScreen() {
               {has('evaluar_perfil') ? <Button title="Revisar perfil" variant="outline" disabled={isOffline} onPress={() => setSheet('evaluar_perfil')} /> : null}
               {has('registrar_entrevista') ? <Button title="Registrar entrevista" variant="outline" disabled={isOffline} onPress={() => setSheet('entrevista')} /> : null}
               {has('enviar_psicometricas') ? <Button title="Registrar link de psicométricas" variant="outline" disabled={isOffline} onPress={() => setSheet('psico_link')} /> : null}
-              {has('registrar_resultados_psicometricas') ? <Button title="Registrar resultados" variant="outline" disabled={isOffline} onPress={() => setSheet('psico_resultados')} /> : null}
-              {has('revisar_psicometricas') ? <Button title="Revisar psicométricas" variant="outline" disabled={isOffline} onPress={() => setSheet('psico_revision')} /> : null}
-              {has('registrar_socioeconomico') ? <Button title="Registrar estudio socioeconómico" variant="outline" disabled={isOffline} onPress={() => setSheet('socioeconomico')} /> : null}
+              {has('registrar_resultados_psicometricas') ? <Button title="Cargar resultados psicométricos" variant="outline" disabled={isOffline} onPress={() => setSheet('psico_resultados')} /> : null}
+              {has('revisar_psicometricas') ? <Button title="Revisar psicométrico" variant="outline" disabled={isOffline} onPress={() => setSheet('psico_revision')} /> : null}
+              {has('registrar_socioeconomico') ? <Button title="Cargar estudio socioeconómico" variant="outline" disabled={isOffline} onPress={() => setSheet('socioeconomico')} /> : null}
+              {has('revisar_socioeconomico') ? <Button title="Revisar socioeconómico" variant="outline" disabled={isOffline} onPress={() => setSheet('socio_revision')} /> : null}
               {has('registrar_referencia') ? <Button title="Registrar referencia" variant="outline" disabled={isOffline} onPress={() => setSheet('referencia')} /> : null}
               {has('concluir_referencias') ? <Button title="Concluir validación de referencias" variant="outline" disabled={isOffline} onPress={() => setSheet('referencias_concluir')} /> : null}
-              {has('preautorizar') ? <Button title="Preautorizar contratación" disabled={isOffline} onPress={() => setSheet('preautorizar')} /> : null}
               {has('autorizar_rh') ? <Button title="Autorizar contratación" disabled={isOffline} onPress={() => setSheet('autorizar')} /> : null}
-              {has('devolver_rh') ? <Button title="Devolver al gerente" variant="ghost" disabled={isOffline} onPress={() => setSheet('devolver')} /> : null}
+              {has('devolver_rh') ? <Button title="Devolver a referencias" variant="ghost" disabled={isOffline} onPress={() => setSheet('devolver')} /> : null}
               {has('rechazar_rh') ? <Button title="Rechazar" variant="danger" disabled={isOffline} onPress={() => setSheet('rechazar')} /> : null}
+              {has('iniciar_contratacion') ? (
+                <>
+                  <Notice tone="info">La contratación (QR de registro del candidato) se genera desde el Portal RH en la web.</Notice>
+                  <Button
+                    title="Continuar en el Portal RH"
+                    leftIcon="open-outline"
+                    onPress={() => void openRhWeb(rhWebCandidatoPath(candidato.id))}
+                  />
+                </>
+              ) : null}
               {has('descartar') ? <Button title="Cerrar proceso del candidato" variant="ghost" disabled={isOffline} onPress={() => setSheet('descartar')} /> : null}
             </Card>
           ) : null}
 
           {/* Perfil / revisión de psicométricas / conclusión de referencias: mismo payload {viable, observaciones}. */}
           <FormSheet
-            visible={sheet === 'evaluar_perfil' || sheet === 'psico_revision' || sheet === 'referencias_concluir'}
-            title={sheet === 'evaluar_perfil' ? 'Revisar perfil' : sheet === 'psico_revision' ? 'Revisar psicométricas' : 'Concluir validación de referencias'}
+            visible={sheet === 'evaluar_perfil' || sheet === 'psico_revision' || sheet === 'socio_revision' || sheet === 'referencias_concluir'}
+            title={
+              sheet === 'evaluar_perfil'
+                ? 'Revisar perfil'
+                : sheet === 'psico_revision'
+                  ? 'Revisar psicométrico'
+                  : sheet === 'socio_revision'
+                    ? 'Revisar estudio socioeconómico'
+                    : 'Concluir validación de referencias'
+            }
             confirmLabel="Guardar"
             submitting={operar.isPending}
             confirmDisabled={viable === 'no_viable' && observaciones.trim() === ''}
@@ -266,6 +291,7 @@ export default function RhCandidatoDetailScreen() {
               const payload = { viable: viable === 'viable', observaciones: observaciones.trim() || null };
               if (sheet === 'evaluar_perfil') ejecutar({ tipo: 'evaluar_perfil', payload }, 'Registrado.');
               else if (sheet === 'psico_revision') ejecutar({ tipo: 'revisar_psicometricas', payload }, 'Registrado.');
+              else if (sheet === 'socio_revision') ejecutar({ tipo: 'revisar_socioeconomico', payload }, 'Registrado.');
               else ejecutar({ tipo: 'concluir_referencias', payload }, 'Registrado.');
             }}>
             <View style={styles.chips}>
@@ -333,11 +359,11 @@ export default function RhCandidatoDetailScreen() {
 
           <FormSheet
             visible={sheet === 'socioeconomico'}
-            title="Estudio socioeconómico"
-            description="La fecha de visita se registra con la fecha de hoy."
-            confirmLabel="Guardar"
+            title="Cargar estudio socioeconómico"
+            description="Cargarlo no lo aprueba: queda pendiente de revisión del responsable. La fecha de visita es la de hoy."
+            confirmLabel="Cargar"
             submitting={operar.isPending}
-            confirmDisabled={direccion.trim() === '' || (viable === 'no_viable' && observaciones.trim() === '')}
+            confirmDisabled={direccion.trim() === ''}
             onCancel={cerrarSheet}
             onConfirm={() =>
               ejecutar(
@@ -348,26 +374,15 @@ export default function RhCandidatoDetailScreen() {
                     direccion: direccion.trim(),
                     riesgos: riesgos.trim() || null,
                     observaciones: observaciones.trim() || null,
-                    resultado: viable,
                   },
                   evidencias: archivos.map(localFile),
                 },
-                'Estudio socioeconómico registrado.',
+                'Estudio cargado: pendiente de revisión.',
               )
             }>
             <Field label="Dirección visitada" value={direccion} onChangeText={setDireccion} multiline maxLength={500} />
             <Field label="Riesgos detectados (opcional)" value={riesgos} onChangeText={setRiesgos} multiline maxLength={4000} />
-            <View style={styles.chips}>
-              <FilterChips
-                options={[
-                  { value: 'viable', label: 'Viable' },
-                  { value: 'no_viable', label: 'No viable' },
-                ]}
-                value={viable}
-                onChange={setViable}
-              />
-            </View>
-            <Field label={viable === 'no_viable' ? 'Motivo (obligatorio)' : 'Observaciones (opcional)'} value={observaciones} onChangeText={setObservaciones} multiline maxLength={4000} />
+            <Field label="Observaciones (opcional)" value={observaciones} onChangeText={setObservaciones} multiline maxLength={4000} />
             <AdjuntosList archivos={archivos} onAdd={() => setAttachOpen(true)} onRemove={(i) => setArchivos((prev) => prev.filter((_, idx) => idx !== i))} />
           </FormSheet>
 
@@ -415,17 +430,13 @@ export default function RhCandidatoDetailScreen() {
           </FormSheet>
 
           <FormSheet
-            visible={sheet === 'preautorizar' || sheet === 'autorizar'}
-            title={sheet === 'preautorizar' ? 'Preautorizar contratación' : 'Autorizar contratación'}
-            description={sheet === 'preautorizar' ? 'Tu visto bueno pasa el proceso a autorización de RH.' : 'La autorización final de RH deja listo al candidato para contratación.'}
-            confirmLabel={sheet === 'preautorizar' ? 'Preautorizar' : 'Autorizar'}
+            visible={sheet === 'autorizar'}
+            title="Autorizar contratación"
+            description="La autorización de RH deja listo al candidato para contratación."
+            confirmLabel="Autorizar"
             submitting={operar.isPending}
             onCancel={cerrarSheet}
-            onConfirm={() =>
-              sheet === 'preautorizar'
-                ? ejecutar({ tipo: 'preautorizar', comentario: comentario.trim() || null }, 'Preautorizado.')
-                : ejecutar({ tipo: 'autorizar_rh', comentario: comentario.trim() || null }, 'Autorizado.')
-            }>
+            onConfirm={() => ejecutar({ tipo: 'autorizar_rh', comentario: comentario.trim() || null }, 'Autorizado.')}>
             <Field label="Comentario (opcional)" value={comentario} onChangeText={setComentario} multiline maxLength={2000} />
           </FormSheet>
 
@@ -441,12 +452,12 @@ export default function RhCandidatoDetailScreen() {
 
           <MotivoModal
             visible={sheet === 'devolver'}
-            title="Devolver al gerente"
-            description="Regresa la decisión al gerente para que la revise de nuevo."
+            title="Devolver a referencias"
+            description="El candidato regresa a validación de referencias para revisarlo de nuevo."
             confirmLabel="Devolver"
             submitting={operar.isPending}
             onCancel={cerrarSheet}
-            onConfirm={(motivo) => ejecutar({ tipo: 'devolver_rh', motivo }, 'Devuelto al gerente.')}
+            onConfirm={(motivo) => ejecutar({ tipo: 'devolver_rh', motivo }, 'Devuelto a validación de referencias.')}
           />
 
           <FormSheet

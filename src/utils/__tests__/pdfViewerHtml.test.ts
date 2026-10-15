@@ -18,6 +18,15 @@ describe('visor PDF Android (offline)', () => {
     }
   });
 
+  it('render perezoso: solo la vista ± 1 tiene canvas y el script es JS válido', () => {
+    const propio = html.split('<script>').pop()?.split('</script>')[0] ?? '';
+    expect(() => new Function(propio)).not.toThrow();
+    expect(propio).toContain('getBoundingClientRect');
+    expect(propio).toContain('liberar(');
+    expect(propio).toContain('primera - 1');
+    expect(propio).toContain('ultima + 1');
+  });
+
   it('parte un PDF grande en trozos base64 válidos y los rearma igual', () => {
     const base64 = 'QUJDRA=='.padStart(3 * TAMANO_TROZO + 128, 'QUJD');
     const trozos = partirEnTrozos(base64);

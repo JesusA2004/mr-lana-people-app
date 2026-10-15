@@ -32,6 +32,11 @@ export async function openRhWeb(path?: string): Promise<void> {
   }
 }
 
+/** Ruta web de la ficha de un candidato en el Portal RH (`rh.candidatos.show`). */
+export function rhWebCandidatoPath(id: number | string): string {
+  return `rh/candidatos/${id}`;
+}
+
 /** Ruta web del detalle de una solicitud en el Portal RH. */
 export function rhWebSolicitudPath(id: number | string): string {
   return `rh/solicitudes/${id}`;

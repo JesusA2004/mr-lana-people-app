@@ -4,6 +4,7 @@ import { normalizeLaborDocument, normalizeLaborDocumentPendingCounts } from '../
 import { normalizePrestamo, normalizePrestamoDocumentos, normalizeRecibo, normalizeReciboImport } from '../normalizers/nomina';
 import {
   normalizeActa,
+  normalizeActaCatalogos,
   normalizeCierre,
   normalizeCobertura,
   normalizeIndicadores,
@@ -21,7 +22,6 @@ import type {
   CierreLaboral,
   Cobertura,
   FiniquitoConceptoPayload,
-  GuardarActaPayload,
   IndicadoresRh,
   IniciarCierrePayload,
   PlantillasDocumentales,
@@ -383,58 +383,25 @@ export const rhPrestamosApi = {
 
 // ------------------------------------------------------------ Actas
 
+/**
+ * Actas: SOLO CONSULTA (listado, detalle y anexos). Se levantan y completan
+ * desde el Portal RH en la web (formato único «Acta administrativa
+ * circunstanciada»): la app no llama a crear/editar/operar actas.
+ */
 export const rhActasApi = {
   async list(params: { tipo?: string; estado?: string; colaborador_id?: number | string; page?: number; per_page?: number } = {}): Promise<Paginated<Acta>> {
     const response = await apiClient.get('/rh/actas', { params });
-    return normalizePaginated(response.data, normalizeActa);
+    return normalizePaginated(response.data, (raw) => normalizeActa(raw));
   },
 
+  /** `GET /rh/actas/{id}`: `data` + `catalogos` (etiquetas de incidencia, carácter y relación). */
   async get(id: number | string): Promise<Acta> {
     const response = await apiClient.get(`/rh/actas/${id}`);
-    return normalizeActa(extractData<unknown>(response.data));
-  },
-
-  async crear(colaboradorId: number | string, payload: GuardarActaPayload): Promise<Acta> {
-    const response = await apiClient.post(`/rh/colaboradores/${colaboradorId}/actas`, payload);
-    return normalizeActa(extractData<unknown>(response.data));
-  },
-
-  /** PATCH prohíbe `tipo` (`GuardarActaRequest`): se omite siempre. */
-  async actualizar(id: number | string, { tipo: _tipo, ...payload }: GuardarActaPayload): Promise<Acta> {
-    const response = await apiClient.patch(`/rh/actas/${id}`, payload);
-    return normalizeActa(extractData<unknown>(response.data));
-  },
-
-  async anexo(id: number | string, archivo: LocalUploadFile, descripcion?: string | null): Promise<Acta> {
-    const formData = new FormData();
-    appendFile(formData, 'archivo', archivo);
-    if (descripcion) formData.append('descripcion', descripcion);
-    const response = await apiClient.post(`/rh/actas/${id}/anexos`, formData, { headers: multipartHeaders });
-    return normalizeActa(extractData<unknown>(response.data));
+    return normalizeActa(extractData<unknown>(response.data), normalizeActaCatalogos(asRecord(response.data).catalogos));
   },
 
   anexoPath(id: number | string, anexoId: number | string): string {
     return `/rh/actas/${id}/anexos/${anexoId}`;
-  },
-
-  async generarDocumento(id: number | string): Promise<LaborDocument> {
-    const response = await apiClient.post(`/rh/actas/${id}/documento`);
-    return normalizeLaborDocument(extractData<unknown>(response.data));
-  },
-
-  async negativaFirma(id: number | string, motivo: string): Promise<Acta> {
-    const response = await apiClient.post(`/rh/actas/${id}/negativa-firma`, { motivo });
-    return normalizeActa(extractData<unknown>(response.data));
-  },
-
-  async seguimiento(id: number | string, nota: string): Promise<Acta> {
-    const response = await apiClient.post(`/rh/actas/${id}/seguimiento`, { nota });
-    return normalizeActa(extractData<unknown>(response.data));
-  },
-
-  async cerrar(id: number | string): Promise<Acta> {
-    const response = await apiClient.post(`/rh/actas/${id}/cerrar`);
-    return normalizeActa(extractData<unknown>(response.data));
   },
 };
 

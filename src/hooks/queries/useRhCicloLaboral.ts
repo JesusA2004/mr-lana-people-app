@@ -14,7 +14,7 @@ import {
   type RhDocumentosLaboralesParams,
 } from '@/api/rh/cicloLaboral';
 import type { LocalUploadFile } from '@/api/upload';
-import type { FiniquitoConceptoPayload, GuardarActaPayload } from '@/types/rhCiclo';
+import type { FiniquitoConceptoPayload } from '@/types/rhCiclo';
 import { nextPageOf } from '@/utils/normalize';
 import { invalidateCiclo } from './cicloInvalidate';
 import { retryUnlessClientError, SENSITIVE_MUTATION } from './queryOptions';
@@ -264,54 +264,6 @@ export function useRhActa(id: string | number | undefined) {
     queryFn: () => rhActasApi.get(id as string | number),
     enabled: id !== undefined && id !== '',
     retry: retryUnlessClientError,
-  });
-}
-
-export function useRhGuardarActa() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    ...SENSITIVE_MUTATION,
-    mutationFn: ({ actaId, colaboradorId, payload }: { actaId?: number; colaboradorId?: number | string; payload: GuardarActaPayload }) => {
-      if (actaId) return rhActasApi.actualizar(actaId, payload);
-      return rhActasApi.crear(colaboradorId as number | string, payload);
-    },
-    onSuccess: (acta) => {
-      queryClient.setQueryData(queryKeys.rhActa(acta.id), acta);
-      invalidateCiclo(queryClient, { type: 'rh_acta', actaId: acta.id });
-    },
-  });
-}
-
-export type RhActaOperacion =
-  | { tipo: 'anexo'; archivo: LocalUploadFile; descripcion?: string | null }
-  | { tipo: 'generar_documento' }
-  | { tipo: 'negativa_firma'; motivo: string }
-  | { tipo: 'seguimiento'; nota: string }
-  | { tipo: 'cerrar' };
-
-export function useRhOperarActa(id: number) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    ...SENSITIVE_MUTATION,
-    mutationFn: async (op: RhActaOperacion) => {
-      switch (op.tipo) {
-        case 'anexo':
-          return rhActasApi.anexo(id, op.archivo, op.descripcion);
-        case 'generar_documento':
-          await rhActasApi.generarDocumento(id);
-          return rhActasApi.get(id);
-        case 'negativa_firma':
-          return rhActasApi.negativaFirma(id, op.motivo);
-        case 'seguimiento':
-          return rhActasApi.seguimiento(id, op.nota);
-        case 'cerrar':
-          return rhActasApi.cerrar(id);
-      }
-    },
-    onSuccess: (acta) => {
-      queryClient.setQueryData(queryKeys.rhActa(id), acta);
-      invalidateCiclo(queryClient, { type: 'rh_acta', actaId: id });
-    },
   });
 }
 

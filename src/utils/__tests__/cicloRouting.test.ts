@@ -10,7 +10,7 @@ import { formatDateLong } from '../dates';
 describe('push routing — ciclo laboral', () => {
   it('abre el detalle real de cada tipo nuevo', () => {
     expect(resolveResourceRoute({ type: 'documento_firma_pendiente', resource_id: 5 })).toBe('/documentos-laborales/5');
-    expect(resolveResourceRoute({ type: 'recibo_nomina', resource_id: 8 })).toBe('/recibos/8');
+    expect(resolveResourceRoute({ type: 'recibo_nomina', resource_id: 8 })).toBe('/notificaciones');
     expect(resolveResourceRoute({ type: 'prestamo_autorizado', resource_id: 3 })).toBe('/prestamos/3');
     expect(resolveResourceRoute({ type: 'evaluacion_pendiente', resource_id: 2 })).toBe('/evaluaciones/2');
     expect(resolveResourceRoute({ type: 'visto_bueno_pendiente', resource_id: 11 })).toBe('/equipo');

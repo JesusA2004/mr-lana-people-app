@@ -2,14 +2,15 @@ import appConfig from '../../app.json';
 import { isSelfServiceModuleEnabled } from '@/utils/modules';
 import { resolveTaskRoute } from '@/utils/taskRoutes';
 import { existeRuta, rutasDeLaApp } from '@/testing/navegacionInventario';
+import { normalizeActa, normalizeActaCatalogos } from '@/api/normalizers/rhCiclo';
 
 /**
  * Paridad móvil 1.2.0: inducción, directorio, pendientes nuevos de RH/
  * gerente, recibos impresos y configuración de build.
  */
 describe('configuración de la app', () => {
-  it('versionCode 12, versión 1.2.0 y el paquete Android intacto', () => {
-    expect(appConfig.expo.android.versionCode).toBe(12);
+  it('versionCode 13, versión 1.2.0 y el paquete Android intacto', () => {
+    expect(appConfig.expo.android.versionCode).toBe(13);
     expect(appConfig.expo.version).toBe('1.2.0');
     expect(appConfig.expo.android.package).toBe('com.mrlana.people');
     expect(appConfig.expo.android.googleServicesFile).toBe('./google-services.json');
@@ -69,5 +70,47 @@ describe('Mis pendientes: tareas nuevas de inducción y periodo de prueba', () =
       route: '/(app)/rh/candidatos/9',
       experience: 'rh',
     });
+  });
+});
+
+describe('auditoría app ↔ backend (2026-10-15)', () => {
+  it('una tarea vieja de recibo de nómina abre el inicio, nunca /recibos/{id}', () => {
+    expect(
+      resolveTaskRoute({ tipo: 'recibo_nomina', accion: 'ver_recibo', related_type: 'ReciboNomina', related_id: 5, colaborador: null }),
+    ).toEqual({ route: '/(app)/(tabs)', experience: 'colaborador' });
+  });
+
+  it('el detalle de acta lee la circunstanciada con etiquetas del catálogo de la API', () => {
+    const acta = normalizeActa(
+      {
+        id: 3,
+        tipo: 'administrativa',
+        tipo_etiqueta: 'Acta administrativa circunstanciada',
+        motivo: 'Retardo',
+        estado: 'borrador',
+        hechos: 'Llegó tarde.',
+        circunstanciada: {
+          incidencia: { tipo: 'retardo', fecha_hechos: '6 de octubre de 2026' },
+          responsable: { caracter: 'gerente', nombre: 'Luis' },
+          jefe: { participa: false },
+          testigos_hechos: [{ colaborador_id: 9, nombre: 'Ana', relacion: 'presencio_directamente', declaro: true, manifestacion: 'Lo vi.' }],
+          testigos_asistencia: [],
+          trabajador: { manifesto: false },
+          entrega: { estado: 'entregada', por: 'Luis' },
+        },
+        anexos: [{ id: 1, nombre: 'foto.jpg', relacion_hechos: 'Evidencia' }],
+      },
+      normalizeActaCatalogos({ incidencias: [{ value: 'retardo', label: 'Retardo (API)' }] }),
+    );
+    expect(acta.circunstanciada?.incidencia.tipo_etiqueta).toBe('Retardo (API)');
+    expect(acta.circunstanciada?.responsable.caracter_etiqueta).toBe('Gerente');
+    expect(acta.circunstanciada?.testigos_hechos[0]).toMatchObject({ colaborador_id: 9, relacion_etiqueta: 'Presenció directamente los hechos' });
+    expect(acta.circunstanciada?.trabajador.manifesto).toBe(false);
+    expect(acta.circunstanciada?.entrega.estado).toBe('entregada');
+    expect(acta.anexos?.[0].relacion_hechos).toBe('Evidencia');
+  });
+
+  it('la app ya no tiene pantalla para crear/editar actas', () => {
+    expect(rutasDeLaApp().some((ruta) => ruta.join('/').includes('actas/editar'))).toBe(false);
   });
 });

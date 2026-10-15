@@ -72,7 +72,6 @@ export const rhCandidatosApi = {
     const formData = new FormData();
     formData.append('fecha_visita', payload.fecha_visita);
     formData.append('direccion', payload.direccion);
-    formData.append('resultado', payload.resultado);
     if (payload.riesgos) formData.append('riesgos', payload.riesgos);
     if (payload.observaciones) formData.append('observaciones', payload.observaciones);
     if (payload.visitador_user_id) formData.append('visitador_user_id', String(payload.visitador_user_id));
@@ -86,6 +85,12 @@ export const rhCandidatosApi = {
     return normalizeCandidatoFicha(extractData<unknown>(response.data));
   },
 
+  /** Revisión del estudio cargado (viable / no viable): cargar no decide. */
+  async revisarSocioeconomico(id: number | string, payload: EvaluarFiltroPayload): Promise<CandidatoFicha> {
+    const response = await apiClient.post(`/rh/candidatos/${id}/socioeconomico/revision`, payload);
+    return normalizeCandidatoFicha(extractData<unknown>(response.data));
+  },
+
   async registrarReferencia(id: number | string, payload: RegistrarReferenciaPayload): Promise<CandidatoFicha> {
     const response = await apiClient.post(`/rh/candidatos/${id}/referencias`, payload);
     return normalizeCandidatoFicha(extractData<unknown>(response.data));
@@ -93,11 +98,6 @@ export const rhCandidatosApi = {
 
   async concluirReferencias(id: number | string, payload: EvaluarFiltroPayload): Promise<CandidatoFicha> {
     const response = await apiClient.post(`/rh/candidatos/${id}/referencias/concluir`, payload);
-    return normalizeCandidatoFicha(extractData<unknown>(response.data));
-  },
-
-  async preautorizar(id: number | string, comentario?: string | null): Promise<CandidatoFicha> {
-    const response = await apiClient.post(`/rh/candidatos/${id}/preautorizar`, { comentario: comentario || null });
     return normalizeCandidatoFicha(extractData<unknown>(response.data));
   },
 

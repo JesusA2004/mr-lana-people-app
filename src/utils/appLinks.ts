@@ -75,7 +75,10 @@ export function resolveResourceRoute(data: PushNotificationData): string | null 
     case 'documento_firma_pendiente':
       return id ? `/documentos-laborales/${id}` : '/documentos-laborales';
     case 'recibo_nomina':
-      return id ? `/recibos/${id}` : '/recibos';
+      // Los recibos se entregan impresos (features.recibos = false): un aviso
+      // viejo nunca abre /recibos/{id} (terminaría en 403/404); va al centro
+      // de notificaciones.
+      return '/notificaciones';
     case 'prestamo_autorizado':
       return id ? `/prestamos/${id}` : '/prestamos';
     case 'expediente_incompleto':

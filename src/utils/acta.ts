@@ -1,4 +1,10 @@
-import type { Acta } from '@/types/rhCiclo';
+/**
+ * Presentación de actas (solo consulta en la app). Las actas se levantan y
+ * completan desde el Portal RH en la web: la app no crea, edita ni opera
+ * actas (formato único «Acta administrativa circunstanciada»).
+ */
+
+export const AVISO_ACTAS_SOLO_CONSULTA = 'Las actas se levantan y completan desde el Portal RH en la web.';
 
 const LABEL: Record<string, string> = {
   borrador: 'Borrador',
@@ -20,30 +26,35 @@ export function actaBadge(estado: string): string {
   return 'en_revision';
 }
 
-export type ActaOperation = 'editar' | 'anexo' | 'generar_documento' | 'negativa_firma' | 'seguimiento' | 'cerrar';
+/** `App\Enums\TipoIncidenciaActa::etiqueta()` (respaldo si la API no manda `catalogos`). */
+export const INCIDENCIAS_ACTA: Record<string, string> = {
+  inasistencia: 'Inasistencia',
+  retardo: 'Retardo',
+  incumplimiento_instrucciones: 'Incumplimiento de instrucciones',
+  incidencia_operativa: 'Incidencia operativa',
+  irregularidad_bienes: 'Irregularidad relacionada con bienes de la empresa',
+  otra: 'Otra situación laboral',
+};
 
-/**
- * Acciones de un acta según `ActaAdministrativaPolicy::gestionar()`:
- * `actas.gestionar` sobre cualquier acta en alcance, o `actas.crear` solo
- * sobre SU borrador (el backend compara `creado_por`, que la API no
- * expone: si no es suya, responde 403 y la app lo informa).
- * Editar (PATCH) solo tiene sentido en borrador; cerrar/seguimiento cuando
- * no está cerrada/cancelada.
- */
-export function availableActaOperations(acta: Pick<Acta, 'estado'>, permissions: string[] | undefined): ActaOperation[] {
-  const perms = new Set(permissions ?? []);
-  const gestiona = perms.has('actas.gestionar');
-  const creaBorrador = perms.has('actas.crear') && acta.estado === 'borrador';
-  if (!gestiona && !creaBorrador) return [];
-  if (acta.estado === 'cerrada' || acta.estado === 'cancelada') return [];
+/** `App\Enums\CaracterLevantamientoActa::etiqueta()`. */
+export const CARACTERES_ACTA: Record<string, string> = {
+  recursos_humanos: 'Recursos Humanos',
+  gerente: 'Gerente',
+  jefe_directo: 'Jefe directo',
+  responsable_autorizado: 'Responsable autorizado',
+};
 
-  const ops: ActaOperation[] = [];
-  if (acta.estado === 'borrador') ops.push('editar');
-  ops.push('anexo', 'generar_documento');
-  if (gestiona) {
-    ops.push('negativa_firma', 'seguimiento');
-    // `ActaService::cerrar()`: exige que el formato ya se haya generado (no borrador).
-    if (acta.estado !== 'borrador') ops.push('cerrar');
-  }
-  return ops;
+/** `App\Enums\RelacionTestigoActa::etiqueta()`. */
+export const RELACIONES_TESTIGO_ACTA: Record<string, string> = {
+  presencio_directamente: 'Presenció directamente los hechos',
+  conocimiento_posterior: 'Tuvo conocimiento posterior de los hechos',
+  a_cargo_del_area: 'Estaba a cargo del área',
+  otra: 'Otra',
+};
+
+/** Constancia de entrega de copia (`ActaService::registrarEntrega`). */
+export function actaEntregaLabel(estado: string | null | undefined): string {
+  if (estado === 'entregada') return 'Copia entregada al trabajador';
+  if (estado === 'no_posible') return 'No fue posible entregar la copia';
+  return 'Entrega de copia pendiente';
 }

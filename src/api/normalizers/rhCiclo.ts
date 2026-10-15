@@ -1,5 +1,7 @@
 import type {
   Acta,
+  ActaCircunstanciada,
+  ActaPersona,
   CierreLaboral,
   Cobertura,
   CoberturaTotales,
@@ -12,12 +14,14 @@ import {
   asArray,
   asBoolean,
   asId,
+  asNullableBoolean,
   asNumber,
   asRecord,
   asRecordOrNull,
   asString,
   normalizeColaboradorRef,
 } from '@/utils/normalize';
+import { CARACTERES_ACTA, INCIDENCIAS_ACTA, RELACIONES_TESTIGO_ACTA } from '@/utils/acta';
 
 function normalizeFiniquito(value: unknown): Finiquito | null {
   const raw = asRecordOrNull(value);
@@ -71,13 +75,100 @@ export function normalizeCierre(value: unknown): CierreLaboral {
   };
 }
 
-export function normalizeActa(value: unknown): Acta {
+/** `catalogos` de `GET /rh/actas/{id}` (`ActaService::catalogos()`): `{value, label}[]` por catálogo. */
+export interface ActaCatalogos {
+  incidencias: Record<string, string>;
+  caracteres: Record<string, string>;
+  relaciones: Record<string, string>;
+}
+
+function catalogo(value: unknown): Record<string, string> {
+  const mapa: Record<string, string> = {};
+  for (const item of asArray(value)) {
+    const opcion = asRecord(item);
+    const clave = asString(opcion.value);
+    const etiqueta = asString(opcion.label);
+    if (clave && etiqueta) mapa[clave] = etiqueta;
+  }
+  return mapa;
+}
+
+export function normalizeActaCatalogos(value: unknown): ActaCatalogos {
+  const raw = asRecord(value);
+  return { incidencias: catalogo(raw.incidencias), caracteres: catalogo(raw.caracteres), relaciones: catalogo(raw.relaciones) };
+}
+
+function etiquetaDe(valor: string | null, ...mapas: Record<string, string>[]): string | null {
+  if (!valor) return null;
+  for (const mapa of mapas) if (mapa[valor]) return mapa[valor];
+  return valor;
+}
+
+function normalizeActaPersona(value: unknown): ActaPersona {
+  const raw = asRecord(value);
+  return { colaborador_id: asId(raw.colaborador_id), nombre: asString(raw.nombre), puesto: asString(raw.puesto), area: asString(raw.area) };
+}
+
+function normalizeCircunstanciada(value: unknown, catalogos: ActaCatalogos): ActaCircunstanciada | null {
+  const raw = asRecordOrNull(value);
+  if (!raw) return null;
+  const incidencia = asRecord(raw.incidencia);
+  const responsable = asRecord(raw.responsable);
+  const jefe = asRecord(raw.jefe);
+  const trabajador = asRecord(raw.trabajador);
+  const cierre = asRecord(raw.cierre);
+  const entrega = asRecord(raw.entrega);
+  const tipoIncidencia = asString(incidencia.tipo);
+  const caracter = asString(responsable.caracter);
+  return {
+    disposiciones: asString(raw.disposiciones),
+    incidencia: {
+      tipo: tipoIncidencia,
+      tipo_etiqueta: etiquetaDe(tipoIncidencia, catalogos.incidencias, INCIDENCIAS_ACTA),
+      otro: asString(incidencia.otro),
+      fecha_hechos: asString(incidencia.fecha_hechos),
+      hora_hechos: asString(incidencia.hora_hechos),
+      lugar_hechos: asString(incidencia.lugar_hechos),
+    },
+    responsable: {
+      caracter,
+      caracter_etiqueta: etiquetaDe(caracter, catalogos.caracteres, CARACTERES_ACTA),
+      nombre: asString(responsable.nombre),
+      puesto: asString(responsable.puesto),
+      area: asString(responsable.area),
+      manifestacion: asString(responsable.manifestacion),
+    },
+    jefe: { ...normalizeActaPersona(jefe), participa: asBoolean(jefe.participa), manifestacion: asString(jefe.manifestacion) },
+    testigos_hechos: asArray(raw.testigos_hechos).map((item) => {
+      const t = asRecord(item);
+      const relacion = asString(t.relacion);
+      return {
+        ...normalizeActaPersona(t),
+        relacion,
+        relacion_etiqueta: etiquetaDe(relacion, catalogos.relaciones, RELACIONES_TESTIGO_ACTA),
+        relacion_otro: asString(t.relacion_otro),
+        declaro: asBoolean(t.declaro),
+        manifestacion: asString(t.manifestacion),
+      };
+    }),
+    testigos_asistencia: asArray(raw.testigos_asistencia).map((item) => ({ ...normalizeActaPersona(item), manifestacion: asString(asRecord(item).manifestacion) })),
+    trabajador: { manifesto: asNullableBoolean(trabajador.manifesto), manifestacion: asString(trabajador.manifestacion), elementos: asString(trabajador.elementos) },
+    incidencias_levantamiento: asString(raw.incidencias_levantamiento),
+    cierre: { fecha: asString(cierre.fecha), hora: asString(cierre.hora) },
+    entrega: { estado: asString(entrega.estado) ?? 'pendiente', motivo: asString(entrega.motivo), por: asString(entrega.por), en: asString(entrega.en) },
+  };
+}
+
+const SIN_CATALOGOS: ActaCatalogos = { incidencias: {}, caracteres: {}, relaciones: {} };
+
+export function normalizeActa(value: unknown, catalogos: ActaCatalogos = SIN_CATALOGOS): Acta {
   const raw = asRecord(value);
   const acta: Acta = {
     id: asId(raw.id) ?? 0,
     folio: asString(raw.folio),
     tipo: asString(raw.tipo) ?? '',
     tipo_etiqueta: asString(raw.tipo_etiqueta),
+    motivo: asString(raw.motivo),
     estado: asString(raw.estado) ?? '',
     colaborador: normalizeColaboradorRef(raw.colaborador),
     fecha: asString(raw.fecha),
@@ -90,6 +181,7 @@ export function normalizeActa(value: unknown): Acta {
   if ('hechos' in raw) {
     acta.hechos = asString(raw.hechos);
     acta.motivo_negativa = asString(raw.motivo_negativa);
+    acta.circunstanciada = normalizeCircunstanciada(raw.circunstanciada, catalogos);
     acta.testigos = asArray(raw.testigos).map((item) => {
       const t = asRecord(item);
       return { nombre: asString(t.nombre) ?? '', puesto: asString(t.puesto) };
@@ -108,6 +200,8 @@ export function normalizeActa(value: unknown): Acta {
         id: asId(a.id) ?? 0,
         nombre: asString(a.nombre),
         descripcion: asString(a.descripcion),
+        fecha_identificacion: asString(a.fecha_identificacion),
+        relacion_hechos: asString(a.relacion_hechos),
         mime: asString(a.mime),
         size: asNumber(a.size),
       };

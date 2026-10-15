@@ -25,7 +25,8 @@ const CASOS: [type: string, resourceId: number | null, route: string, experience
   // Ruta compartida por ambas experiencias: no cambia de experiencia.
   ['cumpleanos_muro', 15, '/muro-cumpleanos/15', null],
   ['documento_firma_pendiente', 300, '/documentos-laborales/300', 'colaborador'],
-  ['recibo_nomina', 88, '/recibos/88', 'colaborador'],
+  // Recibos impresos: un aviso viejo nunca abre /recibos/{id}.
+  ['recibo_nomina', 88, '/notificaciones', 'colaborador'],
   ['prestamo_autorizado', 15, '/prestamos/15', 'colaborador'],
   ['expediente_incompleto', 7, '/(app)/(tabs)/expediente', 'colaborador'],
   ['datos_faltantes', 7, '/completar-datos', 'colaborador'],
@@ -61,7 +62,7 @@ describe('resolveResourceRoute — tipos reales del backend', () => {
     expect(resolveResourceRoute({ type: 'solicitud' })).toBe('/(app)/(tabs)/solicitudes');
     expect(resolveResourceRoute({ type: 'documento' })).toBe('/(app)/(tabs)/expediente');
     expect(resolveResourceRoute({ type: 'documento_firma_pendiente', resource_id: null })).toBe('/documentos-laborales');
-    expect(resolveResourceRoute({ type: 'recibo_nomina' })).toBe('/recibos');
+    expect(resolveResourceRoute({ type: 'recibo_nomina' })).toBe('/notificaciones');
     expect(resolveResourceRoute({ type: 'prestamo_autorizado' })).toBe('/prestamos');
     expect(resolveResourceRoute({ type: 'evaluacion_pendiente' })).toBe('/evaluaciones');
     expect(resolveResourceRoute({ type: 'rh_solicitud' })).toBe('/(app)/rh/(tabs)/pendientes');

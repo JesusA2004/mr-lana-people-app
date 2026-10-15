@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { rhActasApi } from '@/api/rh/cicloLaboral';
 import { Button } from '@/components/Button';
@@ -8,31 +8,29 @@ import { Card } from '@/components/Card';
 import { InfoRow } from '@/components/ciclo/InfoRow';
 import { Notice, Screen, SectionTitle } from '@/components/ciclo/Screen';
 import { StepTimeline } from '@/components/ciclo/StepTimeline';
-import { DocumentUploadSheet } from '@/components/DocumentUploadSheet';
-import { MotivoModal } from '@/components/MotivoModal';
 import { PressableScale } from '@/components/PressableScale';
 import { SecureDocumentViewer } from '@/components/SecureDocumentViewer';
 import { StatusBadge } from '@/components/StatusBadge';
 import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
 import { useEstilos } from '@/theme/ThemeProvider';
-import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
-import { useRhActa, useRhOperarActa, type RhActaOperacion } from '@/hooks/queries/useRhCicloLaboral';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useRhActa } from '@/hooks/queries/useRhCicloLaboral';
 import { useAuthStore } from '@/store/authStore';
-import { toast } from '@/store/toastStore';
-import { actaBadge, actaEstadoLabel, availableActaOperations } from '@/utils/acta';
-import { formatDateLong } from '@/utils/dates';
-import { getActionErrorMessage, logError } from '@/utils/errors';
+import type { ActaCircunstanciada, ActaPersona } from '@/types/rhCiclo';
+import { actaBadge, actaEntregaLabel, actaEstadoLabel, AVISO_ACTAS_SOLO_CONSULTA } from '@/utils/acta';
+import { formatDateLong, formatDateTime } from '@/utils/dates';
 import { joinName, slugifyFilename } from '@/utils/formatters';
-import { haptics } from '@/utils/haptics';
 
-type Sheet = null | 'anexo' | 'negativa' | 'seguimiento';
+/** «Puesto · Área» de una persona del acta (solo lo que mande el backend). */
+function puestoArea(persona: Pick<ActaPersona, 'puesto' | 'area'>): string | null {
+  return [persona.puesto, persona.area].filter(Boolean).join(' · ') || null;
+}
 
 /**
- * Detalle de acta (RH): hechos capturados, testigos, declaraciones, anexos,
- * seguimiento y acciones según `ActaAdministrativaPolicy`. El texto
- * jurídico sale de la plantilla del tipo (RH/Jurídico); la app no redacta
- * cláusulas.
+ * Detalle de acta (RH) — SOLO CONSULTA: `GET /rh/actas/{id}`. Muestra los
+ * datos capturados (incluida la «Acta administrativa circunstanciada»:
+ * incidencia, participantes, entrega de copia), anexos, documento generado
+ * y seguimiento. Crear, completar y operar el acta se hace en el Portal RH
+ * web; la app no redacta ni modifica nada.
  */
 export default function RhActaScreen() {
   const styles = useEstilos(crearEstilos);
@@ -40,11 +38,7 @@ export default function RhActaScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const query = useRhActa(id);
   const acta = query.data;
-  const bootstrap = useMobileBootstrap(true);
   const user = useAuthStore((state) => state.user);
-  const operar = useRhOperarActa(Number(id));
-  const { isOffline } = useNetworkStatus();
-  const [sheet, setSheet] = useState<Sheet>(null);
   const [anexoAbierto, setAnexoAbierto] = useState<{ id: number; nombre: string } | null>(null);
 
   if (anexoAbierto && acta) {
@@ -60,21 +54,7 @@ export default function RhActaScreen() {
     );
   }
 
-  const ops = acta ? availableActaOperations(acta, bootstrap.data?.user.permissions) : [];
-
-  const ejecutar = (op: RhActaOperacion, exito: string) =>
-    operar.mutate(op, {
-      onSuccess: () => {
-        haptics.success();
-        toast.success(exito);
-        setSheet(null);
-      },
-      onError: (error) => {
-        logError('rhActa.operar', error);
-        haptics.error();
-        toast.error(getActionErrorMessage(error));
-      },
-    });
+  const c = acta?.circunstanciada ?? null;
 
   return (
     <Screen
@@ -88,6 +68,8 @@ export default function RhActaScreen() {
       onRefresh={() => void query.refetch()}>
       {acta ? (
         <>
+          <Notice tone="info">{AVISO_ACTAS_SOLO_CONSULTA}</Notice>
+
           <Card style={styles.gap}>
             <View style={styles.header}>
               <Text style={styles.title}>{acta.tipo_etiqueta ?? acta.tipo}</Text>
@@ -100,6 +82,8 @@ export default function RhActaScreen() {
             {acta.negativa_firma ? <Notice tone="warning">Negativa a firmar registrada{acta.motivo_negativa ? `: ${acta.motivo_negativa}` : '.'}</Notice> : null}
           </Card>
 
+          {c ? <Incidencia c={c} motivo={acta.motivo} /> : null}
+
           <Card style={styles.gap}>
             <SectionTitle>Hechos</SectionTitle>
             <Text style={styles.body} selectable>
@@ -107,6 +91,9 @@ export default function RhActaScreen() {
             </Text>
           </Card>
 
+          {c ? <Participantes c={c} trabajador={acta.colaborador?.nombre ?? null} /> : null}
+
+          {/* Actas históricas (formatos anteriores): testigos y declaraciones capturados entonces. */}
           {acta.testigos && acta.testigos.length > 0 ? (
             <Card style={styles.gap}>
               <SectionTitle>Testigos</SectionTitle>
@@ -120,11 +107,21 @@ export default function RhActaScreen() {
             <Card style={styles.gap}>
               <SectionTitle>Declaraciones</SectionTitle>
               {acta.declaraciones.map((d, i) => (
-                <View key={i} style={styles.declaracion}>
+                <View key={i} style={styles.bloque}>
                   <Text style={styles.subTitle}>{d.persona}</Text>
                   <Text style={styles.body}>{d.declaracion}</Text>
                 </View>
               ))}
+            </Card>
+          ) : null}
+
+          {c ? (
+            <Card style={styles.gap}>
+              <SectionTitle>Entrega de copia</SectionTitle>
+              <Text style={styles.body}>{actaEntregaLabel(c.entrega.estado)}</Text>
+              {c.entrega.motivo ? <Text style={styles.muted}>{c.entrega.motivo}</Text> : null}
+              <InfoRow label="Registró" value={c.entrega.por} />
+              <InfoRow label="Fecha" value={c.entrega.en ? formatDateTime(c.entrega.en) : null} />
             </Card>
           ) : null}
 
@@ -140,13 +137,17 @@ export default function RhActaScreen() {
                 style={styles.anexo}>
                 <Text style={styles.link}>{anexo.nombre ?? `Anexo ${anexo.id}`}</Text>
                 {anexo.descripcion ? <Text style={styles.muted}>{anexo.descripcion}</Text> : null}
+                {anexo.fecha_identificacion ? <Text style={styles.muted}>Identificado: {anexo.fecha_identificacion}</Text> : null}
+                {anexo.relacion_hechos ? <Text style={styles.muted}>Relación con los hechos: {anexo.relacion_hechos}</Text> : null}
               </PressableScale>
             ))}
           </Card>
 
           {acta.documento_id ? (
             <Button title="Ver formato generado" variant="outline" leftIcon="document-text-outline" onPress={() => router.push(`/(app)/rh/documentos-laborales/${acta.documento_id}` as never)} />
-          ) : null}
+          ) : (
+            <Text style={styles.muted}>El formato del acta todavía no se genera.</Text>
+          )}
 
           {acta.seguimiento && acta.seguimiento.length > 0 ? (
             <Card>
@@ -156,134 +157,150 @@ export default function RhActaScreen() {
               </View>
             </Card>
           ) : null}
-
-          {ops.length > 0 ? (
-            <Card style={styles.gap}>
-              <SectionTitle>Acciones</SectionTitle>
-              {isOffline ? <Notice tone="warning">Sin conexión: requiere confirmación del servidor.</Notice> : null}
-              {ops.includes('editar') ? (
-                <Button
-                  title="Editar borrador"
-                  variant="outline"
-                  leftIcon="create-outline"
-                  onPress={() => router.push({ pathname: '/(app)/rh/actas/editar', params: { actaId: String(acta.id) } } as never)}
-                />
-              ) : null}
-              {ops.includes('anexo') ? <Button title="Agregar anexo" variant="outline" leftIcon="attach-outline" disabled={isOffline} onPress={() => setSheet('anexo')} /> : null}
-              {ops.includes('generar_documento') ? (
-                <Button
-                  title={acta.documento_id ? 'Regenerar formato' : 'Generar formato'}
-                  variant="outline"
-                  disabled={isOffline || operar.isPending}
-                  onPress={() =>
-                    Alert.alert('Generar formato', 'Se generará el documento con la plantilla del tipo de acta cargada por RH/Jurídico.', [
-                      { text: 'Cancelar', style: 'cancel' },
-                      { text: 'Generar', onPress: () => ejecutar({ tipo: 'generar_documento' }, 'Formato generado.') },
-                    ])
-                  }
-                />
-              ) : null}
-              {ops.includes('negativa_firma') && !acta.negativa_firma ? (
-                <Button title="Registrar negativa a firmar" variant="outline" disabled={isOffline} onPress={() => setSheet('negativa')} />
-              ) : null}
-              {ops.includes('seguimiento') ? <Button title="Agregar seguimiento" variant="outline" disabled={isOffline} onPress={() => setSheet('seguimiento')} /> : null}
-              {ops.includes('cerrar') ? (
-                <Button
-                  title="Cerrar acta"
-                  variant="danger"
-                  disabled={isOffline || operar.isPending}
-                  onPress={() =>
-                    Alert.alert('Cerrar acta', 'El acta quedará cerrada; ya no admitirá anexos ni cambios.', [
-                      { text: 'Cancelar', style: 'cancel' },
-                      { text: 'Cerrar', style: 'destructive', onPress: () => ejecutar({ tipo: 'cerrar' }, 'Acta cerrada.') },
-                    ])
-                  }
-                />
-              ) : null}
-            </Card>
-          ) : null}
-
-          <DocumentUploadSheet
-            visible={sheet === 'anexo'}
-            title="Anexo del acta"
-            onClose={() => setSheet(null)}
-            onConfirm={async (file) => {
-              await operar.mutateAsync({ tipo: 'anexo', archivo: { uri: file.uri, name: file.name, mimeType: file.mimeType } });
-              haptics.success();
-              toast.success('Anexo agregado.');
-              setSheet(null);
-            }}
-          />
-          <MotivoModal
-            visible={sheet === 'negativa'}
-            title="Negativa a firmar"
-            description="Describe lo ocurrido (hechos). Queda registrado en el acta."
-            confirmLabel="Registrar"
-            submitting={operar.isPending}
-            onCancel={() => setSheet(null)}
-            onConfirm={(motivo) => ejecutar({ tipo: 'negativa_firma', motivo }, 'Negativa registrada.')}
-          />
-          <MotivoModal
-            visible={sheet === 'seguimiento'}
-            title="Agregar seguimiento"
-            description="Nota de seguimiento del acta."
-            confirmLabel="Agregar"
-            submitting={operar.isPending}
-            onCancel={() => setSheet(null)}
-            onConfirm={(nota) => ejecutar({ tipo: 'seguimiento', nota }, 'Seguimiento agregado.')}
-          />
         </>
       ) : null}
     </Screen>
   );
 }
 
+function Incidencia({ c, motivo }: { c: ActaCircunstanciada; motivo: string | null }) {
+  const styles = useEstilos(crearEstilos);
+  const tipo = c.incidencia.tipo === 'otra' ? (c.incidencia.otro ?? c.incidencia.tipo_etiqueta) : (c.incidencia.tipo_etiqueta ?? motivo);
+  return (
+    <Card style={styles.gap}>
+      <SectionTitle>Incidencia</SectionTitle>
+      <InfoRow label="Tipo de incidencia" value={tipo} icon="alert-circle-outline" />
+      <InfoRow label="Fecha de los hechos" value={c.incidencia.fecha_hechos} icon="calendar-outline" />
+      <InfoRow label="Hora de los hechos" value={c.incidencia.hora_hechos} icon="time-outline" />
+      <InfoRow label="Lugar de los hechos" value={c.incidencia.lugar_hechos} icon="location-outline" />
+      {c.disposiciones ? (
+        <View style={styles.bloque}>
+          <Text style={styles.subTitle}>Disposiciones aplicables</Text>
+          <Text style={styles.body}>{c.disposiciones}</Text>
+        </View>
+      ) : null}
+    </Card>
+  );
+}
+
+function Participantes({ c, trabajador }: { c: ActaCircunstanciada; trabajador: string | null }) {
+  const styles = useEstilos(crearEstilos);
+  const manifestacionTrabajador =
+    c.trabajador.manifesto === true ? c.trabajador.manifestacion : c.trabajador.manifesto === false ? 'No quiso manifestar nada.' : null;
+
+  return (
+    <Card style={styles.gap}>
+      <SectionTitle>Participantes</SectionTitle>
+
+      {c.responsable.nombre ? (
+        <View style={styles.bloque}>
+          <Text style={styles.kicker}>Levanta el acta{c.responsable.caracter_etiqueta ? ` · ${c.responsable.caracter_etiqueta}` : ''}</Text>
+          <Text style={styles.subTitle}>{c.responsable.nombre}</Text>
+          {puestoArea(c.responsable) ? <Text style={styles.muted}>{puestoArea(c.responsable)}</Text> : null}
+          {c.responsable.manifestacion ? <Text style={styles.body}>{c.responsable.manifestacion}</Text> : null}
+        </View>
+      ) : null}
+
+      {c.jefe.participa && c.jefe.nombre ? (
+        <View style={styles.bloque}>
+          <Text style={styles.kicker}>Jefe inmediato</Text>
+          <Text style={styles.subTitle}>{c.jefe.nombre}</Text>
+          {puestoArea(c.jefe) ? <Text style={styles.muted}>{puestoArea(c.jefe)}</Text> : null}
+          {c.jefe.manifestacion ? <Text style={styles.body}>{c.jefe.manifestacion}</Text> : null}
+        </View>
+      ) : null}
+
+      {c.testigos_hechos.map((t, i) => (
+        <View key={`h${i}`} style={styles.bloque}>
+          <Text style={styles.kicker}>Testigo de hechos</Text>
+          <Text style={styles.subTitle}>{t.nombre ?? 'Testigo'}</Text>
+          {puestoArea(t) ? <Text style={styles.muted}>{puestoArea(t)}</Text> : null}
+          {t.relacion ? <Text style={styles.muted}>{t.relacion === 'otra' && t.relacion_otro ? t.relacion_otro : t.relacion_etiqueta}</Text> : null}
+          {t.manifestacion ? <Text style={styles.body}>{t.manifestacion}</Text> : !t.declaro ? <Text style={styles.muted}>No declaró.</Text> : null}
+        </View>
+      ))}
+
+      {c.testigos_asistencia.map((t, i) => (
+        <View key={`a${i}`} style={styles.bloque}>
+          <Text style={styles.kicker}>Testigo de asistencia</Text>
+          <Text style={styles.subTitle}>{t.nombre ?? 'Testigo'}</Text>
+          {puestoArea(t) ? <Text style={styles.muted}>{puestoArea(t)}</Text> : null}
+          {t.manifestacion ? <Text style={styles.body}>{t.manifestacion}</Text> : null}
+        </View>
+      ))}
+
+      {manifestacionTrabajador || c.trabajador.elementos ? (
+        <View style={styles.bloque}>
+          <Text style={styles.kicker}>Trabajador</Text>
+          {trabajador ? <Text style={styles.subTitle}>{trabajador}</Text> : null}
+          {manifestacionTrabajador ? <Text style={styles.body}>{manifestacionTrabajador}</Text> : null}
+          {c.trabajador.elementos ? <Text style={styles.muted}>Elementos que aportó: {c.trabajador.elementos}</Text> : null}
+        </View>
+      ) : null}
+
+      {c.incidencias_levantamiento ? (
+        <View style={styles.bloque}>
+          <Text style={styles.kicker}>Incidencias durante el levantamiento</Text>
+          <Text style={styles.body}>{c.incidencias_levantamiento}</Text>
+        </View>
+      ) : null}
+    </Card>
+  );
+}
+
 const crearEstilos = (Colors: ColorPalette) =>
   StyleSheet.create({
-  gap: {
-    gap: Spacing.xs,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.sm,
-    flexWrap: 'wrap',
-  },
-  title: {
-    fontSize: FontSize.lg,
-    fontWeight: '800',
-    color: Colors.text,
-    flexShrink: 1,
-  },
-  subTitle: {
-    fontSize: FontSize.sm,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  body: {
-    fontSize: FontSize.sm,
-    color: Colors.text,
-    lineHeight: 20,
-  },
-  muted: {
-    fontSize: FontSize.xs,
-    color: Colors.textMuted,
-  },
-  declaracion: {
-    gap: 2,
-    paddingVertical: Spacing.xs,
-  },
-  anexo: {
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  link: {
-    fontSize: FontSize.sm,
-    fontWeight: '700',
-    color: Colors.primaryDark,
-  },
-  timeline: {
-    marginTop: Spacing.md,
-  },
-});
+    gap: {
+      gap: Spacing.xs,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: Spacing.sm,
+      flexWrap: 'wrap',
+    },
+    title: {
+      fontSize: FontSize.lg,
+      fontWeight: '800',
+      color: Colors.text,
+      flexShrink: 1,
+    },
+    kicker: {
+      fontSize: FontSize.xs,
+      fontWeight: '700',
+      color: Colors.textMuted,
+      textTransform: 'uppercase',
+    },
+    subTitle: {
+      fontSize: FontSize.sm,
+      fontWeight: '800',
+      color: Colors.text,
+    },
+    body: {
+      fontSize: FontSize.sm,
+      color: Colors.text,
+      lineHeight: 20,
+    },
+    muted: {
+      fontSize: FontSize.xs,
+      color: Colors.textMuted,
+    },
+    bloque: {
+      gap: 2,
+      paddingVertical: Spacing.xs,
+    },
+    anexo: {
+      minHeight: 44,
+      justifyContent: 'center',
+      gap: 2,
+    },
+    link: {
+      fontSize: FontSize.sm,
+      fontWeight: '700',
+      color: Colors.primaryDark,
+    },
+    timeline: {
+      marginTop: Spacing.md,
+    },
+  });

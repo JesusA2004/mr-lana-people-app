@@ -2,15 +2,12 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { Button } from '@/components/Button';
 import { FilterChips } from '@/components/ciclo/FilterChips';
 import { ItemCard, LoadMore } from '@/components/ciclo/ItemCard';
-import { EmptyMessage, Screen } from '@/components/ciclo/Screen';
+import { EmptyMessage, Notice, Screen } from '@/components/ciclo/Screen';
 import { Spacing } from '@/constants/colors';
-import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useRhActas } from '@/hooks/queries/useRhCicloLaboral';
-import { actaBadge, actaEstadoLabel } from '@/utils/acta';
-import { hasPermission } from '@/utils/capabilities';
+import { actaBadge, actaEstadoLabel, AVISO_ACTAS_SOLO_CONSULTA } from '@/utils/acta';
 import { formatDateShort } from '@/utils/dates';
 
 type Filtro = 'todas' | 'borrador' | 'generada' | 'firmada' | 'cerrada';
@@ -23,13 +20,14 @@ const FILTROS: { value: Filtro; label: string }[] = [
   { value: 'cerrada', label: 'Cerradas' },
 ];
 
-/** Actas (RH) — `GET /rh/actas` (permiso `actas.ver`). El implicado nunca las ve. */
+/**
+ * Actas (RH) — SOLO CONSULTA: `GET /rh/actas` (permiso `actas.ver`). Se
+ * levantan y completan en el Portal RH web. El implicado nunca las ve.
+ */
 export default function RhActasScreen() {
   const router = useRouter();
   const { colaboradorId, nombre } = useLocalSearchParams<{ colaboradorId?: string; nombre?: string }>();
   const [filtro, setFiltro] = useState<Filtro>('todas');
-  const bootstrap = useMobileBootstrap(true);
-  const puedeCrear = !!colaboradorId && hasPermission(bootstrap.data?.user.permissions, 'actas.crear');
   const query = useRhActas({ ...(filtro !== 'todas' ? { estado: filtro } : {}), ...(colaboradorId ? { colaborador_id: colaboradorId } : {}) });
   const actas = query.data?.pages.flatMap((page) => page.data) ?? [];
 
@@ -43,13 +41,7 @@ export default function RhActasScreen() {
       refreshing={query.isRefetching}
       onRefresh={() => void query.refetch()}
       header={<FilterChips options={FILTROS} value={filtro} onChange={setFiltro} />}>
-      {puedeCrear ? (
-        <Button
-          title="Nueva acta"
-          leftIcon="add-circle-outline"
-          onPress={() => router.push({ pathname: '/(app)/rh/actas/editar', params: { colaboradorId, nombre } } as never)}
-        />
-      ) : null}
+      <Notice tone="info">{AVISO_ACTAS_SOLO_CONSULTA}</Notice>
       {actas.length === 0 ? (
         <EmptyMessage message="No hay actas en esta sección." />
       ) : (
@@ -61,7 +53,7 @@ export default function RhActasScreen() {
               kicker={acta.tipo_etiqueta}
               title={acta.colaborador?.nombre ?? 'Colaborador'}
               subtitle={[acta.folio, acta.fecha ? formatDateShort(acta.fecha) : null].filter(Boolean).join(' · ')}
-              lines={[acta.lugar, acta.negativa_firma ? 'Negativa a firmar registrada' : null]}
+              lines={[acta.motivo, acta.lugar, acta.negativa_firma ? 'Negativa a firmar registrada' : null]}
               status={actaBadge(acta.estado)}
               statusLabel={actaEstadoLabel(acta.estado)}
               onPress={() => router.push(`/(app)/rh/actas/${acta.id}` as never)}
