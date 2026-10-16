@@ -66,9 +66,18 @@ describe('estados de firma', () => {
 });
 
 describe('buildLaborDocumentTimeline', () => {
-  it('solo incluye los pasos que pide la plantilla', () => {
+  it('solo incluye los pasos que pide la plantilla y concluye en el paso terminal', () => {
     const keys = buildLaborDocumentTimeline(doc({ requiere_firma_digital: true })).map((s) => s.key);
-    expect(keys).toEqual(['generado', 'firma_digital', 'archivado']);
+    expect(keys).toEqual(['generado', 'firma_digital', 'concluido']);
+  });
+
+  it('flujo físico nuevo: generado → impresión → firma física → concluido (sin envío/recepción/escaneo)', () => {
+    const keys = buildLaborDocumentTimeline(doc({ requiere_impresion: true, requiere_firma_fisica: true })).map((s) => s.key);
+    expect(keys).toEqual(['generado', 'impresion', 'firma_fisica', 'concluido']);
+    expect(keys).not.toContain('envio');
+    expect(keys).not.toContain('recepcion');
+    expect(keys).not.toContain('escaneo');
+    expect(keys).not.toContain('archivado');
   });
 
   it('marca hecho/actual según el estado real', () => {
@@ -94,11 +103,24 @@ describe('availableRhDocumentOperations', () => {
     expect(availableRhDocumentOperations(doc({ ...fisico, estado: 'pendiente_impresion' }), ['documentos_laborales.ver'])).toEqual([]);
   });
 
-  it('ofrece la transición que permite el estado', () => {
+  it('ofrece la transición que permite el estado (solo imprimir / firma física)', () => {
     const perms = ['documentos_laborales.operar_fisico'];
     expect(availableRhDocumentOperations(doc({ ...fisico, estado: 'pendiente_impresion' }), perms)).toContain('imprimir');
-    expect(availableRhDocumentOperations(doc({ ...fisico, estado: 'enviado_corporativo' }), perms)).toEqual(['recepcion']);
-    expect(availableRhDocumentOperations(doc({ ...fisico, estado: 'escaneado' }), perms)).toEqual(['archivar']);
+    expect(availableRhDocumentOperations(doc({ ...fisico, estado: 'impreso' }), perms)).toContain('firma_fisica');
+    // Estados legacy: solo lectura, ya no ofrecen operación física nueva.
+    expect(availableRhDocumentOperations(doc({ ...fisico, estado: 'enviado_corporativo' }), perms)).toEqual([]);
+    expect(availableRhDocumentOperations(doc({ ...fisico, estado: 'escaneado' }), perms)).toEqual([]);
+  });
+
+  it('el flujo nuevo nunca ofrece envío/recepción/escaneo/archivar', () => {
+    const perms = ['documentos_laborales.operar_fisico', 'documentos_laborales.cancelar'];
+    const estados = ['generado', 'firmado_digitalmente', 'pendiente_impresion', 'impreso', 'pendiente_firma_fisica', 'firmado_fisicamente', 'enviado_corporativo', 'recibido_corporativo', 'escaneado'];
+    for (const estado of estados) {
+      const ops = availableRhDocumentOperations(doc({ ...fisico, estado }), perms);
+      for (const prohibida of ['envio', 'recepcion', 'escaneo', 'archivar']) {
+        expect(ops).not.toContain(prohibida);
+      }
+    }
   });
 
   it('nunca ofrece firma digital (es del titular) ni cancelar sin permiso', () => {

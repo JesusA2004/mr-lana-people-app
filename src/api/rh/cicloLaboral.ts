@@ -90,13 +90,6 @@ export interface FirmaFisicaPayload {
   observaciones?: string | null;
 }
 
-export interface EnvioPayload {
-  paqueteria: string;
-  numero_guia: string;
-  observaciones?: string | null;
-  comprobante?: LocalUploadFile | null;
-}
-
 export const rhDocumentosLaboralesApi = {
   async list(params: RhDocumentosLaboralesParams = {}): Promise<Paginated<LaborDocument>> {
     const response = await apiClient.get('/rh/documentos-laborales', { params });
@@ -124,34 +117,6 @@ export const rhDocumentosLaboralesApi = {
 
   async firmaFisica(id: number | string, payload: FirmaFisicaPayload): Promise<LaborDocument> {
     const response = await apiClient.post(`/rh/documentos-laborales/${id}/firma-fisica`, payload);
-    return normalizeLaborDocument(extractData<unknown>(response.data));
-  },
-
-  async envio(id: number | string, { comprobante, ...datos }: EnvioPayload): Promise<LaborDocument> {
-    const formData = new FormData();
-    formData.append('paqueteria', datos.paqueteria);
-    formData.append('numero_guia', datos.numero_guia);
-    if (datos.observaciones) formData.append('observaciones', datos.observaciones);
-    if (comprobante) appendFile(formData, 'comprobante', comprobante);
-    const response = await apiClient.post(`/rh/documentos-laborales/${id}/envio`, formData, { headers: multipartHeaders });
-    return normalizeLaborDocument(extractData<unknown>(response.data));
-  },
-
-  async recepcion(id: number | string, observaciones?: string | null): Promise<LaborDocument> {
-    const response = await apiClient.post(`/rh/documentos-laborales/${id}/recepcion`, { observaciones: observaciones || null });
-    return normalizeLaborDocument(extractData<unknown>(response.data));
-  },
-
-  async escaneo(id: number | string, archivo: LocalUploadFile, observaciones?: string | null): Promise<LaborDocument> {
-    const formData = new FormData();
-    appendFile(formData, 'archivo', archivo);
-    if (observaciones) formData.append('observaciones', observaciones);
-    const response = await apiClient.post(`/rh/documentos-laborales/${id}/escaneo`, formData, { headers: multipartHeaders });
-    return normalizeLaborDocument(extractData<unknown>(response.data));
-  },
-
-  async archivar(id: number | string, observaciones?: string | null): Promise<LaborDocument> {
-    const response = await apiClient.post(`/rh/documentos-laborales/${id}/archivar`, { observaciones: observaciones || null });
     return normalizeLaborDocument(extractData<unknown>(response.data));
   },
 
@@ -230,10 +195,14 @@ export const rhCierresApi = {
     };
   },
 
-  async finiquitoFirmado(id: number | string, archivo: LocalUploadFile): Promise<CierreLaboral> {
-    const formData = new FormData();
-    appendFile(formData, 'archivo', archivo);
-    const response = await apiClient.post(`/rh/cierres/${id}/finiquito/firmado`, formData, { headers: multipartHeaders });
+  /**
+   * Flujo FÍSICO vigente: el finiquito se imprime y se firma en papel; RH
+   * confirma la firma SIN subir archivo (`FiniquitoController::marcarFirmadoFisicamente`).
+   * Reemplaza la subida del escaneo firmado (que queda solo como legacy de
+   * solo lectura para registros antiguos que ya traían archivo).
+   */
+  async finiquitoFirmadoFisico(id: number | string, observacion?: string | null): Promise<CierreLaboral> {
+    const response = await apiClient.post(`/rh/cierres/${id}/finiquito/firmado-fisico`, { observacion: observacion || null });
     return normalizeCierre(extractData<unknown>(response.data));
   },
 

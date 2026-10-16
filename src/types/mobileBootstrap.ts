@@ -70,7 +70,27 @@ export interface MobileBootstrapFeatures {
   documentos_laborales?: boolean;
   document_extraction?: boolean;
   organigrama?: boolean;
-  [key: string]: boolean | undefined;
+  /**
+   * Contrato de cierre/documentos FÍSICO que el backend YA emite en
+   * `MobileBootstrapService::features()` (sesión de cierre definitivo). Se
+   * declaran opcionales/tolerantes: si una versión vieja del backend no los
+   * manda, `resolveDocumentCapabilities` aplica defaults seguros alineados
+   * con el contrato (flujo físico nuevo, firma autógrafa, sin escaneos).
+   *
+   *  - `document_flow` (int): 2 = flujo físico nuevo (impresión + firma
+   *    autógrafa, sin envío/recepción/escaneo). Default seguro: 2.
+   *  - `finiquito_firma_fisica` (bool): el finiquito se firma en papel y
+   *    PEOPLE solo registra quién/cuándo. Default seguro: true.
+   *  - `subida_escaneo_firmado` (bool): si es false NINGUNA pantalla ofrece
+   *    subir el escaneo de un documento firmado. Default seguro: false.
+   *  - `recibos` (bool, `employee_payroll_receipts`): recibos de nómina en la
+   *    app. Hoy se entregan impresos ⇒ default seguro: false.
+   */
+  document_flow?: number;
+  finiquito_firma_fisica?: boolean;
+  subida_escaneo_firmado?: boolean;
+  recibos?: boolean;
+  [key: string]: boolean | number | undefined;
 }
 
 export interface MobileBootstrapCounts {

@@ -64,7 +64,7 @@ export function laborDocumentBadgeStatus(estado: string | null | undefined): str
 export function colaboradorDocumentHint(documento: LaborDocument): string {
   if (canColaboradorSign(documento)) return 'Requiere tu firma digital.';
   if (documento.estado === 'cancelado') return 'Este documento fue cancelado por RH.';
-  if (documento.estado === 'archivado') return 'Documento completo y archivado en tu expediente.';
+  if (documento.estado === 'archivado') return 'Documento concluido y resguardado en tu expediente.';
   if (isLaborDocumentSigned(documento) && requiresPhysicalOriginal(documento)) {
     return documento.firmado_digital_en
       ? 'Firmado digitalmente. RH gestionará el original físico (impresión y firma autógrafa).'
@@ -139,14 +139,30 @@ export function buildLaborDocumentTimeline(documento: LaborDocument): LaborDocum
   if (documento.requiere_firma_fisica) {
     steps.push({ key: 'firma_fisica', label: 'Firma física', reachedAt: 'firmado_fisicamente', date: fisico?.firmado_fisico_en });
   }
-  if (requiresPhysicalOriginal(documento)) {
-    steps.push(
-      { key: 'envio', label: 'Envío a corporativo', reachedAt: 'enviado_corporativo', date: fisico?.enviado_en },
-      { key: 'recepcion', label: 'Recepción en corporativo', reachedAt: 'recibido_corporativo', date: fisico?.recibido_en },
-      { key: 'escaneo', label: 'Escaneo del original', reachedAt: 'escaneado', date: fisico?.escaneado_en },
-    );
+
+  // Paso terminal del flujo FÍSICO nuevo: "Concluido". Se alcanza cuando el
+  // documento llegó a su último paso requerido (firma física → impresión →
+  // firma digital → generado). Un documento legacy en un estado antiguo
+  // (enviado/recibido/escaneado/archivado) también lo marca como concluido
+  // porque su índice de estado ya rebasó al terminal.
+  let terminal: EstadoFlujoDocumento = 'generado';
+  // La fecha del paso terminal es la del último hito real; con terminal
+  // `generado` se deja en null para que el avance lo gobierne el estado (y un
+  // documento cancelado no se muestre como concluido).
+  let terminalDate: string | null = null;
+  if (documento.requiere_firma_digital) {
+    terminal = 'firmado_digitalmente';
+    terminalDate = documento.firmado_digital_en;
   }
-  steps.push({ key: 'archivado', label: 'Archivado', reachedAt: 'archivado' });
+  if (requiresPhysicalOriginal(documento)) {
+    terminal = 'impreso';
+    terminalDate = fisico?.impreso_en ?? null;
+  }
+  if (documento.requiere_firma_fisica) {
+    terminal = 'firmado_fisicamente';
+    terminalDate = fisico?.firmado_fisico_en ?? null;
+  }
+  steps.push({ key: 'concluido', label: 'Concluido', reachedAt: terminal, date: terminalDate });
 
   let currentAssigned = false;
   return steps.map((step) => {
@@ -165,7 +181,7 @@ export function buildLaborDocumentTimeline(documento: LaborDocument): LaborDocum
 
 // ------------------------------------------------------------ RH: operaciones disponibles
 
-export type RhDocumentOperation = 'imprimir' | 'firma_fisica' | 'envio' | 'recepcion' | 'escaneo' | 'archivar' | 'cancelar';
+export type RhDocumentOperation = 'imprimir' | 'firma_fisica' | 'cancelar';
 
 /**
  * Operaciones del original físico que tiene sentido OFRECER para este
@@ -181,17 +197,13 @@ export function availableRhDocumentOperations(documento: LaborDocument, permissi
   const ops: RhDocumentOperation[] = [];
 
   if (perms.has('documentos_laborales.operar_fisico')) {
-    // Con original físico el flujo SIEMPRE pasa por `pendiente_impresion` (aunque solo pida firma física).
+    // Flujo FÍSICO nuevo: generado → (firma digital) → impreso → firma física
+    // → CONCLUIDO. Con original físico el flujo SIEMPRE pasa por
+    // `pendiente_impresion` (aunque solo pida firma física). Ya no se ofrecen
+    // envío/recepción/escaneo/archivar: esos estados solo se CONSERVAN para
+    // leer documentos históricos, nunca como acción para documentos nuevos.
     if (['pendiente_impresion', 'generado', 'firmado_digitalmente'].includes(estado) && requiresPhysicalOriginal(documento)) ops.push('imprimir');
     if (['pendiente_firma_fisica', 'impreso'].includes(estado) && documento.requiere_firma_fisica) ops.push('firma_fisica');
-    if (['firmado_fisicamente', 'impreso'].includes(estado) && requiresPhysicalOriginal(documento)) ops.push('envio');
-    if (estado === 'enviado_corporativo') ops.push('recepcion');
-    if (['recibido_corporativo', 'firmado_fisicamente', 'impreso'].includes(estado) && requiresPhysicalOriginal(documento)) ops.push('escaneo');
-
-    const archivables = ['escaneado'];
-    if (!requiresPhysicalOriginal(documento)) archivables.push('generado', 'firmado_digitalmente');
-    if (!documento.requiere_firma_fisica) archivables.push('impreso');
-    if (archivables.includes(estado)) ops.push('archivar');
   }
 
   if (perms.has('documentos_laborales.cancelar') && estado !== 'archivado' && estado !== 'cancelado' && estado !== '') {
@@ -204,10 +216,6 @@ export function availableRhDocumentOperations(documento: LaborDocument, permissi
 export const RH_DOCUMENT_OPERATION_LABELS: Record<RhDocumentOperation, string> = {
   imprimir: 'Marcar impreso',
   firma_fisica: 'Registrar firma física',
-  envio: 'Registrar envío',
-  recepcion: 'Registrar recepción',
-  escaneo: 'Subir escaneo',
-  archivar: 'Archivar',
   cancelar: 'Cancelar documento',
 };
 
@@ -215,9 +223,6 @@ export const ETAPA_LABELS: Record<string, string> = {
   imprimir: 'Por imprimir',
   firma_colaborador: 'Firma del colaborador',
   firma_fisica: 'Firma física',
-  enviar: 'Por enviar',
-  recibir: 'Por recibir',
-  escanear: 'Por escanear',
 };
 
 const CATEGORIA_LABEL: Record<string, string> = {

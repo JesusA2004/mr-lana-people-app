@@ -36,22 +36,18 @@ const ICONO_ACCION: Record<string, keyof typeof Ionicons.glyphMap> = {
   descargar_word: 'share-outline',
   marcar_impreso: 'print-outline',
   registrar_firma: 'create-outline',
-  registrar_envio: 'paper-plane-outline',
-  registrar_recepcion: 'mail-open-outline',
-  subir_escaneo: 'camera-outline',
-  archivar: 'archive-outline',
 };
 
-/** Visor, Word y pasos físicos: se operan en la pantalla de documento laboral. */
+/**
+ * Visor, Word y pasos físicos del flujo nuevo: se operan en la pantalla de
+ * documento laboral. El flujo concluye en la firma física; envío/recepción/
+ * escaneo/archivado son legacy y el backend ya no los envía como acción.
+ */
 const ATAJO_DOCUMENTO: Record<string, string> = {
   descargar: 'ver',
   descargar_word: 'word',
   marcar_impreso: 'marcar_impreso',
   registrar_firma: 'registrar_firma',
-  registrar_envio: 'registrar_envio',
-  registrar_recepcion: 'registrar_recepcion',
-  subir_escaneo: 'subir_escaneo',
-  archivar: 'archivar',
 };
 
 /**

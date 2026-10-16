@@ -105,7 +105,7 @@ export default function RhColaboradorDetailScreen() {
             <Button title="Onboarding" leftIcon="school-outline" variant="outline" onPress={() => router.push(`/(app)/rh/onboarding/${id}` as never)} />
 
             {sections.has('documentos_laborales') || sections.has('alta') ? (
-              <LazySection icon="documents-outline" title="Documentos de contratación" caption="Contratos oficiales del puesto: generar → imprimir → firmar → escanear">
+              <LazySection icon="documents-outline" title="Documentos de contratación" caption="Contratos oficiales del puesto: generar → imprimir → firmar físicamente">
                 {() => <DocumentosProcesoCard origen={{ tipo: 'colaborador', id: Number(id) }} />}
               </LazySection>
             ) : null}

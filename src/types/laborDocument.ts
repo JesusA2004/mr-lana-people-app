@@ -27,8 +27,12 @@ export const ESTADOS_FLUJO_DOCUMENTO = [
 ] as const;
 export type EstadoFlujoDocumento = (typeof ESTADOS_FLUJO_DOCUMENTO)[number];
 
-/** `?etapa=` de `GET /rh/documentos-laborales` (`FlujoDocumentalService::etapasPendientes()`). */
-export const ETAPAS_DOCUMENTO_LABORAL = ['imprimir', 'firma_colaborador', 'firma_fisica', 'enviar', 'recibir', 'escanear'] as const;
+/**
+ * `?etapa=` de `GET /rh/documentos-laborales` (`FlujoDocumentalService::etapasPendientes()`).
+ * El flujo físico nuevo concluye en firma física: ya no hay etapas
+ * `enviar`/`recibir`/`escanear` (legacy — solo se leen documentos históricos).
+ */
+export const ETAPAS_DOCUMENTO_LABORAL = ['imprimir', 'firma_colaborador', 'firma_fisica'] as const;
 export type EtapaDocumentoLaboral = (typeof ETAPAS_DOCUMENTO_LABORAL)[number];
 
 export interface Testigo {

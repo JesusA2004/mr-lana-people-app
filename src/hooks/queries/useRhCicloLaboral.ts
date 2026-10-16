@@ -9,7 +9,6 @@ import {
   rhDocumentosLaboralesApi,
   rhPrestamosApi,
   type AutorizarPrestamoPayload,
-  type EnvioPayload,
   type FirmaFisicaPayload,
   type RhDocumentosLaboralesParams,
 } from '@/api/rh/cicloLaboral';
@@ -100,10 +99,6 @@ export function useRhDocumentoLaboral(id: string | number | undefined) {
 export type RhDocumentoOperacion =
   | { tipo: 'imprimir'; observaciones?: string | null }
   | { tipo: 'firma_fisica'; payload: FirmaFisicaPayload }
-  | { tipo: 'envio'; payload: EnvioPayload }
-  | { tipo: 'recepcion'; observaciones?: string | null }
-  | { tipo: 'escaneo'; archivo: LocalUploadFile; observaciones?: string | null }
-  | { tipo: 'archivar'; observaciones?: string | null }
   | { tipo: 'cancelar'; motivo: string };
 
 export function useRhOperarDocumentoLaboral(id: number, colaboradorId?: number | null) {
@@ -116,14 +111,6 @@ export function useRhOperarDocumentoLaboral(id: number, colaboradorId?: number |
           return rhDocumentosLaboralesApi.imprimir(id, op.observaciones);
         case 'firma_fisica':
           return rhDocumentosLaboralesApi.firmaFisica(id, op.payload);
-        case 'envio':
-          return rhDocumentosLaboralesApi.envio(id, op.payload);
-        case 'recepcion':
-          return rhDocumentosLaboralesApi.recepcion(id, op.observaciones);
-        case 'escaneo':
-          return rhDocumentosLaboralesApi.escaneo(id, op.archivo, op.observaciones);
-        case 'archivar':
-          return rhDocumentosLaboralesApi.archivar(id, op.observaciones);
         case 'cancelar':
           return rhDocumentosLaboralesApi.cancelar(id, op.motivo);
       }
@@ -155,7 +142,7 @@ export type RhCierreOperacion =
   | { tipo: 'eliminar_concepto'; conceptoId: number }
   | { tipo: 'revisar' }
   | { tipo: 'generar_finiquito' }
-  | { tipo: 'finiquito_firmado'; archivo: LocalUploadFile }
+  | { tipo: 'finiquito_firmado_fisico'; observacion?: string | null }
   | { tipo: 'confirmar_pago'; referencia: string }
   | { tipo: 'ejecutar_baja' }
   | { tipo: 'cerrar_expediente' }
@@ -184,8 +171,8 @@ export function useRhOperarCierre(id: number, colaboradorId?: number | null) {
           return rhCierresApi.revisarFiniquito(id);
         case 'generar_finiquito':
           return (await rhCierresApi.generarFiniquito(id)).cierre;
-        case 'finiquito_firmado':
-          return rhCierresApi.finiquitoFirmado(id, op.archivo);
+        case 'finiquito_firmado_fisico':
+          return rhCierresApi.finiquitoFirmadoFisico(id, op.observacion);
         case 'confirmar_pago':
           return rhCierresApi.confirmarPago(id, op.referencia);
         case 'ejecutar_baja':

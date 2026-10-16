@@ -3,6 +3,48 @@ import { isSelfServiceModuleEnabled } from '@/utils/modules';
 import { resolveTaskRoute } from '@/utils/taskRoutes';
 import { existeRuta, rutasDeLaApp } from '@/testing/navegacionInventario';
 import { normalizeActa, normalizeActaCatalogos } from '@/api/normalizers/rhCiclo';
+import { normalizeLaborDocument } from '@/api/normalizers/laborDocument';
+import { availableRhDocumentOperations } from '@/utils/laborDocuments';
+import { availableCierreOperations } from '@/utils/cierre';
+import { resolveDocumentCapabilities } from '@/utils/capabilities';
+import type { LaborDocument } from '@/types/laborDocument';
+import type { CierreLaboral } from '@/types/rhCiclo';
+
+/** Documento laboral del flujo físico nuevo (impresión + firma autógrafa). */
+function docFisico(estado: string, overrides: Partial<LaborDocument> = {}): LaborDocument {
+  return {
+    ...normalizeLaborDocument({ id: 1, titulo: 'Contrato', estado, categoria: 'contratos' }),
+    requiere_impresion: true,
+    requiere_firma_fisica: true,
+    ...overrides,
+  };
+}
+
+/** Cierre con finiquito listo para firma física (sin archivo). */
+function cierreConFiniquito(overrides: Partial<CierreLaboral> = {}): CierreLaboral {
+  return {
+    id: 1,
+    colaborador: { id: 9, nombre: 'Ana', numero_empleado: null },
+    solicitud_id: null,
+    evaluacion_id: null,
+    tipo_baja: 'renuncia',
+    tipo_baja_etiqueta: 'Renuncia voluntaria',
+    motivo: 'Mejor oferta',
+    fecha_efectiva: '2026-10-20',
+    estado: 'finiquito_en_proceso',
+    estado_etiqueta: 'Finiquito en proceso',
+    aviso_registrado_en: null,
+    pago_confirmado_en: null,
+    referencia_pago: null,
+    baja_ejecutada_en: null,
+    expediente_cerrado_en: null,
+    finiquito: { id: 5, estado: 'revisado', total_percepciones: 100, total_deducciones: 0, neto: 100, pagado_en: null, documento_id: 7 },
+    ...overrides,
+  };
+}
+
+/** Operaciones legacy que el flujo físico nuevo NO debe reintroducir nunca. */
+const OPERACIONES_RETIRADAS = ['enviar', 'envio', 'enviar_corporativo', 'recepcionar', 'recepcion', 'recibir_corporativo', 'escanear', 'escaneo', 'archivar', 'subir_escaneo', 'subir_firmado', 'subir_escaneo_firmado'];
 
 /**
  * Paridad móvil 1.2.0: inducción, directorio, pendientes nuevos de RH/
@@ -119,5 +161,60 @@ describe('auditoría app ↔ backend (2026-10-15)', () => {
 
   it('la app ya no tiene pantalla para crear/editar actas', () => {
     expect(rutasDeLaApp().some((ruta) => ruta.join('/').includes('actas/editar'))).toBe(false);
+  });
+});
+
+describe('paridad: documentos laborales conservan el flujo físico nuevo, sin operaciones legacy', () => {
+  const perms = ['documentos_laborales.operar_fisico', 'documentos_laborales.cancelar'];
+
+  it('SÍ ofrece la firma física del documento (flujo nuevo concluye en firma autógrafa)', () => {
+    expect(availableRhDocumentOperations(docFisico('impreso'), perms)).toContain('firma_fisica');
+    expect(availableRhDocumentOperations(docFisico('pendiente_impresion'), perms)).toContain('imprimir');
+  });
+
+  it('NO reintroduce envío a corporativo / recepción / escaneo / archivar en ningún estado', () => {
+    const estados = ['generado', 'firmado_digitalmente', 'pendiente_impresion', 'impreso', 'pendiente_firma_fisica', 'firmado_fisicamente', 'enviado_corporativo', 'recibido_corporativo', 'escaneado', 'archivado'];
+    for (const estado of estados) {
+      const ops = availableRhDocumentOperations(docFisico(estado), perms) as string[];
+      for (const retirada of OPERACIONES_RETIRADAS) {
+        expect(ops).not.toContain(retirada);
+      }
+    }
+  });
+
+  it('un documento histórico (escaneado/enviado) es de solo lectura, nunca ofrece operar el físico', () => {
+    expect(availableRhDocumentOperations(docFisico('escaneado'), perms)).not.toContain('firma_fisica');
+    expect(availableRhDocumentOperations(docFisico('enviado_corporativo'), perms)).not.toContain('imprimir');
+  });
+});
+
+describe('paridad: cierre/finiquito se firma físicamente (sin subir escaneo del finiquito)', () => {
+  const perms = ['cierres.gestionar', 'finiquitos.calcular', 'finiquitos.revisar', 'cierres.ejecutar_baja', 'finiquitos.confirmar_pago'];
+
+  it('SÍ soporta marcar el finiquito como firmado físicamente (sin archivo)', () => {
+    expect(availableCierreOperations(cierreConFiniquito(), perms)).toContain('finiquito_firmado_fisico');
+  });
+
+  it('NO ofrece ninguna operación de subir el finiquito firmado (escaneo/adjunto)', () => {
+    const estados = ['iniciado', 'aviso_registrado', 'finiquito_en_proceso', 'finiquito_firmado', 'pagado'];
+    for (const estado of estados) {
+      const ops = availableCierreOperations(cierreConFiniquito({ estado }), perms) as string[];
+      for (const retirada of [...OPERACIONES_RETIRADAS, 'subir_finiquito', 'subir_finiquito_firmado', 'adjuntar_finiquito', 'escanear_finiquito']) {
+        expect(ops).not.toContain(retirada);
+      }
+    }
+  });
+});
+
+describe('paridad: la subida de escaneos firmados está apagada por el contrato (defensa)', () => {
+  it('con subida_escaneo_firmado=false (default seguro) la app no habilita ninguna subida', () => {
+    expect(resolveDocumentCapabilities({ subida_escaneo_firmado: false } as never).subidaEscaneoFirmado).toBe(false);
+    // Ausente también se trata como apagado (fail-closed).
+    expect(resolveDocumentCapabilities(null).subidaEscaneoFirmado).toBe(false);
+  });
+
+  it('SÍ se conserva la firma física como flujo vigente (finiquito_firma_fisica=true por default)', () => {
+    expect(resolveDocumentCapabilities(null).finiquitoFirmaFisica).toBe(true);
+    expect(resolveDocumentCapabilities({ document_flow: 2 } as never).documentFlow).toBe(2);
   });
 });

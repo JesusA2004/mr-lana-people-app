@@ -22,3 +22,34 @@ export function canUseRhExperience(capabilities: MobileBootstrapCapabilities, fe
 export function hasPermission(permissions: string[] | undefined, permission: string): boolean {
   return Array.isArray(permissions) && permissions.includes(permission);
 }
+
+/**
+ * Contrato FÍSICO de cierre/documentos interpretado desde `features` del
+ * bootstrap. El backend es la autoridad; esto solo traduce los flags a algo
+ * tipado y, cuando el backend aún no los manda, aplica defaults SEGUROS
+ * alineados con el contrato (flujo físico nuevo, firma autógrafa, sin
+ * escaneos, recibos impresos). Igual que el resto de capabilities: nunca se
+ * deduce nada por nombre de rol.
+ */
+export interface DocumentFlowCapabilities {
+  /** 2 = flujo físico nuevo (impresión + firma autógrafa, sin envío/escaneo). Default: 2. */
+  documentFlow: number;
+  /** El finiquito se firma en papel; PEOPLE registra quién/cuándo (sin archivo). Default: true. */
+  finiquitoFirmaFisica: boolean;
+  /** Si false, NINGUNA pantalla ofrece subir el escaneo de un documento firmado. Default: false. */
+  subidaEscaneoFirmado: boolean;
+  /** Recibos de nómina en la app (hoy se entregan impresos). Default: false. */
+  recibos: boolean;
+}
+
+export function resolveDocumentCapabilities(features: MobileBootstrapFeatures | null | undefined): DocumentFlowCapabilities {
+  const flujo = features?.document_flow;
+  return {
+    documentFlow: typeof flujo === 'number' ? flujo : 2,
+    // Ausente/undefined ⇒ true (flujo físico vigente): solo un false explícito lo apaga.
+    finiquitoFirmaFisica: features?.finiquito_firma_fisica !== false,
+    // Ausente/undefined ⇒ false (fail-closed): solo un true explícito habilita la subida.
+    subidaEscaneoFirmado: features?.subida_escaneo_firmado === true,
+    recibos: features?.recibos === true,
+  };
+}

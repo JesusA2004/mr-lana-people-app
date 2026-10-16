@@ -50,7 +50,7 @@ export type CierreOperation =
   | 'conceptos'
   | 'revisar'
   | 'generar_finiquito'
-  | 'finiquito_firmado'
+  | 'finiquito_firmado_fisico'
   | 'confirmar_pago'
   | 'ejecutar_baja'
   | 'cerrar_expediente'
@@ -72,7 +72,7 @@ export function availableCierreOperations(cierre: CierreLaboral, permissions: st
 
   if (perms.has('finiquitos.calcular') && antesDeBaja && !finiquitoInmutable) {
     ops.push('calcular');
-    if (finiquito) ops.push('conceptos', 'generar_finiquito', 'finiquito_firmado');
+    if (finiquito) ops.push('conceptos', 'generar_finiquito', 'finiquito_firmado_fisico');
   }
 
   if (perms.has('finiquitos.revisar') && finiquito?.estado === 'borrador') ops.push('revisar');
@@ -97,7 +97,7 @@ export function cierreSiguientePaso(cierre: CierreLaboral): string | null {
   if (cierre.estado === 'baja_ejecutada') return 'Baja ejecutada: falta cerrar el expediente.';
   if (!f) return 'Calcula el finiquito para continuar.';
   if (f.estado === 'borrador') return 'El finiquito debe revisarse antes de generar el documento.';
-  if (f.estado !== 'firmado' && f.estado !== 'pagado') return 'Genera el finiquito y sube el documento firmado.';
+  if (f.estado !== 'firmado' && f.estado !== 'pagado') return 'Genera el finiquito, registra su impresión y confirma la firma física.';
   if (!f.pagado_en) return 'Confirma el pago del finiquito para poder ejecutar la baja.';
   return 'Listo para ejecutar la baja.';
 }

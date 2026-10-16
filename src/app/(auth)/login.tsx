@@ -4,9 +4,9 @@ import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
 import * as SecureStore from 'expo-secure-store';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { z } from 'zod';
 
@@ -41,6 +41,9 @@ export default function LoginScreen() {
   const router = useRouter();
   const login = useAuthStore((state) => state.login);
   const [formError, setFormError] = useState<string | null>(null);
+  // Enfocar Contraseña al presionar "Siguiente" en Usuario (el componente
+  // Input reenvía su ref al TextInput interno, forwardRef).
+  const passwordRef = useRef<TextInput>(null);
 
   const {
     control,
@@ -80,10 +83,18 @@ export default function LoginScreen() {
       {/* Formas decorativas suaves (sin degradado: expo-linear-gradient no está instalado). */}
       <View style={styles.decorTop} pointerEvents="none" />
       <View style={styles.decorBottom} pointerEvents="none" />
+      {/* iOS: 'padding' sube el formulario sobre el teclado. Android ya
+          reajusta la ventana (softwareKeyboardLayoutMode "resize" por
+          defecto), así que 'height' estorbaría; con undefined el ScrollView
+          alcanza el botón "Ingresar" en teléfonos pequeños. */}
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.flex}>
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          showsVerticalScrollIndicator={false}>
           <View style={styles.contentWrapper}>
             <View style={styles.brand}>
               <View style={styles.logoBadge}>
@@ -120,6 +131,8 @@ export default function LoginScreen() {
                     autoComplete="username"
                     textContentType="username"
                     returnKeyType="next"
+                    submitBehavior="submit"
+                    onSubmitEditing={() => passwordRef.current?.focus()}
                   />
                 )}
               />
@@ -128,6 +141,7 @@ export default function LoginScreen() {
                 name="password"
                 render={({ field: { value, onChange, onBlur } }) => (
                   <Input
+                    ref={passwordRef}
                     label="Contraseña"
                     placeholder="••••••••"
                     value={value}

@@ -5,15 +5,12 @@ import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import { rhDocumentosLaboralesApi } from '@/api/rh/cicloLaboral';
 import { rhDocumentosProcesoApi } from '@/api/rh/documentosProceso';
-import type { LocalUploadFile } from '@/api/upload';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
-import { FilePickButton } from '@/components/ciclo/FilePickButton';
 import { Field, FormSheet } from '@/components/ciclo/FormSheet';
 import { InfoRow } from '@/components/ciclo/InfoRow';
 import { Notice, Screen, SectionTitle } from '@/components/ciclo/Screen';
 import { StepTimeline } from '@/components/ciclo/StepTimeline';
-import { DocumentUploadSheet } from '@/components/DocumentUploadSheet';
 import { MotivoModal } from '@/components/MotivoModal';
 import { PressableScale } from '@/components/PressableScale';
 import { SecureDocumentViewer } from '@/components/SecureDocumentViewer';
@@ -38,24 +35,21 @@ import {
   type RhDocumentOperation,
 } from '@/utils/laborDocuments';
 
-type Sheet = null | 'imprimir' | 'firma_fisica' | 'envio' | 'recepcion' | 'archivar' | 'escaneo' | 'cancelar';
+type Sheet = null | 'imprimir' | 'firma_fisica' | 'cancelar';
 
 /** Atajo desde "Documentos del proceso" (siguiente acción del backend) → paso físico. */
 const ATAJO_A_OPERACION: Record<string, RhDocumentOperation> = {
   marcar_impreso: 'imprimir',
   registrar_firma: 'firma_fisica',
-  registrar_envio: 'envio',
-  registrar_recepcion: 'recepcion',
-  subir_escaneo: 'escaneo',
-  archivar: 'archivar',
 };
 
 /**
  * Detalle RH de un documento laboral: datos, bitácora real (`eventos`) y
- * acciones contextuales del ORIGINAL FÍSICO (imprimir, firma física, envío,
- * recepción, escaneo, archivar, cancelar) — solo las que el permiso real y
- * el estado actual permiten (`availableRhDocumentOperations`). La firma
- * digital es del colaborador titular y NUNCA se ofrece aquí.
+ * acciones contextuales del ORIGINAL FÍSICO del flujo nuevo (imprimir, firma
+ * física, cancelar) — solo las que el permiso real y el estado actual
+ * permiten (`availableRhDocumentOperations`). El flujo concluye en la firma
+ * física: envío/recepción/escaneo/archivado son legacy de solo lectura. La
+ * firma digital es del colaborador titular y NUNCA se ofrece aquí.
  */
 export default function RhDocumentoLaboralScreen() {
   const Colors = useColores();
@@ -78,9 +72,6 @@ export default function RhDocumentoLaboralScreen() {
   const [observaciones, setObservaciones] = useState('');
   const [huella, setHuella] = useState(false);
   const [testigo, setTestigo] = useState('');
-  const [paqueteria, setPaqueteria] = useState('');
-  const [guia, setGuia] = useState('');
-  const [comprobante, setComprobante] = useState<LocalUploadFile | null>(null);
 
   const opsDisponibles = documento ? availableRhDocumentOperations(documento, bootstrap.data?.user.permissions) : [];
 
@@ -123,9 +114,6 @@ export default function RhDocumentoLaboralScreen() {
     setObservaciones('');
     setHuella(false);
     setTestigo('');
-    setPaqueteria('');
-    setGuia('');
-    setComprobante(null);
   };
 
   const ejecutar = (op: RhDocumentoOperacion, exito: string) => {
@@ -199,12 +187,21 @@ export default function RhDocumentoLaboralScreen() {
               <InfoRow label="Firma física" value={formatDateTime(documento.original_fisico.firmado_fisico_en)} />
               <InfoRow label="Huella registrada" value={documento.original_fisico.firmado_fisico_en ? (documento.original_fisico.huella_registrada ? 'Sí' : 'No') : null} />
               <InfoRow label="Testigos" value={documento.original_fisico.testigos.map((t) => t.nombre).join(', ')} />
-              <InfoRow label="Paquetería" value={documento.original_fisico.paqueteria} />
-              <InfoRow label="Guía" value={documento.original_fisico.numero_guia} />
-              <InfoRow label="Enviado" value={formatDateTime(documento.original_fisico.enviado_en)} />
-              <InfoRow label="Comprobante de envío" value={documento.original_fisico.enviado_en ? (documento.original_fisico.tiene_comprobante ? 'Sí' : 'No') : null} />
-              <InfoRow label="Recibido" value={formatDateTime(documento.original_fisico.recibido_en)} />
-              <InfoRow label="Escaneado" value={formatDateTime(documento.original_fisico.escaneado_en)} />
+              {/* Flujo histórico (legacy): envío a corporativo, recepción y
+                  escaneo del original. Solo se muestran si el documento YA
+                  traía esa metadata; el flujo nuevo concluye en la firma física
+                  y no vuelve a poblar estos campos. */}
+              {documento.original_fisico.enviado_en || documento.original_fisico.recibido_en || documento.original_fisico.escaneado_en ? (
+                <>
+                  <SectionTitle>Flujo histórico</SectionTitle>
+                  <InfoRow label="Paquetería" value={documento.original_fisico.paqueteria} />
+                  <InfoRow label="Guía" value={documento.original_fisico.numero_guia} />
+                  <InfoRow label="Enviado" value={formatDateTime(documento.original_fisico.enviado_en)} />
+                  <InfoRow label="Comprobante de envío" value={documento.original_fisico.enviado_en ? (documento.original_fisico.tiene_comprobante ? 'Sí' : 'No') : null} />
+                  <InfoRow label="Recibido" value={formatDateTime(documento.original_fisico.recibido_en)} />
+                  <InfoRow label="Escaneado" value={formatDateTime(documento.original_fisico.escaneado_en)} />
+                </>
+              ) : null}
             </Card>
           ) : null}
 
@@ -254,9 +251,9 @@ export default function RhDocumentoLaboralScreen() {
             </Card>
           ) : null}
 
-          {/* Imprimir / recepción / archivar: solo observaciones opcionales. */}
+          {/* Marcar impreso: solo observaciones opcionales. */}
           <FormSheet
-            visible={sheet === 'imprimir' || sheet === 'recepcion' || sheet === 'archivar'}
+            visible={sheet === 'imprimir'}
             title={sheet ? RH_DOCUMENT_OPERATION_LABELS[sheet as RhDocumentOperation] : ''}
             confirmLabel="Confirmar"
             submitting={operar.isPending}
@@ -264,8 +261,6 @@ export default function RhDocumentoLaboralScreen() {
             onConfirm={() => {
               const obs = observaciones.trim() || null;
               if (sheet === 'imprimir') ejecutar({ tipo: 'imprimir', observaciones: obs }, 'Documento marcado como impreso.');
-              if (sheet === 'recepcion') ejecutar({ tipo: 'recepcion', observaciones: obs }, 'Recepción registrada.');
-              if (sheet === 'archivar') ejecutar({ tipo: 'archivar', observaciones: obs }, 'Documento archivado.');
             }}>
             <Field label="Observaciones (opcional)" value={observaciones} onChangeText={setObservaciones} multiline maxLength={1000} />
           </FormSheet>
@@ -305,37 +300,6 @@ export default function RhDocumentoLaboralScreen() {
             />
             <Field label="Observaciones (opcional)" value={observaciones} onChangeText={setObservaciones} multiline maxLength={1000} />
           </FormSheet>
-
-          <FormSheet
-            visible={sheet === 'envio'}
-            title="Registrar envío a corporativo"
-            confirmLabel="Registrar envío"
-            submitting={operar.isPending}
-            confirmDisabled={paqueteria.trim() === '' || guia.trim() === ''}
-            onCancel={resetForm}
-            onConfirm={() =>
-              ejecutar(
-                { tipo: 'envio', payload: { paqueteria: paqueteria.trim(), numero_guia: guia.trim(), observaciones: observaciones.trim() || null, comprobante } },
-                'Envío registrado.',
-              )
-            }>
-            <Field label="Paquetería" value={paqueteria} onChangeText={setPaqueteria} maxLength={80} error={getFieldError(operar.error, 'paqueteria')} />
-            <Field label="Número de guía" value={guia} onChangeText={setGuia} maxLength={80} autoCapitalize="characters" error={getFieldError(operar.error, 'numero_guia')} />
-            <FilePickButton label="Comprobante (opcional)" file={comprobante} onChange={setComprobante} />
-            <Field label="Observaciones (opcional)" value={observaciones} onChangeText={setObservaciones} multiline maxLength={1000} />
-          </FormSheet>
-
-          <DocumentUploadSheet
-            visible={sheet === 'escaneo'}
-            title={`Escaneo del original: ${documento.titulo}`}
-            onClose={resetForm}
-            onConfirm={async (file) => {
-              await operar.mutateAsync({ tipo: 'escaneo', archivo: { uri: file.uri, name: file.name, mimeType: file.mimeType } });
-              haptics.success();
-              toast.success('Escaneo registrado y archivado en el expediente.');
-              resetForm();
-            }}
-          />
 
           <MotivoModal
             visible={sheet === 'cancelar'}

@@ -22,13 +22,14 @@ import { useRhCierre, useRhOperarCierre, type RhCierreOperacion } from '@/hooks/
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { toast } from '@/store/toastStore';
 import type { FiniquitoRenglon } from '@/types/rhCiclo';
+import { resolveDocumentCapabilities } from '@/utils/capabilities';
 import { availableCierreOperations, cierreBadge, CIERRE_STEPS, cierreStepIndex, cierreSiguientePaso } from '@/utils/cierre';
 import { formatDateLong, formatDateTime } from '@/utils/dates';
 import { getActionErrorMessage, getFieldError, logError } from '@/utils/errors';
 import { formatCurrencyMXN, numeroOpcional, parseCurrencyInput } from '@/utils/formatters';
 import { haptics } from '@/utils/haptics';
 
-type Sheet = null | 'aviso' | 'calcular' | 'concepto' | 'firmado' | 'pago' | 'cancelar';
+type Sheet = null | 'aviso' | 'calcular' | 'concepto' | 'finiquito_fisico' | 'pago' | 'cancelar';
 
 /**
  * Cierre laboral por pasos (motivo → aviso → finiquito → firma → pago →
@@ -57,6 +58,7 @@ export default function RhCierreDetailScreen() {
   const [sueldoMensual, setSueldoMensual] = useState('');
   const [sueldoPendiente, setSueldoPendiente] = useState('');
   const [referencia, setReferencia] = useState('');
+  const [observacionFiniquito, setObservacionFiniquito] = useState('');
   const [concepto, setConcepto] = useState<{ id: number | null; tipo: 'percepcion' | 'deduccion'; concepto: string; importe: string; cantidad: string; observaciones: string }>({
     id: null,
     tipo: 'percepcion',
@@ -68,6 +70,11 @@ export default function RhCierreDetailScreen() {
 
   const ops = cierre ? availableCierreOperations(cierre, bootstrap.data?.user.permissions) : [];
   const has = (op: (typeof ops)[number]) => ops.includes(op);
+  // Defensa (belt-and-suspenders) sobre el flujo físico ya retirado
+  // estáticamente: si el backend no habilita la subida de escaneos firmados
+  // (`subida_escaneo_firmado`, default seguro false), no se ofrece subir el
+  // aviso/renuncia firmada; el aviso se genera con el formato oficial.
+  const docCaps = resolveDocumentCapabilities(bootstrap.data?.features);
 
   const ejecutar = (op: RhCierreOperacion, exito: string) =>
     operar.mutate(op, {
@@ -202,7 +209,7 @@ export default function RhCierreDetailScreen() {
             <Card style={styles.gap}>
               <SectionTitle>Acciones</SectionTitle>
               {isOffline ? <Notice tone="warning">Sin conexión: estas acciones requieren confirmación del servidor.</Notice> : null}
-              {has('aviso') ? <Button title="Subir aviso / renuncia firmada" variant="outline" leftIcon="cloud-upload-outline" disabled={isOffline} onPress={() => setSheet('aviso')} /> : null}
+              {has('aviso') && docCaps.subidaEscaneoFirmado ? <Button title="Subir aviso / renuncia firmada" variant="outline" leftIcon="cloud-upload-outline" disabled={isOffline} onPress={() => setSheet('aviso')} /> : null}
               {has('generar_aviso') ? (
                 <Button
                   title="Generar aviso de terminación"
@@ -230,7 +237,18 @@ export default function RhCierreDetailScreen() {
                   onPress={() => confirmar('Generar finiquito', 'Se generará el PDF del finiquito y se archivará en el expediente.', { tipo: 'generar_finiquito' }, 'Documento de finiquito generado.')}
                 />
               ) : null}
-              {has('finiquito_firmado') ? <Button title="Subir finiquito firmado" variant="outline" leftIcon="cloud-upload-outline" disabled={isOffline} onPress={() => setSheet('firmado')} /> : null}
+              {has('finiquito_firmado_fisico') ? (
+                <Button
+                  title="Marcar finiquito como firmado físicamente"
+                  variant="outline"
+                  leftIcon="create-outline"
+                  disabled={isOffline}
+                  onPress={() => {
+                    setObservacionFiniquito('');
+                    setSheet('finiquito_fisico');
+                  }}
+                />
+              ) : null}
               {has('confirmar_pago') ? <Button title="Confirmar pago del finiquito" leftIcon="cash-outline" disabled={isOffline} onPress={() => setSheet('pago')} /> : null}
               {has('ejecutar_baja') ? (
                 <Button
@@ -261,17 +279,31 @@ export default function RhCierreDetailScreen() {
           ) : null}
 
           <DocumentUploadSheet
-            visible={sheet === 'aviso' || sheet === 'firmado'}
-            title={sheet === 'aviso' ? 'Aviso de término o renuncia firmada' : 'Finiquito firmado'}
+            visible={sheet === 'aviso'}
+            title="Aviso de término o renuncia firmada"
             onClose={() => setSheet(null)}
             onConfirm={async (file) => {
               const archivo = { uri: file.uri, name: file.name, mimeType: file.mimeType };
-              await operar.mutateAsync(sheet === 'aviso' ? { tipo: 'aviso', archivo } : { tipo: 'finiquito_firmado', archivo });
+              await operar.mutateAsync({ tipo: 'aviso', archivo });
               haptics.success();
-              toast.success(sheet === 'aviso' ? 'Aviso registrado.' : 'Finiquito firmado registrado.');
+              toast.success('Aviso registrado.');
               setSheet(null);
             }}
           />
+
+          {/* Flujo FÍSICO vigente: el finiquito se imprime y se firma en papel.
+              No se sube ningún archivo: PEOPLE registra quién confirmó la firma
+              y cuándo (`FiniquitoController::marcarFirmadoFisicamente`). */}
+          <FormSheet
+            visible={sheet === 'finiquito_fisico'}
+            title="Marcar finiquito como firmado físicamente"
+            description="Confirma que el finiquito fue impreso y firmado físicamente por las partes correspondientes. PEOPLE registrará quién confirmó la firma y cuándo. No se subirá ningún archivo."
+            confirmLabel="Confirmar firma física"
+            submitting={operar.isPending}
+            onCancel={() => setSheet(null)}
+            onConfirm={() => ejecutar({ tipo: 'finiquito_firmado_fisico', observacion: observacionFiniquito.trim() || null }, 'Finiquito marcado como firmado físicamente.')}>
+            <Field label="Observación (opcional)" value={observacionFiniquito} onChangeText={setObservacionFiniquito} multiline maxLength={500} error={getFieldError(operar.error, 'observacion')} />
+          </FormSheet>
 
           <FormSheet
             visible={sheet === 'calcular'}
