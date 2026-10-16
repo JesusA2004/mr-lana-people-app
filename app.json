@@ -2,7 +2,7 @@
   "expo": {
     "name": "Mr. Lana People",
     "slug": "mr-lana-people-app",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": [
@@ -23,7 +23,7 @@
     },
     "android": {
       "package": "com.mrlana.people",
-      "versionCode": 13,
+      "versionCode": 14,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#0D3E43",

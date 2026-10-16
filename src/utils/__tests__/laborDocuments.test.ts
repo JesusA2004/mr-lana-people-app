@@ -129,4 +129,16 @@ describe('availableRhDocumentOperations', () => {
     expect(availableRhDocumentOperations(doc({ estado: 'generado' }), ['documentos_laborales.cancelar'])).toEqual(['cancelar']);
     expect(availableRhDocumentOperations(doc({ estado: 'archivado' }), ['documentos_laborales.cancelar'])).toEqual([]);
   });
+
+  it('no ofrece cancelar en estados finales (firmado_fisicamente, archivado, cancelado)', () => {
+    const perms = ['documentos_laborales.cancelar'];
+    // `EstadoFlujoDocumento::esFinal()`: FlujoDocumentalService::cancelar() los rechaza con 422.
+    for (const estado of ['firmado_fisicamente', 'archivado', 'cancelado']) {
+      expect(availableRhDocumentOperations(doc({ ...fisico, estado }), perms)).not.toContain('cancelar');
+    }
+    // Estados NO finales sí admiten cancelar.
+    for (const estado of ['generado', 'pendiente_firma_colaborador', 'impreso', 'pendiente_firma_fisica']) {
+      expect(availableRhDocumentOperations(doc({ ...fisico, estado }), perms)).toContain('cancelar');
+    }
+  });
 });

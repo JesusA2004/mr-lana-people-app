@@ -45,7 +45,7 @@ function cierre(overrides: Partial<CierreLaboral> = {}, finiquito?: Partial<Fini
   return { ...base, ...overrides };
 }
 
-const PERMS_RH = ['cierres.gestionar', 'finiquitos.calcular', 'finiquitos.revisar', 'finiquitos.confirmar_pago', 'cierres.ejecutar_baja'];
+const PERMS_RH = ['cierres.gestionar', 'finiquitos.calcular', 'finiquitos.revisar', 'finiquitos.subir_firmado', 'finiquitos.confirmar_pago', 'cierres.ejecutar_baja'];
 
 describe('availableCierreOperations: flujo nuevo concluye en firma física', () => {
   it('ofrece marcar el finiquito como firmado físicamente (sin archivo)', () => {

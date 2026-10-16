@@ -47,13 +47,13 @@ function cierreConFiniquito(overrides: Partial<CierreLaboral> = {}): CierreLabor
 const OPERACIONES_RETIRADAS = ['enviar', 'envio', 'enviar_corporativo', 'recepcionar', 'recepcion', 'recibir_corporativo', 'escanear', 'escaneo', 'archivar', 'subir_escaneo', 'subir_firmado', 'subir_escaneo_firmado'];
 
 /**
- * Paridad móvil 1.2.0: inducción, directorio, pendientes nuevos de RH/
+ * Paridad móvil 1.3.0: inducción, directorio, pendientes nuevos de RH/
  * gerente, recibos impresos y configuración de build.
  */
 describe('configuración de la app', () => {
-  it('versionCode 13, versión 1.2.0 y el paquete Android intacto', () => {
-    expect(appConfig.expo.android.versionCode).toBe(13);
-    expect(appConfig.expo.version).toBe('1.2.0');
+  it('versionCode 14, versión 1.3.0 y el paquete Android intacto', () => {
+    expect(appConfig.expo.android.versionCode).toBe(14);
+    expect(appConfig.expo.version).toBe('1.3.0');
     expect(appConfig.expo.android.package).toBe('com.mrlana.people');
     expect(appConfig.expo.android.googleServicesFile).toBe('./google-services.json');
   });
@@ -189,7 +189,7 @@ describe('paridad: documentos laborales conservan el flujo físico nuevo, sin op
 });
 
 describe('paridad: cierre/finiquito se firma físicamente (sin subir escaneo del finiquito)', () => {
-  const perms = ['cierres.gestionar', 'finiquitos.calcular', 'finiquitos.revisar', 'cierres.ejecutar_baja', 'finiquitos.confirmar_pago'];
+  const perms = ['cierres.gestionar', 'finiquitos.calcular', 'finiquitos.revisar', 'finiquitos.subir_firmado', 'cierres.ejecutar_baja', 'finiquitos.confirmar_pago'];
 
   it('SÍ soporta marcar el finiquito como firmado físicamente (sin archivo)', () => {
     expect(availableCierreOperations(cierreConFiniquito(), perms)).toContain('finiquito_firmado_fisico');

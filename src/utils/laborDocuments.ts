@@ -15,6 +15,20 @@ export function estadoIndex(estado: string | null | undefined): number {
   return estado ? (ORDEN.get(estado) ?? -1) : -1;
 }
 
+/**
+ * Estados FINALES del flujo documental (`EstadoFlujoDocumento::esFinal()`):
+ * ya no admiten ninguna transición, ni siquiera cancelar. FirmadoFisicamente
+ * es final porque cierra el flujo FÍSICO nuevo (el original firmado se
+ * resguarda en papel); Archivado y Cancelado cierran el ciclo en los demás
+ * casos. `FlujoDocumentalService::cancelar()` responde 422 sobre cualquiera
+ * de ellos, así que la app tampoco ofrece «Cancelar».
+ */
+const ESTADOS_FINALES = new Set<string>(['firmado_fisicamente', 'archivado', 'cancelado']);
+
+export function esEstadoFinalDocumento(estado: string | null | undefined): boolean {
+  return !!estado && ESTADOS_FINALES.has(estado);
+}
+
 /** Estados en los que el colaborador ya aceptó/firmó (`EstadoFlujoDocumento::estaFirmado()`). */
 const FIRMADOS = new Set<string>([
   'firmado_digitalmente',
@@ -206,7 +220,10 @@ export function availableRhDocumentOperations(documento: LaborDocument, permissi
     if (['pendiente_firma_fisica', 'impreso'].includes(estado) && documento.requiere_firma_fisica) ops.push('firma_fisica');
   }
 
-  if (perms.has('documentos_laborales.cancelar') && estado !== 'archivado' && estado !== 'cancelado' && estado !== '') {
+  // `FlujoDocumentalService::cancelar()` rechaza (422) los estados finales
+  // —incluido `firmado_fisicamente`, que cierra el flujo físico nuevo—, así
+  // que no se ofrece «Cancelar» sobre ninguno de ellos ni sobre estado vacío.
+  if (perms.has('documentos_laborales.cancelar') && estado !== '' && !esEstadoFinalDocumento(estado)) {
     ops.push('cancelar');
   }
 

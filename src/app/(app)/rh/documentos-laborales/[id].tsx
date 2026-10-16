@@ -15,7 +15,7 @@ import { MotivoModal } from '@/components/MotivoModal';
 import { PressableScale } from '@/components/PressableScale';
 import { SecureDocumentViewer } from '@/components/SecureDocumentViewer';
 import { StatusBadge } from '@/components/StatusBadge';
-import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useRhDocumentoLaboral, useRhOperarDocumentoLaboral, type RhDocumentoOperacion } from '@/hooks/queries/useRhCicloLaboral';
@@ -345,7 +345,7 @@ const crearEstilos = (Colors: ColorPalette) =>
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
-    minHeight: 40,
+    minHeight: Layout.minTouchTarget,
   },
   link: {
     fontSize: FontSize.sm,

@@ -39,6 +39,20 @@ export function isCierreFinal(estado: string | null | undefined): boolean {
   return estado === 'expediente_cerrado' || estado === 'cancelado';
 }
 
+/** Etiqueta amigable del estado del finiquito (el backend no la envía; evita mostrar el valor crudo del enum). */
+const ETIQUETA_FINIQUITO: Record<string, string> = {
+  borrador: 'Borrador',
+  revisado: 'Revisado',
+  aprobado: 'Aprobado',
+  firmado: 'Firmado',
+  pagado: 'Pagado',
+};
+
+export function finiquitoEstadoEtiqueta(estado: string | null | undefined): string {
+  if (!estado) return '—';
+  return ETIQUETA_FINIQUITO[estado] ?? estado;
+}
+
 function antesDe(estado: string, limite: string): boolean {
   return (ORDEN.get(estado) ?? 99) < (ORDEN.get(limite) ?? 0);
 }
@@ -72,7 +86,17 @@ export function availableCierreOperations(cierre: CierreLaboral, permissions: st
 
   if (perms.has('finiquitos.calcular') && antesDeBaja && !finiquitoInmutable) {
     ops.push('calcular');
-    if (finiquito) ops.push('conceptos', 'generar_finiquito', 'finiquito_firmado_fisico');
+    if (finiquito) ops.push('conceptos', 'generar_finiquito');
+  }
+
+  // Marcar el finiquito como firmado FÍSICAMENTE: la web lo gatea con
+  // `finiquitos.subir_firmado` (`FiniquitoCalculoPolicy::subirFirmado`), NO con
+  // `finiquitos.calcular`. Se alinea la app al mismo permiso — la API ya envía
+  // la lista completa de permisos (`getAllPermissions()`), así que el usuario
+  // que puede firmar físicamente lo recibe. No se sube archivo: solo registra
+  // quién/cuándo.
+  if (perms.has('finiquitos.subir_firmado') && antesDeBaja && !finiquitoInmutable && finiquito) {
+    ops.push('finiquito_firmado_fisico');
   }
 
   if (perms.has('finiquitos.revisar') && finiquito?.estado === 'borrador') ops.push('revisar');

@@ -23,7 +23,7 @@ import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { toast } from '@/store/toastStore';
 import type { FiniquitoRenglon } from '@/types/rhCiclo';
 import { resolveDocumentCapabilities } from '@/utils/capabilities';
-import { availableCierreOperations, cierreBadge, CIERRE_STEPS, cierreStepIndex, cierreSiguientePaso } from '@/utils/cierre';
+import { availableCierreOperations, cierreBadge, CIERRE_STEPS, cierreStepIndex, cierreSiguientePaso, finiquitoEstadoEtiqueta } from '@/utils/cierre';
 import { formatDateLong, formatDateTime } from '@/utils/dates';
 import { getActionErrorMessage, getFieldError, logError } from '@/utils/errors';
 import { formatCurrencyMXN, numeroOpcional, parseCurrencyInput } from '@/utils/formatters';
@@ -172,7 +172,7 @@ export default function RhCierreDetailScreen() {
               <Text style={styles.muted}>Todavía no se calcula el finiquito.</Text>
             ) : (
               <>
-                <InfoRow label="Estado" value={cierre.finiquito.estado} />
+                <InfoRow label="Estado" value={finiquitoEstadoEtiqueta(cierre.finiquito.estado)} />
                 {cierre.finiquito.estado === 'firmado' || cierre.finiquito.estado === 'pagado' ? (
                   <Notice tone="info">Finiquito firmado: es de solo lectura.</Notice>
                 ) : null}
