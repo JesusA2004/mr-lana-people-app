@@ -13,10 +13,39 @@ import { useAcusarDescriptivoPuesto, useMarcarDescriptivoLeido, useMiDescriptivo
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { toast } from '@/store/toastStore';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
+import type { AcuseDescriptivoPuesto } from '@/types/descriptivoPuesto';
 import { formatDateLong } from '@/utils/dates';
 import { PLACEHOLDER_ENTERADO, descriptivoPendiente, puedeEnviarAcuse } from '@/utils/descriptivoPuesto';
 import { getActionErrorMessage, getFieldError, logError } from '@/utils/errors';
 import { haptics } from '@/utils/haptics';
+
+/** Firma mínima del `mutate` de `useMarcarDescriptivoLeido` que necesita el guard. */
+type MarcarLeidoMutate = (acuseId: number, callbacks: { onError: (error: unknown) => void }) => void;
+
+/**
+ * Registra en el servidor la primera lectura del acuse, una sola vez por
+ * pantalla. El `ref` evita llamadas duplicadas (en éxito o mientras la petición
+ * está en vuelo). Si la petición FALLA, libera el `ref` para permitir un
+ * reintento legítimo en el siguiente render — antes quedaba bloqueado para
+ * siempre mientras la pantalla siguiera montada y la lectura nunca se registraba.
+ */
+export function marcarDescriptivoLeidoUnaVez(
+  acuse: AcuseDescriptivoPuesto | null,
+  marcado: { current: number | null },
+  marcarLeido: MarcarLeidoMutate,
+) {
+  if (!acuse || acuse.leidoEn !== null || marcado.current === acuse.id) return;
+  const { id } = acuse;
+  marcado.current = id;
+  marcarLeido(id, {
+    onError: (error) => {
+      logError('descriptivoPuesto.leido', error);
+      // Falló el registro: solo si seguimos "dueños" del guard lo liberamos,
+      // para no pisar un intento posterior que ya esté en vuelo con otro id.
+      if (marcado.current === id) marcado.current = null;
+    },
+  });
+}
 
 /**
  * Mi descriptivo de puesto: el que Recursos Humanos te envió al aprobar tu
@@ -41,10 +70,7 @@ export default function DescriptivoPuestoScreen() {
 
   // Al abrirlo por primera vez, el servidor registra la lectura (una sola vez).
   useEffect(() => {
-    if (acuse && acuse.leidoEn === null && marcado.current !== acuse.id) {
-      marcado.current = acuse.id;
-      marcarLeido(acuse.id, { onError: (error) => logError('descriptivoPuesto.leido', error) });
-    }
+    marcarDescriptivoLeidoUnaVez(acuse, marcado, marcarLeido);
   }, [acuse, marcarLeido]);
 
   const enviar = () => {

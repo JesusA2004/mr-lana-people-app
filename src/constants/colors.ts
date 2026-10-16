@@ -5,8 +5,8 @@
  * claro/oscuro de Android/iOS (app.json `userInterfaceStyle: light`). El
  * interior usa la paleta oficial suavizada — crema, salvia, menta, olivo
  * claro y oro suave — igual que la web (resources/css/app.css del
- * backend). El LOGIN es la única pantalla oscura y lo es por diseño
- * (`LoginColors`), no por un tema.
+ * backend). Desde 2026-10-15 el LOGIN también es claro/crema (usa esta
+ * misma paleta `LightColors`); ya no existe ninguna pantalla oscura.
  *
  * Administración → Apariencia puede ajustar los colores de marca (ver
  * `src/theme/tema.ts`). Cambiar la paleta exacta de la marca debe requerir
@@ -100,8 +100,11 @@ export const Colors: ColorPalette = LightColors;
 export const Palettes: Record<ColorScheme, ColorPalette> = { light: LightColors };
 
 /**
- * Login: oscuro POR DISEÑO (petróleo profundo, oro y crema con el logo
- * negativo), igual que el login web. No depende del sistema ni del tema.
+ * LEGACY (2026-10-15): paleta oscura que usaba el login anterior (petróleo
+ * profundo, oro y crema). El login ahora es claro/crema y usa `LightColors`
+ * como el resto de la app, así que estos tokens ya no se consumen en la UI.
+ * Se conserva por compatibilidad (lo referencia `tema.test.ts`); no la uses
+ * en pantallas nuevas.
  */
 export const LoginColors = {
   background: '#0D3E43',
