@@ -23,7 +23,7 @@
     },
     "android": {
       "package": "com.mrlana.people",
-      "versionCode": 13,
+      "versionCode": 14,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#0D3E43",
