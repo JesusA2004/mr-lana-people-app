@@ -8,6 +8,7 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Notice, Screen } from '@/components/ciclo/Screen';
 import { DateField } from '@/components/forms/DateField';
+import { DomicilioFields } from '@/components/forms/DomicilioFields';
 import { OpcionesField } from '@/components/forms/OpcionesField';
 import { Input } from '@/components/Input';
 import { SuccessCheck } from '@/components/SuccessCheck';
@@ -17,6 +18,7 @@ import { useCreateSolicitud } from '@/hooks/queries/useSolicitudes';
 import { toast } from '@/store/toastStore';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { fromApiDateString, toApiDateString } from '@/utils/dates';
+import { esCampoDomicilio, validarDomicilio } from '@/utils/domicilio';
 import { getErrorMessage, getValidationErrors, logError } from '@/utils/errors';
 
 /**
@@ -40,6 +42,14 @@ export default function CompletarDatosScreen() {
 
   const datos = query.data;
   const capturados = Object.entries(valores).filter(([, v]) => v.trim() !== '');
+  // El domicilio se captura en su propio bloque (calle, número, colonia,
+  // C.P., municipio, estado); el resto de los datos, uno por uno.
+  const faltanDomicilio = (datos?.faltan ?? []).filter((dato) => esCampoDomicilio(dato.campo));
+  const faltanOtros = (datos?.faltan ?? []).filter((dato) => !esCampoDomicilio(dato.campo));
+  const camposDomicilio = faltanDomicilio.map((dato) => dato.campo).filter(esCampoDomicilio);
+  // El número interior se ofrece pero nunca «falta».
+  const pendientes = (datos?.faltan ?? []).filter((dato) => dato.campo !== 'domicilio_numero_interior').length;
+  const estadosApi = faltanDomicilio.find((dato) => dato.campo === 'domicilio_estado')?.opciones?.map((o) => o.value);
 
   const cambiar = (campo: string, valor: string) => {
     setValores((actual) => ({ ...actual, [campo]: valor }));
@@ -52,6 +62,18 @@ export default function CompletarDatosScreen() {
   const enviar = async () => {
     if (capturados.length === 0 || crear.isPending) {
       toast.warning('Captura al menos un dato para enviarlo a Recursos Humanos.');
+      return;
+    }
+
+    // Domicilio: si se empezó a capturar, completo (el número interior es
+    // opcional), C.P. de 5 dígitos y estado de la lista.
+    const empezoDomicilio = camposDomicilio.some((campo) => (valores[campo] ?? '').trim() !== '');
+    const erroresDomicilio = Object.fromEntries(
+      Object.entries(validarDomicilio(valores, empezoDomicilio, estadosApi)).filter(([campo]) => (camposDomicilio as string[]).includes(campo)),
+    ) as Record<string, string>;
+    if (Object.keys(erroresDomicilio).length > 0) {
+      setErrores((actual) => ({ ...actual, ...erroresDomicilio }));
+      toast.error(Object.values(erroresDomicilio)[0] ?? 'Revisa tu domicilio.');
       return;
     }
 
@@ -123,13 +145,23 @@ export default function CompletarDatosScreen() {
         ) : (
           <>
             <Notice tone="warning">
-              {`Faltan ${datos.faltan.length} ${datos.faltan.length === 1 ? 'dato' : 'datos'} en tu expediente. Captúralos y Recursos Humanos los revisa antes de guardarlos.`}
+              {`Faltan ${pendientes} ${pendientes === 1 ? 'dato' : 'datos'} en tu expediente. Captúralos y Recursos Humanos los revisa antes de guardarlos.`}
             </Notice>
             <View style={styles.campos}>
-              {datos.faltan.map((dato) => (
+              {faltanOtros.map((dato) => (
                 <CampoDato key={dato.campo} dato={dato} valor={valores[dato.campo]} error={errores[dato.campo]} onChange={(v) => cambiar(dato.campo, v)} />
               ))}
             </View>
+            {camposDomicilio.length > 0 ? (
+              <Card style={styles.domicilio}>
+                <View style={styles.domicilioTitulo}>
+                  <Ionicons name="home-outline" size={20} color={Colors.primaryDark} />
+                  <Text style={styles.fotoTitulo}>Domicilio</Text>
+                </View>
+                <Text style={styles.ayuda}>Como aparece en tu comprobante de domicilio. Tus contratos lo imprimen campo por campo.</Text>
+                <DomicilioFields valores={valores} errores={errores} campos={camposDomicilio} estados={estadosApi} onChange={cambiar} />
+              </Card>
+            ) : null}
             <Button
               title={capturados.length > 0 ? `Enviar ${capturados.length} ${capturados.length === 1 ? 'dato' : 'datos'} a RH` : 'Enviar a RH'}
               leftIcon="send-outline"
@@ -178,6 +210,9 @@ function CampoDato({ dato, valor, error, onChange }: { dato: DatoFaltante; valor
 const crearEstilos = (Colors: ColorPalette) =>
   StyleSheet.create({
     campos: { gap: Spacing.lg },
+    domicilio: { gap: Spacing.md, padding: Spacing.lg },
+    domicilioTitulo: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+    ayuda: { fontSize: FontSize.sm, color: Colors.textMuted },
     fotoCard: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.lg },
     fotoTexto: { flex: 1, gap: 2 },
     fotoTitulo: { fontSize: FontSize.md, fontWeight: '700', color: Colors.text },

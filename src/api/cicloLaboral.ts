@@ -34,28 +34,61 @@ export interface DatosFaltantes {
   solicitud_en_revision: boolean;
   /** Faltante accionable aparte (nunca mezclado con `faltan`): "Foto de perfil" + botón "Subir foto". */
   fotoPendiente: boolean;
+  /**
+   * Domicilio estructurado vigente («Solicitar cambio de domicilio»).
+   * `null` con un backend anterior que todavía no lo manda.
+   */
+  domicilio: DomicilioVigente | null;
+}
+
+/** Campo del domicilio con su valor vigente (`ActualizacionDatosService::domicilioConValor`). */
+export interface CampoDomicilioVigente extends DatoFaltante {
+  actual: string | null;
+}
+
+export interface DomicilioVigente {
+  /** Texto completo registrado (puede ser un texto previo, sin campos). */
+  texto: string | null;
+  completo: boolean;
+  campos: CampoDomicilioVigente[];
 }
 
 const TIPOS_CAPTURA: TipoCapturaDato[] = ['text', 'date', 'tel', 'email', 'number', 'opciones'];
 
+function normalizeDato(item: unknown): DatoFaltante | null {
+  const fila = asRecord(item);
+  if (typeof fila.campo !== 'string') return null;
+  const tipo = TIPOS_CAPTURA.includes(fila.tipo as TipoCapturaDato) ? (fila.tipo as TipoCapturaDato) : 'text';
+  const opciones = asArray(fila.opciones)
+    .map((o) => asRecord(o))
+    .filter((o) => typeof o.value === 'string')
+    .map((o) => ({ value: String(o.value), label: typeof o.label === 'string' ? o.label : String(o.value) }));
+  return {
+    campo: fila.campo,
+    etiqueta: typeof fila.etiqueta === 'string' ? fila.etiqueta : fila.campo,
+    tipo: tipo === 'opciones' && opciones.length === 0 ? 'text' : tipo,
+    opciones: opciones.length > 0 ? opciones : undefined,
+  };
+}
+
+export function normalizeDomicilioVigente(raw: unknown): DomicilioVigente | null {
+  if (raw === null || typeof raw !== 'object') return null;
+  const record = asRecord(raw);
+  const campos = asArray(record.campos)
+    .map((item): CampoDomicilioVigente | null => {
+      const dato = normalizeDato(item);
+      if (!dato) return null;
+      const actual = asRecord(item).actual;
+      return { ...dato, actual: typeof actual === 'string' && actual !== '' ? actual : null };
+    })
+    .filter((campo): campo is CampoDomicilioVigente => campo !== null);
+  return { texto: typeof record.texto === 'string' && record.texto !== '' ? record.texto : null, completo: record.completo === true, campos };
+}
+
 function normalizeDatosFaltantes(raw: unknown): DatosFaltantes {
   const record = asRecord(raw);
   const faltan = asArray(record.faltan)
-    .map((item): DatoFaltante | null => {
-      const fila = asRecord(item);
-      if (typeof fila.campo !== 'string') return null;
-      const tipo = TIPOS_CAPTURA.includes(fila.tipo as TipoCapturaDato) ? (fila.tipo as TipoCapturaDato) : 'text';
-      const opciones = asArray(fila.opciones)
-        .map((o) => asRecord(o))
-        .filter((o) => typeof o.value === 'string')
-        .map((o) => ({ value: String(o.value), label: typeof o.label === 'string' ? o.label : String(o.value) }));
-      return {
-        campo: fila.campo,
-        etiqueta: typeof fila.etiqueta === 'string' ? fila.etiqueta : fila.campo,
-        tipo: tipo === 'opciones' && opciones.length === 0 ? 'text' : tipo,
-        opciones: opciones.length > 0 ? opciones : undefined,
-      };
-    })
+    .map(normalizeDato)
     .filter((dato): dato is DatoFaltante => dato !== null);
 
   return {
@@ -63,6 +96,7 @@ function normalizeDatosFaltantes(raw: unknown): DatosFaltantes {
     faltan,
     solicitud_en_revision: record.solicitud_en_revision === true,
     fotoPendiente: record.foto_pendiente === true,
+    domicilio: normalizeDomicilioVigente(record.domicilio),
   };
 }
 

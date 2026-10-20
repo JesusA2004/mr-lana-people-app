@@ -206,7 +206,9 @@ export default function PerfilScreen() {
               </Card>
             </FadeInView>
 
-            <FadeInView index={6}>
+            <FadeInView index={6} style={styles.accionesDatos}>
+              {/* Domicilio campo por campo (calle, número, colonia, C.P., municipio, estado). */}
+              <Button title="Cambiar mi domicilio" leftIcon="home-outline" variant="outline" onPress={() => router.push('/cambiar-domicilio' as never)} />
               <Button
                 title="Solicitar actualización de datos"
                 variant="outline"
@@ -258,6 +260,9 @@ function SectionCard({
 
 const crearEstilos = (Colors: ColorPalette) =>
   StyleSheet.create({
+  accionesDatos: {
+    gap: Spacing.md,
+  },
   container: {
     flex: 1,
     backgroundColor: Colors.background,

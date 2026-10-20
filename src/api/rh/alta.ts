@@ -22,6 +22,14 @@ export interface AltaColaboradorPayload {
   curp?: string | null;
   rfc?: string | null;
   nss?: string | null;
+  /** Domicilio estructurado (opcional; el backend compone el texto completo). */
+  domicilio_calle?: string | null;
+  domicilio_numero_exterior?: string | null;
+  domicilio_numero_interior?: string | null;
+  domicilio_colonia?: string | null;
+  domicilio_cp?: string | null;
+  domicilio_municipio?: string | null;
+  domicilio_estado?: string | null;
   numero_empleado?: string | null;
   sucursal_principal_id: number;
   departamento_id?: number | null;

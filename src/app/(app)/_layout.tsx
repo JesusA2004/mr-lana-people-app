@@ -145,6 +145,8 @@ export default function AppLayout() {
           <Stack.Screen name="solicitud/[id]" />
           {/* «Completa tu información»: propone datos faltantes; RH los autoriza. */}
           <Stack.Screen name="completar-datos" />
+          {/* «Cambiar mi domicilio»: propone el domicilio campo por campo; RH lo autoriza. */}
+          <Stack.Screen name="cambiar-domicilio" />
           {/* Solicitar préstamo es una solicitud: disponible aunque el módulo Préstamos esté apagado. */}
           <Stack.Screen name="prestamos/solicitar" />
           <Stack.Screen name="expediente/[tipoId]" />
