@@ -1,8 +1,8 @@
-import { Image } from 'expo-image';
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
-import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { BrandLogo } from '@/components/BrandLogo';
+import { type ColorPalette } from '@/constants/colors';
 import { useEstilos } from '@/theme/ThemeProvider';
 
 export interface PrivacyOverlayProps {
@@ -23,9 +23,7 @@ export function PrivacyOverlay({ visible }: PrivacyOverlayProps) {
 
   return (
     <Animated.View entering={FadeIn.duration(120)} style={styles.container} pointerEvents="auto">
-      <Image source={require('@/assets/images/brand/logo-mark.png')} style={styles.logo} contentFit="contain" />
-      <Text style={styles.brandTitle}>MR. LANA</Text>
-      <Text style={styles.brandSubtitle}>PEOPLE</Text>
+      <BrandLogo width={240} />
     </Animated.View>
   );
 }
@@ -41,25 +39,7 @@ const crearEstilos = (Colors: ColorPalette) =>
     backgroundColor: Colors.background,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
     zIndex: 999,
     elevation: 999,
-  },
-  logo: {
-    width: 72,
-    height: 72,
-    marginBottom: Spacing.md,
-  },
-  brandTitle: {
-    fontSize: FontSize.xl,
-    fontWeight: '800',
-    color: Colors.text,
-    letterSpacing: 1,
-  },
-  brandSubtitle: {
-    fontSize: FontSize.sm,
-    fontWeight: '700',
-    color: Colors.primary,
-    letterSpacing: 6,
   },
 });

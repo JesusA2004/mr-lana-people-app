@@ -1,16 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
 import * as SecureStore from 'expo-secure-store';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { z } from 'zod';
 
+import { BrandLogo } from '@/components/BrandLogo';
 import { Button } from '@/components/Button';
+import { FormularioScroll } from '@/components/FormularioScroll';
 import { Input } from '@/components/Input';
 import { FontSize, Layout, Radius, Shadow, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
@@ -80,23 +81,12 @@ export default function LoginScreen() {
       {/* Formas decorativas suaves (sin degradado: expo-linear-gradient no está instalado). */}
       <View style={styles.decorTop} pointerEvents="none" />
       <View style={styles.decorBottom} pointerEvents="none" />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.flex}>
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      {/* El campo activo nunca queda tapado por el teclado (FormularioScroll). */}
+      <FormularioScroll contentContainerStyle={styles.scrollContent}>
           <View style={styles.contentWrapper}>
             <View style={styles.brand}>
-              <View style={styles.logoBadge}>
-                <Image
-                  source={require('@/assets/images/brand/logo-mark.png')}
-                  style={styles.logo}
-                  contentFit="contain"
-                />
-              </View>
-              <View style={styles.brandTitleRow}>
-                <Text style={styles.brandTitle}>MR. LANA</Text>
-                <Text style={styles.brandTitleAccent}>PEOPLE</Text>
-              </View>
+              {/* Logo oficial (MrLanaPeople_horizontal_color): nunca la marca escrita a mano. */}
+              <BrandLogo width={260} />
               <Text style={styles.brandTagline}>Tu portal de Recursos Humanos</Text>
             </View>
 
@@ -177,8 +167,7 @@ export default function LoginScreen() {
               </Pressable>
             </View>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </FormularioScroll>
     </SafeAreaView>
   );
 }
@@ -226,41 +215,6 @@ const crearEstilos = (Colors: ColorPalette) =>
     brand: {
       alignItems: 'center',
       gap: Spacing.sm,
-    },
-    logoBadge: {
-      width: 104,
-      height: 104,
-      borderRadius: 52,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: Colors.surface,
-      borderWidth: 2,
-      borderColor: Colors.secondary,
-      marginBottom: Spacing.sm,
-      ...Shadow.md,
-    },
-    logo: {
-      width: 72,
-      height: 72,
-    },
-    brandTitleRow: {
-      flexDirection: 'row',
-      alignItems: 'baseline',
-      gap: Spacing.sm,
-      flexWrap: 'wrap',
-      justifyContent: 'center',
-    },
-    brandTitle: {
-      fontSize: FontSize.xxxl,
-      fontWeight: '800',
-      color: Colors.primaryDark,
-      letterSpacing: 1,
-    },
-    brandTitleAccent: {
-      fontSize: FontSize.xxl,
-      fontWeight: '800',
-      color: Colors.secondary,
-      letterSpacing: 4,
     },
     brandTagline: {
       fontSize: FontSize.md,

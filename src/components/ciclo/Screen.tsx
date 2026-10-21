@@ -1,7 +1,10 @@
 import { useRouter } from 'expo-router';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/AppHeader';
+import { BarraAccionInferior } from '@/components/BarraAccionInferior';
+import { FormularioScroll } from '@/components/FormularioScroll';
 import { ErrorState } from '@/components/ErrorState';
 import { EmptyState } from '@/components/EmptyState';
 import { ResponsiveContent } from '@/components/ResponsiveContent';
@@ -28,11 +31,23 @@ export interface ScreenProps {
   header?: React.ReactNode;
   /** Formulario: tope de ancho de lectura (`Layout.maxFormWidth`) en vez del de contenido. */
   form?: boolean;
+  /**
+   * Acciones fijas al pie (Guardar / Enviar / Siguiente): se pintan en una
+   * `BarraAccionInferior` (safe area inferior + sube sobre el teclado) y el
+   * scroll deja el campo activo por encima de ella.
+   */
+  footer?: React.ReactNode;
+  /** Texto corto encima de los botones del `footer` (p. ej. por qué está deshabilitado). */
+  footerNota?: string;
+  /** Botones del `footer` lado a lado. */
+  footerFila?: boolean;
 }
 
 /**
  * Esqueleto común de las pantallas del ciclo laboral: header, pull to
  * refresh, skeleton, error normalizado (nunca JSON crudo) y 404 amigable.
+ * El scroll es consciente del teclado (el campo activo nunca queda tapado)
+ * y `footer` fija las acciones abajo respetando el safe area.
  */
 export function Screen({
   title,
@@ -48,21 +63,24 @@ export function Screen({
   children,
   header,
   form = false,
+  footer,
+  footerNota,
+  footerFila = false,
 }: ScreenProps) {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const hasError = error !== null && error !== undefined;
+  const [alturaBarra, setAlturaBarra] = useState(0);
+  const mostrarFooter = Boolean(footer) && !isLoading && !hasError;
 
   return (
     <View style={styles.container}>
       <AppHeader title={title} subtitle={subtitle} showBack={showBack} onBackPress={() => router.back()} right={right} />
       {header}
-      <ScrollView
+      <FormularioScroll
+        alturaBarra={mostrarFooter ? alturaBarra : 0}
         contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive"
-        automaticallyAdjustKeyboardInsets
         refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} /> : undefined}>
         <ResponsiveContent form={form} style={styles.inner}>
           {isLoading ? (
@@ -78,7 +96,12 @@ export function Screen({
             children
           )}
         </ResponsiveContent>
-      </ScrollView>
+      </FormularioScroll>
+      {mostrarFooter ? (
+        <BarraAccionInferior nota={footerNota} fila={footerFila} onAltura={setAlturaBarra}>
+          {footer}
+        </BarraAccionInferior>
+      ) : null}
     </View>
   );
 }

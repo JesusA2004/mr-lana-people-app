@@ -59,6 +59,8 @@ export const queryKeys = {
   misRecibos: ['colaborador', 'recibos'] as const,
   miRecibo: (id: string | number) => ['colaborador', 'recibos', String(id)] as const,
   datosFaltantes: ['colaborador', 'datos-faltantes'] as const,
+  /** Registro completo antes de entrar (cuenta creada por QR). */
+  registro: ['colaborador', 'registro'] as const,
   misPrestamos: ['colaborador', 'prestamos'] as const,
   miPrestamo: (id: string | number) => ['colaborador', 'prestamos', String(id)] as const,
   miJerarquia: ['colaborador', 'jerarquia'] as const,
@@ -77,6 +79,14 @@ export const queryKeys = {
   evaluacionesList: (params: Record<string, unknown> = {}) => ['evaluaciones', 'list', params] as const,
   evaluacion: (id: string | number) => ['evaluaciones', 'detail', String(id)] as const,
   tareas: ['tareas'] as const,
+  // Motor de aprobaciones (backend 2026-10-20): bandeja y badge únicos.
+  aprobaciones: ['aprobaciones'] as const,
+  aprobacionesConteo: ['aprobaciones', 'conteo'] as const,
+  aprobacionesBandeja: ['aprobaciones', 'bandeja'] as const,
+  // Correcciones propias (datos, documentos, foto) con estado e historial.
+  correcciones: ['correcciones'] as const,
+  correccionesResumen: ['correcciones', 'resumen'] as const,
+  prestamoElegibilidad: ['solicitudes', 'prestamo', 'elegibilidad'] as const,
   tareasList: (params: Record<string, unknown> = {}) => ['tareas', 'list', params] as const,
 
   // Gestión RH — ciclo laboral (todo bajo `['rh', ...]`).

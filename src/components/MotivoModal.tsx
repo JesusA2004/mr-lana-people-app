@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { paddingInferiorBarra } from './BarraAccionInferior';
 import { Button } from './Button';
 import { Input } from './Input';
 
@@ -43,14 +45,15 @@ export function MotivoModal({ visible, title, description, confirmLabel, submitt
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={submitting ? () => {} : onCancel}>
-      <KeyboardAvoidingView style={styles.backdrop} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      {/* keyboard-controller: el motivo y sus botones suben sobre el teclado en Android e iOS. */}
+      <KeyboardAvoidingView style={styles.backdrop} behavior="padding">
         <Pressable
           style={StyleSheet.absoluteFill}
           onPress={submitting ? undefined : onCancel}
           accessibilityRole="button"
           accessibilityLabel="Cerrar"
         />
-        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, Spacing.xl) }]}>
+        <View style={[styles.sheet, { paddingBottom: paddingInferiorBarra(insets.bottom) }]}>
           <Text style={styles.title}>{title}</Text>
           {description ? <Text style={styles.description}>{description}</Text> : null}
           <Input

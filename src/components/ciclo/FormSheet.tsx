@@ -1,6 +1,8 @@
-import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
+import { Modal, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { paddingInferiorBarra } from '@/components/BarraAccionInferior';
 import { Button } from '@/components/Button';
 import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
@@ -39,8 +41,9 @@ export function FormSheet({
   const insets = useSafeAreaInsets();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={submitting ? undefined : onCancel}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.backdrop}>
-        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, Spacing.lg) }]}>
+      {/* keyboard-controller: la hoja (y sus botones) sube sobre el teclado en Android e iOS. */}
+      <KeyboardAvoidingView behavior="padding" style={styles.backdrop}>
+        <View style={[styles.sheet, { paddingBottom: paddingInferiorBarra(insets.bottom) }]}>
           <Text style={styles.title} accessibilityRole="header">
             {title}
           </Text>

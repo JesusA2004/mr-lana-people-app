@@ -197,6 +197,14 @@ completo y verificado contra el código fuente real del backend en
   `GET /incorporacion/invitaciones/{token}/validar`,
   `GET /incorporacion/invitaciones/{token}/fases`,
   `POST /incorporacion/invitaciones/{token}/registrar`
+- **Registro completo antes de entrar (cuenta creada por QR, 2026-10-20):**
+  `GET /colaborador/registro`, `POST /colaborador/registro/datos`,
+  `POST /colaborador/registro/finalizar` (+ documentos por el checklist de
+  incorporación). `registro_completo: false` en `/me`/`/login`/`registrar` →
+  la app solo muestra `src/app/registro.tsx`. La app manda siempre la cabecera
+  `X-People-Registro: 1`; con ella el backend responde 403
+  `registro_incompleto` al resto de la API. Regla completa en
+  `capacitaciones/docs/REGISTRO_APP.md`.
 - **Gestión RH** (todos bajo `/rh`, requieren capacidad real):
   `GET dashboard`, `GET pendientes`,
   `GET|POST solicitudes[/{id}/aprobar|rechazar|correccion]`,

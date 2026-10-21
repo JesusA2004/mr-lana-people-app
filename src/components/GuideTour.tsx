@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
+import { BrandLogo } from './BrandLogo';
 import { Button } from './Button';
 import { MascotAvatar } from './mascot/MascotAvatar';
 
@@ -71,13 +72,22 @@ export function GuideTour({ slides, greetingName, onFinish, onSkip, finishLabel 
       </View>
 
       <Animated.View key={step} entering={FadeIn.duration(260)} exiting={FadeOut.duration(120)} style={styles.content}>
-        <View style={styles.mascotWrapper}>
-          <MascotAvatar orientation={step % 2 === 0 ? 'right' : 'left'} size="lg" />
-        </View>
+        {isFirst ? (
+          // Bienvenida: el logo oficial (MrLanaPeople_horizontal_color), nunca la marca escrita.
+          <View style={styles.mascotWrapper}>
+            <BrandLogo width={260} />
+          </View>
+        ) : (
+          <>
+            <View style={styles.mascotWrapper}>
+              <MascotAvatar orientation={step % 2 === 0 ? 'right' : 'left'} size="lg" />
+            </View>
 
-        <View style={styles.iconBadge}>
-          <Ionicons name={slide.icon} size={22} color={Colors.primaryDark} />
-        </View>
+            <View style={styles.iconBadge}>
+              <Ionicons name={slide.icon} size={22} color={Colors.primaryDark} />
+            </View>
+          </>
+        )}
 
         <Text style={styles.title}>{isFirst && greetingName ? `${slide.title}, ${greetingName}` : slide.title}</Text>
         <Text style={styles.message}>{slide.message}</Text>

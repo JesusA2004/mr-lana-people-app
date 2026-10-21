@@ -39,7 +39,7 @@ jest.mock('@/api/auth', () => ({
 }));
 // El store registra el handler de 401 al importarse: el estado vive dentro del mock.
 jest.mock('@/api/client', () => {
-  const state = { token: null as string | null, onUnauthorized: null as null | (() => void) };
+  const state = { token: null as string | null, onUnauthorized: null as null | (() => void), onRegistroIncompleto: null as null | (() => void) };
   return {
     __state: state,
     setAuthToken: (token: string | null) => {
@@ -47,6 +47,9 @@ jest.mock('@/api/client', () => {
     },
     setUnauthorizedHandler: (handler: () => void) => {
       state.onUnauthorized = handler;
+    },
+    setRegistroIncompletoHandler: (handler: () => void) => {
+      state.onRegistroIncompleto = handler;
     },
   };
 });
@@ -267,5 +270,17 @@ describe('reauthenticate', () => {
   it('si la contraseña es incorrecta, propaga el error sin desbloquear', async () => {
     mockReautenticar.mockRejectedValue(httpError(422));
     await expect(useAuthStore.getState().reauthenticate('mala')).rejects.toBeTruthy();
+  });
+});
+
+describe('registro completo (cuenta creada por QR)', () => {
+  it('un 403 registro_incompleto regresa la sesión al asistente y terminarlo la libera', () => {
+    useAuthStore.setState({ user: { ...USER, registro_completo: true } as never, isAuthenticated: true });
+
+    (mockClient as unknown as { onRegistroIncompleto: null | (() => void) }).onRegistroIncompleto?.();
+    expect(useAuthStore.getState().user?.registro_completo).toBe(false);
+
+    useAuthStore.getState().marcarRegistroCompleto(true);
+    expect(useAuthStore.getState().user?.registro_completo).toBe(true);
   });
 });

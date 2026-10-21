@@ -6,9 +6,11 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Notice, Screen } from '@/components/ciclo/Screen';
 import { MoneyField } from '@/components/forms/MoneyField';
+import { ElegibilidadPrestamoResumen } from '@/components/ElegibilidadPrestamoResumen';
 import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
+import { usePrestamoElegibilidad } from '@/hooks/queries/useCorrecciones';
 import { useCreateSolicitud } from '@/hooks/queries/useSolicitudes';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { toast } from '@/store/toastStore';
@@ -18,6 +20,7 @@ import { formatCurrencyMXN } from '@/utils/formatters';
 import { haptics } from '@/utils/haptics';
 import { isSelfServiceModuleEnabled } from '@/utils/modules';
 import { buildLoanRequestPayload, LOAN_REASON_MAX, validateLoanRequest, type LoanRequestErrors } from '@/utils/loanRequest';
+import { vistaElegibilidad } from '@/utils/prestamoElegibilidad';
 
 /**
  * Solicitar préstamo: el colaborador solo dice cuánto y para qué. Plazo,
@@ -36,8 +39,12 @@ export default function SolicitarPrestamoScreen() {
   const [monto, setMonto] = useState<number | undefined>();
   const [motivo, setMotivo] = useState('');
   const [errors, setErrors] = useState<LoanRequestErrors>({});
+  // 6 meses de antigüedad: lo decide el backend con SU fecha (nunca la del teléfono).
+  const elegibilidad = usePrestamoElegibilidad();
+  const vista = vistaElegibilidad(elegibilidad.data);
 
   const enviar = async () => {
+    if (!vista.botonHabilitado) return;
     const found = validateLoanRequest(monto, motivo);
     setErrors(found);
     if (found.monto || found.motivo || monto === undefined) {
@@ -64,7 +71,10 @@ export default function SolicitarPrestamoScreen() {
         haptics.error();
         const validation = getValidationErrors(error);
         if (validation) {
+          // 422 de antigüedad («Disponible al cumplir 6 meses…») llega en monto_solicitado: se muestra tal cual y se refresca la elegibilidad.
           setErrors({ monto: validation.monto_solicitado?.[0], motivo: validation.motivo?.[0] });
+          if (validation.monto_solicitado?.[0]) toast.error(validation.monto_solicitado[0]);
+          void elegibilidad.refetch();
           return;
         }
         toast.error(getErrorMessage(error));
@@ -73,7 +83,25 @@ export default function SolicitarPrestamoScreen() {
   };
 
   return (
-    <Screen title="Solicitar préstamo" form>
+    <Screen
+      title="Solicitar préstamo"
+      form
+      isLoading={elegibilidad.isLoading}
+      refreshing={elegibilidad.isRefetching}
+      onRefresh={() => void elegibilidad.refetch()}
+      footerNota={isOffline ? 'Sin conexión: podrás enviarla cuando vuelva la red.' : !vista.botonHabilitado ? (vista.disponibleDesde ?? undefined) : undefined}
+      footer={
+        <Button
+          title={vista.botonTitulo}
+          leftIcon={vista.botonHabilitado ? 'send' : 'lock-closed-outline'}
+          onPress={() => void enviar()}
+          loading={crear.isPending}
+          disabled={!vista.botonHabilitado || isOffline || crear.isPending}
+        />
+      }>
+      <ElegibilidadPrestamoResumen elegibilidad={elegibilidad.data} />
+
+      {vista.botonHabilitado ? (
       <Card style={styles.card}>
         <MoneyField
           label="¿Cuánto necesitas?"
@@ -108,11 +136,11 @@ export default function SolicitarPrestamoScreen() {
           </View>
         </View>
       </Card>
+      ) : null}
 
       <Text style={styles.help}>Tu jefe inmediato da el visto bueno y después Recursos Humanos define el plazo y las condiciones.</Text>
 
       {isOffline ? <Notice tone="warning">Sin conexión: podrás enviarla cuando vuelva la red.</Notice> : null}
-      <Button title="Enviar solicitud" leftIcon="send" onPress={() => void enviar()} loading={crear.isPending} disabled={isOffline || crear.isPending} />
     </Screen>
   );
 }

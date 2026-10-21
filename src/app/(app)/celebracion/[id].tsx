@@ -3,11 +3,14 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { celebracionesApi } from '@/api/celebraciones';
 import type { LocalUploadFile } from '@/api/upload';
 import { AppHeader } from '@/components/AppHeader';
+import { paddingInferiorBarra } from '@/components/BarraAccionInferior';
 import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
@@ -44,6 +47,7 @@ const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
 export default function CelebracionScreen() {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const token = useAuthStore((state) => state.token);
@@ -189,7 +193,8 @@ export default function CelebracionScreen() {
   ) : null;
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    // keyboard-controller: el campo del mensaje sube sobre el teclado en Android e iOS.
+    <KeyboardAvoidingView style={styles.container} behavior="padding">
       <AppHeader title="Celebración" showBack onBackPress={() => volverAtras(router)} />
       {celebracion.isLoading ? (
         <View style={styles.loading}>
@@ -208,7 +213,7 @@ export default function CelebracionScreen() {
         <FlatList
           data={data?.puede_ver_todos ? items : []}
           keyExtractor={(item) => String(item.id)}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: paddingInferiorBarra(insets.bottom) + Spacing.xl }]}
           keyboardShouldPersistTaps="handled"
           ListHeaderComponent={header}
           ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}

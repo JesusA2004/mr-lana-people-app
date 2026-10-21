@@ -56,6 +56,8 @@ export interface RegistrarQrUsuario {
   apellidos?: string | null;
   email: string | null;
   estatus: string;
+  /** false: sigue el registro completo (datos + documentos) antes de entrar. Ausente en backends anteriores. */
+  registro_completo?: boolean;
   roles: string[];
   permisos: string[];
 }

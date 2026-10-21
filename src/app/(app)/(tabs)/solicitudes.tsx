@@ -6,6 +6,8 @@ import { FlatList, RefreshControl, StyleSheet, Text, TextInput, View } from 'rea
 import { FiltroChips } from '@/components/FiltroChips';
 import { Button } from '@/components/Button';
 import { AppHeader } from '@/components/AppHeader';
+import { BarraAccionInferior } from '@/components/BarraAccionInferior';
+import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
 import { FadeInView } from '@/components/FadeInView';
 import { MascotAssistant } from '@/components/mascot/MascotAssistant';
@@ -94,13 +96,15 @@ export default function SolicitudesScreen() {
             value={search}
             onChangeText={setSearch}
             placeholder="Buscar por folio o tipo"
+            accessibilityLabel="Buscar por folio o tipo"
+            returnKeyType="search"
             placeholderTextColor={Colors.textMuted}
             style={styles.searchInput}
             autoCapitalize="none"
             autoCorrect={false}
           />
           {search ? (
-            <PressableScale haptic={false} accessibilityLabel="Limpiar búsqueda" onPress={() => setSearch('')}>
+            <PressableScale haptic={false} accessibilityLabel="Limpiar búsqueda" hitSlop={12} onPress={() => setSearch('')}>
               <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
             </PressableScale>
           ) : null}
@@ -153,17 +157,25 @@ export default function SolicitudesScreen() {
               onAction={() => router.push('/solicitud/nueva')}
             />
           ) : (
-            <View style={styles.emptyFilter}>
-              <Text style={styles.emptyFilterText}>No hay solicitudes que coincidan.</Text>
-            </View>
+            <EmptyState
+              icon="search-outline"
+              title="Sin resultados"
+              message="Ninguna solicitud coincide con tu búsqueda o filtros."
+              actionLabel="Quitar filtros"
+              onAction={() => {
+                setFamily('todas');
+                setEstado('todos');
+                setSearch('');
+              }}
+            />
           )
         }
       />
 
       {!isLoading && solicitudes.length === 0 ? (
-        <View style={styles.fabWrapper}>
-          <Button title="Nueva solicitud" onPress={() => router.push('/solicitud/nueva')} />
-        </View>
+        <BarraAccionInferior sobreTeclado={false}>
+          <Button title="Nueva solicitud" leftIcon="add-circle-outline" onPress={() => router.push('/solicitud/nueva')} />
+        </BarraAccionInferior>
       ) : null}
     </View>
   );
@@ -176,8 +188,8 @@ const crearEstilos = (Colors: ColorPalette) =>
     backgroundColor: Colors.background,
   },
   newButton: {
-    width: 40,
-    height: 40,
+    width: Layout.minTouchTarget,
+    height: Layout.minTouchTarget,
     borderRadius: Radius.full,
     backgroundColor: Colors.primary,
     alignItems: 'center',
@@ -190,7 +202,7 @@ const crearEstilos = (Colors: ColorPalette) =>
     marginHorizontal: Spacing.lg,
     marginBottom: Spacing.sm,
     paddingHorizontal: Spacing.md,
-    height: 40,
+    minHeight: Layout.minTouchTarget,
     borderRadius: Radius.full,
     backgroundColor: Colors.surface,
     borderWidth: 1,
@@ -198,7 +210,8 @@ const crearEstilos = (Colors: ColorPalette) =>
   },
   searchInput: {
     flex: 1,
-    fontSize: FontSize.sm,
+    minHeight: Layout.minTouchTarget,
+    fontSize: FontSize.md,
     color: Colors.text,
   },
   listContent: {
@@ -209,14 +222,6 @@ const crearEstilos = (Colors: ColorPalette) =>
     paddingTop: 0,
     flexGrow: 1,
   },
-  emptyFilter: {
-    paddingVertical: Spacing.xxl,
-    alignItems: 'center',
-  },
-  emptyFilterText: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
-  },
   footerLoading: {
     paddingVertical: Spacing.lg,
     alignItems: 'center',
@@ -225,8 +230,5 @@ const crearEstilos = (Colors: ColorPalette) =>
     fontSize: FontSize.xs,
     color: Colors.textMuted,
     fontWeight: '600',
-  },
-  fabWrapper: {
-    padding: Spacing.lg,
   },
 });

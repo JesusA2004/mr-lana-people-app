@@ -1,11 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { z } from 'zod';
 
 import { Button } from '@/components/Button';
+import { FormularioScroll } from '@/components/FormularioScroll';
 import { Input } from '@/components/Input';
 import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useAuthStore } from '@/store/authStore';
@@ -56,8 +57,7 @@ export default function CambiarContrasenaScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.flex}>
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <FormularioScroll style={styles.flex} contentContainerStyle={styles.scrollContent}>
           <View style={styles.form}>
             <Text style={styles.heading}>Crea tu contraseña</Text>
             <Text style={styles.subheading}>
@@ -104,8 +104,7 @@ export default function CambiarContrasenaScreen() {
             <Button title="Guardar y continuar" onPress={handleSubmit(onSubmit)} loading={isSubmitting} disabled={isSubmitting} />
             <Button title="Cerrar sesión" variant="outline" onPress={() => void logout()} disabled={isSubmitting} />
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </FormularioScroll>
     </SafeAreaView>
   );
 }

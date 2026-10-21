@@ -4,7 +4,9 @@ import { StyleSheet, Text, View } from 'react-native';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
 import { apiClient } from '@/api/client';
+import { BarraAccionInferior } from './BarraAccionInferior';
 import { Button } from './Button';
+import { DescargaDocumento } from './DescargaDocumento';
 import { ErrorState } from './ErrorState';
 import { PressableScale } from './PressableScale';
 import { SkeletonBlock } from './SkeletonBlock';
@@ -55,6 +57,8 @@ export function VisorPdfPaginado({ path, cacheName, titulo, paginaInicial = 1, o
   const [dibujando, setDibujando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [intento, setIntento] = useState(0);
+  /** pdf.js no pudo DIBUJAR el archivo (ya descargado): se ofrece descargarlo / abrirlo con otra app. */
+  const [errorDibujo, setErrorDibujo] = useState(false);
 
   const onPaginaRef = useRef(onPagina);
   useEffect(() => {
@@ -140,7 +144,8 @@ export function VisorPdfPaginado({ path, cacheName, titulo, paginaInicial = 1, o
       onPaginaRef.current?.(data.numero, total);
     } else if (data.type === 'error') {
       logError('VisorPdfPaginado', new Error(data.message ?? 'pdf.js'));
-      setError('No se pudo mostrar el documento. Intenta de nuevo.');
+      setError('No se pudo mostrar el documento en este teléfono.');
+      setErrorDibujo(true);
     }
   };
 
@@ -161,14 +166,22 @@ export function VisorPdfPaginado({ path, cacheName, titulo, paginaInicial = 1, o
   if (error) {
     return (
       <View style={styles.errorBox}>
-        <ErrorState
-          message={error}
-          onRetry={() => {
-            listoRef.current = false;
-            setError(null);
-            setIntento((n) => n + 1);
-          }}
-        />
+        {errorDibujo ? (
+          <DescargaDocumento
+            titulo={titulo}
+            path={path}
+            motivo="No se pudo mostrar la vista previa en este teléfono. Descárgalo o ábrelo con otra aplicación."
+          />
+        ) : (
+          <ErrorState
+            message={error}
+            onRetry={() => {
+              listoRef.current = false;
+              setError(null);
+              setIntento((n) => n + 1);
+            }}
+          />
+        )}
       </View>
     );
   }
@@ -220,17 +233,20 @@ export function VisorPdfPaginado({ path, cacheName, titulo, paginaInicial = 1, o
         ) : null}
       </View>
 
-      <View style={styles.footer}>
-        <Button title="Anterior" variant="outline" fullWidth={false} leftIcon="chevron-back" disabled={actual <= 1 || total === 0 || dibujando} onPress={() => ir(actual - 1)} />
-        <Text style={styles.nota} numberOfLines={2}>
-          {nota ?? ''}
-        </Text>
-        {esUltima && accionFinal ? (
-          accionFinal
-        ) : (
-          <Button title="Siguiente" fullWidth={false} rightIcon="chevron-forward" disabled={esUltima || total === 0 || dibujando} onPress={() => ir(actual + 1)} />
-        )}
-      </View>
+      {/* Barra inferior común: respeta la barra de navegación del teléfono (safe area). */}
+      <BarraAccionInferior sobreTeclado={false} style={styles.barra}>
+        <View style={styles.footer}>
+          <Button title="Anterior" variant="outline" fullWidth={false} leftIcon="chevron-back" disabled={actual <= 1 || total === 0 || dibujando} onPress={() => ir(actual - 1)} />
+          <Text style={styles.nota} numberOfLines={2}>
+            {nota ?? ''}
+          </Text>
+          {esUltima && accionFinal ? (
+            accionFinal
+          ) : (
+            <Button title="Siguiente" fullWidth={false} rightIcon="chevron-forward" disabled={esUltima || total === 0 || dibujando} onPress={() => ir(actual + 1)} />
+          )}
+        </View>
+      </BarraAccionInferior>
     </View>
   );
 }
@@ -287,15 +303,13 @@ const crearEstilos = (Colors: ColorPalette) =>
       ...StyleSheet.absoluteFill,
       padding: Spacing.lg,
     },
+    barra: {
+      paddingTop: Spacing.sm,
+    },
     footer: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: Spacing.sm,
-      paddingHorizontal: Spacing.lg,
-      paddingVertical: Spacing.md,
-      borderTopWidth: 1,
-      borderTopColor: Colors.border,
-      backgroundColor: Colors.surface,
     },
     nota: {
       flex: 1,

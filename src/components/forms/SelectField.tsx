@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { paddingInferiorBarra } from '../BarraAccionInferior';
 import { PressableScale } from '../PressableScale';
 
 import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
@@ -27,6 +29,7 @@ export function SelectField({ label, value, options, onChange, error, helper, pl
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   const [open, setOpen] = useState(false);
+  const insets = useSafeAreaInsets();
   const selected = options.find((option) => option.value === value);
 
   return (
@@ -45,7 +48,7 @@ export function SelectField({ label, value, options, onChange, error, helper, pl
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <View style={styles.backdrop}>
           <Pressable style={StyleSheet.absoluteFill} accessibilityRole="button" accessibilityLabel="Cerrar" onPress={() => setOpen(false)} />
-          <View style={styles.sheet}>
+          <View style={[styles.sheet, { paddingBottom: paddingInferiorBarra(insets.bottom) }]}>
             <Text style={styles.sheetTitle}>{label}</Text>
             <ScrollView style={styles.sheetScroll}>
               {options.map((option) => {

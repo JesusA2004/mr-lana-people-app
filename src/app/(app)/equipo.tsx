@@ -1,78 +1,48 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { ApprovalTimeline } from '@/components/ApprovalTimeline';
-import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { FilterChips } from '@/components/ciclo/FilterChips';
 import { ItemCard } from '@/components/ciclo/ItemCard';
 import { PersonaRow } from '@/components/ciclo/JerarquiaCard';
-import { EmptyMessage, Notice, Screen, SectionTitle } from '@/components/ciclo/Screen';
-import { MotivoModal } from '@/components/MotivoModal';
-import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
-import { useEstilos } from '@/theme/ThemeProvider';
-import { useEquipo, useEquipoPendientes, useVistoBueno } from '@/hooks/queries/useTrabajo';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { toast } from '@/store/toastStore';
-import type { EquipoSolicitudPendiente } from '@/types/team';
+import { EmptyMessage, Screen, SectionTitle } from '@/components/ciclo/Screen';
+import { FilaLista, GrupoLista } from '@/components/ui';
+import { Spacing } from '@/constants/colors';
+import { useEquipo, useEquipoPendientes } from '@/hooks/queries/useTrabajo';
 import { formatDateShort } from '@/utils/dates';
-import { getActionErrorMessage, logError } from '@/utils/errors';
-import { formatCurrencyMXN, humanizeRequestType } from '@/utils/formatters';
-import { haptics } from '@/utils/haptics';
-import { nivelesAprobacionToTimeline } from '@/utils/workflow';
 
 type Tab = 'pendientes' | 'equipo';
 
 /**
- * Mi equipo (jefe) — `GET /equipo`, `GET /equipo/pendientes`,
- * `POST /equipo/solicitudes/{id}/visto-bueno`. Compartida por Mi espacio y
- * Gestión RH. La autoridad es la jerarquía real (`jefe_id`/`gerente_id`),
- * no el rol: si el backend no devuelve equipo ni pendientes, no hay nada
- * que mostrar.
+ * Mi equipo (jefe) — `GET /equipo` y `GET /equipo/pendientes`. Compartida
+ * por Mi espacio y Gestión RH. La autoridad es la jerarquía real, no el rol.
+ *
+ * Desde 2026-10-20 los vistos buenos viven en UNA sola bandeja
+ * (`/aprobaciones`, motor de aprobaciones del backend): ahí se ve el flujo
+ * completo y los botones solo se activan cuando te toca. Aquí queda el
+ * acceso con su contador, el equipo directo y las evaluaciones.
  */
 export default function MiEquipoScreen() {
-  const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const [tab, setTab] = useState<Tab>('pendientes');
   const equipo = useEquipo();
   const pendientes = useEquipoPendientes();
-  const vistoBueno = useVistoBueno();
-  const { isOffline } = useNetworkStatus();
-  const [rechazando, setRechazando] = useState<EquipoSolicitudPendiente | null>(null);
 
-  const solicitudes = pendientes.data?.solicitudes ?? [];
   const evaluaciones = pendientes.data?.evaluaciones ?? [];
-  const porDecidir = solicitudes.filter((s) => s.requiere_visto_bueno && !s.visto_bueno);
-
-  const decidir = (solicitud: EquipoSolicitudPendiente, aprobado: boolean, comentario?: string) => {
-    vistoBueno.mutate(
-      { solicitudId: solicitud.id, aprobado, comentario },
-      {
-        onSuccess: () => {
-          haptics.success();
-          setRechazando(null);
-          toast.success(aprobado ? 'Visto bueno registrado.' : 'Registraste que no das el visto bueno.');
-        },
-        onError: (error) => {
-          logError('equipo.vistoBueno', error);
-          haptics.error();
-          toast.error(getActionErrorMessage(error));
-          void pendientes.refetch();
-        },
-      },
-    );
-  };
-
-  const confirmarAprobar = (solicitud: EquipoSolicitudPendiente) => {
-    Alert.alert('Dar visto bueno', `¿Das tu visto bueno a la solicitud de ${solicitud.colaborador ?? 'tu colaborador'}? RH tomará la decisión final.`, [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Dar visto bueno', onPress: () => decidir(solicitud, true) },
-    ]);
-  };
+  const porDecidirCount = pendientes.data?.aprobar.length ?? 0;
+  const enEsperaCount = pendientes.data?.en_espera.length ?? 0;
 
   const loading = equipo.isLoading || pendientes.isLoading;
   const error = equipo.error && pendientes.error ? pendientes.error : null;
+  const refrescar = () => {
+    void equipo.refetch();
+    void pendientes.refetch();
+  };
+
+  let subtituloAprobaciones = 'No hay solicitudes de tu equipo por decidir';
+  if (porDecidirCount > 0) subtituloAprobaciones = `${porDecidirCount} ${porDecidirCount === 1 ? 'solicitud espera' : 'solicitudes esperan'} tu decisión`;
+  else if (enEsperaCount > 0) subtituloAprobaciones = `${enEsperaCount} en espera de un paso anterior`;
 
   return (
     <Screen
@@ -80,19 +50,13 @@ export default function MiEquipoScreen() {
       isLoading={loading}
       error={error}
       notFoundMessage="Tu cuenta no está vinculada a un colaborador, así que no hay equipo que mostrar."
-      onRetry={() => {
-        void equipo.refetch();
-        void pendientes.refetch();
-      }}
+      onRetry={refrescar}
       refreshing={equipo.isRefetching || pendientes.isRefetching}
-      onRefresh={() => {
-        void equipo.refetch();
-        void pendientes.refetch();
-      }}
+      onRefresh={refrescar}
       header={
         <FilterChips
           options={[
-            { value: 'pendientes', label: 'Pendientes', count: porDecidir.length + evaluaciones.length },
+            { value: 'pendientes', label: 'Pendientes', count: porDecidirCount + evaluaciones.length },
             { value: 'equipo', label: 'Colaboradores', count: equipo.data?.length },
           ]}
           value={tab}
@@ -110,122 +74,44 @@ export default function MiEquipoScreen() {
           </Card>
         )
       ) : (
-        <>
-          <SectionTitle>Solicitudes de tu equipo</SectionTitle>
-          {solicitudes.length === 0 ? (
-            <EmptyMessage message="No hay solicitudes de tu equipo en revisión." />
-          ) : (
-            solicitudes.map((solicitud) => {
-              const pendiente = solicitud.requiere_visto_bueno && !solicitud.visto_bueno;
-              return (
-                <Card key={solicitud.id} style={styles.gap}>
-                  <Text style={styles.kicker}>{solicitud.tipo_etiqueta ?? humanizeRequestType(solicitud.tipo)}</Text>
-                  <Text style={styles.title}>{solicitud.colaborador ?? 'Colaborador'}</Text>
-                  {solicitud.fecha_inicio ? (
-                    <Text style={styles.meta}>
-                      {formatDateShort(solicitud.fecha_inicio)}
-                      {solicitud.fecha_fin ? ` – ${formatDateShort(solicitud.fecha_fin)}` : ''}
-                    </Text>
-                  ) : null}
-                  {solicitud.monto_solicitado !== null ? <Text style={styles.meta}>Monto solicitado: {formatCurrencyMXN(solicitud.monto_solicitado)}</Text> : null}
-                  {solicitud.folio ? <Text style={styles.meta}>Folio {solicitud.folio}</Text> : null}
-                  {solicitud.visto_bueno ? (
-                    <Notice tone={solicitud.visto_bueno === 'aprobado' ? 'success' : 'warning'}>
-                      {solicitud.visto_bueno === 'aprobado' ? 'Ya diste tu visto bueno. RH decide.' : 'Registraste que no das tu visto bueno.'}
-                    </Notice>
-                  ) : !solicitud.requiere_visto_bueno ? (
-                    <Text style={styles.meta}>Esta solicitud no requiere tu visto bueno; la atiende RH.</Text>
-                  ) : null}
-                  {solicitud.vistos_buenos.length > 0 ? (
-                    <View style={styles.timeline}>
-                      <ApprovalTimeline steps={nivelesAprobacionToTimeline(solicitud.vistos_buenos, solicitud.estado)} />
-                    </View>
-                  ) : null}
-                  {pendiente ? (
-                    <View style={styles.actions}>
-                      <Button
-                        title="No doy visto bueno"
-                        variant="outline"
-                        disabled={vistoBueno.isPending || isOffline}
-                        onPress={() => setRechazando(solicitud)}
-                        style={styles.flex}
-                      />
-                      <Button
-                        title="Dar visto bueno"
-                        leftIcon="checkmark"
-                        loading={vistoBueno.isPending && vistoBueno.variables?.solicitudId === solicitud.id}
-                        disabled={vistoBueno.isPending || isOffline}
-                        onPress={() => confirmarAprobar(solicitud)}
-                        style={styles.flex}
-                      />
-                    </View>
-                  ) : null}
-                </Card>
-              );
-            })
-          )}
+        <View style={styles.contenido}>
+          <GrupoLista titulo="Solicitudes de tu equipo">
+            <FilaLista
+              icono="checkmark-done-outline"
+              tono={porDecidirCount > 0 ? 'aviso' : 'primario'}
+              titulo="Aprobaciones"
+              subtitulo={subtituloAprobaciones}
+              badge={porDecidirCount}
+              onPress={() => router.push('/aprobaciones')}
+            />
+          </GrupoLista>
 
-          <SectionTitle>Evaluaciones de periodo de prueba</SectionTitle>
-          {evaluaciones.length === 0 ? (
-            <EmptyMessage message="No tienes evaluaciones pendientes." />
-          ) : (
-            evaluaciones.map((evaluacion) => (
-              <ItemCard
-                key={evaluacion.id}
-                icon="clipboard-outline"
-                title={evaluacion.colaborador}
-                subtitle={evaluacion.fecha_limite ? `Fecha límite: ${formatDateShort(evaluacion.fecha_limite)}` : null}
-                status={evaluacion.estado === 'devuelta' ? 'requiere_correccion' : 'pendiente'}
-                statusLabel={evaluacion.estado === 'devuelta' ? 'Devuelta para corrección' : 'Pendiente de evaluar'}
-                onPress={() => router.push({ pathname: '/evaluaciones/[id]', params: { id: String(evaluacion.id) } })}
-              />
-            ))
-          )}
-        </>
+          <View>
+            <SectionTitle>Evaluaciones de periodo de prueba</SectionTitle>
+            {evaluaciones.length === 0 ? (
+              <EmptyMessage message="No tienes evaluaciones pendientes." />
+            ) : (
+              evaluaciones.map((evaluacion) => (
+                <ItemCard
+                  key={evaluacion.id}
+                  icon="clipboard-outline"
+                  title={evaluacion.colaborador}
+                  subtitle={evaluacion.fecha_limite ? `Fecha límite: ${formatDateShort(evaluacion.fecha_limite)}` : null}
+                  status={evaluacion.estado === 'devuelta' ? 'requiere_correccion' : 'pendiente'}
+                  statusLabel={evaluacion.estado === 'devuelta' ? 'Devuelta para corrección' : 'Pendiente de evaluar'}
+                  onPress={() => router.push({ pathname: '/evaluaciones/[id]', params: { id: String(evaluacion.id) } })}
+                />
+              ))
+            )}
+          </View>
+        </View>
       )}
-
-      <MotivoModal
-        visible={rechazando !== null}
-        title="No dar visto bueno"
-        description="Explica brevemente el motivo. RH lo verá antes de decidir."
-        confirmLabel="Registrar"
-        submitting={vistoBueno.isPending}
-        onCancel={() => setRechazando(null)}
-        onConfirm={(motivo) => rechazando && decidir(rechazando, false, motivo)}
-      />
     </Screen>
   );
 }
 
-const crearEstilos = (Colors: ColorPalette) =>
-  StyleSheet.create({
-  gap: {
-    gap: Spacing.xs,
-  },
-  kicker: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: Colors.primaryDark,
-    textTransform: 'uppercase',
-  },
-  title: {
-    fontSize: FontSize.md,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  meta: {
-    fontSize: FontSize.xs,
-    color: Colors.textMuted,
-  },
-  timeline: {
-    marginTop: Spacing.xs,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginTop: Spacing.sm,
-  },
-  flex: {
-    flex: 1,
+const styles = StyleSheet.create({
+  contenido: {
+    gap: Spacing.lg,
   },
 });

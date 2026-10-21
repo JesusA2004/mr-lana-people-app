@@ -1,29 +1,27 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { AnimatedProgressBar } from '@/components/AnimatedProgressBar';
 import { AppHeader } from '@/components/AppHeader';
-import { Card } from '@/components/Card';
-import { Notice } from '@/components/ciclo/Screen';
 import { ErrorState } from '@/components/ErrorState';
 import { FadeInView } from '@/components/FadeInView';
-import { PressableScale } from '@/components/PressableScale';
 import { SkeletonBlock, SkeletonCardList } from '@/components/SkeletonBlock';
+import { FilaLista, GrupoLista, TarjetaAviso, TarjetaProgreso, type Tono } from '@/components/ui';
 import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useMiExpediente } from '@/hooks/queries/useCicloLaboral';
 import { useIncorporacion } from '@/hooks/queries/useIncorporacion';
+import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import type { DocumentoIncorporacion } from '@/types/document';
 import { getDevErrorDetail, getErrorMessage } from '@/utils/errors';
 import { documentStatusGlyph, progressBreakdown, progressHeadline, toExpedienteProgress, type DocumentGlyphTone } from '@/utils/expedienteProgress';
 
-const tono = (Colors: ColorPalette): Record<DocumentGlyphTone, string> => ({
-  success: Colors.success,
-  warning: Colors.warning,
-  danger: Colors.danger,
-  neutral: Colors.textMuted,
-});
+/** Tono de la UI base para el estado de cada documento (ícono + palabra, nunca solo color). */
+const TONO_DOCUMENTO: Record<DocumentGlyphTone, Tono> = {
+  success: 'exito',
+  warning: 'info',
+  danger: 'peligro',
+  neutral: 'neutral',
+};
 
 /**
  * Mi expediente: cuánto llevo (regla del backend: solo documentos
@@ -37,6 +35,10 @@ export default function ExpedienteScreen() {
   const router = useRouter();
   const { data, isLoading, isError, error, refetch, isRefetching } = useIncorporacion();
   const estadoReal = useMiExpediente();
+  // Correcciones (datos, documentos, foto): mismo contador que el tab Perfil.
+  const bootstrap = useMobileBootstrap(true);
+  const correccionesPendientes = bootstrap.data?.counts.correcciones_pendientes ?? 0;
+  const correccionesAbiertas = bootstrap.data?.counts.correcciones_abiertas ?? 0;
 
   const progreso = toExpedienteProgress(data?.progreso);
   const breakdown = progressBreakdown(progreso);
@@ -71,39 +73,52 @@ export default function ExpedienteScreen() {
         ) : data ? (
           <>
             <FadeInView index={0}>
-              <Card style={styles.hero}>
-                <View style={styles.heroTop}>
-                  <View style={styles.heroText}>
-                    <Text style={styles.heroTitle}>{progreso.completo ? 'Expediente completo' : 'Expediente'}</Text>
-                    <Text style={styles.heroHeadline}>
-                      {progreso.completo ? `${progreso.completos} de ${progreso.total} documentos` : progressHeadline(progreso)}
+              <TarjetaProgreso
+                sobretitulo={progreso.completo ? 'Expediente completo' : 'Mi expediente'}
+                titulo={progreso.completo ? `${progreso.completos} de ${progreso.total} documentos aprobados` : progressHeadline(progreso)}
+                porcentaje={progreso.sinObligatorios ? null : progreso.porcentaje}
+                completo={progreso.completo}
+                detalle={
+                  !progreso.completo && progreso.pendientes > 0 ? (
+                    <Text style={styles.heroPending}>
+                      {progreso.pendientes} {progreso.pendientes === 1 ? 'pendiente' : 'pendientes'}
+                      {breakdown ? <Text style={styles.heroBreakdown}> · {breakdown}</Text> : null}
                     </Text>
-                  </View>
-                  {progreso.sinObligatorios ? null : (
-                    <Text style={[styles.heroPercent, progreso.completo && { color: Colors.success }]} accessibilityLabel={`${progreso.porcentaje} por ciento`}>
-                      {progreso.porcentaje}%
-                    </Text>
-                  )}
-                </View>
-                {progreso.sinObligatorios ? null : <AnimatedProgressBar percent={progreso.porcentaje} height={10} />}
-                {!progreso.completo && progreso.pendientes > 0 ? (
-                  <Text style={styles.heroPending}>
-                    {progreso.pendientes} {progreso.pendientes === 1 ? 'pendiente' : 'pendientes'}
-                    {breakdown ? <Text style={styles.heroBreakdown}> · {breakdown}</Text> : null}
-                  </Text>
-                ) : null}
-              </Card>
+                  ) : undefined
+                }
+              />
             </FadeInView>
 
-            {estadoReal.data?.expediente_cerrado ? <Notice tone="info">Tu expediente está cerrado. Si necesitas algo, contacta a Recursos Humanos.</Notice> : null}
+            {estadoReal.data?.expediente_cerrado ? (
+              <TarjetaAviso icono="lock-closed-outline" tono="info" titulo="Tu expediente está cerrado" mensaje="Si necesitas algo, contacta a Recursos Humanos." />
+            ) : null}
             {progreso.rechazados > 0 ? (
-              <Notice tone="danger">
-                {progreso.rechazados === 1 ? 'Un documento necesita corrección.' : `${progreso.rechazados} documentos necesitan corrección.`} Tócalo para ver la observación
-                de Recursos Humanos.
-              </Notice>
+              <TarjetaAviso
+                icono="alert-circle-outline"
+                tono="peligro"
+                titulo={progreso.rechazados === 1 ? 'Un documento necesita corrección' : `${progreso.rechazados} documentos necesitan corrección`}
+                mensaje="Tócalo en la lista para ver la observación de Recursos Humanos y subir la versión correcta."
+              />
             ) : null}
 
             {requeridos.length > 0 ? <DocumentList title="Documentos" documentos={requeridos} onOpen={abrir} /> : null}
+
+            <GrupoLista titulo="Correcciones" descripcion="Nadie edita su propio expediente: pides el cambio y Recursos Humanos lo revisa.">
+              <FilaLista
+                icono="create-outline"
+                tono={correccionesPendientes > 0 ? 'aviso' : 'primario'}
+                titulo="Mis correcciones"
+                subtitulo={
+                  correccionesPendientes > 0
+                    ? 'Recursos Humanos espera tu respuesta'
+                    : correccionesAbiertas > 0
+                      ? `${correccionesAbiertas} en revisión`
+                      : 'Estado de los cambios que pediste'
+                }
+                badge={correccionesPendientes}
+                onPress={() => router.push('/correcciones')}
+              />
+            </GrupoLista>
           </>
         ) : null}
       </ScrollView>
@@ -112,125 +127,49 @@ export default function ExpedienteScreen() {
 }
 
 function DocumentList({ title, documentos, onOpen }: { title: string; documentos: DocumentoIncorporacion[]; onOpen: (d: DocumentoIncorporacion) => void }) {
-  const Colors = useColores();
-  const styles = useEstilos(crearEstilos);
   return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle} accessibilityRole="header">
-        {title}
-      </Text>
-      <Card padded={false}>
-        {documentos.map((documento, index) => {
-          const glyph = documentStatusGlyph(documento.estado);
-          return (
-            <PressableScale
-              key={documento.id}
-              haptic={false}
-              accessibilityLabel={`${documento.nombre}: ${glyph.label}`}
-              onPress={() => onOpen(documento)}
-              style={[styles.row, index < documentos.length - 1 && styles.rowDivider]}>
-              <Ionicons name={glyph.icon} size={22} color={tono(Colors)[glyph.tone]} />
-              <View style={styles.rowText}>
-                <Text style={styles.rowTitle}>{documento.nombre}</Text>
-                <Text style={[styles.rowStatus, { color: tono(Colors)[glyph.tone] }]}>{glyph.label}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
-            </PressableScale>
-          );
-        })}
-      </Card>
-    </View>
+    <GrupoLista titulo={title} descripcion="Toca un documento para subirlo, reemplazarlo o ver su observación.">
+      {documentos.map((documento) => {
+        const glyph = documentStatusGlyph(documento.estado);
+        return (
+          <FilaLista
+            key={documento.id}
+            icono={glyph.icon}
+            tono={TONO_DOCUMENTO[glyph.tone]}
+            titulo={documento.nombre}
+            subtitulo={glyph.label}
+            subtituloConTono
+            accessibilityLabel={`${documento.nombre}: ${glyph.label}`}
+            onPress={() => onOpen(documento)}
+          />
+        );
+      })}
+    </GrupoLista>
   );
 }
 
 const crearEstilos = (Colors: ColorPalette) =>
   StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  content: {
-    width: '100%',
-    maxWidth: Layout.maxContentWidth,
-    alignSelf: 'center',
-    padding: Spacing.lg,
-    gap: Spacing.lg,
-    paddingBottom: Spacing.xxxl,
-  },
-  hero: {
-    gap: Spacing.md,
-  },
-  heroTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  heroText: {
-    flex: 1,
-    minWidth: 0,
-    gap: 2,
-  },
-  heroTitle: {
-    fontSize: FontSize.xs,
-    fontWeight: '800',
-    color: Colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  heroHeadline: {
-    fontSize: FontSize.md,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  heroPercent: {
-    fontSize: FontSize.xxxl,
-    fontWeight: '800',
-    color: Colors.primaryDark,
-  },
-  heroPending: {
-    fontSize: FontSize.sm,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  heroBreakdown: {
-    fontSize: FontSize.sm,
-    fontWeight: '500',
-    color: Colors.textMuted,
-  },
-  section: {
-    gap: Spacing.sm,
-  },
-  sectionTitle: {
-    fontSize: FontSize.xs,
-    fontWeight: '800',
-    color: Colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    minHeight: 56,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-  },
-  rowDivider: {
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.divider,
-  },
-  rowText: {
-    flex: 1,
-    minWidth: 0,
-  },
-  rowTitle: {
-    fontSize: FontSize.md,
-    fontWeight: '600',
-    color: Colors.text,
-  },
-  rowStatus: {
-    fontSize: FontSize.xs,
-    fontWeight: '700',
-    marginTop: 1,
-  },
-});
+    container: {
+      flex: 1,
+      backgroundColor: Colors.background,
+    },
+    content: {
+      width: '100%',
+      maxWidth: Layout.maxContentWidth,
+      alignSelf: 'center',
+      padding: Spacing.lg,
+      gap: Spacing.lg,
+      paddingBottom: Spacing.xxxl,
+    },
+    heroPending: {
+      fontSize: FontSize.sm,
+      fontWeight: '700',
+      color: Colors.text,
+    },
+    heroBreakdown: {
+      fontSize: FontSize.sm,
+      fontWeight: '500',
+      color: Colors.textMuted,
+    },
+  });

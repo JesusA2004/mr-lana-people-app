@@ -12,6 +12,7 @@ import { DomicilioFields } from '@/components/forms/DomicilioFields';
 import { OpcionesField } from '@/components/forms/OpcionesField';
 import { Input } from '@/components/Input';
 import { SuccessCheck } from '@/components/SuccessCheck';
+import { TarjetaAviso } from '@/components/ui';
 import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
 import { useDatosFaltantes } from '@/hooks/queries/useCicloLaboral';
 import { useCreateSolicitud } from '@/hooks/queries/useSolicitudes';
@@ -96,6 +97,19 @@ export default function CompletarDatosScreen() {
     }
   };
 
+  // Envío fijo abajo (safe area + sobre el teclado): solo cuando hay datos por capturar.
+  const puedeCapturar = Boolean(datos && !datos.completo && !datos.solicitud_en_revision);
+  const footer = puedeCapturar ? (
+    <Button
+      title={capturados.length > 0 ? `Enviar ${capturados.length} ${capturados.length === 1 ? 'dato' : 'datos'} a RH` : 'Enviar a RH'}
+      leftIcon="send-outline"
+      loading={crear.isPending}
+      disabled={crear.isPending || capturados.length === 0}
+      onPress={() => void enviar()}
+    />
+  ) : undefined;
+  const footerNota = puedeCapturar && capturados.length === 0 ? 'Captura al menos un dato para enviarlo.' : undefined;
+
   if (enviada) {
     return (
       <Screen title="Completa tu información">
@@ -119,16 +133,18 @@ export default function CompletarDatosScreen() {
       notFoundMessage="Tu cuenta todavía no tiene un expediente vinculado."
       onRetry={() => void query.refetch()}
       refreshing={query.isRefetching}
-      onRefresh={() => void query.refetch()}>
+      onRefresh={() => void query.refetch()}
+      footer={footer}
+      footerNota={footerNota}>
       {datos?.fotoPendiente ? (
-        <Card style={styles.fotoCard}>
-          <Ionicons name="camera-outline" size={28} color={Colors.warning} />
-          <View style={styles.fotoTexto}>
-            <Text style={styles.fotoTitulo}>Te falta tu foto de perfil</Text>
-            <Text style={styles.exitoTexto}>Súbela desde tu Perfil para que tu expediente quede completo.</Text>
-          </View>
-          <Button title="Subir foto" leftIcon="camera-outline" variant="outline" onPress={() => router.push('/(app)/(tabs)/perfil')} />
-        </Card>
+        <TarjetaAviso
+          icono="camera-outline"
+          tono="aviso"
+          titulo="Te falta tu foto de perfil"
+          mensaje="Súbela desde tu Perfil para que tu expediente quede completo."
+          accion="Subir foto"
+          onPress={() => router.push('/(app)/(tabs)/perfil')}
+        />
       ) : null}
 
       {datos ? (
@@ -139,9 +155,12 @@ export default function CompletarDatosScreen() {
             <Text style={styles.exitoTexto}>No falta ningún dato personal en tu expediente.</Text>
           </Card>
         ) : datos.solicitud_en_revision ? (
-          <Notice tone="info">
-            Ya enviaste tus datos y Recursos Humanos los está revisando. Te avisaremos cuando se apliquen a tu expediente.
-          </Notice>
+          <TarjetaAviso
+            icono="hourglass-outline"
+            tono="info"
+            titulo="Tus datos están en revisión"
+            mensaje="Ya enviaste tus datos y Recursos Humanos los está revisando. Te avisaremos cuando se apliquen a tu expediente."
+          />
         ) : (
           <>
             <Notice tone="warning">
@@ -162,13 +181,6 @@ export default function CompletarDatosScreen() {
                 <DomicilioFields valores={valores} errores={errores} campos={camposDomicilio} estados={estadosApi} onChange={cambiar} />
               </Card>
             ) : null}
-            <Button
-              title={capturados.length > 0 ? `Enviar ${capturados.length} ${capturados.length === 1 ? 'dato' : 'datos'} a RH` : 'Enviar a RH'}
-              leftIcon="send-outline"
-              loading={crear.isPending}
-              disabled={crear.isPending || capturados.length === 0}
-              onPress={() => void enviar()}
-            />
           </>
         )
       ) : null}
@@ -213,8 +225,6 @@ const crearEstilos = (Colors: ColorPalette) =>
     domicilio: { gap: Spacing.md, padding: Spacing.lg },
     domicilioTitulo: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
     ayuda: { fontSize: FontSize.sm, color: Colors.textMuted },
-    fotoCard: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.lg },
-    fotoTexto: { flex: 1, gap: 2 },
     fotoTitulo: { fontSize: FontSize.md, fontWeight: '700', color: Colors.text },
     completo: { alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.xl },
     exito: { alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.xl },

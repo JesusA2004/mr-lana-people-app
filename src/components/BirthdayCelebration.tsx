@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BrandLogo } from './BrandLogo';
 import { Button } from './Button';
 import { Confetti } from './Confetti';
 import { MascotAvatar } from './mascot/MascotAvatar';
@@ -96,7 +97,7 @@ export function BirthdayCelebration({ greeting, nombre, onClose }: BirthdayCeleb
           ) : null}
         </View>
 
-        <Text style={styles.brand}>MR. LANA</Text>
+        <BrandLogo width={180} style={styles.brandLogo} />
       </View>
     </SafeAreaView>
   );
@@ -183,11 +184,7 @@ const crearEstilos = (Colors: ColorPalette) =>
     color: Colors.primaryDark,
     textAlign: 'center',
   },
-  brand: {
+  brandLogo: {
     marginTop: 'auto',
-    fontSize: FontSize.sm,
-    fontWeight: '800',
-    color: Colors.primary,
-    letterSpacing: 4,
   },
 });

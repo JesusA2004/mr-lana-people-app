@@ -29,6 +29,8 @@ export default function TabsLayout() {
   // `features.vacaciones` — no basta con ocultar la card del home.
   const bootstrap = useMobileBootstrap(true);
   const vacacionesEnabled = isFeatureEnabled(bootstrap.data?.features, 'vacaciones');
+  // Correcciones que esperan respuesta de la persona (Perfil → Mis correcciones).
+  const correccionesPendientes = bootstrap.data?.counts.correcciones_pendientes ?? 0;
 
   const expedientePendientes = incorporacion.data?.progreso.pendientes ?? 0;
   const solicitudesConCorreccion = useMemo(
@@ -110,7 +112,7 @@ export default function TabsLayout() {
         options={{
           title: 'Perfil',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name={focused ? 'person' : 'person-outline'} color={color} focused={focused} size={ICON_SIZE} />
+            <TabIcon name={focused ? 'person' : 'person-outline'} color={color} focused={focused} size={ICON_SIZE} badgeCount={correccionesPendientes} />
           ),
         }}
       />

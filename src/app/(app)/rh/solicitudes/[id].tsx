@@ -10,6 +10,8 @@ import { PrestamoDecision } from '@/components/ciclo/PrestamoDecision';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
+import { FlujoAprobacionTimeline } from '@/components/FlujoAprobacionTimeline';
+import { TarjetaAviso } from '@/components/ui';
 import { MotivoModal } from '@/components/MotivoModal';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -35,6 +37,7 @@ import { openRhWeb, rhWebSolicitudPath } from '@/utils/openRhWeb';
 import { canApprove, canRequestCorrection, puedeAprobarSolicitudComplejaMovil, requiereRevisionPortal, usaRechazoGenerico } from '@/utils/rhActions';
 import { blockedApprovalReason, type BlockedApproval } from '@/utils/rhBlockedActions';
 import { confirmAction } from '@/utils/confirm';
+import { motivoSinTurno, normalizeFlujo, textoPendienteDe } from '@/utils/flujoAprobacion';
 import { nivelesAprobacionToTimeline } from '@/utils/workflow';
 
 /**
@@ -85,6 +88,9 @@ export default function RhSolicitudDetailScreen() {
 
   const puedeTomar = solicitud?.estado === 'enviada' && hasPermission(permissions, 'solicitudes.revisar');
   const nivelesTimeline = solicitud ? nivelesAprobacionToTimeline(solicitud.vistos_buenos, solicitud.estado) : [];
+  // Motor de aprobaciones (2026-10-20): pasos reales y si ESTA cuenta puede actuar ahora.
+  const flujo = solicitud ? normalizeFlujo(solicitud) : null;
+  const esperandoOtroPaso = Boolean(flujo && !flujo.puede_actuar_usuario_actual && flujo.pendiente_de && !['aprobada', 'rechazada', 'cancelada'].includes(solicitud?.estado ?? ''));
 
   function handleActionError(err: unknown) {
     logError('rhSolicitud.accion', err);
@@ -348,7 +354,13 @@ export default function RhSolicitudDetailScreen() {
                   Comercial → RH) cuando este tipo la requiere; si no, el
                   flujo genérico de RH (`WorkflowTimeline`). Nunca ambos: se
                   duplicaría el paso final "RH". */}
-              {nivelesTimeline.length > 0 ? <ApprovalTimeline steps={nivelesTimeline} /> : <WorkflowTimeline workflow={solicitud.workflow} />}
+              {flujo && flujo.pasos.length > 0 ? (
+                <FlujoAprobacionTimeline flujo={flujo} />
+              ) : nivelesTimeline.length > 0 ? (
+                <ApprovalTimeline steps={nivelesTimeline} />
+              ) : (
+                <WorkflowTimeline workflow={solicitud.workflow} />
+              )}
             </Card>
 
             {solicitud.historial.length > 0 ? (
@@ -387,10 +399,19 @@ export default function RhSolicitudDetailScreen() {
               const puedeAprobarAqui = canApprove(solicitud.acciones_permitidas) && puedeAprobarSolicitudComplejaMovil(solicitud);
               const puedeRechazarAqui = usaRechazoGenerico(solicitud);
               const hayAcciones = puedeAprobarAqui || puedeRechazarAqui || canRequestCorrection(solicitud.acciones_permitidas);
-              if (!hayAcciones) return null;
+              // Falta un visto bueno previo: «Aprobar» se ve deshabilitado con el motivo humano del backend.
+              const aprobarBloqueado = esperandoOtroPaso && flujo !== null;
+              if (!hayAcciones && !aprobarBloqueado) return null;
 
               return (
+                <View style={styles.esperando}>
+                  {aprobarBloqueado && flujo ? (
+                    <TarjetaAviso icono="time-outline" tono="info" titulo={textoPendienteDe(flujo) ?? 'Pendiente de aprobación'} mensaje={motivoSinTurno(flujo)} />
+                  ) : null}
                 <View style={styles.actions}>
+                  {aprobarBloqueado ? (
+                    <Button title="Aprobar" leftIcon="lock-closed-outline" disabled onPress={() => undefined} style={styles.actionButton} />
+                  ) : null}
                   {canRequestCorrection(solicitud.acciones_permitidas) ? (
                     <Button
                       title="Pedir corrección"
@@ -403,9 +424,10 @@ export default function RhSolicitudDetailScreen() {
                   {puedeRechazarAqui ? (
                     <Button title="Rechazar" variant="danger" onPress={() => setModal('rechazar')} disabled={pending} style={styles.actionButton} />
                   ) : null}
-                  {puedeAprobarAqui ? (
+                  {puedeAprobarAqui && !aprobarBloqueado ? (
                     <Button title="Aprobar" onPress={handleAprobar} loading={aprobar.isPending} disabled={pending} style={styles.actionButton} />
                   ) : null}
+                </View>
                 </View>
               );
             })()}
@@ -461,6 +483,9 @@ function FieldRow({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap
 
 const crearEstilos = (Colors: ColorPalette) =>
   StyleSheet.create({
+  esperando: {
+    gap: Spacing.sm,
+  },
   container: {
     flex: 1,
     backgroundColor: Colors.background,

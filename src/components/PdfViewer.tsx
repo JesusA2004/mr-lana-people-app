@@ -31,6 +31,9 @@ export function PdfViewer({ fileUri, style, onError }: { fileUri: string; style?
         allowFileAccess
         allowingReadAccessToURL={fileUri}
         javaScriptEnabled={false}
+        // WKWebView no pudo abrir el archivo: el visor cambia a «Descargar PDF / Abrir con…».
+        onError={() => onError?.(MENSAJE_ERROR)}
+        onHttpError={() => onError?.(MENSAJE_ERROR)}
         style={[styles.webview, style]}
       />
     );
@@ -39,7 +42,7 @@ export function PdfViewer({ fileUri, style, onError }: { fileUri: string; style?
   return <AndroidPdfViewer fileUri={fileUri} style={style} onError={onError} />;
 }
 
-const MENSAJE_ERROR = 'No se pudo mostrar este documento. Puedes guardarlo o compartirlo para abrirlo con otra aplicación.';
+const MENSAJE_ERROR = 'No se pudo mostrar este documento. Descárgalo o ábrelo con otra aplicación.';
 
 function AndroidPdfViewer({ fileUri, style, onError }: { fileUri: string; style?: StyleProp<ViewStyle>; onError?: (message: string) => void }) {
   const styles = useEstilos(crearEstilos);

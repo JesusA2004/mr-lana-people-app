@@ -3,8 +3,10 @@ import { Image as ExpoImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
 import { Image, Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AnimatedProgressBar } from './AnimatedProgressBar';
+import { paddingInferiorBarra } from './BarraAccionInferior';
 import { Button } from './Button';
 import { PermissionPrimerSheet, type PermissionPrimerKind } from './PermissionPrimerSheet';
 import { PressableScale } from './PressableScale';
@@ -42,6 +44,7 @@ type Paso = 'elegir' | 'vista_previa';
 export function ProfilePhotoSheet({ visible, onClose, estado }: ProfilePhotoSheetProps) {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
+  const insets = useSafeAreaInsets();
   const subir = useSubirFotoPerfil();
   const [paso, setPaso] = useState<Paso>('elegir');
   const [archivo, setArchivo] = useState<LocalUploadFile | null>(null);
@@ -145,7 +148,7 @@ export function ProfilePhotoSheet({ visible, onClose, estado }: ProfilePhotoShee
           </PressableScale>
         </View>
 
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView contentContainerStyle={[styles.content, { paddingBottom: paddingInferiorBarra(insets.bottom) }]}>
           {pendiente ? (
             <View style={styles.aviso}>
               {estado?.pendiente?.foto_url ? <AvisoFoto uri={estado.pendiente.foto_url} /> : null}

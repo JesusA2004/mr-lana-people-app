@@ -3,17 +3,20 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
 import { Image, Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AnimatedProgressBar } from './AnimatedProgressBar';
 import { Button } from './Button';
 import { PermissionPrimerSheet, type PermissionPrimerKind } from './PermissionPrimerSheet';
 import { PressableScale } from './PressableScale';
+import { paddingInferiorBarra } from './BarraAccionInferior';
 
 import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { toast } from '@/store/toastStore';
 import { getErrorMessage, logError } from '@/utils/errors';
 import { haptics } from '@/utils/haptics';
+import { comprimirImagen } from '@/utils/comprimirImagen';
 import { archivoPermitido, esVideo, mimesAceptados, nombrePorDefecto } from '@/utils/uploadTypes';
 
 export interface PickedDocumentFile {
@@ -54,6 +57,8 @@ export function DocumentUploadSheet({ visible, title, onClose, onConfirm, maxSiz
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [permissionPrimer, setPermissionPrimer] = useState<{ kind: PermissionPrimerKind; blocked: boolean } | null>(null);
+  const [optimizando, setOptimizando] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const reset = () => {
     setStep('choose');
@@ -167,7 +172,11 @@ export function DocumentUploadSheet({ visible, title, onClose, onConfirm, maxSiz
     setProgress(0);
     setSubmitting(true);
     try {
-      await onConfirm(file, setProgress);
+      // Fotos: se reducen (≤ 2000 px, JPEG 0.7) antes de subir; PDFs intactos.
+      setOptimizando(file.mimeType.startsWith('image/'));
+      const listo = await comprimirImagen(file);
+      setOptimizando(false);
+      await onConfirm(listo, setProgress);
       haptics.success();
       toast.success('Documento cargado correctamente.');
       reset();
@@ -178,6 +187,7 @@ export function DocumentUploadSheet({ visible, title, onClose, onConfirm, maxSiz
       setError(getErrorMessage(uploadError));
       setProgress(0);
     } finally {
+      setOptimizando(false);
       setSubmitting(false);
     }
   };
@@ -201,7 +211,7 @@ export function DocumentUploadSheet({ visible, title, onClose, onConfirm, maxSiz
           </PressableScale>
         </View>
 
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView contentContainerStyle={[styles.content, { paddingBottom: paddingInferiorBarra(insets.bottom) + Spacing.lg }]} keyboardShouldPersistTaps="handled">
           {step === 'choose' ? (
             <>
               <Text style={styles.helperText}>Elige cómo quieres cargar tu documento. Formatos: {allowVideo ? 'PDF, JPG, PNG, MP4 o MOV' : 'PDF, JPG o PNG'}.</Text>
@@ -231,7 +241,7 @@ export function DocumentUploadSheet({ visible, title, onClose, onConfirm, maxSiz
               {submitting ? (
                 <View style={styles.progressBlock}>
                   <View style={styles.progressLabelRow}>
-                    <Text style={styles.progressLabel}>Subiendo documento…</Text>
+                    <Text style={styles.progressLabel}>{optimizando ? 'Optimizando foto…' : 'Subiendo documento…'}</Text>
                     <Text style={styles.progressPercent}>{progress}%</Text>
                   </View>
                   <AnimatedProgressBar percent={progress} height={8} />

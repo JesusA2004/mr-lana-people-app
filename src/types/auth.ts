@@ -16,6 +16,12 @@ export interface AuthUser {
   permisos?: string[];
   /** Contraseña temporal: la app solo deja cambiarla antes de entrar. */
   debe_cambiar_contrasena?: boolean;
+  /**
+   * `false` = se registró con el QR y no ha terminado su registro completo
+   * (datos + documentos): la app solo muestra el asistente `/registro`.
+   * Ausente (backend anterior) = no se bloquea nada.
+   */
+  registro_completo?: boolean;
   /** Compatibilidad con formas alternativas de respuesta. */
   email?: string | null;
   name?: string;

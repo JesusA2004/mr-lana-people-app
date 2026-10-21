@@ -3,11 +3,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Image } from 'expo-image';
 import { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { z } from 'zod';
 
 import { Button } from './Button';
+import { FormularioScroll } from './FormularioScroll';
 import { PressableScale } from './PressableScale';
 
 import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
@@ -117,8 +118,7 @@ export function LockScreen({ visible }: LockScreenProps) {
   return (
     <View style={styles.overlay}>
       <SafeAreaView style={styles.safeArea}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
-          <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <FormularioScroll style={styles.flex} contentContainerStyle={styles.scrollContent}>
             <View style={styles.brand}>
               <Image source={require('@/assets/images/brand/logo-mark.png')} style={styles.logo} contentFit="contain" />
               <Text style={styles.lockedTitle}>Sesión protegida</Text>
@@ -166,8 +166,7 @@ export function LockScreen({ visible }: LockScreenProps) {
               <Button title="Desbloquear" onPress={handleSubmit(onSubmit)} loading={isSubmitting} disabled={isSubmitting} />
               <Button title="Cerrar sesión" variant="ghost" onPress={() => void logout()} disabled={isSubmitting} />
             </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
+        </FormularioScroll>
       </SafeAreaView>
     </View>
   );

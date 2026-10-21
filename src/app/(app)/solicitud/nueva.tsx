@@ -3,15 +3,18 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { BackHandler, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, Platform, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInRight, FadeOutLeft } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { solicitudesApi } from '@/api/solicitudes';
 import { AppHeader } from '@/components/AppHeader';
+import { BarraAccionInferior, paddingInferiorBarra } from '@/components/BarraAccionInferior';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
 import { ExitConfirmSheet } from '@/components/ExitConfirmSheet';
+import { FormularioScroll } from '@/components/FormularioScroll';
 import { DynamicRequestField } from '@/components/forms/DynamicRequestField';
 import { MascotBubble } from '@/components/mascot/MascotBubble';
 import { PermissionPrimerSheet, type PermissionPrimerKind } from '@/components/PermissionPrimerSheet';
@@ -80,6 +83,7 @@ export default function NuevaSolicitudScreen() {
   const [exitConfirmVisible, setExitConfirmVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [unconfirmed, setUnconfirmed] = useState(false);
+  const [alturaBarra, setAlturaBarra] = useState(0);
   const [sentSolicitud, setSentSolicitud] = useState<Solicitud | null>(null);
 
   const config = findTipoConfig(tipos, selectedTipo);
@@ -378,8 +382,7 @@ export default function NuevaSolicitudScreen() {
         <Stepper steps={stepLabels} currentIndex={clampedStep} />
       </View>
 
-      <KeyboardAvoidingView style={styles.keyboardArea} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+      <FormularioScroll style={styles.keyboardArea} alturaBarra={alturaBarra} contentContainerStyle={styles.content}>
         {currentStepKey === 'tipo' ? (
           <Animated.View key="step-tipo" entering={FadeInRight.duration(240)} exiting={FadeOutLeft.duration(160)} style={styles.stepBlock}>
             <MascotBubble message={MascotMessages.wizardTipo} />
@@ -543,9 +546,9 @@ export default function NuevaSolicitudScreen() {
             {formError ? <Text style={styles.formError}>{formError}</Text> : null}
           </Animated.View>
         ) : null}
-      </ScrollView>
+      </FormularioScroll>
 
-      <View style={styles.footer}>
+      <BarraAccionInferior onAltura={setAlturaBarra}>
         <Button
           title={currentStepKey === 'revisar' ? 'Enviar solicitud' : 'Siguiente'}
           rightIcon={currentStepKey === 'revisar' ? undefined : 'arrow-forward'}
@@ -555,8 +558,7 @@ export default function NuevaSolicitudScreen() {
           // = doble solicitud (sección 43).
           disabled={submitting || (currentStepKey === 'tipo' && !config)}
         />
-      </View>
-      </KeyboardAvoidingView>
+      </BarraAccionInferior>
 
       <PermissionPrimerSheet
         visible={Boolean(permissionPrimer)}
@@ -631,9 +633,10 @@ function TypeCard({
 function SuccessScreen({ solicitud }: { solicitud: Solicitud }) {
   const styles = useEstilos(crearEstilos);
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={styles.successContainer}>
+    <View style={[styles.successContainer, { paddingBottom: paddingInferiorBarra(insets.bottom) }]}>
       <View style={styles.successBody}>
         <SuccessCheck size={104} />
         <Text style={styles.successTitle}>Solicitud enviada</Text>
@@ -664,9 +667,10 @@ function UnconfirmedScreen() {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={styles.successContainer}>
+    <View style={[styles.successContainer, { paddingBottom: paddingInferiorBarra(insets.bottom) }]}>
       <View style={styles.successBody}>
         <View style={styles.unconfirmedIcon}>
           <Ionicons name="help-circle-outline" size={56} color={Colors.warning} />
@@ -792,12 +796,6 @@ const crearEstilos = (Colors: ColorPalette) =>
   editRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, alignSelf: 'flex-start' },
   editText: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.primaryDark },
   formError: { fontSize: FontSize.sm, color: Colors.danger, fontWeight: '600' },
-  footer: {
-    padding: Spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    backgroundColor: Colors.surface,
-  },
   successContainer: { flex: 1, backgroundColor: Colors.background, justifyContent: 'space-between', padding: Spacing.lg },
   successBody: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.md },
   successTitle: { fontSize: FontSize.xxl, fontWeight: '800', color: Colors.text, textAlign: 'center' },

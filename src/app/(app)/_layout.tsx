@@ -196,6 +196,14 @@ export default function AppLayout() {
         <Stack.Protected guard={equipoEnabled}>
           <Stack.Screen name="equipo" />
         </Stack.Protected>
+        {/* Bandeja de aprobaciones (motor del backend, 2026-10-20): jefes,
+            regionales y RH desde cualquier experiencia. El endpoint decide qué
+            ve cada cuenta; sin nada que aprobar, la bandeja sale vacía. */}
+        <Stack.Screen name="aprobaciones/index" />
+        <Stack.Screen name="aprobaciones/[id]" />
+        {/* Mis correcciones: destino de los avisos de corrección (push/in-app). */}
+        <Stack.Screen name="correcciones/index" />
+        <Stack.Screen name="correcciones/[id]" />
         <Stack.Protected guard={evaluacionesEnabled}>
           <Stack.Screen name="evaluaciones/index" />
           <Stack.Screen name="evaluaciones/[id]" />

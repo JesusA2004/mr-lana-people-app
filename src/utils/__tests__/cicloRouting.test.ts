@@ -13,7 +13,9 @@ describe('push routing — ciclo laboral', () => {
     expect(resolveResourceRoute({ type: 'recibo_nomina', resource_id: 8 })).toBe('/notificaciones');
     expect(resolveResourceRoute({ type: 'prestamo_autorizado', resource_id: 3 })).toBe('/prestamos/3');
     expect(resolveResourceRoute({ type: 'evaluacion_pendiente', resource_id: 2 })).toBe('/evaluaciones/2');
-    expect(resolveResourceRoute({ type: 'visto_bueno_pendiente', resource_id: 11 })).toBe('/equipo');
+    expect(resolveResourceRoute({ type: 'visto_bueno_pendiente', resource_id: 11 })).toBe('/aprobaciones');
+    expect(resolveResourceRoute({ type: 'visto_bueno_pendiente', resource_id: 11, related_type: 'SolicitudInterna' })).toBe('/aprobaciones/11');
+    expect(resolveResourceRoute({ type: 'solicitud_paso_aprobado', resource_id: 11 })).toBe('/solicitud/11');
     expect(resolveResourceRoute({ type: 'contrato_por_vencer', resource_id: 1 })).toBe('/(app)/rh/contratos/por-vencer');
     expect(resolveResourceRoute({ type: 'expediente_incompleto' })).toBe('/(app)/(tabs)/expediente');
   });
@@ -44,7 +46,8 @@ describe('rutas de tareas (nunca por título)', () => {
 
   it('evaluación compartida, visto bueno a equipo, préstamo y cierre a RH', () => {
     expect(resolveTaskRoute({ ...base, related_type: 'EvaluacionPeriodoPrueba', related_id: 2 })).toEqual({ route: '/evaluaciones/2', experience: null });
-    expect(resolveTaskRoute({ ...base, related_type: 'SolicitudInterna', related_id: 2, accion: 'visto_bueno' })?.route).toBe('/equipo');
+    expect(resolveTaskRoute({ ...base, related_type: 'SolicitudInterna', related_id: 2, accion: 'visto_bueno' })?.route).toBe('/aprobaciones/2');
+    expect(resolveTaskRoute({ ...base, related_type: 'SolicitudInterna', related_id: 7, tipo: 'correccion_por_responder' })?.route).toBe('/correcciones/solicitud-7');
     expect(resolveTaskRoute({ ...base, related_type: 'Prestamo', related_id: 6 })?.route).toBe('/(app)/rh/prestamos/6');
     expect(resolveTaskRoute({ ...base, related_type: 'CierreLaboral', related_id: 6 })?.route).toBe('/(app)/rh/cierres/6');
     expect(resolveTaskRoute({ ...base, related_type: 'Colaborador', related_id: 6, accion: 'subir_documentos' })?.experience).toBe('colaborador');

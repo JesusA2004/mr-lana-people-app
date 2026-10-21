@@ -17,7 +17,8 @@ export interface GuideSlide {
 export const GUIDE_SLIDES: GuideSlide[] = [
   {
     icon: 'sparkles-outline',
-    title: 'Bienvenido a MR. LANA PEOPLE',
+    // La marca la pone el logo oficial en GuideTour (primer slide).
+    title: 'Te damos la bienvenida',
     message: 'Tu app de Recursos Humanos, siempre a la mano.',
   },
   {

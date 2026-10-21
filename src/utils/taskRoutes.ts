@@ -73,7 +73,10 @@ export function resolveTaskRoute(tarea: Pick<Tarea, 'tipo' | 'accion' | 'related
 
     case 'SolicitudInterna':
       if (!id) return null;
-      if (tarea.accion === 'visto_bueno') return { route: '/equipo', experience: null };
+      // Visto bueno: bandeja única de aprobaciones (compartida por ambas experiencias).
+      if (tarea.accion === 'visto_bueno') return { route: `/aprobaciones/${id}`, experience: null };
+      // RH pidió más información sobre una corrección propia: responderla.
+      if (tarea.tipo === 'correccion_por_responder') return { route: `/correcciones/solicitud-${id}`, experience: null };
       return { route: `/(app)/rh/solicitudes/${id}`, experience: 'rh' };
 
     case 'Prestamo':

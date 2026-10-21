@@ -104,6 +104,9 @@ export default function AvisoDetalleScreen() {
             path={avisosApi.archivoPath(aviso.id)}
             title={aviso.archivo?.nombre ?? aviso.titulo}
             onClose={() => setPdfAbierto(false)}
+            // Comunicado dirigido a esta persona (la API valida que sea destinataria):
+            // si no se puede previsualizar, «Descargar PDF» / «Abrir con…».
+            allowDownload
           />
         ) : null}
       </Modal>

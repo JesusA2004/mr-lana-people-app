@@ -3,18 +3,22 @@ import * as SecureStore from 'expo-secure-store';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { z } from 'zod';
 
 import { incorporacionInvitacionApi } from '@/api/incorporacionInvitacion';
+import { BarraAccionInferior } from '@/components/BarraAccionInferior';
+import { BrandLogo } from '@/components/BrandLogo';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
+import { FormularioScroll } from '@/components/FormularioScroll';
 import { Input } from '@/components/Input';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
-import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
-import { useEstilos } from '@/theme/ThemeProvider';
+import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { REMEMBERED_USERNAME_KEY } from '@/constants/config';
 import { useAuthStore } from '@/store/authStore';
 import type { InvitacionValida } from '@/types/invitation';
@@ -84,8 +88,17 @@ const MOTIVO_MENSAJE: Record<string, string> = {
  * token, el token del QR es la única puerta de entrada) y, si es válido,
  * completa el registro y entra directo a la incorporación documental.
  */
+/** Lo que sigue después de crear la cuenta (el registro completo, `src/app/registro.tsx`). */
+const LO_QUE_SIGUE: { icono: keyof typeof Ionicons.glyphMap; texto: string }[] = [
+  { icono: 'person-outline', texto: 'Tus datos personales (CURP, RFC, NSS…)' },
+  { icono: 'home-outline', texto: 'Tu domicilio y contacto de emergencia' },
+  { icono: 'documents-outline', texto: 'Tus documentos, con foto o archivo' },
+];
+
 export default function IncorporacionQrScreen() {
+  const Colors = useColores();
   const styles = useEstilos(crearEstilos);
+  const [alturaBarra, setAlturaBarra] = useState(0);
   const router = useRouter();
   const { token } = useLocalSearchParams<{ token: string }>();
   const loginWithToken = useAuthStore((state) => state.loginWithToken);
@@ -191,19 +204,28 @@ export default function IncorporacionQrScreen() {
         id: response.usuario.id,
         username: usuario,
         name: response.usuario.name,
+        nombre: response.usuario.name,
         apellidos: response.usuario.apellidos ?? undefined,
         email: response.usuario.email ?? null,
+        correo: response.usuario.email ?? null,
         roles: response.usuario.roles,
         permisos: response.usuario.permisos,
+        // false → el enrutador raíz muestra el registro completo (datos +
+        // documentos) antes de dejarlo entrar. Backend anterior: ausente.
+        registro_completo: response.usuario.registro_completo,
       });
 
       // Para las siguientes veces: se entra con el usuario, no con el correo.
       if (usuario) {
         Alert.alert('Tu usuario', `Para iniciar sesión usa tu usuario «${usuario}» y la contraseña que acabas de crear.`);
       }
-      // Sin navegación explícita: igual que login.tsx, el cambio de
-      // `isAuthenticated` en authStore hace que RootNavigator (Stack.Protected
-      // en _layout.tsx) muestre onboarding o (app) automáticamente.
+      // El cambio de `isAuthenticated`/`registro_completo` en authStore hace
+      // que RootNavigator (Stack.Protected en _layout.tsx) muestre el
+      // registro completo, onboarding o (app); con registro pendiente se
+      // navega explícito porque esta pantalla pública no está protegida.
+      if (response.usuario.registro_completo === false) {
+        router.replace('/registro');
+      }
     } catch (error) {
       logError('incorporacionInvitacion.registrar', error);
       const { isNetworkError } = normalizeError(error);
@@ -223,13 +245,15 @@ export default function IncorporacionQrScreen() {
     }
   };
 
+  const mostrarFormulario = Boolean(invitacion) && !invalidReason && !registrationAmbiguous && !loading && !loadError;
+  const primerNombre = invitacion?.datos_prellenados?.nombre?.trim().split(/\s+/)[0];
+
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <FormularioScroll alturaBarra={mostrarFormulario ? alturaBarra : 0} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.contenido}>
           <View style={styles.brand}>
-            <Text style={styles.brandTitle}>MR. LANA</Text>
-            <Text style={styles.brandSubtitle}>PEOPLE</Text>
+            <BrandLogo width={230} />
           </View>
 
           {loading ? (
@@ -241,6 +265,7 @@ export default function IncorporacionQrScreen() {
             <ErrorState message={loadError} onRetry={() => setRetryTick((tick) => tick + 1)} />
           ) : invalidReason ? (
             <Card style={styles.invalidCard}>
+              <Ionicons name="qr-code-outline" size={32} color={Colors.warning} />
               <Text style={styles.invalidTitle}>No podemos continuar</Text>
               <Text style={styles.invalidText}>{invalidReason}</Text>
               <Button title="Ir a inicio de sesión" variant="outline" onPress={() => router.replace('/(auth)/login')} style={{ marginTop: Spacing.md }} />
@@ -265,192 +290,258 @@ export default function IncorporacionQrScreen() {
               <Button title="Reintentar registro" variant="outline" onPress={() => setRegistrationAmbiguous(null)} style={{ marginTop: Spacing.sm }} />
             </Card>
           ) : invitacion ? (
-            <View style={styles.form}>
-              <Text style={styles.heading}>Completa tu registro</Text>
-              <Text style={styles.subheading}>
-                {[invitacion.datos_prellenados?.puesto, invitacion.datos_prellenados?.sucursal].filter(Boolean).join(' · ') ||
-                  'Recursos Humanos te invitó a unirte a MR. LANA.'}
-              </Text>
+            <>
+              <View style={styles.bienvenida}>
+                <Text style={styles.heading} accessibilityRole="header">
+                  {primerNombre ? `¡Bienvenido, ${primerNombre}!` : '¡Bienvenido a Mr. Lana!'}
+                </Text>
+                <Text style={styles.subheading}>
+                  {[invitacion.datos_prellenados?.puesto, invitacion.datos_prellenados?.sucursal].filter(Boolean).join(' · ') ||
+                    'Recursos Humanos te invitó a unirte al equipo.'}
+                </Text>
+              </View>
 
-              {invitacion.fases.length > 0 ? (
-                <View style={styles.fasesRow}>
-                  {invitacion.fases
-                    .slice()
-                    .sort((a, b) => a.orden - b.orden)
-                    .map((fase) => (
-                      <View key={fase.clave} style={styles.faseChip}>
-                        <Text style={styles.faseChipText}>{fase.nombre}</Text>
-                      </View>
-                    ))}
+              <View style={styles.ruta}>
+                <Text style={styles.rutaTitulo}>Tu registro, en un solo lugar</Text>
+                <View style={styles.rutaPaso}>
+                  <View style={[styles.rutaIcono, styles.rutaIconoActivo]}>
+                    <Text style={styles.rutaNumero}>1</Text>
+                  </View>
+                  <Text style={[styles.rutaTexto, styles.rutaTextoActivo]}>Crea tu cuenta (ahora)</Text>
                 </View>
-              ) : null}
+                {LO_QUE_SIGUE.map((item, index) => (
+                  <View key={item.texto} style={styles.rutaPaso}>
+                    <View style={styles.rutaIcono}>
+                      <Ionicons name={item.icono} size={16} color={Colors.primaryDark} />
+                    </View>
+                    <Text style={styles.rutaTexto}>{`${index + 2}. ${item.texto}`}</Text>
+                  </View>
+                ))}
+                <Text style={styles.rutaNota}>Ten a la mano tu INE, CURP, RFC, NSS y comprobante de domicilio. Tu avance se guarda solo.</Text>
+              </View>
 
-              <Controller
-                control={control}
-                name="name"
-                render={({ field: { value, onChange, onBlur } }) => (
-                  <Input label="Nombre" placeholder="Tu nombre" value={value} onChangeText={onChange} onBlur={onBlur} error={errors.name?.message} />
-                )}
-              />
-              <Controller
-                control={control}
-                name="apellidos"
-                render={({ field: { value, onChange, onBlur } }) => (
-                  <Input label="Apellidos" placeholder="Tus apellidos" value={value} onChangeText={onChange} onBlur={onBlur} />
-                )}
-              />
-              <Controller
-                control={control}
-                name="email"
-                render={({ field: { value, onChange, onBlur } }) => (
-                  <Input
-                    label="Correo electrónico (opcional)"
-                    placeholder="tucorreo@ejemplo.com"
-                    value={value}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                    error={errors.email?.message}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                  />
-                )}
-              />
-              <Controller
-                control={control}
-                name="telefono"
-                render={({ field: { value, onChange, onBlur } }) => (
-                  <Input label="Teléfono" placeholder="Opcional" value={value} onChangeText={onChange} onBlur={onBlur} keyboardType="phone-pad" />
-                )}
-              />
-              <Controller
-                control={control}
-                name="password"
-                render={({ field: { value, onChange, onBlur } }) => (
-                  <Input
-                    label="Contraseña"
-                    placeholder="Mínimo 8 caracteres"
-                    value={value}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                    error={errors.password?.message}
-                    secureTextEntry
-                    secureToggle
-                    autoCapitalize="none"
-                  />
-                )}
-              />
-              <Controller
-                control={control}
-                name="passwordConfirmation"
-                render={({ field: { value, onChange, onBlur } }) => (
-                  <Input
-                    label="Confirmar contraseña"
-                    placeholder="Repite tu contraseña"
-                    value={value}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                    error={errors.passwordConfirmation?.message}
-                    secureTextEntry
-                    secureToggle
-                    autoCapitalize="none"
-                    returnKeyType="done"
-                    onSubmitEditing={handleSubmit(onSubmit)}
-                  />
-                )}
-              />
+              <View style={styles.form}>
+                <Text style={styles.formTitulo}>Crea tu cuenta</Text>
+                <Controller
+                  control={control}
+                  name="name"
+                  render={({ field: { value, onChange, onBlur } }) => (
+                    <Input
+                      label="Nombre(s)"
+                      placeholder="Como aparece en tu INE"
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      error={errors.name?.message}
+                      autoCapitalize="words"
+                      textContentType="givenName"
+                    />
+                  )}
+                />
+                <Controller
+                  control={control}
+                  name="apellidos"
+                  render={({ field: { value, onChange, onBlur } }) => (
+                    <Input label="Apellidos" placeholder="Paterno y materno" value={value} onChangeText={onChange} onBlur={onBlur} autoCapitalize="words" textContentType="familyName" />
+                  )}
+                />
+                <Controller
+                  control={control}
+                  name="email"
+                  render={({ field: { value, onChange, onBlur } }) => (
+                    <Input
+                      label="Correo electrónico (opcional)"
+                      placeholder="tucorreo@ejemplo.com"
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      error={errors.email?.message}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      textContentType="emailAddress"
+                    />
+                  )}
+                />
+                <Controller
+                  control={control}
+                  name="telefono"
+                  render={({ field: { value, onChange, onBlur } }) => (
+                    <Input
+                      label="Teléfono celular"
+                      placeholder="10 dígitos"
+                      value={value}
+                      onChangeText={(texto) => onChange(texto.replace(/[^0-9]/g, ''))}
+                      onBlur={onBlur}
+                      keyboardType="phone-pad"
+                      maxLength={10}
+                      textContentType="telephoneNumber"
+                    />
+                  )}
+                />
+                <Controller
+                  control={control}
+                  name="password"
+                  render={({ field: { value, onChange, onBlur } }) => (
+                    <Input
+                      label="Contraseña"
+                      placeholder="Mínimo 8 caracteres"
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      error={errors.password?.message}
+                      secureTextEntry
+                      secureToggle
+                      autoCapitalize="none"
+                      textContentType="newPassword"
+                    />
+                  )}
+                />
+                <Controller
+                  control={control}
+                  name="passwordConfirmation"
+                  render={({ field: { value, onChange, onBlur } }) => (
+                    <Input
+                      label="Confirmar contraseña"
+                      placeholder="Repite tu contraseña"
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      error={errors.passwordConfirmation?.message}
+                      secureTextEntry
+                      secureToggle
+                      autoCapitalize="none"
+                      returnKeyType="done"
+                      onSubmitEditing={handleSubmit(onSubmit)}
+                    />
+                  )}
+                />
 
-              {formError ? <Text style={styles.formError}>{formError}</Text> : null}
-
-              <Button title="Crear mi cuenta" onPress={handleSubmit(onSubmit)} loading={isSubmitting} disabled={isSubmitting} />
-            </View>
+                {formError ? <Text style={styles.formError}>{formError}</Text> : null}
+              </View>
+            </>
           ) : null}
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </View>
+      </FormularioScroll>
+
+      {mostrarFormulario ? (
+        <BarraAccionInferior onAltura={setAlturaBarra}>
+          <Button title="Crear mi cuenta y continuar" rightIcon="chevron-forward" onPress={handleSubmit(onSubmit)} loading={isSubmitting} disabled={isSubmitting} />
+        </BarraAccionInferior>
+      ) : null}
     </SafeAreaView>
   );
 }
 
 const crearEstilos = (Colors: ColorPalette) =>
   StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  flex: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    padding: Spacing.xl,
-    gap: Spacing.xxl,
-  },
-  brand: {
-    alignItems: 'center',
-    gap: Spacing.xs / 2,
-  },
-  brandTitle: {
-    fontSize: FontSize.xxxl,
-    fontWeight: '800',
-    color: Colors.text,
-    letterSpacing: 1,
-  },
-  brandSubtitle: {
-    fontSize: FontSize.lg,
-    fontWeight: '700',
-    color: Colors.primary,
-    letterSpacing: 6,
-  },
-  form: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: Spacing.xl,
-    gap: Spacing.lg,
-  },
-  heading: {
-    fontSize: FontSize.xl,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  subheading: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
-    marginTop: -Spacing.md,
-  },
-  fasesRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.xs,
-  },
-  faseChip: {
-    backgroundColor: Colors.primarySoft,
-    borderRadius: Radius.full,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-  },
-  faseChipText: {
-    fontSize: FontSize.xs,
-    fontWeight: '700',
-    color: Colors.primaryDark,
-  },
-  formError: {
-    fontSize: FontSize.sm,
-    color: Colors.danger,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  invalidCard: {
-    gap: Spacing.sm,
-  },
-  invalidTitle: {
-    fontSize: FontSize.lg,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  invalidText: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
-  },
-});
+    safeArea: {
+      flex: 1,
+      backgroundColor: Colors.background,
+    },
+    scrollContent: {
+      padding: Spacing.lg,
+      paddingBottom: Spacing.xxl,
+    },
+    contenido: {
+      width: '100%',
+      maxWidth: Layout.maxFormWidth,
+      alignSelf: 'center',
+      gap: Spacing.xl,
+    },
+    brand: {
+      alignItems: 'center',
+      paddingTop: Spacing.md,
+    },
+    bienvenida: {
+      gap: Spacing.xs,
+    },
+    heading: {
+      fontSize: FontSize.xxl,
+      fontWeight: '800',
+      color: Colors.text,
+    },
+    subheading: {
+      fontSize: FontSize.md,
+      color: Colors.textMuted,
+      lineHeight: 21,
+    },
+    ruta: {
+      backgroundColor: Colors.primarySoft,
+      borderRadius: Radius.xl,
+      padding: Spacing.lg,
+      gap: Spacing.md,
+    },
+    rutaTitulo: {
+      fontSize: FontSize.md,
+      fontWeight: '800',
+      color: Colors.primaryDark,
+    },
+    rutaPaso: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.md,
+    },
+    rutaIcono: {
+      width: 32,
+      height: 32,
+      borderRadius: Radius.full,
+      backgroundColor: Colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    rutaIconoActivo: {
+      backgroundColor: Colors.primary,
+    },
+    rutaNumero: {
+      fontSize: FontSize.sm,
+      fontWeight: '800',
+      color: Colors.white,
+    },
+    rutaTexto: {
+      flex: 1,
+      fontSize: FontSize.sm,
+      color: Colors.text,
+    },
+    rutaTextoActivo: {
+      fontWeight: '800',
+    },
+    rutaNota: {
+      fontSize: FontSize.xs,
+      color: Colors.textMuted,
+      lineHeight: 17,
+    },
+    form: {
+      backgroundColor: Colors.surface,
+      borderRadius: Radius.xl,
+      borderWidth: 1,
+      borderColor: Colors.border,
+      padding: Spacing.xl,
+      gap: Spacing.lg,
+    },
+    formTitulo: {
+      fontSize: FontSize.lg,
+      fontWeight: '800',
+      color: Colors.text,
+    },
+    formError: {
+      fontSize: FontSize.sm,
+      color: Colors.danger,
+      fontWeight: '600',
+      textAlign: 'center',
+    },
+    invalidCard: {
+      gap: Spacing.sm,
+      alignItems: 'flex-start',
+    },
+    invalidTitle: {
+      fontSize: FontSize.lg,
+      fontWeight: '800',
+      color: Colors.text,
+    },
+    invalidText: {
+      fontSize: FontSize.sm,
+      color: Colors.textMuted,
+      lineHeight: 19,
+    },
+  });

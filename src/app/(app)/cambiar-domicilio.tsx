@@ -8,6 +8,7 @@ import { Card } from '@/components/Card';
 import { Notice, Screen } from '@/components/ciclo/Screen';
 import { DomicilioFields } from '@/components/forms/DomicilioFields';
 import { SuccessCheck } from '@/components/SuccessCheck';
+import { TarjetaAviso } from '@/components/ui';
 import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
 import { useDatosFaltantes } from '@/hooks/queries/useCicloLaboral';
 import { useCreateSolicitud } from '@/hooks/queries/useSolicitudes';
@@ -88,6 +89,12 @@ export default function CambiarDomicilioScreen() {
     }
   };
 
+  // «Enviar a RH» fijo abajo (safe area + sobre el teclado mientras se escribe).
+  const puedeEnviar = Boolean(domicilio && !query.data?.solicitud_en_revision);
+  const footer = puedeEnviar ? (
+    <Button title="Enviar a RH" leftIcon="send-outline" loading={crear.isPending} disabled={crear.isPending} onPress={() => void enviar()} />
+  ) : undefined;
+
   if (enviada) {
     return (
       <Screen title="Cambiar mi domicilio">
@@ -111,11 +118,19 @@ export default function CambiarDomicilioScreen() {
       notFoundMessage="Tu cuenta todavía no tiene un expediente vinculado."
       onRetry={() => void query.refetch()}
       refreshing={query.isRefetching}
-      onRefresh={() => void query.refetch()}>
+      onRefresh={() => void query.refetch()}
+      footer={footer}>
       {query.data && !domicilio ? (
         <Notice tone="info">Esta función todavía no está disponible. Pide el cambio con «Solicitar actualización de datos».</Notice>
       ) : query.data?.solicitud_en_revision ? (
-        <Notice tone="info">Ya tienes una actualización de datos en revisión. Espera a que Recursos Humanos la resuelva para pedir otra.</Notice>
+        <TarjetaAviso
+          icono="hourglass-outline"
+          tono="info"
+          titulo="Tienes una actualización en revisión"
+          mensaje="Espera a que Recursos Humanos la resuelva para pedir otra."
+          accion="Ver mis solicitudes"
+          onPress={() => router.push('/(app)/(tabs)/solicitudes')}
+        />
       ) : domicilio ? (
         <>
           {domicilio.texto ? (
@@ -128,7 +143,6 @@ export default function CambiarDomicilioScreen() {
             </Card>
           ) : null}
           <DomicilioFields valores={valores} errores={errores} estados={estadosApi} actuales={actuales} onChange={cambiar} />
-          <Button title="Enviar a RH" leftIcon="send-outline" loading={crear.isPending} disabled={crear.isPending} onPress={() => void enviar()} />
         </>
       ) : null}
     </Screen>

@@ -88,8 +88,12 @@ export function resolveResourceRoute(data: PushNotificationData): string | null 
       return '/completar-datos';
     case 'alta_activada':
       return '/(app)/(tabs)';
+    // Le toca dar un visto bueno: bandeja única de aprobaciones (motor 2026-10-20).
     case 'visto_bueno_pendiente':
-      return '/equipo';
+      return id && data.related_type === 'SolicitudInterna' ? `/aprobaciones/${id}` : '/aprobaciones';
+    // Al solicitante: un paso de su solicitud ya se aprobó → su detalle con la línea de tiempo.
+    case 'solicitud_paso_aprobado':
+      return id ? `/solicitud/${id}` : '/(app)/(tabs)/solicitudes';
     case 'evaluacion_pendiente':
     case 'evaluacion_devuelta':
     case 'evaluacion_capturada':
@@ -117,9 +121,10 @@ export function resolveResourceRoute(data: PushNotificationData): string | null 
     // Reingreso autorizado (al colaborador): actualizar documentos.
     case 'reingreso_autorizado':
       return '/(app)/(tabs)/expediente';
-    // Visto bueno de una solicitud de su equipo (jefe): bandeja de equipo.
+    // Visto bueno de una solicitud (jefe, regional o responsable explícito):
+    // bandeja única de aprobaciones, directo a la solicitud.
     case 'solicitud_visto_bueno':
-      return '/equipo';
+      return id && (!data.related_type || data.related_type === 'SolicitudInterna') ? `/aprobaciones/${id}` : '/aprobaciones';
     // RH: refuerzo/activos del onboarding y contratos listos → ficha de la
     // persona (`colaborador_id` lo manda el backend en cada aviso).
     case 'onboarding_refuerzo':

@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
 import { useEffect } from 'react';
 import { Appearance } from 'react-native';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { bindQueryClientToNetworkStatus, queryClient } from '@/api/queryClient';
@@ -137,9 +138,9 @@ function AppThemeController() {
 }
 
 /**
- * Enrutador raíz. Usa `Stack.Protected` en tres tramos: sin sesión → auth;
- * con sesión pero onboarding no visto → onboarding; con sesión y onboarding
- * completo → app. Una sesión guardada que no se pudo verificar por red NO es
+ * Enrutador raíz. Usa `Stack.Protected` por tramos: sin sesión → auth;
+ * contraseña temporal → cambiarla; registro por QR sin terminar → asistente
+ * de registro completo; onboarding no visto → onboarding; lo demás → app. Una sesión guardada que no se pudo verificar por red NO es
  * "sin sesión": muestra `SessionVerificationScreen` en vez de Login.
  */
 function RootNavigator() {
@@ -150,10 +151,13 @@ function RootNavigator() {
   // Contraseña temporal: hasta cambiarla solo existe esa pantalla (el backend
   // responde 403 «cambio_contrasena_requerido» a todo lo demás).
   const debeCambiarContrasena = useAuthStore((state) => state.user?.debe_cambiar_contrasena === true);
+  // Registro por QR sin terminar (datos + documentos): solo existe el
+  // asistente `/registro` hasta completarlo (el backend también lo exige).
+  const registroPendiente = useAuthStore((state) => state.user?.registro_completo === false);
   const onboardingCompleted = useOnboardingStore((state) => state.completed);
   const isOnboardingLoading = useOnboardingStore((state) => state.isLoading);
 
-  const sessionReady = isAuthenticated && !debeCambiarContrasena && onboardingCompleted && !isOnboardingLoading;
+  const sessionReady = isAuthenticated && !debeCambiarContrasena && !registroPendiente && onboardingCompleted && !isOnboardingLoading;
   usePushRegistration(sessionReady);
   useNotificationResponseRouting(sessionReady);
 
@@ -162,14 +166,18 @@ function RootNavigator() {
   if (view === 'session-verification') return <SessionVerificationScreen />;
 
   const showCambioContrasena = isAuthenticated && debeCambiarContrasena;
-  const showOnboarding = isAuthenticated && !showCambioContrasena && !onboardingCompleted;
+  const showRegistro = isAuthenticated && !showCambioContrasena && registroPendiente;
+  const showOnboarding = isAuthenticated && !showCambioContrasena && !showRegistro && !onboardingCompleted;
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors.background } }}>
       <Stack.Protected guard={showCambioContrasena}>
         <Stack.Screen name="cambiar-contrasena" options={{ gestureEnabled: false }} />
       </Stack.Protected>
-      <Stack.Protected guard={isAuthenticated && !showCambioContrasena && !showOnboarding}>
+      <Stack.Protected guard={showRegistro}>
+        <Stack.Screen name="registro" options={{ gestureEnabled: false }} />
+      </Stack.Protected>
+      <Stack.Protected guard={isAuthenticated && !showCambioContrasena && !showRegistro && !showOnboarding}>
         <Stack.Screen name="(app)" />
       </Stack.Protected>
       <Stack.Protected guard={showOnboarding}>
@@ -206,20 +214,23 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
-        <StatusBar style={STATUS_BAR_STYLE} />
-        <SplashScreenController />
-        <AppConfigController />
-        <AppThemeController />
-        <ThemeProvider>
-          <AppErrorBoundary>
-            <RootNavigator />
-          </AppErrorBoundary>
-        </ThemeProvider>
-        <ToastHost />
-        <OfflineBanner />
-        <UpdateBanner enabled={isAuthenticated} />
-        <MaintenanceScreen />
-        <ForceUpdateScreen enabled />
+        {/* Teclado: el campo activo y las barras inferiores nunca quedan tapados (FormularioScroll / BarraAccionInferior). */}
+        <KeyboardProvider>
+          <StatusBar style={STATUS_BAR_STYLE} />
+          <SplashScreenController />
+          <AppConfigController />
+          <AppThemeController />
+          <ThemeProvider>
+            <AppErrorBoundary>
+              <RootNavigator />
+            </AppErrorBoundary>
+          </ThemeProvider>
+          <ToastHost />
+          <OfflineBanner />
+          <UpdateBanner enabled={isAuthenticated} />
+          <MaintenanceScreen />
+          <ForceUpdateScreen enabled />
+        </KeyboardProvider>
       </SafeAreaProvider>
     </QueryClientProvider>
   );

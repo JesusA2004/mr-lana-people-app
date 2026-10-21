@@ -2,7 +2,6 @@ import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { AnimatedProgressBar } from '@/components/AnimatedProgressBar';
 import { ApprovalTimeline } from '@/components/ApprovalTimeline';
 import { AppHeader } from '@/components/AppHeader';
 import { Card } from '@/components/Card';
@@ -11,12 +10,21 @@ import { ErrorState } from '@/components/ErrorState';
 import { FadeInView } from '@/components/FadeInView';
 import { MascotAssistant } from '@/components/mascot/MascotAssistant';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
+import { SeccionTitulo, TarjetaProgreso } from '@/components/ui';
 import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useEstilos } from '@/theme/ThemeProvider';
 import { useIncorporacion } from '@/hooks/queries/useIncorporacion';
 import { getDevErrorDetail, getErrorMessage } from '@/utils/errors';
 import { deriveIncorporationSteps } from '@/utils/incorporation';
 import { toExpedienteProgress } from '@/utils/expedienteProgress';
+
+const ESTADO_TITULO: Record<string, string> = {
+  incompleto: 'Te faltan documentos',
+  en_revision: 'RH está revisando',
+  completo: 'Documentos completos',
+  aprobado: 'Incorporación aprobada',
+  rechazado: 'Incorporación con observaciones',
+};
 
 const ESTADO_MENSAJE: Record<string, string> = {
   incompleto: 'Todavía te faltan documentos por cargar.',
@@ -49,13 +57,12 @@ export default function IncorporacionScreen() {
         ) : data ? (
           <>
             <FadeInView index={0}>
-              <Card style={styles.heroCard}>
-                <View style={styles.heroHeader}>
-                  <Text style={styles.heroTitle}>Progreso de incorporación</Text>
-                  <Text style={styles.heroPercent}>{toExpedienteProgress(data.progreso).porcentaje}%</Text>
-                </View>
-                <AnimatedProgressBar percent={toExpedienteProgress(data.progreso).porcentaje} />
-              </Card>
+              <TarjetaProgreso
+                sobretitulo="Mi incorporación"
+                titulo={ESTADO_TITULO[data.estado] ?? 'Tu proceso de alta'}
+                porcentaje={toExpedienteProgress(data.progreso).porcentaje}
+                completo={data.estado === 'aprobado'}
+              />
             </FadeInView>
 
             <MascotAssistant
@@ -73,8 +80,8 @@ export default function IncorporacionScreen() {
             </FadeInView>
 
             <FadeInView index={2}>
-              <Text style={styles.sectionTitle}>Documentos requeridos</Text>
               <View style={styles.docList}>
+                <SeccionTitulo titulo="Documentos requeridos" descripcion="Toca uno para subirlo o ver su observación." />
                 {data.documentos
                   .filter((doc) => doc.obligatorio)
                   .map((doc) => (
@@ -114,24 +121,6 @@ const crearEstilos = (Colors: ColorPalette) =>
     padding: Spacing.lg,
     gap: Spacing.lg,
     paddingBottom: Spacing.xxxl,
-  },
-  heroCard: {
-    gap: Spacing.sm,
-  },
-  heroHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  heroTitle: {
-    fontSize: FontSize.md,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  heroPercent: {
-    fontSize: FontSize.xl,
-    fontWeight: '800',
-    color: Colors.primaryDark,
   },
   sectionTitle: {
     fontSize: FontSize.md,

@@ -2,7 +2,7 @@ import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
 
 import { authApi } from '@/api/auth';
-import { setAuthToken, setUnauthorizedHandler } from '@/api/client';
+import { setAuthToken, setRegistroIncompletoHandler, setUnauthorizedHandler } from '@/api/client';
 import { queryClient } from '@/api/queryClient';
 import { AUTH_TOKEN_KEY, DEVICE_NAME } from '@/constants/config';
 import { revokeCurrentPushToken } from '@/services/pushNotifications';
@@ -52,6 +52,8 @@ interface AuthState {
   retrySessionVerification: () => Promise<void>;
   /** Descarta la sesión guardada sin verificar (ej. "Entrar con otra cuenta"). */
   discardPendingSession: () => Promise<void>;
+  /** Registro completo terminado (o el backend avisó que falta): mueve la puerta de entrada. */
+  marcarRegistroCompleto: (completo: boolean) => void;
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
@@ -135,6 +137,12 @@ export const useAuthStore = create<AuthState>((set, get) => {
   setUnauthorizedHandler(() => {
     void clearPersistedToken();
     clearSessionState();
+  });
+
+  // 403 «registro_incompleto»: la cuenta debe volver al asistente de registro.
+  setRegistroIncompletoHandler(() => {
+    const user = get().user;
+    if (user && user.registro_completo !== false) set({ user: { ...user, registro_completo: false } });
   });
 
   async function verifyStoredToken(storedToken: string): Promise<void> {
@@ -269,6 +277,11 @@ export const useAuthStore = create<AuthState>((set, get) => {
       } finally {
         set({ isVerifying: false });
       }
+    },
+
+    marcarRegistroCompleto(completo) {
+      const user = get().user;
+      if (user) set({ user: { ...user, registro_completo: completo } });
     },
 
     async discardPendingSession() {

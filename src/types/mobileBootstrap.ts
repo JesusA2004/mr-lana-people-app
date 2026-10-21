@@ -86,6 +86,10 @@ export interface MobileBootstrapCounts {
   labor_documents_new?: number;
   /** Extracciones OCR con revisión pendiente — mismo caso, todavía no implementado en backend. */
   rh_document_extractions_pending?: number;
+  /** Correcciones propias que requieren acción de la persona (responder a RH / volver a subir). Backend 2026-10-20. */
+  correcciones_pendientes?: number;
+  /** Correcciones propias abiertas (en proceso + requieren acción). */
+  correcciones_abiertas?: number;
   [key: string]: number | undefined;
 }
 

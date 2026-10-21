@@ -3,6 +3,7 @@ import { useState } from 'react';
 
 import { recibosApi } from '@/api/cicloLaboral';
 import { Button } from '@/components/Button';
+import { DescargaDocumento } from '@/components/DescargaDocumento';
 import { ReciboDetail } from '@/components/ciclo/ReciboDetail';
 import { Notice, Screen } from '@/components/ciclo/Screen';
 import { SecureDocumentViewer } from '@/components/SecureDocumentViewer';
@@ -45,7 +46,10 @@ export default function MiReciboScreen() {
         <>
           <ReciboDetail recibo={recibo} />
           {recibo.tiene_pdf ? (
-            <Button title="Ver comprobante PDF" leftIcon="document-outline" variant="outline" onPress={() => setViewerOpen(true)} />
+            <>
+              <Button title="Ver comprobante PDF" leftIcon="document-outline" variant="outline" onPress={() => setViewerOpen(true)} />
+              <DescargaDocumento titulo={`Recibo de nómina ${recibo.folio ?? ''}`.trim()} path={recibosApi.pdfPath(recibo.id)} />
+            </>
           ) : (
             <Notice tone="warning">El comprobante PDF aún no está disponible.</Notice>
           )}

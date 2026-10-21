@@ -15,8 +15,19 @@ export function pushCicloKeys(type: PushNotificationData['type']): readonly (rea
     case 'expediente_incompleto':
     case 'alta_activada':
       return [queryKeys.miAlta, queryKeys.miExpediente, queryKeys.incorporacion, queryKeys.tareas];
+    // Aprobaciones (motor 2026-10-20): bandeja y badge al momento del push.
     case 'visto_bueno_pendiente':
-      return [queryKeys.equipoPendientes, queryKeys.tareas];
+    case 'solicitud_visto_bueno':
+    case 'solicitud_lista_para_autorizar':
+    case 'rh_solicitud':
+      return [queryKeys.equipoPendientes, queryKeys.aprobaciones, queryKeys.tareas];
+    // Al solicitante: avanzó o cambió su solicitud (o su corrección).
+    case 'solicitud':
+    case 'solicitud_paso_aprobado':
+      return [queryKeys.correcciones, queryKeys.aprobaciones, queryKeys.solicitudes];
+    case 'documento':
+    case 'foto_perfil':
+      return [queryKeys.correcciones];
     case 'evaluacion_pendiente':
     case 'evaluacion_devuelta':
     case 'evaluacion_capturada':

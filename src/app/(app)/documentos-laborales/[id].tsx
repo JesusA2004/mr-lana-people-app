@@ -6,6 +6,7 @@ import { Alert, StyleSheet, Text, View } from 'react-native';
 import { documentosLaboralesApi } from '@/api/documentosLaborales';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { DescargaDocumento } from '@/components/DescargaDocumento';
 import { InfoRow } from '@/components/ciclo/InfoRow';
 import { Notice, Screen, SectionTitle } from '@/components/ciclo/Screen';
 import { StepTimeline } from '@/components/ciclo/StepTimeline';
@@ -129,6 +130,9 @@ export default function DocumentoLaboralDetailScreen() {
             <InfoRow label="Versión de plantilla" value={documento.version_plantilla} icon="layers-outline" />
             <Button title="Ver documento" leftIcon="eye-outline" variant="outline" onPress={() => setViewerOpen(true)} />
           </Card>
+
+          {/* Descarga autenticada siempre disponible (por si la vista previa no abre en este teléfono). */}
+          <DescargaDocumento titulo={documento.titulo} path={documentosLaboralesApi.descargarPath(documento.id)} />
 
           {puedeFirmar ? (
             <Card style={styles.gap}>

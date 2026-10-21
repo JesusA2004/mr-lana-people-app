@@ -23,7 +23,7 @@ export const equipoApi = {
 
   async pendientes(): Promise<EquipoPendientes> {
     const response = await apiClient.get('/equipo/pendientes');
-    return normalizeEquipoPendientes(extractData<unknown>(response.data));
+    return normalizeEquipoPendientes(extractData<unknown>(response.data), asRecord(response.data).meta);
   },
 
   async vistoBueno(solicitudId: number | string, aprobado: boolean, comentario?: string | null): Promise<VistoBuenoResult> {

@@ -4,13 +4,15 @@ import { useMemo, useState } from 'react';
 import { ActivityIndicator, RefreshControl, SectionList, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from './AppHeader';
+import { EmptyState } from './EmptyState';
 import { ErrorState } from './ErrorState';
 import { FadeInView } from './FadeInView';
 import { MascotAssistant } from './mascot/MascotAssistant';
 import { PressableScale } from './PressableScale';
 import { SkeletonCardList } from './SkeletonBlock';
+import { ControlSegmentado } from './ui';
 
-import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { MascotMessages } from '@/constants/mascotMessages';
 import { useAbrirNotificacion, useMarkAllNotificacionesLeidas, useNotificaciones } from '@/hooks/queries/useNotificaciones';
@@ -136,7 +138,12 @@ export function NotificacionesContent({ showBack = false }: NotificacionesConten
         onBackPress={showBack ? () => volverAtras(router) : undefined}
         right={
           unreadCount > 0 ? (
-            <PressableScale haptic={false} onPress={handleMarkAllAsRead} disabled={markAllAsRead.isPending} style={styles.markAllButton}>
+            <PressableScale
+              haptic={false}
+              accessibilityLabel="Marcar todas como leídas"
+              onPress={handleMarkAllAsRead}
+              disabled={markAllAsRead.isPending}
+              style={styles.markAllButton}>
               <Ionicons name="checkmark-done-outline" size={16} color={Colors.primaryDark} />
               <Text style={styles.markAllText}>Marcar todas</Text>
             </PressableScale>
@@ -145,8 +152,15 @@ export function NotificacionesContent({ showBack = false }: NotificacionesConten
       />
 
       <View style={styles.tabRow}>
-        <TabButton label="Todas" active={tab === 'todas'} onPress={() => setTab('todas')} />
-        <TabButton label={`No leídas${unreadCount > 0 ? ` (${unreadCount})` : ''}`} active={tab === 'no_leidas'} onPress={() => setTab('no_leidas')} />
+        <ControlSegmentado
+          accessibilityLabel="Filtrar notificaciones"
+          valor={tab}
+          onChange={setTab}
+          opciones={[
+            { valor: 'todas', etiqueta: 'Todas' },
+            { valor: 'no_leidas', etiqueta: `No leídas${unreadCount > 0 ? ` (${unreadCount})` : ''}` },
+          ]}
+        />
       </View>
 
       <SectionList
@@ -171,7 +185,11 @@ export function NotificacionesContent({ showBack = false }: NotificacionesConten
           const style = notificationStyle(item);
           return (
             <FadeInView index={index}>
-              <PressableScale haptic={false} onPress={() => handlePress(item)} style={[styles.item, !read && styles.itemUnread] as object}>
+              <PressableScale
+                haptic={false}
+                accessibilityLabel={[read ? null : 'No leída', item.titulo || 'Notificación', item.mensaje, item.creada_en].filter(Boolean).join('. ')}
+                onPress={() => handlePress(item)}
+                style={[styles.item, !read && styles.itemUnread] as object}>
                 <View style={[styles.iconWrapper, { backgroundColor: read ? Colors.surfaceMuted : style.background }]}>
                   <Text style={styles.emoji}>{style.emoji}</Text>
                 </View>
@@ -194,21 +212,14 @@ export function NotificacionesContent({ showBack = false }: NotificacionesConten
             <SkeletonCardList count={4} />
           ) : isError ? (
             <ErrorState message={getErrorMessage(error)} onRetry={() => void refetch()} />
+          ) : tab === 'no_leidas' && items.length > 0 ? (
+            <EmptyState icon="checkmark-done-outline" title="Todo leído" message="No tienes notificaciones sin leer." actionLabel="Ver todas" onAction={() => setTab('todas')} />
           ) : (
             <MascotAssistant message={MascotMessages.estasAlDia} type="success" dismissible={false} />
           )
         }
       />
     </View>
-  );
-}
-
-function TabButton({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
-  const styles = useEstilos(crearEstilos);
-  return (
-    <PressableScale haptic={false} onPress={onPress} style={[styles.tabButton, active && styles.tabButtonActive] as object}>
-      <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{label}</Text>
-    </PressableScale>
   );
 }
 
@@ -222,8 +233,8 @@ const crearEstilos = (Colors: ColorPalette) =>
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 6,
+    minHeight: Layout.minTouchTarget - 4,
+    paddingHorizontal: Spacing.md,
     borderRadius: Radius.full,
     backgroundColor: Colors.primarySoft,
   },
@@ -233,32 +244,16 @@ const crearEstilos = (Colors: ColorPalette) =>
     color: Colors.primaryDark,
   },
   tabRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
+    width: '100%',
+    maxWidth: Layout.maxContentWidth,
+    alignSelf: 'center',
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.md,
   },
-  tabButton: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  tabButtonActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  tabLabel: {
-    fontSize: FontSize.xs,
-    fontWeight: '700',
-    color: Colors.textMuted,
-  },
-  tabLabelActive: {
-    color: Colors.white,
-  },
   listContent: {
+    width: '100%',
+    maxWidth: Layout.maxContentWidth,
+    alignSelf: 'center',
     padding: Spacing.lg,
     paddingTop: 0,
     flexGrow: 1,
@@ -274,7 +269,8 @@ const crearEstilos = (Colors: ColorPalette) =>
   item: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: Spacing.sm,
+    gap: Spacing.md,
+    minHeight: 64,
     backgroundColor: Colors.surface,
     borderRadius: Radius.lg,
     borderWidth: 1,
@@ -282,19 +278,21 @@ const crearEstilos = (Colors: ColorPalette) =>
     padding: Spacing.md,
   },
   itemUnread: {
-    backgroundColor: Colors.primarySoft,
+    backgroundColor: Colors.surface,
     borderColor: Colors.primarySoft,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.primary,
   },
   iconWrapper: {
-    width: 34,
-    height: 34,
+    width: 40,
+    height: 40,
     borderRadius: Radius.md,
     backgroundColor: Colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
   emoji: {
-    fontSize: 18,
+    fontSize: 20,
   },
   itemBody: {
     flex: 1,
@@ -310,7 +308,8 @@ const crearEstilos = (Colors: ColorPalette) =>
   },
   itemMessage: {
     fontSize: FontSize.sm,
-    color: Colors.textMuted,
+    color: Colors.text,
+    lineHeight: 19,
   },
   itemDate: {
     fontSize: FontSize.xs,

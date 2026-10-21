@@ -3,8 +3,10 @@ import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/AppHeader';
+import { paddingInferiorBarra } from '@/components/BarraAccionInferior';
 import { Card } from '@/components/Card';
 import { FilterChips } from '@/components/ciclo/FilterChips';
 import { ErrorState } from '@/components/ErrorState';
@@ -27,6 +29,7 @@ export default function DirectorioScreen() {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [texto, setTexto] = useState('');
   const [busqueda, setBusqueda] = useState('');
   const [sucursal, setSucursal] = useState('todas');
@@ -80,7 +83,9 @@ export default function DirectorioScreen() {
       <FlatList
         data={colaboradores}
         keyExtractor={(item) => String(item.id)}
-        contentContainerStyle={styles.lista}
+        contentContainerStyle={[styles.lista, { paddingBottom: paddingInferiorBarra(insets.bottom) }]}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} tintColor={Colors.primary} />}
         ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
         onEndReachedThreshold={0.4}

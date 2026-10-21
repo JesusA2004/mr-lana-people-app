@@ -1,19 +1,19 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/AppHeader';
+import { BarraAccionInferior } from '@/components/BarraAccionInferior';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { DocumentStatusBadge } from '@/components/DocumentStatusBadge';
 import { DocumentTypeIcon } from '@/components/DocumentTypeIcon';
 import { DocumentUploadSheet, type PickedDocumentFile } from '@/components/DocumentUploadSheet';
 import { ErrorState } from '@/components/ErrorState';
-import { MascotAssistant } from '@/components/mascot/MascotAssistant';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
+import { TarjetaAviso } from '@/components/ui';
 import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
-import { useColores, useEstilos } from '@/theme/ThemeProvider';
+import { useEstilos } from '@/theme/ThemeProvider';
 import { useIncorporacion, useSolicitarCambioDocumento, useUploadDocumento } from '@/hooks/queries/useIncorporacion';
 import { toast } from '@/store/toastStore';
 import { formatDateLong, formatDateTime } from '@/utils/dates';
@@ -21,7 +21,6 @@ import { getErrorMessage, logError } from '@/utils/errors';
 import { confirmAction } from '@/utils/confirm';
 
 export default function DocumentoDetalleScreen() {
-  const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   const router = useRouter();
   // `ref=documento`: se abrió desde un push `documento` cuyo resource_id es
@@ -105,16 +104,9 @@ export default function DocumentoDetalleScreen() {
             </Card>
 
             {needsCorrection && documento.motivo_rechazo ? (
-              <>
-                <MascotAssistant message={MascotMessagesCorreccion} type="warning" priority="high" dismissible={false} />
-                <Card style={styles.rejectionCard}>
-                  <View style={styles.rejectionHeader}>
-                    <Ionicons name="alert-circle" size={18} color={Colors.danger} />
-                    <Text style={styles.rejectionTitle}>Observación de Recursos Humanos</Text>
-                  </View>
-                  <Text style={styles.rejectionText}>{documento.motivo_rechazo}</Text>
-                </Card>
-              </>
+              <TarjetaAviso icono="alert-circle-outline" tono="peligro" titulo="Observación de Recursos Humanos" mensaje={documento.motivo_rechazo}>
+                <Text style={styles.rejectionHint}>{MascotMessagesCorreccion}</Text>
+              </TarjetaAviso>
             ) : null}
 
             {hasUploadedFile ? (
@@ -129,30 +121,39 @@ export default function DocumentoDetalleScreen() {
             )}
 
             {canRequestChange && !canUploadDirectly ? (
-              <Card style={styles.infoCard}>
-                <Text style={styles.infoText}>
-                  Este documento ya está {documento.estado === 'aprobado' ? 'aprobado' : 'en revisión'}. Si necesitas reemplazarlo, pide autorización a
-                  Recursos Humanos primero.
-                </Text>
-              </Card>
+              <TarjetaAviso
+                icono="information-circle-outline"
+                tono="info"
+                titulo={documento.estado === 'aprobado' ? 'Documento aprobado' : 'Documento en revisión'}
+                mensaje="Si necesitas reemplazarlo, primero pide autorización a Recursos Humanos con «Solicitar cambio»."
+              />
             ) : null}
 
-            <View style={styles.actions}>
-              {canUploadDirectly ? (
-                <Button title={hasUploadedFile ? 'Reemplazar documento' : 'Subir documento'} onPress={() => setSheetVisible(true)} />
-              ) : canRequestChange ? (
-                <Button
-                  title="Solicitar cambio"
-                  variant="outline"
-                  onPress={() => void handleSolicitarCambio()}
-                  loading={solicitarCambioMutation.isPending}
-                  disabled={solicitarCambioMutation.isPending}
-                />
-              ) : null}
-            </View>
           </>
         )}
       </ScrollView>
+
+      {/* Acción principal fija abajo: respeta la barra de navegación del teléfono (safe area). */}
+      {documento && !isLoading && !isError && (canUploadDirectly || canRequestChange) ? (
+        <BarraAccionInferior sobreTeclado={false}>
+          {canUploadDirectly ? (
+            <Button
+              title={hasUploadedFile ? 'Reemplazar documento' : 'Subir documento'}
+              leftIcon={hasUploadedFile ? 'swap-horizontal-outline' : 'cloud-upload-outline'}
+              onPress={() => setSheetVisible(true)}
+            />
+          ) : (
+            <Button
+              title="Solicitar cambio"
+              leftIcon="repeat-outline"
+              variant="outline"
+              onPress={() => void handleSolicitarCambio()}
+              loading={solicitarCambioMutation.isPending}
+              disabled={solicitarCambioMutation.isPending}
+            />
+          )}
+        </BarraAccionInferior>
+      ) : null}
 
       {documento ? (
         <DocumentUploadSheet visible={sheetVisible} title={documento.nombre} onClose={() => setSheetVisible(false)} onConfirm={handleUpload} />
@@ -224,33 +225,6 @@ const crearEstilos = (Colors: ColorPalette) =>
     fontSize: FontSize.xs,
     color: Colors.textMuted,
   },
-  rejectionCard: {
-    backgroundColor: Colors.dangerSoft,
-    borderColor: Colors.dangerSoft,
-    gap: Spacing.xs,
-  },
-  rejectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  rejectionTitle: {
-    fontSize: FontSize.sm,
-    fontWeight: '800',
-    color: Colors.danger,
-  },
-  rejectionText: {
-    fontSize: FontSize.sm,
-    color: Colors.text,
-  },
-  infoCard: {
-    backgroundColor: Colors.infoSoft,
-    borderColor: Colors.infoSoft,
-  },
-  infoText: {
-    fontSize: FontSize.sm,
-    color: Colors.text,
-  },
   detailRow: {
     paddingVertical: Spacing.sm,
   },
@@ -274,7 +248,8 @@ const crearEstilos = (Colors: ColorPalette) =>
     color: Colors.textMuted,
     textAlign: 'center',
   },
-  actions: {
-    gap: Spacing.md,
+  rejectionHint: {
+    fontSize: FontSize.xs,
+    color: Colors.textMuted,
   },
 });

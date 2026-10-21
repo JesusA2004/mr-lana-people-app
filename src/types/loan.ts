@@ -62,3 +62,25 @@ export interface PrestamoDocumentosResult {
   /** Claves sin plantilla activa (`contrato_prestamo`, `pagare`). */
   pendientes: string[];
 }
+
+/**
+ * `GET /api/v1/solicitudes/prestamo/elegibilidad` — regla única de 6 meses
+ * completos desde `fecha_ingreso`, con la FECHA DEL SERVIDOR
+ * (`AprobacionOrganizacionalService::elegibilidadPrestamo`). La app nunca
+ * calcula antigüedad con el reloj del teléfono.
+ */
+export interface ElegibilidadPrestamo {
+  cumple: boolean;
+  meses_minimos: number;
+  fecha_ingreso: string | null;
+  antiguedad: { anios: number; meses: number; dias: number } | null;
+  /** «5 meses 12 días». */
+  antiguedad_texto: string | null;
+  /** `YYYY-MM-DD`. */
+  disponible_desde: string | null;
+  /** `dd/mm/aaaa`. */
+  disponible_desde_texto: string | null;
+  fecha_servidor: string | null;
+  /** Texto humano listo para mostrarse. */
+  mensaje: string | null;
+}

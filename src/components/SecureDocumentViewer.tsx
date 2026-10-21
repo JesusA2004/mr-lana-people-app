@@ -1,12 +1,14 @@
 import { File, Paths } from 'expo-file-system';
 import { Image } from 'expo-image';
 import * as ScreenCapture from 'expo-screen-capture';
-import * as Sharing from 'expo-sharing';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AnimatedProgressBar } from './AnimatedProgressBar';
+
 import { Button } from './Button';
+import { BarraDescargaDocumento, DescargaDocumento } from './DescargaDocumento';
 import { ErrorState } from './ErrorState';
 import { PdfViewer } from './PdfViewer';
 import { SecurityWatermark } from './SecurityWatermark';
@@ -16,39 +18,10 @@ import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors
 import { useEstilos } from '@/theme/ThemeProvider';
 import { API_URL } from '@/constants/config';
 import { useAuthStore } from '@/store/authStore';
+import { mensajeParaErrorDescarga, porcentajeDescarga, statusDesdeErrorDescarga } from '@/utils/descargaDocumento';
 import { extensionForSniffedType, isPreviewableSniffedType, sniffFileType, type SniffedFileType } from '@/utils/fileSniff';
 import { logError } from '@/utils/errors';
 import { uniqueTempFileName } from '@/utils/tempFileName';
-
-/**
- * El mensaje de `UnableToDownloadException` de expo-file-system siempre
- * incluye el status HTTP real tal cual lo devolvió el servidor — Android:
- * "HTTP 404"; iOS: "server returned HTTP 404" (ver
- * node_modules/expo-file-system/{android,ios}/.../FileSystemDownloadTask.*).
- * Se usa para no depender de un HEAD previo (sección 38-39 del encargo): la
- * descarga real YA es la verificación de acceso.
- */
-function statusFromDownloadError(error: unknown): number | undefined {
-  if (!(error instanceof Error)) return undefined;
-  const match = /HTTP\s*(\d{3})/i.exec(error.message);
-  return match ? Number(match[1]) : undefined;
-}
-
-function mensajeParaStatus(status: number | undefined): string {
-  switch (status) {
-    case 401:
-      return 'Tu sesión ha expirado. Vuelve a iniciar sesión.';
-    case 403:
-      return 'No tienes permiso para ver este archivo.';
-    case 404:
-      return 'Este archivo ya no está disponible.';
-    case 503:
-      return 'El almacenamiento no está disponible. Intenta nuevamente.';
-    default:
-      if (status !== undefined && status >= 500) return 'Tuvimos un problema de nuestro lado. Intenta más tarde.';
-      return 'No pudimos cargar este archivo. Verifica tu conexión e intenta de nuevo.';
-  }
-}
 
 export interface SecureDocumentViewerProps {
   /** Ruta relativa a la API (ej. `rhDocumentosApi.verPath(id)`) — nunca una URL absoluta expuesta al cliente. */
@@ -121,7 +94,10 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
   const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined);
   const [fileUri, setFileUri] = useState<string | null>(null);
   const [sniffedType, setSniffedType] = useState<SniffedFileType | null>(null);
-  const [sharing, setSharing] = useState(false);
+  const [progreso, setProgreso] = useState<number | null>(null);
+  const [tamano, setTamano] = useState<number | null>(null);
+  /** El archivo bajó bien pero el visor (pdf.js / WebView) no pudo dibujarlo: se ofrece descargarlo. */
+  const [vistaPreviaFallo, setVistaPreviaFallo] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
@@ -138,6 +114,8 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
 
     (async () => {
       setStatus('loading');
+      setProgreso(null);
+      setVistaPreviaFallo(false);
       try {
         // Descarga real, directo a disco, sin ArrayBuffer completo en JS.
         const tempFile = new File(Paths.cache, uniqueTempFileName('bin'));
@@ -152,6 +130,9 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
         const task = File.createDownloadTask(`${API_URL}${path}`, tempFile, {
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
           signal: controller.signal,
+          onProgress: ({ bytesWritten, totalBytes }) => {
+            if (!cancelled) setProgreso(porcentajeDescarga(bytesWritten, totalBytes));
+          },
         });
         const downloaded = await task.downloadAsync();
         if (cancelled) return;
@@ -174,6 +155,7 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
 
         if (cancelled) return;
         setSniffedType(sniffed);
+        setTamano(finalFile.size);
 
         // Bug corregido en la sincronización 2026-09-15: antes, un tipo no
         // reconocido (p. ej. un DOCX, que el sniffer no distinguía) cortaba
@@ -198,9 +180,8 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
       } catch (error) {
         if (cancelled) return;
         logError('SecureDocumentViewer', error);
-        const httpStatus = statusFromDownloadError(error);
-        if (httpStatus === 401) void logout();
-        setErrorMessage(mensajeParaStatus(httpStatus));
+        if (statusDesdeErrorDescarga(error) === 401) void logout();
+        setErrorMessage(mensajeParaErrorDescarga(error));
         setStatus('error');
       }
     })();
@@ -220,110 +201,68 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
     };
   }, [path, token, retryCount, logout]);
 
-  const handleSaveOrShare = async () => {
-    if (!fileUri) return;
-    setSharing(true);
-    // Copia con nombre legible para compartir (ver abajo) — solo existe
-    // mientras dura esta función. Se borra en el `finally`, nunca se deja
-    // viviendo en `Paths.cache`: un contrato o recibo no debe quedar en
-    // disco más tiempo del que tarda el sheet de compartir en abrirse
-    // (sección 9 de esta sincronización).
-    let sharedCopy: File | null = null;
-    try {
-      const available = await Sharing.isAvailableAsync();
-      if (!available) {
-        logError('SecureDocumentViewer.saveOrShare', new Error('Sharing no disponible en este dispositivo'));
-        return;
-      }
-      // No hay una API de "Descargar a la carpeta de descargas" multiplataforma
-      // sin permisos adicionales de almacenamiento — el sheet nativo de
-      // compartir/guardar es el mecanismo estándar de Expo para esto (deja
-      // elegir "Guardar en archivos"/galería). Nunca se expone el Bearer
-      // token ni la ruta física: el archivo ya está en el temporal local.
-      // El botón dice "Guardar o compartir" (nunca "Descargar") porque
-      // eso es exactamente lo que hace esta acción.
-      let shareUri = fileUri;
-      if (downloadFileName && sniffedType) {
-        // Sharing.shareAsync usa el nombre del archivo tal cual está en
-        // disco — se copia a un nombre legible sugerido justo antes de
-        // compartir, nunca se usa ese nombre como path de trabajo interno
-        // (ver `uniqueTempFileName`).
-        const suggested = new File(Paths.cache, `${downloadFileName}.${extensionForSniffedType(sniffedType)}`);
-        try {
-          await new File(fileUri).copy(suggested);
-          shareUri = suggested.uri;
-          sharedCopy = suggested;
-        } catch {
-          // Si falla la copia (nombre inválido, etc.), comparte el archivo original.
-        }
-      }
-      await Sharing.shareAsync(shareUri, { dialogTitle: title });
-    } catch (error) {
-      logError('SecureDocumentViewer.saveOrShare', error);
-    } finally {
-      setSharing(false);
-      try {
-        sharedCopy?.delete();
-      } catch {
-        // No crítico: el sistema operativo limpia Paths.cache eventualmente.
-      }
-    }
-  };
-
   const isPdf = sniffedType === 'pdf';
 
+  const nombreSugerido = downloadFileName ?? title;
+  const archivoLocal = fileUri && sniffedType ? { uri: fileUri, tipo: sniffedType, tamano } : null;
+  const sinVistaPrevia = status === 'unsupported' || vistaPreviaFallo;
+  // «Descargar PDF» / «Abrir con…» fijos abajo cuando el documento SÍ se ve
+  // (acción secundaria siempre visible) — solo si el backend autorizó la descarga.
+  const mostrarBarra = allowDownload && status === 'ready' && !vistaPreviaFallo && archivoLocal !== null;
+
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={mostrarBarra ? ['top', 'left', 'right'] : ['top', 'left', 'right', 'bottom']}>
       <View style={styles.header}>
         <Text style={styles.title} numberOfLines={1}>
           {title}
         </Text>
         <View style={styles.headerActions}>
-          {allowDownload && status === 'ready' && fileUri ? (
-            <Button
-              title="Guardar o compartir"
-              variant="ghost"
-              onPress={() => void handleSaveOrShare()}
-              loading={sharing}
-              fullWidth={false}
-              leftIcon="share-outline"
-              style={styles.closeButton}
-            />
-          ) : null}
           <Button title="Cerrar" variant="ghost" onPress={onClose} fullWidth={false} leftIcon="close" style={styles.closeButton} />
         </View>
       </View>
 
       <View style={styles.viewerArea}>
         {status === 'loading' ? (
-          <View style={styles.padded}>
+          <View style={styles.padded} accessibilityLiveRegion="polite" accessibilityLabel="Descargando documento">
+            <View style={styles.progressRow}>
+              <Text style={styles.progressText}>Descargando documento…</Text>
+              {progreso !== null ? <Text style={styles.progressText}>{progreso}%</Text> : null}
+            </View>
+            {progreso !== null ? <AnimatedProgressBar percent={progreso} height={6} /> : null}
             <SkeletonBlock height={420} radius={Radius.lg} />
           </View>
         ) : status === 'error' ? (
           <ErrorState message={errorMessage} onRetry={() => setRetryCount((c) => c + 1)} />
-        ) : status === 'unsupported' ? (
-          <View style={styles.unsupportedBox}>
-            <Text style={styles.unsupportedText}>Este archivo no puede previsualizarse.</Text>
-            {allowDownload ? <Text style={styles.unsupportedHint}>Puedes guardarlo o compartirlo con &ldquo;Guardar o compartir&rdquo;.</Text> : null}
-          </View>
+        ) : sinVistaPrevia ? (
+          allowDownload && archivoLocal ? (
+            <DescargaDocumento
+              variante="pantalla"
+              titulo={nombreSugerido}
+              archivoLocal={archivoLocal}
+              motivo={
+                vistaPreviaFallo
+                  ? 'No se pudo mostrar la vista previa en este teléfono. Descárgalo o ábrelo con otra aplicación.'
+                  : 'Este tipo de archivo no tiene vista previa en la app. Descárgalo o ábrelo con otra aplicación.'
+              }
+            />
+          ) : (
+            <View style={styles.unsupportedBox}>
+              <Text style={styles.unsupportedText}>Este archivo no puede previsualizarse en la app.</Text>
+              <Text style={styles.unsupportedHint}>Este documento no se descarga en el teléfono. Consúltalo en el portal web de PEOPLE.</Text>
+            </View>
+          )
         ) : fileUri && isPdf ? (
           // iOS: visor nativo de WKWebView. Android: pdf.js (su WebView no
-          // dibuja PDFs y quedaba la pantalla en negro). Ver PdfViewer.
-          <PdfViewer fileUri={fileUri} style={styles.webview} />
+          // dibuja PDFs). Si falla, se cambia a la pantalla de descarga.
+          <PdfViewer fileUri={fileUri} style={styles.webview} onError={() => setVistaPreviaFallo(true)} />
         ) : fileUri ? (
-          <Image source={{ uri: fileUri }} style={styles.image} contentFit="contain" accessibilityLabel={title} />
+          <Image source={{ uri: fileUri }} style={styles.image} contentFit="contain" accessibilityLabel={title} onError={() => setVistaPreviaFallo(true)} />
         ) : null}
 
-        {status === 'ready' && watermarkLabel ? <SecurityWatermark label={watermarkLabel} /> : null}
+        {status === 'ready' && !vistaPreviaFallo && watermarkLabel ? <SecurityWatermark label={watermarkLabel} /> : null}
       </View>
 
-      {/* El botón de descarga cuando el archivo no pudo previsualizarse vive
-          fuera del `viewerArea` para no competir con el mensaje de arriba. */}
-      {status === 'unsupported' && allowDownload && fileUri ? (
-        <View style={styles.unsupportedActions}>
-          <Button title="Guardar o compartir" onPress={() => void handleSaveOrShare()} loading={sharing} leftIcon="share-outline" />
-        </View>
-      ) : null}
+      {mostrarBarra && archivoLocal ? <BarraDescargaDocumento titulo={nombreSugerido} archivoLocal={archivoLocal} /> : null}
     </SafeAreaView>
   );
 }
@@ -364,6 +303,7 @@ const crearEstilos = (Colors: ColorPalette) =>
   },
   padded: {
     padding: Spacing.lg,
+    gap: Spacing.sm,
   },
   webview: {
     flex: 1,
@@ -387,13 +327,17 @@ const crearEstilos = (Colors: ColorPalette) =>
   },
   unsupportedHint: {
     fontSize: FontSize.sm,
-    color: 'rgba(255,255,255,0.7)',
+    color: Colors.skeleton,
     textAlign: 'center',
   },
-  unsupportedActions: {
-    padding: Spacing.lg,
-    backgroundColor: Colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
+  progressRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.sm,
+  },
+  progressText: {
+    fontSize: FontSize.sm,
+    fontWeight: '700',
+    color: Colors.white,
   },
 });

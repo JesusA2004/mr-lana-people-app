@@ -31,7 +31,7 @@ const CASOS: [type: string, resourceId: number | null, route: string, experience
   ['expediente_incompleto', 7, '/(app)/(tabs)/expediente', 'colaborador'],
   ['datos_faltantes', 7, '/completar-datos', 'colaborador'],
   ['alta_activada', 7, '/(app)/(tabs)', 'colaborador'],
-  ['visto_bueno_pendiente', 44, '/equipo', null],
+  ['visto_bueno_pendiente', 44, '/aprobaciones', null],
   ['evaluacion_pendiente', 61, '/evaluaciones/61', null],
   ['evaluacion_devuelta', 61, '/evaluaciones/61', null],
   ['evaluacion_capturada', 61, '/evaluaciones/61', null],

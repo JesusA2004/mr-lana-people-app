@@ -10,6 +10,8 @@ import type {
   SolicitudAdjuntoRespuesta,
   SolicitudTipoConfig,
 } from '@/types/request';
+import type { ElegibilidadPrestamo } from '@/types/loan';
+import { elegibilidadDesdeRespuesta } from '@/utils/prestamoElegibilidad';
 import { normalizeSolicitudesConfiguracion } from '@/utils/solicitudesConfig';
 
 /**
@@ -97,5 +99,15 @@ export const solicitudesApi = {
   async getConfiguracion(): Promise<SolicitudTipoConfig[]> {
     const response = await apiClient.get('/solicitudes/configuracion');
     return normalizeSolicitudesConfiguracion(response.data);
+  },
+
+  /**
+   * `GET /api/v1/solicitudes/prestamo/elegibilidad` — 6 meses completos de
+   * antigüedad con la fecha del servidor. `null` si la respuesta no trae el
+   * contrato (la pantalla no bloquea y el POST valida igual con 422).
+   */
+  async getElegibilidadPrestamo(): Promise<ElegibilidadPrestamo | null> {
+    const response = await apiClient.get('/solicitudes/prestamo/elegibilidad');
+    return elegibilidadDesdeRespuesta(response.data);
   },
 };

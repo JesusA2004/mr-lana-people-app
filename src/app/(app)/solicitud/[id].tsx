@@ -8,7 +8,9 @@ import { solicitudesApi } from '@/api/solicitudes';
 import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { CorreccionResumen } from '@/components/CorreccionResumen';
 import { ErrorState } from '@/components/ErrorState';
+import { FlujoAprobacionTimeline } from '@/components/FlujoAprobacionTimeline';
 import { MascotAssistant } from '@/components/mascot/MascotAssistant';
 import { StepTimeline } from '@/components/ciclo/StepTimeline';
 import { RequestStatusTimeline } from '@/components/RequestStatusTimeline';
@@ -26,6 +28,8 @@ import { formatDateLong, formatDateTime } from '@/utils/dates';
 import { getDevErrorDetail, getErrorMessage, logError } from '@/utils/errors';
 import { formatCurrencyMXN, humanizeRequestType, slugifyFilename } from '@/utils/formatters';
 import { haptics } from '@/utils/haptics';
+import { normalizeCorreccion, normalizeHistorial } from '@/utils/correcciones';
+import { formatFechaHoraFlujo, normalizeFlujo, textoPendienteDe } from '@/utils/flujoAprobacion';
 import { loanStagesToTimeline } from '@/utils/loanRequest';
 import { getSolicitudStory, prestamoNextAction } from '@/utils/solicitudStory';
 
@@ -50,6 +54,12 @@ import { getSolicitudStory, prestamoNextAction } from '@/utils/solicitudStory';
  * `POST {id}/adjuntos` (agregar un archivo) y `POST {id}/cancelar`. Por eso
  * la corrección NUNCA ofrece un botón "Corregir"/reenviar: solo agregar un
  * documento o cancelar y crear una solicitud nueva.
+ *
+ * Actualización 2026-10-20 (motor de aprobaciones y correcciones): el
+ * Resource ya manda `flujo[]` + `pendiente_de` (línea de tiempo real de
+ * quién aprueba) y, si es corrección, `correccion` + `historial`. Con
+ * `correccion.puede_responder` se ofrece «Responder a Recursos Humanos»
+ * (`POST /solicitudes/{id}/responder`) en la pantalla de la corrección.
  */
 export default function SolicitudDetalleScreen() {
   const Colors = useColores();
@@ -67,6 +77,11 @@ export default function SolicitudDetalleScreen() {
   const puedeCancelar = canCancelSolicitud(solicitud);
   const story = getSolicitudStory(solicitud?.estado);
   const prestamoActionLabel = prestamoNextAction(solicitud?.prestamo?.etapas);
+  // Motor de aprobaciones: pasos reales calculados por el backend (o null en un backend anterior).
+  const flujo = solicitud ? normalizeFlujo(solicitud) : null;
+  const pendienteDe = textoPendienteDe(flujo);
+  const correccion = solicitud?.correccion ? normalizeCorreccion(solicitud.correccion) : null;
+  const historial = Array.isArray(solicitud?.historial) ? solicitud.historial.map(normalizeHistorial) : [];
 
   interface DetailItem {
     icon: keyof typeof Ionicons.glyphMap;
@@ -202,16 +217,44 @@ export default function SolicitudDetalleScreen() {
               {solicitud.creada_en ? <Text style={styles.date}>{formatDateLong(solicitud.creada_en)}</Text> : null}
             </Card>
 
+            {/* En una corrección su tarjeta de estado ya dice qué pasa y qué hacer. */}
+            {correccion ? null : (
             <Card style={styles.storyCard}>
               <Text style={styles.storyTitle}>{story.title}</Text>
               <Text style={styles.storyNextAction}>
-                {solicitud.tipo === 'prestamo' && prestamoActionLabel ? prestamoActionLabel : story.nextAction}
+                {pendienteDe
+                  ? 'Avanza paso a paso por sus aprobaciones; te avisaremos en cada uno. No necesitas hacer nada más por ahora.'
+                  : solicitud.tipo === 'prestamo' && prestamoActionLabel
+                    ? prestamoActionLabel
+                    : story.nextAction}
               </Text>
+              {pendienteDe ? (
+                <Text style={styles.pendienteDe} accessibilityLiveRegion="polite">
+                  {pendienteDe}
+                </Text>
+              ) : null}
             </Card>
+            )}
+
+            {correccion ? (
+              <>
+                <CorreccionResumen correccion={correccion} mostrarHistorial={false} />
+                {correccion.puede_responder ? (
+                  <Button
+                    title="Responder a Recursos Humanos"
+                    leftIcon="chatbox-ellipses-outline"
+                    onPress={() => router.push({ pathname: '/correcciones/[id]', params: { id: correccion.id } })}
+                  />
+                ) : null}
+              </>
+            ) : null}
 
             <Card>
-              {/* Préstamo: avance real calculado por el backend (visto bueno → RH → firma). */}
-              {solicitud.prestamo?.etapas.length ? (
+              {/* Motor de aprobaciones (2026-10-20): pasos reales con responsables y
+                  fechas. Si el backend no lo manda, el avance de siempre. */}
+              {flujo && flujo.pasos.length > 0 ? (
+                <FlujoAprobacionTimeline flujo={flujo} />
+              ) : solicitud.prestamo?.etapas.length ? (
                 <StepTimeline items={loanStagesToTimeline(solicitud.prestamo.etapas)} />
               ) : (
                 <RequestStatusTimeline
@@ -224,7 +267,7 @@ export default function SolicitudDetalleScreen() {
               )}
             </Card>
 
-            {solicitud.estado === 'requiere_correccion' && solicitud.motivo_rechazo ? (
+            {correccion ? null : solicitud.estado === 'requiere_correccion' && solicitud.motivo_rechazo ? (
               <>
                 <MascotAssistant message={MascotMessages.documentoRechazado} type="warning" priority="high" dismissible={false} />
                 <Card style={styles.correctionCard}>
@@ -321,16 +364,15 @@ export default function SolicitudDetalleScreen() {
               </Card>
             ) : null}
 
-            {solicitud.historial && solicitud.historial.length > 0 ? (
+            {/* Historial (`CorreccionesService::historial()`: etiqueta/por/en/origen). */}
+            {historial.length > 0 ? (
               <Card>
                 <Text style={styles.sectionTitle}>Seguimiento detallado</Text>
-                {solicitud.historial.map((entrada, index) => (
-                  <View
-                    key={`${entrada.fecha}-${index}`}
-                    style={[styles.historyRow, index === solicitud.historial!.length - 1 && styles.detailRowLast]}>
-                    <Text style={styles.historyAction}>{entrada.accion_etiqueta ?? entrada.accion}</Text>
-                    {entrada.usuario ? <Text style={styles.historyMeta}>{entrada.usuario}</Text> : null}
-                    <Text style={styles.historyMeta}>{formatDateTime(entrada.fecha)}</Text>
+                {historial.map((entrada, index) => (
+                  <View key={`${entrada.accion}-${entrada.en ?? index}`} style={[styles.historyRow, index === historial.length - 1 && styles.detailRowLast]}>
+                    <Text style={styles.historyAction}>{entrada.etiqueta}</Text>
+                    {entrada.por ? <Text style={styles.historyMeta}>{entrada.por}</Text> : null}
+                    {entrada.en ? <Text style={styles.historyMeta}>{formatFechaHoraFlujo(entrada.en)}</Text> : null}
                     {entrada.comentario ? <Text style={styles.historyComment}>{entrada.comentario}</Text> : null}
                   </View>
                 ))}
@@ -424,6 +466,12 @@ const crearEstilos = (Colors: ColorPalette) =>
   storyNextAction: {
     fontSize: FontSize.sm,
     color: Colors.textMuted,
+  },
+  pendienteDe: {
+    fontSize: FontSize.sm,
+    fontWeight: '800',
+    color: Colors.info,
+    marginTop: Spacing.xs,
   },
   rejectionCard: {
     backgroundColor: Colors.dangerSoft,

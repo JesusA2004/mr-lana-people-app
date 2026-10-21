@@ -1,5 +1,8 @@
 import { File, Paths } from 'expo-file-system';
 
+/** Prefijo de los temporales de documentos (ver `uniqueTempFileName`). */
+export const PREFIJO_TEMPORAL_DOCUMENTO = 'mrlana-doc-';
+
 /** Hash corto y estable (no criptográfico, no necesita serlo) para construir un nombre de archivo determinista por URL. */
 export function hashForCacheName(value: string): string {
   let h = 0;
@@ -32,7 +35,9 @@ export function privateAssetCacheFileName(userId: number | string, remoteUrl: st
  * `authStore` sin crear un import circular con `usePrivateAsset`.
  */
 export function clearPrivateAssetCache(userId: number | string): void {
-  const prefijos = [`private-asset-v2-${userId}-`, `private-asset-${userId}-`];
+  // `mrlana-doc-`: copias temporales de documentos (visor/descarga) que un
+  // cierre abrupto de la app pudo dejar en caché — nunca sobreviven al logout.
+  const prefijos = [`private-asset-v2-${userId}-`, `private-asset-${userId}-`, PREFIJO_TEMPORAL_DOCUMENTO];
   try {
     for (const entry of Paths.cache.list()) {
       if (entry instanceof File && prefijos.some((prefijo) => entry.name.startsWith(prefijo))) {

@@ -17,6 +17,10 @@ export const apiClient = axios.create({
   timeout: REQUEST_TIMEOUT_MS,
   headers: {
     Accept: 'application/json',
+    // Esta app entiende el registro completo antes de entrar: el backend
+    // (middleware registro.app) solo le bloquea el resto de la API a quien
+    // no lo ha terminado. Las APKs anteriores no mandan la cabecera.
+    'X-People-Registro': '1',
   },
 });
 
@@ -29,6 +33,15 @@ export function setAuthToken(token: string | null): void {
 
 type UnauthorizedHandler = () => void;
 let unauthorizedHandler: UnauthorizedHandler | null = null;
+let registroIncompletoHandler: (() => void) | null = null;
+
+/**
+ * Registrado por el auth store: un 403 `registro_incompleto` (la cuenta
+ * todavía no termina su registro completo) regresa al asistente de registro.
+ */
+export function setRegistroIncompletoHandler(handler: (() => void) | null): void {
+  registroIncompletoHandler = handler;
+}
 
 /** Registrado por el auth store: se ejecuta cuando cualquier request recibe 401. */
 export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): void {
@@ -62,6 +75,10 @@ apiClient.interceptors.response.use(
 
     if (error.response?.status === 401) {
       unauthorizedHandler?.();
+    }
+
+    if (error.response?.status === 403 && (error.response.data as { codigo?: string } | undefined)?.codigo === 'registro_incompleto') {
+      registroIncompletoHandler?.();
     }
 
     if (error.response?.status === 403) {

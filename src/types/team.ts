@@ -5,6 +5,7 @@
  * devuelve subordinados o pendientes.
  */
 
+import type { AprobacionItem, ConteoAprobaciones } from './aprobaciones';
 import type { NivelAprobacion } from './rh';
 
 export interface EquipoSolicitudPendiente {
@@ -35,6 +36,12 @@ export interface EquipoEvaluacionPendiente {
 export interface EquipoPendientes {
   solicitudes: EquipoSolicitudPendiente[];
   evaluaciones: EquipoEvaluacionPendiente[];
+  /** Motor de aprobaciones: las de `solicitudes` con su flujo (me toca ahora). */
+  aprobar: AprobacionItem[];
+  /** `en_espera`: me tocará en un paso posterior — se ven sin botón activo. */
+  en_espera: AprobacionItem[];
+  /** `meta.aprobaciones` (null si el backend aún no lo manda). */
+  conteo: ConteoAprobaciones | null;
 }
 
 export interface VistoBuenoResult {

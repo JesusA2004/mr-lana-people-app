@@ -3,6 +3,8 @@ import type { NivelAprobacion } from '@/types/rh';
 import type { Tarea, TareasConteos } from '@/types/task';
 import type { EquipoPendientes, VistoBuenoResult } from '@/types/team';
 import { normalizeContrato } from './cicloLaboral';
+import { normalizeAprobacionItem, normalizeConteoAprobaciones } from '@/utils/flujoAprobacion';
+import type { AprobacionItem } from '@/types/aprobaciones';
 import {
   asArray,
   asBoolean,
@@ -29,9 +31,17 @@ export function normalizeNivelAprobacion(value: unknown): NivelAprobacion {
   };
 }
 
-export function normalizeEquipoPendientes(value: unknown): EquipoPendientes {
+const soloConFlujo = (items: unknown[]): AprobacionItem[] =>
+  items.map((item) => normalizeAprobacionItem(item, 'equipo')).filter((item): item is AprobacionItem => item !== null);
+
+/** `value` = `data` de `GET /equipo/pendientes`; `meta` = su `meta` (conteo de aprobaciones). */
+export function normalizeEquipoPendientes(value: unknown, meta?: unknown): EquipoPendientes {
   const raw = asRecord(value);
+  const aprobaciones = asRecordOrNull(asRecord(meta).aprobaciones);
   return {
+    aprobar: soloConFlujo(asArray(raw.solicitudes)),
+    en_espera: soloConFlujo(asArray(raw.en_espera)),
+    conteo: aprobaciones ? normalizeConteoAprobaciones(aprobaciones) : null,
     solicitudes: asArray(raw.solicitudes).map((item) => {
       const s = asRecord(item);
       return {

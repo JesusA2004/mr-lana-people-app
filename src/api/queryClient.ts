@@ -35,6 +35,8 @@ export const QUERIES_AGREGADAS: QueryKey[] = [
   ['notificaciones'],
   ['tareas'],
   ['equipo'],
+  ['aprobaciones'],
+  ['correcciones'],
   ['solicitudes'],
   ['rh', 'pendientes'],
   ['rh', 'dashboard'],
