@@ -74,6 +74,8 @@ export interface ElegibilidadPrestamo {
   meses_minimos: number;
   fecha_ingreso: string | null;
   antiguedad: { anios: number; meses: number; dias: number } | null;
+  /** Meses completos de antigüedad (null si el backend es anterior y no lo manda). */
+  antiguedad_meses: number | null;
   /** «5 meses 12 días». */
   antiguedad_texto: string | null;
   /** `YYYY-MM-DD`. */

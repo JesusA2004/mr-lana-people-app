@@ -71,7 +71,7 @@ export default function SolicitarPrestamoScreen() {
         haptics.error();
         const validation = getValidationErrors(error);
         if (validation) {
-          // 422 de antigüedad («Disponible al cumplir 6 meses…») llega en monto_solicitado: se muestra tal cual y se refresca la elegibilidad.
+          // 422 de antigüedad («Necesitas mínimo 6 meses…») llega en monto_solicitado: se muestra tal cual y se refresca la elegibilidad.
           setErrors({ monto: validation.monto_solicitado?.[0], motivo: validation.motivo?.[0] });
           if (validation.monto_solicitado?.[0]) toast.error(validation.monto_solicitado[0]);
           void elegibilidad.refetch();

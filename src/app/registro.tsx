@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { documentosApi } from '@/api/documentos';
@@ -11,6 +11,7 @@ import { AnimatedProgressBar } from '@/components/AnimatedProgressBar';
 import { BarraAccionInferior } from '@/components/BarraAccionInferior';
 import { BrandLogo } from '@/components/BrandLogo';
 import { Button } from '@/components/Button';
+import { CartaCompromisoVisor, type VisorCartaCompromiso } from '@/components/CartaCompromisoVisor';
 import { DocumentStatusBadge } from '@/components/DocumentStatusBadge';
 import { DocumentUploadSheet } from '@/components/DocumentUploadSheet';
 import { ErrorState } from '@/components/ErrorState';
@@ -22,14 +23,17 @@ import { SelectField } from '@/components/forms/SelectField';
 import { Input } from '@/components/Input';
 import { PressableScale } from '@/components/PressableScale';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
+import { TarjetaAviso } from '@/components/ui';
 import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from '@/store/toastStore';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import type { DocumentoIncorporacion } from '@/types/document';
+import type { CartaCompromiso } from '@/types/cartaCompromiso';
 import type { CampoRegistro, EstadoRegistro } from '@/types/registro';
+import { textoExcedeMaximoCarta } from '@/utils/cartaCompromiso';
 import { confirmAction } from '@/utils/confirm';
-import { fromApiDateString, toApiDateString } from '@/utils/dates';
+import { formatDateLong, fromApiDateString, toApiDateString } from '@/utils/dates';
 import { esCampoDomicilio, type CampoDomicilio } from '@/utils/domicilio';
 import { getErrorMessage, getValidationErrors, logError } from '@/utils/errors';
 import { haptics } from '@/utils/haptics';
@@ -39,8 +43,15 @@ import {
   camposDelPaso,
   datosParaEnviar,
   documentosPorSubir,
+  documentosSinResolver,
+  documentosSinTener,
+  excedeMaximoCarta,
+  maxCartaRegistro,
   normalizarValor,
   pasoParaReanudar,
+  puedeFinalizarRegistro,
+  sinTenerVigentes,
+  textoDocumentos,
   textoProgreso,
   validarFormato,
   validarPaso,
@@ -74,6 +85,7 @@ export default function RegistroScreen() {
   const correoCuenta = useAuthStore((state) => (state.user?.correo ?? state.user?.email ?? null) as string | null);
   const nombre = useAuthStore((state) => (state.user?.nombre ?? state.user?.name ?? '') as string);
   const marcarRegistroCompleto = useAuthStore((state) => state.marcarRegistroCompleto);
+  const refrescarUsuario = useAuthStore((state) => state.refrescarUsuario);
   const logout = useAuthStore((state) => state.logout);
 
   const query = useQuery({ queryKey: queryKeys.registro, queryFn: registroApi.estado });
@@ -86,6 +98,11 @@ export default function RegistroScreen() {
   const [guardando, setGuardando] = useState(false);
   const [documentoActivo, setDocumentoActivo] = useState<DocumentoIncorporacion | null>(null);
   const [alturaBarra, setAlturaBarra] = useState(0);
+  /** `document_type_id` marcados «No tengo este documento» (van en la carta compromiso). */
+  const [sinTener, setSinTener] = useState<number[]>([]);
+  const [visor, setVisor] = useState<VisorCartaCompromiso | null>(null);
+  /** Carta compromiso generada al terminar: se muestra antes de entrar a la app. */
+  const [cartaGenerada, setCartaGenerada] = useState<CartaCompromiso | null>(null);
   const iniciado = useRef(false);
 
   // Arranque: estado del servidor + borrador local → paso donde reanudar.
@@ -102,16 +119,28 @@ export default function RegistroScreen() {
         if (borrador.valores[medico]) base[medico] = borrador.valores[medico];
       }
       setValores(base);
-      setIndice(pasoParaReanudar(estado, borrador.paso));
+      const marcados = sinTenerVigentes(estado, borrador.sinTener);
+      setSinTener(marcados);
+      setIndice(pasoParaReanudar(estado, borrador.paso, marcados));
     });
   }, [estado, userId, correoCuenta]);
 
   // Borrador local (cifrado) de lo que aún no se envía.
   useEffect(() => {
     if (indice === null || userId === null) return;
-    const timer = setTimeout(() => void guardarBorrador(userId, { paso: PASOS_REGISTRO[indice].clave, valores }), 600);
+    const timer = setTimeout(() => void guardarBorrador(userId, { paso: PASOS_REGISTRO[indice].clave, valores, sinTener }), 600);
     return () => clearTimeout(timer);
-  }, [valores, indice, userId]);
+  }, [valores, indice, userId, sinTener]);
+
+  // Una marca «No tengo» de un documento que ya se subió (aquí o desde otra
+  // pantalla) deja de contar sola: todos los cálculos filtran con
+  // `sinTenerVigentes` / `documentosSinTener` contra el estado del servidor.
+
+  const alternarSinTener = (documento: DocumentoIncorporacion) => {
+    haptics.selection();
+    setErrorGeneral(null);
+    setSinTener((actual) => (actual.includes(documento.id) ? actual.filter((id) => id !== documento.id) : [...actual, documento.id]));
+  };
 
   const paso = indice !== null ? PASOS_REGISTRO[indice] : null;
   const clavePaso = paso?.clave;
@@ -216,9 +245,9 @@ export default function RegistroScreen() {
     }
 
     if (paso.clave === 'documentos') {
-      if (documentosPorSubir(estado).length > 0) {
+      if (documentosSinResolver(estado, sinTener).length > 0) {
         haptics.warning();
-        setErrorGeneral('Sube todos tus documentos para continuar.');
+        setErrorGeneral('Sube cada documento o marca «No tengo este documento» en los que te falten para continuar.');
         return;
       }
       irA(indice + 1);
@@ -227,13 +256,23 @@ export default function RegistroScreen() {
 
     // Revisión → terminar.
     setGuardando(true);
+    const excedia = excedeMaximoCarta(estado, sinTener);
     try {
-      const final = await registroApi.finalizar();
+      const final = await registroApi.finalizar(sinTenerVigentes(estado, sinTener));
       aplicarEstado(final);
       if (userId !== null) await borrarBorrador(userId);
       haptics.success();
-      toast.success('¡Listo! Tu registro quedó completo.');
+      if (final.carta_compromiso) {
+        // Primero se le muestra su carta (folio, fecha límite, descarga);
+        // entra a la app al tocar «Continuar».
+        setCartaGenerada(final.carta_compromiso);
+        return;
+      }
+      // Más «No tengo» que el máximo: sin carta; `/me` trae el bloqueo
+      // (excede_maximo_carta) y la puerta lleva a «Documentos pendientes».
+      toast.success(excedia ? 'Tu registro quedó completo. Sube tus documentos pendientes para generar tu carta compromiso.' : '¡Listo! Tu registro quedó completo.');
       marcarRegistroCompleto(true);
+      void refrescarUsuario();
     } catch (error) {
       manejarError(error);
       void query.refetch();
@@ -253,6 +292,8 @@ export default function RegistroScreen() {
 
   const subirDocumento = async (documento: DocumentoIncorporacion, archivo: { uri: string; name: string; mimeType: string }, onProgress: (p: number) => void) => {
     await documentosApi.upload({ documentTypeId: documento.id, fileUri: archivo.uri, fileName: archivo.name, mimeType: archivo.mimeType, onProgress });
+    // Ya lo tiene: deja de ir en la carta compromiso.
+    setSinTener((actual) => actual.filter((id) => id !== documento.id));
     const nuevo = await registroApi.estado();
     aplicarEstado(nuevo);
     void queryClient.invalidateQueries({ queryKey: queryKeys.incorporacion });
@@ -266,8 +307,30 @@ export default function RegistroScreen() {
   }, [paso, valores.condicion_medica, valores.alergias]);
 
   const cargando = query.isLoading || (estado !== undefined && indice === null);
-  const pendientesDocs = estado ? documentosPorSubir(estado) : [];
-  const deshabilitarSiguiente = guardando || (paso?.clave === 'revision' && estado?.puede_finalizar !== true);
+  const pendientesDocs = estado ? documentosSinResolver(estado, sinTener) : [];
+  const puedeFinalizar = estado ? puedeFinalizarRegistro(estado, sinTener) : false;
+  const deshabilitarSiguiente = guardando || (paso?.clave === 'revision' && !puedeFinalizar);
+
+  const continuarALaApp = () => {
+    haptics.success();
+    toast.success('¡Bienvenido! Recuerda subir tus documentos pendientes a tiempo.');
+    marcarRegistroCompleto(true);
+    void refrescarUsuario();
+  };
+
+  if (cartaGenerada) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <View style={styles.encabezado}>
+          <View style={styles.encabezadoFila}>
+            <BrandLogo width={150} />
+          </View>
+        </View>
+        <CartaGenerada carta={cartaGenerada} onVer={() => setVisor({ tipo: 'carta', folio: cartaGenerada.folio })} onContinuar={continuarALaApp} />
+        <CartaCompromisoVisor visor={visor} onClose={() => setVisor(null)} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -364,9 +427,15 @@ export default function RegistroScreen() {
                   </View>
                 </View>
               ) : paso.clave === 'documentos' ? (
-                <PasoDocumentos estado={estado} onElegir={setDocumentoActivo} />
+                <PasoDocumentos estado={estado} sinTener={sinTener} onElegir={setDocumentoActivo} onAlternarSinTener={alternarSinTener} />
               ) : (
-                <PasoRevision estado={estado} onIr={irA} />
+                <PasoRevision
+                  estado={estado}
+                  sinTener={sinTener}
+                  puedeFinalizar={puedeFinalizar}
+                  onIr={irA}
+                  onVistaPrevia={(documentos) => setVisor({ tipo: 'vista-previa', documentos })}
+                />
               )}
 
               {errorGeneral ? (
@@ -384,7 +453,7 @@ export default function RegistroScreen() {
             nota={
               paso.clave === 'documentos' && pendientesDocs.length > 0
                 ? `Te ${pendientesDocs.length === 1 ? 'falta 1 documento' : `faltan ${pendientesDocs.length} documentos`}.`
-                : paso.clave === 'revision' && !estado.puede_finalizar
+                : paso.clave === 'revision' && !puedeFinalizar
                   ? 'Completa lo pendiente para entrar.'
                   : undefined
             }>
@@ -412,6 +481,7 @@ export default function RegistroScreen() {
           await subirDocumento(documentoActivo, archivo, onProgress);
         }}
       />
+      <CartaCompromisoVisor visor={visor} onClose={() => setVisor(null)} />
     </SafeAreaView>
   );
 }
@@ -562,12 +632,25 @@ function DatosBloqueados({ campos }: { campos: CampoRegistro[] }) {
   );
 }
 
-function PasoDocumentos({ estado, onElegir }: { estado: EstadoRegistro; onElegir: (documento: DocumentoIncorporacion) => void }) {
+function PasoDocumentos({
+  estado,
+  sinTener,
+  onElegir,
+  onAlternarSinTener,
+}: {
+  estado: EstadoRegistro;
+  sinTener: number[];
+  onElegir: (documento: DocumentoIncorporacion) => void;
+  onAlternarSinTener: (documento: DocumentoIncorporacion) => void;
+}) {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   const lista = estado.documentos.lista;
   const pendientes = documentosPorSubir(estado);
   const listos = lista.length - pendientes.length;
+  const marcados = documentosSinTener(estado, sinTener).length;
+  const maximo = maxCartaRegistro(estado);
+  const excede = marcados > maximo;
 
   if (lista.length === 0) {
     return <Text style={styles.ayuda}>Recursos Humanos no te pide documentos en este momento. Continúa.</Text>;
@@ -581,37 +664,83 @@ function PasoDocumentos({ estado, onElegir }: { estado: EstadoRegistro; onElegir
         </Text>
         <Text style={styles.resumenDocsTexto}>documentos listos. Con foto: buena luz, sin reflejos y el documento completo en la imagen.</Text>
       </View>
+      {pendientes.length > 0 && excede ? (
+        <TarjetaAviso
+          icono="lock-closed-outline"
+          tono="peligro"
+          titulo={`Marcaste ${textoDocumentos(marcados)} · máximo ${maximo} con carta`}
+          mensaje={textoExcedeMaximoCarta(maximo)}
+        />
+      ) : pendientes.length > 0 ? (
+        <View style={styles.aviso} accessibilityLiveRegion="polite">
+          <Ionicons name="time-outline" size={18} color={Colors.primaryDark} />
+          <Text style={styles.avisoTexto}>
+            {marcados > 0
+              ? `Marcaste ${textoDocumentos(marcados)} de ${maximo} posibles para entregar después. Al terminar se generará una carta compromiso con 7 días para subirlos.`
+              : `¿Te falta alguno? Márcalo con «No tengo este documento» y podrás subirlo después (hasta ${textoDocumentos(maximo)}; se genera una carta compromiso con 7 días de plazo).`}
+          </Text>
+        </View>
+      ) : null}
       {lista.map((documento) => {
         const falta = pendientes.some((p) => p.id === documento.id);
+        const marcado = falta && sinTener.includes(documento.id);
         const contenido = (
           <>
-            <View style={[styles.docIcono, falta ? styles.docIconoPendiente : styles.docIconoListo]}>
-              <Ionicons name={falta ? 'cloud-upload-outline' : 'checkmark'} size={20} color={falta ? Colors.primaryDark : Colors.success} />
+            <View style={[styles.docIcono, marcado ? styles.docIconoDespues : falta ? styles.docIconoPendiente : styles.docIconoListo]}>
+              <Ionicons
+                name={marcado ? 'time-outline' : falta ? 'cloud-upload-outline' : 'checkmark'}
+                size={20}
+                color={marcado ? Colors.warning : falta ? Colors.primaryDark : Colors.success}
+              />
             </View>
             <View style={styles.docTextos}>
               <Text style={styles.docNombre}>{documento.nombre}</Text>
-              {documento.motivo_rechazo ? (
+              {marcado ? (
+                <Text style={styles.ayuda}>Lo subirás después. Si ya lo tienes, tócalo para subirlo ahora.</Text>
+              ) : documento.motivo_rechazo ? (
                 <Text style={styles.docRechazo}>{`RH pidió corregirlo: ${documento.motivo_rechazo}`}</Text>
               ) : documento.mensaje && falta ? (
                 <Text style={styles.ayuda}>{documento.mensaje}</Text>
               ) : null}
-              <DocumentStatusBadge status={documento.estado} />
+              {marcado ? (
+                <View style={styles.pillDespues}>
+                  <Text style={styles.pillDespuesTexto}>{excede ? 'Pendiente · por subir' : 'Pendiente · carta compromiso'}</Text>
+                </View>
+              ) : (
+                <DocumentStatusBadge status={documento.estado} />
+              )}
             </View>
             {falta ? <Ionicons name="chevron-forward" size={20} color={Colors.textMuted} /> : null}
           </>
         );
-        // Ya enviado: fila informativa (no parece un botón apagado).
-        return falta && documento.puede_subir ? (
-          <PressableScale
-            key={documento.id}
-            accessibilityLabel={`Subir ${documento.nombre}`}
-            onPress={() => onElegir(documento)}
-            style={[styles.docFila, styles.docFilaPendiente] as object}>
-            {contenido}
-          </PressableScale>
-        ) : (
-          <View key={documento.id} style={[styles.docFila, styles.docFilaListo]} accessible accessibilityLabel={`${documento.nombre}, ya enviado`}>
-            {contenido}
+
+        if (!falta) {
+          // Ya enviado: fila informativa (no parece un botón apagado).
+          return (
+            <View key={documento.id} style={[styles.docFila, styles.docFilaListo]} accessible accessibilityLabel={`${documento.nombre}, ya enviado`}>
+              {contenido}
+            </View>
+          );
+        }
+
+        return (
+          <View key={documento.id} style={[styles.docTarjeta, marcado ? styles.docTarjetaDespues : styles.docFilaPendiente]}>
+            {documento.puede_subir ? (
+              <PressableScale accessibilityLabel={`Subir ${documento.nombre}`} onPress={() => onElegir(documento)} style={styles.docFilaInterna}>
+                {contenido}
+              </PressableScale>
+            ) : (
+              <View style={styles.docFilaInterna}>{contenido}</View>
+            )}
+            <Pressable
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: marcado }}
+              accessibilityLabel={`No tengo este documento: ${documento.nombre}`}
+              onPress={() => onAlternarSinTener(documento)}
+              style={({ pressed }) => [styles.sinTenerFila, pressed ? styles.presionado : null]}>
+              <Ionicons name={marcado ? 'checkbox' : 'square-outline'} size={20} color={marcado ? Colors.warning : Colors.textMuted} />
+              <Text style={[styles.sinTenerTexto, marcado ? styles.sinTenerTextoActivo : null]}>No tengo este documento</Text>
+            </Pressable>
           </View>
         );
       })}
@@ -619,16 +748,32 @@ function PasoDocumentos({ estado, onElegir }: { estado: EstadoRegistro; onElegir
   );
 }
 
-function PasoRevision({ estado, onIr }: { estado: EstadoRegistro; onIr: (indice: number) => void }) {
+function PasoRevision({
+  estado,
+  sinTener,
+  puedeFinalizar,
+  onIr,
+  onVistaPrevia,
+}: {
+  estado: EstadoRegistro;
+  sinTener: number[];
+  puedeFinalizar: boolean;
+  onIr: (indice: number) => void;
+  onVistaPrevia: (documentos: number[]) => void;
+}) {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   const faltan = new Set(estado.datos.faltan.map((f) => f.campo));
+  const paraCarta = documentosSinTener(estado, sinTener);
+  const maximo = maxCartaRegistro(estado);
+  const excede = paraCarta.length > maximo;
+  const docsResueltos = estado.documentos.completo || documentosSinResolver(estado, sinTener).length === 0;
   const secciones: { clave: ClavePaso; titulo: string; completo: boolean }[] = [
     { clave: 'personales', titulo: 'Datos personales', completo: !camposDelPaso('personales', estado.datos.campos).some((c) => faltan.has(c.campo)) },
     { clave: 'domicilio', titulo: 'Domicilio', completo: !camposDelPaso('domicilio', estado.datos.campos).some((c) => faltan.has(c.campo)) },
     { clave: 'emergencia', titulo: 'Contacto de emergencia y beneficiario', completo: !camposDelPaso('emergencia', estado.datos.campos).some((c) => faltan.has(c.campo)) },
     { clave: 'medicos', titulo: 'Datos médicos (opcional)', completo: true },
-    { clave: 'documentos', titulo: 'Documentos', completo: estado.documentos.completo },
+    { clave: 'documentos', titulo: paraCarta.length > 0 ? `Documentos (${paraCarta.length} para después)` : 'Documentos', completo: docsResueltos },
   ];
 
   return (
@@ -643,11 +788,69 @@ function PasoRevision({ estado, onIr }: { estado: EstadoRegistro; onIr: (indice:
           </PressableScale>
         );
       })}
-      {estado.puede_finalizar ? (
+
+      {excede ? (
+        <View style={[styles.carta, styles.cartaExcede]}>
+          <View style={styles.cartaEncabezado}>
+            <View style={[styles.cartaIcono, styles.cartaIconoExcede]}>
+              <Ionicons name="lock-closed-outline" size={22} color={Colors.danger} />
+            </View>
+            <View style={styles.tituloTextos}>
+              <Text style={styles.cartaTitulo}>Tu app quedará bloqueada al terminar</Text>
+              <Text style={styles.cartaSubtitulo}>{`Marcaste ${textoDocumentos(paraCarta.length)} que no tienes (máximo ${maximo} con carta):`}</Text>
+            </View>
+          </View>
+          <View style={styles.cartaLista}>
+            {paraCarta.map((documento) => (
+              <View key={documento.id} style={styles.cartaItem}>
+                <Ionicons name="ellipse" size={6} color={Colors.danger} />
+                <Text style={styles.cartaItemTexto}>{documento.nombre}</Text>
+              </View>
+            ))}
+          </View>
+          <Text style={styles.cartaTexto}>{textoExcedeMaximoCarta(maximo)}</Text>
+        </View>
+      ) : paraCarta.length > 0 ? (
+        <View style={styles.carta}>
+          <View style={styles.cartaEncabezado}>
+            <View style={styles.cartaIcono}>
+              <Ionicons name="document-text-outline" size={22} color={Colors.warning} />
+            </View>
+            <View style={styles.tituloTextos}>
+              <Text style={styles.cartaTitulo}>Se generará una carta compromiso</Text>
+              <Text style={styles.cartaSubtitulo}>{`Por ${textoDocumentos(paraCarta.length)} que entregarás después:`}</Text>
+            </View>
+          </View>
+          <View style={styles.cartaLista}>
+            {paraCarta.map((documento) => (
+              <View key={documento.id} style={styles.cartaItem}>
+                <Ionicons name="ellipse" size={6} color={Colors.warning} />
+                <Text style={styles.cartaItemTexto}>{documento.nombre}</Text>
+              </View>
+            ))}
+          </View>
+          <Text style={styles.cartaTexto}>
+            Tendrás <Text style={styles.cartaNegritas}>7 días</Text> para subirlos desde la app. Si no los subes a tiempo, la app quedará limitada a subir
+            documentos hasta que los entregues.
+          </Text>
+          <Button
+            title="Ver vista previa"
+            variant="outline"
+            leftIcon="eye-outline"
+            onPress={() => onVistaPrevia(paraCarta.map((d) => d.id))}
+          />
+        </View>
+      ) : null}
+
+      {puedeFinalizar ? (
         <View style={styles.listo}>
           <Ionicons name="checkmark-done-circle-outline" size={28} color={Colors.success} />
           <Text style={styles.listoTexto}>
-            Todo está listo. Recursos Humanos revisará tus documentos y te avisará en la app si necesita algo más.
+            {excede
+              ? `Tu registro está listo para terminar. Después solo podrás subir documentos hasta que te falten ${maximo} o menos; entonces se generará tu carta compromiso.`
+              : paraCarta.length > 0
+              ? 'Todo está listo. Al entrar se genera tu carta compromiso y Recursos Humanos revisará los documentos que ya subiste.'
+              : 'Todo está listo. Recursos Humanos revisará tus documentos y te avisará en la app si necesita algo más.'}
           </Text>
         </View>
       ) : (
@@ -657,6 +860,67 @@ function PasoRevision({ estado, onIr }: { estado: EstadoRegistro; onIr: (indice:
         </View>
       )}
     </View>
+  );
+}
+
+function CartaGenerada({ carta, onVer, onContinuar }: { carta: CartaCompromiso; onVer: () => void; onContinuar: () => void }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
+  const [alturaBarra, setAlturaBarra] = useState(0);
+
+  return (
+    <>
+      <FormularioScroll alturaBarra={alturaBarra} contentContainerStyle={styles.scroll}>
+        <View style={styles.contenido}>
+          <View style={styles.exitoEncabezado}>
+            <View style={styles.exitoIcono}>
+              <Ionicons name="checkmark-done" size={36} color={Colors.success} />
+            </View>
+            <Text style={styles.exitoTitulo} accessibilityRole="header">
+              ¡Tu registro quedó completo!
+            </Text>
+            <Text style={styles.exitoTexto}>Generamos tu carta compromiso por los documentos que entregarás después.</Text>
+          </View>
+
+          <View style={styles.carta}>
+            <View style={styles.datoFila}>
+              <Text style={styles.datoEtiqueta}>Folio</Text>
+              <Text style={styles.datoValor}>{carta.folio}</Text>
+            </View>
+            <View style={styles.datoFila}>
+              <Text style={styles.datoEtiqueta}>Fecha límite</Text>
+              <Text style={styles.datoValor}>{formatDateLong(carta.fecha_limite) || carta.fecha_limite}</Text>
+            </View>
+            <View style={styles.datoFila}>
+              <Text style={styles.datoEtiqueta}>Días para entregarlos</Text>
+              <Text style={styles.datoValor}>{carta.dias_restantes === 1 ? '1 día' : `${carta.dias_restantes} días`}</Text>
+            </View>
+            {carta.documentos.length > 0 ? (
+              <View style={styles.cartaLista}>
+                {carta.documentos.map((documento) => (
+                  <View key={documento.document_type_id} style={styles.cartaItem}>
+                    <Ionicons name="ellipse" size={6} color={Colors.warning} />
+                    <Text style={styles.cartaItemTexto}>{documento.nombre}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+          </View>
+
+          <View style={styles.aviso}>
+            <Ionicons name="information-circle-outline" size={18} color={Colors.primaryDark} />
+            <Text style={styles.avisoTexto}>
+              Súbelos desde la app antes de la fecha límite. Si se vence la carta, la app quedará limitada a subir documentos hasta que los entregues.
+            </Text>
+          </View>
+
+          <Button title="Descargar carta compromiso" variant="outline" leftIcon="download-outline" onPress={onVer} />
+        </View>
+      </FormularioScroll>
+      <BarraAccionInferior onAltura={setAlturaBarra}>
+        <Button title="Continuar a la app" rightIcon="log-in-outline" onPress={onContinuar} />
+      </BarraAccionInferior>
+    </>
   );
 }
 
@@ -788,6 +1052,81 @@ const crearEstilos = (Colors: ColorPalette) =>
       padding: Spacing.md,
     },
     listoTexto: { flex: 1, fontSize: FontSize.sm, color: Colors.text, lineHeight: 19 },
+    docIconoDespues: { backgroundColor: Colors.warningSoft },
+    pillDespues: {
+      backgroundColor: Colors.warningSoft,
+      borderRadius: Radius.full,
+      paddingHorizontal: Spacing.sm,
+      paddingVertical: 2,
+    },
+    pillDespuesTexto: { fontSize: FontSize.xs, fontWeight: '700', color: Colors.warning },
+    docTarjeta: {
+      borderRadius: Radius.lg,
+      borderWidth: 1,
+      backgroundColor: Colors.surface,
+      overflow: 'hidden',
+    },
+    docTarjetaDespues: { borderColor: Colors.warningSoft, backgroundColor: Colors.surface },
+    docFilaInterna: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.md,
+      padding: Spacing.md,
+      minHeight: 72,
+    },
+    sinTenerFila: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.sm,
+      minHeight: Layout.minTouchTarget,
+      paddingHorizontal: Spacing.md,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: Colors.border,
+      backgroundColor: Colors.surfaceMuted,
+    },
+    sinTenerTexto: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.textMuted },
+    sinTenerTextoActivo: { color: Colors.warning, fontWeight: '700' },
+    presionado: { opacity: 0.7 },
+    carta: {
+      gap: Spacing.md,
+      backgroundColor: Colors.surface,
+      borderRadius: Radius.lg,
+      borderWidth: 1,
+      borderColor: Colors.warningSoft,
+      padding: Spacing.lg,
+    },
+    cartaExcede: { borderColor: Colors.dangerSoft },
+    cartaIconoExcede: { backgroundColor: Colors.dangerSoft },
+    cartaEncabezado: { flexDirection: 'row', gap: Spacing.md, alignItems: 'center' },
+    cartaIcono: {
+      width: 44,
+      height: 44,
+      borderRadius: Radius.md,
+      backgroundColor: Colors.warningSoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cartaTitulo: { fontSize: FontSize.md, fontWeight: '800', color: Colors.text },
+    cartaSubtitulo: { fontSize: FontSize.sm, color: Colors.textMuted, lineHeight: 19 },
+    cartaLista: { gap: Spacing.xs, backgroundColor: Colors.surfaceMuted, borderRadius: Radius.md, padding: Spacing.md },
+    cartaItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+    cartaItemTexto: { flex: 1, fontSize: FontSize.sm, fontWeight: '600', color: Colors.text },
+    cartaTexto: { fontSize: FontSize.sm, color: Colors.text, lineHeight: 19 },
+    cartaNegritas: { fontWeight: '800' },
+    exitoEncabezado: { alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.md },
+    exitoIcono: {
+      width: 72,
+      height: 72,
+      borderRadius: Radius.full,
+      backgroundColor: Colors.successSoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    exitoTitulo: { fontSize: FontSize.xl, fontWeight: '800', color: Colors.text, textAlign: 'center' },
+    exitoTexto: { fontSize: FontSize.sm, color: Colors.textMuted, lineHeight: 19, textAlign: 'center' },
+    datoFila: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.md },
+    datoEtiqueta: { fontSize: FontSize.sm, color: Colors.textMuted, flexShrink: 1 },
+    datoValor: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.text, flexShrink: 1, textAlign: 'right' },
     botonAtras: { flex: 1 },
     botonSiguiente: { flex: 2 },
   });

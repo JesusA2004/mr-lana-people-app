@@ -5,6 +5,7 @@ import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { AniversarioHeroCard } from '@/components/AniversarioHeroCard';
 import { BirthdayHeroCard } from '@/components/BirthdayHeroCard';
 import { BirthdayWallBanner } from '@/components/BirthdayWallBanner';
+import { CartaCompromisoBanner } from '@/components/CartaCompromisoBanner';
 import { LoQueNecesitasHacer } from '@/components/ciclo/LoQueNecesitasHacer';
 import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
@@ -32,6 +33,7 @@ import { useMiDescriptivoPuesto } from '@/hooks/queries/useDescriptivoPuesto';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useAprobacionesConteo, useEsAutorizadorRh } from '@/hooks/queries/useAprobaciones';
 import { useEquipo, useEquipoPendientes, useTareasConteos } from '@/hooks/queries/useTrabajo';
+import { useAuthStore } from '@/store/authStore';
 import { useColores } from '@/theme/ThemeProvider';
 import type { Solicitud } from '@/types/request';
 import { formatDateShort, getGreeting } from '@/utils/dates';
@@ -58,6 +60,7 @@ import { reciboPeriodoLabel } from '@/utils/payroll';
 export default function DashboardScreen() {
   const Colors = useColores();
   const router = useRouter();
+  const refrescarUsuario = useAuthStore((state) => state.refrescarUsuario);
 
   const { data, isLoading, isError, error, refetch, isRefetching } = useDashboard();
   // Mismo queryKey/staleTime que `(app)/_layout.tsx` — lectura de caché.
@@ -165,6 +168,8 @@ export default function DashboardScreen() {
               if (tareasEnabled) void tareasConteos.refetch();
               if (equipoEnabled) void equipoPendientes.refetch();
               void aprobacionesConteo.refetch();
+              // Carta compromiso / documentos pendientes vienen en `/me`.
+              void refrescarUsuario();
             }}
             tintColor={Colors.primary}
           />
@@ -201,6 +206,8 @@ export default function DashboardScreen() {
             <BirthdayWallBanner enabled={cumpleanosEnabled} />
 
             {/* ── Lo que requiere tu acción ─────────────────────────────── */}
+            {/* Carta compromiso vigente: documentos por subir antes de la fecha límite. */}
+            <CartaCompromisoBanner />
             {muestraDatos && datos ? (
               <FadeInView index={0}>
                 <TarjetaAviso

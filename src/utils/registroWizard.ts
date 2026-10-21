@@ -1,3 +1,4 @@
+import { maxDocumentosCarta } from './cartaCompromiso';
 import { CAMPOS_DOMICILIO, validarDomicilio, type ValoresDomicilio } from './domicilio';
 
 import type { CampoRegistro, EstadoRegistro } from '@/types/registro';
@@ -245,7 +246,7 @@ export function pasoIncompleto(paso: 'personales' | 'domicilio' | 'emergencia', 
  * faltantes; si los datos están completos, documentos; si todo está, revisión.
  * Un `guardado` local (último paso que la persona alcanzó) gana si es anterior.
  */
-export function pasoParaReanudar(estado: EstadoRegistro, guardado?: ClavePaso | null): number {
+export function pasoParaReanudar(estado: EstadoRegistro, guardado?: ClavePaso | null, sinTener: readonly number[] = []): number {
   const indice = (clave: ClavePaso) => PASOS_REGISTRO.findIndex((p) => p.clave === clave);
   let sugerido: ClavePaso = 'revision';
 
@@ -256,7 +257,10 @@ export function pasoParaReanudar(estado: EstadoRegistro, guardado?: ClavePaso | 
     }
   }
 
-  if (sugerido === 'revision' && !estado.documentos.completo) sugerido = 'documentos';
+  // Documentos incompletos → paso de documentos, salvo que todo lo que falta
+  // ya esté marcado «No tengo» (va a la carta compromiso).
+  const todoMarcado = documentosSinTener(estado, sinTener).length > 0 && documentosSinResolver(estado, sinTener).length === 0;
+  if (sugerido === 'revision' && !estado.documentos.completo && !todoMarcado) sugerido = 'documentos';
   if (guardado && indice(guardado) >= 0 && indice(guardado) < indice(sugerido)) return indice(guardado);
   return indice(sugerido);
 }
@@ -264,6 +268,61 @@ export function pasoParaReanudar(estado: EstadoRegistro, guardado?: ClavePaso | 
 /** Documentos que todavía falta subir (o corregir) para terminar. */
 export function documentosPorSubir(estado: EstadoRegistro) {
   return estado.documentos.lista.filter((d) => d.obligatorio && ['pendiente', 'rechazado', 'requiere_correccion', 'vencido', 'cambio_autorizado'].includes(d.estado));
+}
+
+/**
+ * Marcas «No tengo este documento» que siguen aplicando: solo documentos que
+ * todavía faltan. Si la persona ya lo subió (o RH lo quitó de la lista), la
+ * marca se descarta sola. Conserva el orden de la lista del backend.
+ */
+export function sinTenerVigentes(estado: EstadoRegistro, sinTener: readonly number[]): number[] {
+  const marcados = new Set(sinTener);
+  return documentosPorSubir(estado)
+    .filter((d) => marcados.has(d.id))
+    .map((d) => d.id);
+}
+
+/** Documentos que faltan y NO están marcados «No tengo»: estos sí bloquean el paso de documentos. */
+export function documentosSinResolver(estado: EstadoRegistro, sinTener: readonly number[]) {
+  const marcados = new Set(sinTener);
+  return documentosPorSubir(estado).filter((d) => !marcados.has(d.id));
+}
+
+/** Documentos marcados «No tengo» (los que irán en la carta compromiso). */
+export function documentosSinTener(estado: EstadoRegistro, sinTener: readonly number[]) {
+  const marcados = new Set(sinTener);
+  return documentosPorSubir(estado).filter((d) => marcados.has(d.id));
+}
+
+/** Máximo de documentos «No tengo» que cubre una carta compromiso (backend; 2 por defecto). */
+export function maxCartaRegistro(estado: EstadoRegistro): number {
+  return maxDocumentosCarta(estado.max_documentos_carta);
+}
+
+/**
+ * ¿Marcó «No tengo» en más documentos de los que cubre una carta? Puede
+ * terminar igual, pero sin carta: la app quedará limitada a subir
+ * documentos hasta que le falten el máximo o menos (entonces la carta se
+ * genera sola en el backend).
+ */
+export function excedeMaximoCarta(estado: EstadoRegistro, sinTener: readonly number[]): boolean {
+  return documentosSinTener(estado, sinTener).length > maxCartaRegistro(estado);
+}
+
+/**
+ * ¿Se puede terminar el registro? Lo decide el backend (`puede_finalizar`),
+ * salvo cuando solo faltan documentos y TODOS están marcados «No tengo»:
+ * entonces se termina con carta compromiso (el backend vuelve a validarlo en
+ * `registro/finalizar` con `documentos_sin_tener`).
+ */
+export function puedeFinalizarRegistro(estado: EstadoRegistro, sinTener: readonly number[]): boolean {
+  if (estado.puede_finalizar) return true;
+  return estado.aplica && estado.datos.completo && documentosSinTener(estado, sinTener).length > 0 && documentosSinResolver(estado, sinTener).length === 0;
+}
+
+/** «1 documento» / «3 documentos». */
+export function textoDocumentos(n: number): string {
+  return n === 1 ? '1 documento' : `${n} documentos`;
 }
 
 /** Texto del progreso del asistente: «Paso 2 de 6». */

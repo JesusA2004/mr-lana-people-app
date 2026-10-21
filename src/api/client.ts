@@ -4,6 +4,7 @@ import { queryKeys } from './queryKeys';
 import { API_URL, REQUEST_TIMEOUT_MS } from '@/constants/config';
 import { queryClient } from '@/api/queryClient';
 import { useMaintenanceStore } from '@/store/maintenanceStore';
+import type { BloqueoDocumentos } from '@/types/cartaCompromiso';
 
 /**
  * Cliente Axios central. Toda la app debe consumir la API a través de este
@@ -21,6 +22,9 @@ export const apiClient = axios.create({
     // (middleware registro.app) solo le bloquea el resto de la API a quien
     // no lo ha terminado. Las APKs anteriores no mandan la cabecera.
     'X-People-Registro': '1',
+    // Esta app tiene la pantalla de documentos pendientes: el backend
+    // (middleware documentos.pendientes) solo bloquea a quien la manda.
+    'X-People-Documentos': '1',
   },
 });
 
@@ -41,6 +45,17 @@ let registroIncompletoHandler: (() => void) | null = null;
  */
 export function setRegistroIncompletoHandler(handler: (() => void) | null): void {
   registroIncompletoHandler = handler;
+}
+
+let documentosPendientesHandler: ((bloqueo: BloqueoDocumentos | null) => void) | null = null;
+
+/**
+ * Registrado por el auth store: un 403 `documentos_pendientes` (carta
+ * compromiso vencida o documentos sin carta) refresca al usuario para que la
+ * puerta de `_layout.tsx` lleve a la pantalla de documentos pendientes.
+ */
+export function setDocumentosPendientesHandler(handler: ((bloqueo: BloqueoDocumentos | null) => void) | null): void {
+  documentosPendientesHandler = handler;
 }
 
 /** Registrado por el auth store: se ejecuta cuando cualquier request recibe 401. */
@@ -79,6 +94,13 @@ apiClient.interceptors.response.use(
 
     if (error.response?.status === 403 && (error.response.data as { codigo?: string } | undefined)?.codigo === 'registro_incompleto') {
       registroIncompletoHandler?.();
+    }
+
+    if (error.response?.status === 403) {
+      const cuerpo = error.response.data as { code?: string; codigo?: string; bloqueo?: BloqueoDocumentos } | undefined;
+      if (cuerpo && typeof cuerpo === 'object' && (cuerpo.code === 'documentos_pendientes' || cuerpo.codigo === 'documentos_pendientes')) {
+        documentosPendientesHandler?.(cuerpo.bloqueo ?? null);
+      }
     }
 
     if (error.response?.status === 403) {

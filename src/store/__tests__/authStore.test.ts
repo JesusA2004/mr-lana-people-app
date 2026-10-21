@@ -39,7 +39,7 @@ jest.mock('@/api/auth', () => ({
 }));
 // El store registra el handler de 401 al importarse: el estado vive dentro del mock.
 jest.mock('@/api/client', () => {
-  const state = { token: null as string | null, onUnauthorized: null as null | (() => void), onRegistroIncompleto: null as null | (() => void) };
+  const state = { token: null as string | null, onUnauthorized: null as null | (() => void), onRegistroIncompleto: null as null | (() => void), onDocumentosPendientes: null as null | ((...args: unknown[]) => void) };
   return {
     __state: state,
     setAuthToken: (token: string | null) => {
@@ -47,6 +47,9 @@ jest.mock('@/api/client', () => {
     },
     setUnauthorizedHandler: (handler: () => void) => {
       state.onUnauthorized = handler;
+    },
+    setDocumentosPendientesHandler: (handler: (...args: unknown[]) => void) => {
+      state.onDocumentosPendientes = handler;
     },
     setRegistroIncompletoHandler: (handler: () => void) => {
       state.onRegistroIncompleto = handler;
@@ -282,5 +285,38 @@ describe('registro completo (cuenta creada por QR)', () => {
 
     useAuthStore.getState().marcarRegistroCompleto(true);
     expect(useAuthStore.getState().user?.registro_completo).toBe(true);
+  });
+});
+
+describe('documentos pendientes (carta compromiso)', () => {
+  const BLOQUEO = { activo: true, motivo: 'carta_vencida', fecha_limite: '2026-10-14', pendientes: 2 };
+
+  it('un 403 documentos_pendientes aplica el bloqueo de inmediato y refresca /me', async () => {
+    useAuthStore.setState({ token: 'tok', user: USER as never, isAuthenticated: true });
+    mockAuthApi.me.mockResolvedValue({ ...USER, bloqueo_documentos: BLOQUEO });
+
+    (mockClient as unknown as { onDocumentosPendientes: null | ((b: unknown) => void) }).onDocumentosPendientes?.(BLOQUEO);
+    expect(useAuthStore.getState().user?.bloqueo_documentos?.activo).toBe(true);
+
+    await useAuthStore.getState().refrescarUsuario();
+    expect(mockAuthApi.me).toHaveBeenCalledTimes(1);
+    expect(useAuthStore.getState().user?.bloqueo_documentos).toEqual(BLOQUEO);
+  });
+
+  it('al subir los documentos, /me sin bloqueo libera la puerta', async () => {
+    useAuthStore.setState({ token: 'tok', user: { ...USER, bloqueo_documentos: BLOQUEO } as never, isAuthenticated: true });
+    mockAuthApi.me.mockResolvedValue({ ...USER, bloqueo_documentos: { activo: false, motivo: null, fecha_limite: null, pendientes: 0 } });
+
+    await useAuthStore.getState().refrescarUsuario();
+    expect(useAuthStore.getState().user?.bloqueo_documentos?.activo).toBe(false);
+  });
+
+  it('refrescar sin red deja el usuario como estaba y comparte la petición en vuelo', async () => {
+    useAuthStore.setState({ token: 'tok', user: { ...USER, bloqueo_documentos: BLOQUEO } as never, isAuthenticated: true });
+    mockAuthApi.me.mockRejectedValue(new AxiosError('Network Error', 'ERR_NETWORK'));
+
+    await Promise.all([useAuthStore.getState().refrescarUsuario(), useAuthStore.getState().refrescarUsuario()]);
+    expect(mockAuthApi.me).toHaveBeenCalledTimes(1);
+    expect(useAuthStore.getState().user?.bloqueo_documentos?.activo).toBe(true);
   });
 });

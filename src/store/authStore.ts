@@ -2,13 +2,14 @@ import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
 
 import { authApi } from '@/api/auth';
-import { setAuthToken, setRegistroIncompletoHandler, setUnauthorizedHandler } from '@/api/client';
+import { setAuthToken, setDocumentosPendientesHandler, setRegistroIncompletoHandler, setUnauthorizedHandler } from '@/api/client';
 import { queryClient } from '@/api/queryClient';
 import { AUTH_TOKEN_KEY, DEVICE_NAME } from '@/constants/config';
 import { revokeCurrentPushToken } from '@/services/pushNotifications';
 import { useAppLockStore } from '@/store/appLockStore';
 import { clearPendingPushNavigation } from '@/store/pendingNavigationStore';
 import type { AuthUser } from '@/types/auth';
+import type { BloqueoDocumentos } from '@/types/cartaCompromiso';
 import { AppError, isTransientError, logError } from '@/utils/errors';
 import { clearPrivateAssetCache } from '@/utils/privateAssetCache';
 
@@ -54,6 +55,14 @@ interface AuthState {
   discardPendingSession: () => Promise<void>;
   /** Registro completo terminado (o el backend avisó que falta): mueve la puerta de entrada. */
   marcarRegistroCompleto: (completo: boolean) => void;
+  /**
+   * Vuelve a leer `/me` (bloqueo por documentos, carta compromiso…). Nunca
+   * lanza: una falla de red deja el usuario como estaba. Llamadas
+   * simultáneas comparten la misma petición.
+   */
+  refrescarUsuario: () => Promise<void>;
+  /** Aplica el bloqueo por documentos que ya mandó el backend (403 o `GET carta-compromiso`) sin esperar a `/me`. */
+  aplicarBloqueoDocumentos: (bloqueo: BloqueoDocumentos) => void;
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
@@ -144,6 +153,16 @@ export const useAuthStore = create<AuthState>((set, get) => {
     const user = get().user;
     if (user && user.registro_completo !== false) set({ user: { ...user, registro_completo: false } });
   });
+
+  // 403 «documentos_pendientes»: la carta compromiso venció (o faltan
+  // documentos sin carta). Se aplica el bloqueo que vino en la respuesta y
+  // se refresca `/me` para que la puerta de `_layout.tsx` actúe.
+  setDocumentosPendientesHandler((bloqueo) => {
+    if (bloqueo) get().aplicarBloqueoDocumentos(bloqueo);
+    void get().refrescarUsuario();
+  });
+
+  let refrescoEnCurso: Promise<void> | null = null;
 
   async function verifyStoredToken(storedToken: string): Promise<void> {
     setAuthToken(storedToken);
@@ -282,6 +301,37 @@ export const useAuthStore = create<AuthState>((set, get) => {
     marcarRegistroCompleto(completo) {
       const user = get().user;
       if (user) set({ user: { ...user, registro_completo: completo } });
+    },
+
+    refrescarUsuario() {
+      if (refrescoEnCurso) return refrescoEnCurso;
+      const tokenInicial = get().token;
+      if (!tokenInicial || !get().isAuthenticated) return Promise.resolve();
+      refrescoEnCurso = (async () => {
+        try {
+          const user = await authApi.me();
+          // La sesión pudo cerrarse (o cambiar de cuenta) mientras tanto.
+          if (get().token === tokenInicial && get().isAuthenticated) set({ user });
+        } catch (error) {
+          logError('authStore.refrescarUsuario', error);
+        } finally {
+          refrescoEnCurso = null;
+        }
+      })();
+      return refrescoEnCurso;
+    },
+
+    aplicarBloqueoDocumentos(bloqueo) {
+      const user = get().user;
+      if (!user) return;
+      const actual = user.bloqueo_documentos;
+      const igual =
+        actual &&
+        actual.activo === bloqueo.activo &&
+        actual.motivo === bloqueo.motivo &&
+        actual.fecha_limite === bloqueo.fecha_limite &&
+        actual.pendientes === bloqueo.pendientes;
+      if (!igual) set({ user: { ...user, bloqueo_documentos: bloqueo } });
     },
 
     async discardPendingSession() {

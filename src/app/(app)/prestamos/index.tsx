@@ -6,22 +6,28 @@ import { Card } from '@/components/Card';
 import { ItemCard } from '@/components/ciclo/ItemCard';
 import { Screen, SectionTitle } from '@/components/ciclo/Screen';
 import { StepTimeline } from '@/components/ciclo/StepTimeline';
+import { ElegibilidadPrestamoResumen } from '@/components/ElegibilidadPrestamoResumen';
 import { EmptyState } from '@/components/EmptyState';
 import { StatusBadge } from '@/components/StatusBadge';
 import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
 import { useEstilos } from '@/theme/ThemeProvider';
 import { useMisPrestamos } from '@/hooks/queries/useCicloLaboral';
+import { usePrestamoElegibilidad } from '@/hooks/queries/useCorrecciones';
 import { useSolicitudes } from '@/hooks/queries/useSolicitudes';
 import { formatDateShort } from '@/utils/dates';
 import { formatCurrencyMXN } from '@/utils/formatters';
 import { prestamoEstadoBadge, prestamoEstadoLabel } from '@/utils/loan';
 import { loanRequestsInProgress, loanStagesToTimeline } from '@/utils/loanRequest';
+import { vistaElegibilidad } from '@/utils/prestamoElegibilidad';
 
 /**
  * Préstamos del colaborador:
  * 1) solicitudes en trámite con su avance real (visto bueno → RH → firma,
  *    calculado por el backend), 2) préstamos autorizados.
- * Solicitar = pantalla mínima de monto + motivo.
+ * Solicitar = pantalla mínima de monto + motivo. Sin la antigüedad mínima
+ * (6 meses, la decide el backend) no hay botón: se muestra el aviso con la
+ * fecha en que podrá solicitarlo. Sin respuesta de elegibilidad (backend
+ * anterior o red) el botón sigue y el backend valida con 422.
  */
 export default function MisPrestamosScreen() {
   const styles = useEstilos(crearEstilos);
@@ -31,10 +37,14 @@ export default function MisPrestamosScreen() {
   const prestamos = prestamosQuery.data ?? [];
   const enTramite = loanRequestsInProgress(solicitudesQuery.data);
   const vacio = prestamos.length === 0 && enTramite.length === 0;
+  const elegibilidad = usePrestamoElegibilidad();
+  const puedeSolicitar = vistaElegibilidad(elegibilidad.data).botonHabilitado;
+  const irASolicitar = () => router.push('/prestamos/solicitar' as never);
 
   const refetch = () => {
     void prestamosQuery.refetch();
     void solicitudesQuery.refetch();
+    void elegibilidad.refetch();
   };
 
   return (
@@ -46,19 +56,20 @@ export default function MisPrestamosScreen() {
       onRetry={refetch}
       refreshing={prestamosQuery.isRefetching || solicitudesQuery.isRefetching}
       onRefresh={refetch}>
+      {!puedeSolicitar ? <ElegibilidadPrestamoResumen elegibilidad={elegibilidad.data} /> : null}
       {vacio ? (
         <Card>
           <EmptyState
             icon="cash-outline"
             title="No tienes préstamos activos"
-            message="Puedes solicitar uno directamente desde People. Aquí verás su avance y documentos."
-            actionLabel="Solicitar préstamo"
-            onAction={() => router.push('/prestamos/solicitar' as never)}
+            message={puedeSolicitar ? 'Puedes solicitar uno directamente desde People. Aquí verás su avance y documentos.' : 'Cuando cumplas la antigüedad mínima podrás solicitarlo aquí y ver su avance y documentos.'}
+            actionLabel={puedeSolicitar ? 'Solicitar préstamo' : undefined}
+            onAction={puedeSolicitar ? irASolicitar : undefined}
           />
         </Card>
       ) : (
         <>
-          <Button title="Solicitar préstamo" leftIcon="add-circle-outline" onPress={() => router.push('/prestamos/solicitar' as never)} />
+          {puedeSolicitar ? <Button title="Solicitar préstamo" leftIcon="add-circle-outline" onPress={irASolicitar} /> : null}
 
           {enTramite.length > 0 ? (
             <View style={styles.section}>

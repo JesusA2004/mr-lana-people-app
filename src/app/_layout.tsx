@@ -140,7 +140,8 @@ function AppThemeController() {
 /**
  * Enrutador raíz. Usa `Stack.Protected` por tramos: sin sesión → auth;
  * contraseña temporal → cambiarla; registro por QR sin terminar → asistente
- * de registro completo; onboarding no visto → onboarding; lo demás → app. Una sesión guardada que no se pudo verificar por red NO es
+ * de registro completo; documentos pendientes sin carta compromiso vigente
+ * → solo `/documentos-pendientes`; onboarding no visto → onboarding; lo demás → app. Una sesión guardada que no se pudo verificar por red NO es
  * "sin sesión": muestra `SessionVerificationScreen` en vez de Login.
  */
 function RootNavigator() {
@@ -154,10 +155,14 @@ function RootNavigator() {
   // Registro por QR sin terminar (datos + documentos): solo existe el
   // asistente `/registro` hasta completarlo (el backend también lo exige).
   const registroPendiente = useAuthStore((state) => state.user?.registro_completo === false);
+  // Documentos pendientes sin carta compromiso vigente (o carta vencida):
+  // solo existe `/documentos-pendientes` hasta subirlos (el backend responde
+  // 403 «documentos_pendientes» a lo demás).
+  const bloqueoDocumentos = useAuthStore((state) => state.user?.bloqueo_documentos?.activo === true);
   const onboardingCompleted = useOnboardingStore((state) => state.completed);
   const isOnboardingLoading = useOnboardingStore((state) => state.isLoading);
 
-  const sessionReady = isAuthenticated && !debeCambiarContrasena && !registroPendiente && onboardingCompleted && !isOnboardingLoading;
+  const sessionReady = isAuthenticated && !debeCambiarContrasena && !registroPendiente && !bloqueoDocumentos && onboardingCompleted && !isOnboardingLoading;
   usePushRegistration(sessionReady);
   useNotificationResponseRouting(sessionReady);
 
@@ -167,7 +172,9 @@ function RootNavigator() {
 
   const showCambioContrasena = isAuthenticated && debeCambiarContrasena;
   const showRegistro = isAuthenticated && !showCambioContrasena && registroPendiente;
-  const showOnboarding = isAuthenticated && !showCambioContrasena && !showRegistro && !onboardingCompleted;
+  const showBloqueoDocumentos = isAuthenticated && !showCambioContrasena && !showRegistro && bloqueoDocumentos;
+  const showOnboarding = isAuthenticated && !showCambioContrasena && !showRegistro && !showBloqueoDocumentos && !onboardingCompleted;
+  const showApp = isAuthenticated && !showCambioContrasena && !showRegistro && !showBloqueoDocumentos && !showOnboarding;
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors.background } }}>
@@ -177,8 +184,13 @@ function RootNavigator() {
       <Stack.Protected guard={showRegistro}>
         <Stack.Screen name="registro" options={{ gestureEnabled: false }} />
       </Stack.Protected>
-      <Stack.Protected guard={isAuthenticated && !showCambioContrasena && !showRegistro && !showOnboarding}>
+      <Stack.Protected guard={showApp}>
         <Stack.Screen name="(app)" />
+      </Stack.Protected>
+      {/* Bloqueada por documentos: única pantalla. Con carta vigente: ruta
+          normal sobre la app (banner de Inicio), con «Regresar». */}
+      <Stack.Protected guard={showBloqueoDocumentos || showApp}>
+        <Stack.Screen name="documentos-pendientes" options={{ gestureEnabled: !showBloqueoDocumentos }} />
       </Stack.Protected>
       <Stack.Protected guard={showOnboarding}>
         <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />

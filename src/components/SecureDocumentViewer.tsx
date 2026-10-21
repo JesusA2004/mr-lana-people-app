@@ -52,6 +52,14 @@ export interface SecureDocumentViewerProps {
    * construirlo.
    */
   downloadFileName?: string;
+  /**
+   * Obtención propia del archivo, para documentos que NO salen de un GET
+   * (p. ej. la vista previa de la carta compromiso, que es un POST): debe
+   * escribir el archivo en `destino` y devolverlo. Con este prop, `path` solo
+   * identifica el documento (cambiarlo vuelve a cargar). Debe ser estable
+   * (`useCallback`) para no recargar en cada render.
+   */
+  descargar?: (destino: File, signal: AbortSignal) => Promise<File>;
 }
 
 /** Clave PROPIA de protección de captura — nunca la del hook global (`useAppPrivacyProtection`), para que ninguno libere la protección del otro por accidente (ver `expo-screen-capture`: las claves llevan cuenta independiente, `allowScreenCaptureAsync` de una clave nunca apaga la de otra mientras siga activa). */
@@ -86,7 +94,7 @@ type ViewerStatus = 'loading' | 'ready' | 'error' | 'unsupported';
  * visor de PDF nativo de Android/iOS reconozca `file://...pdf` dentro del
  * WebView.
  */
-export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, allowDownload = false, downloadFileName }: SecureDocumentViewerProps) {
+export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, allowDownload = false, downloadFileName, descargar }: SecureDocumentViewerProps) {
   const styles = useEstilos(crearEstilos);
   const token = useAuthStore((state) => state.token);
   const logout = useAuthStore((state) => state.logout);
@@ -127,14 +135,15 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
         // promesa resolvía, y una descarga abortada nunca resuelve. Bug
         // corregido en la sincronización 2026-09-15 (sección 10).
         downloadedFile = tempFile;
-        const task = File.createDownloadTask(`${API_URL}${path}`, tempFile, {
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-          signal: controller.signal,
-          onProgress: ({ bytesWritten, totalBytes }) => {
-            if (!cancelled) setProgreso(porcentajeDescarga(bytesWritten, totalBytes));
-          },
-        });
-        const downloaded = await task.downloadAsync();
+        const downloaded = descargar
+          ? await descargar(tempFile, controller.signal)
+          : await File.createDownloadTask(`${API_URL}${path}`, tempFile, {
+              headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+              signal: controller.signal,
+              onProgress: ({ bytesWritten, totalBytes }) => {
+                if (!cancelled) setProgreso(porcentajeDescarga(bytesWritten, totalBytes));
+              },
+            }).downloadAsync();
         if (cancelled) return;
         if (!downloaded || downloaded.size === 0) {
           throw new Error('El archivo descargado está vacío.');
@@ -199,7 +208,7 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
         // No crítico: el sistema operativo limpia `Paths.cache` eventualmente.
       }
     };
-  }, [path, token, retryCount, logout]);
+  }, [path, token, retryCount, logout, descargar]);
 
   const isPdf = sniffedType === 'pdf';
 

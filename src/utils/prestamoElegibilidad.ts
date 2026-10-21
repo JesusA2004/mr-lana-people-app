@@ -2,7 +2,7 @@ import type { ElegibilidadPrestamo } from '@/types/loan';
 import { asBoolean, asNumber, asRecord, asRecordOrNull, asString } from '@/utils/normalize';
 
 /**
- * Elegibilidad para pedir préstamo (6 meses completos de antigüedad). La
+ * Elegibilidad para pedir préstamo (mínimo 6 meses completos de antigüedad). La
  * decide SIEMPRE el backend con su fecha; esta capa solo la lee y arma los
  * textos de la pantalla. Probada en `utils/__tests__/prestamoElegibilidad.test.ts`.
  */
@@ -17,6 +17,7 @@ export function normalizeElegibilidadPrestamo(value: unknown): ElegibilidadPrest
     antiguedad: antiguedad
       ? { anios: asNumber(antiguedad.anios) ?? 0, meses: asNumber(antiguedad.meses) ?? 0, dias: asNumber(antiguedad.dias) ?? 0 }
       : null,
+    antiguedad_meses: asNumber(raw.antiguedad_meses),
     antiguedad_texto: asString(raw.antiguedad_texto),
     disponible_desde: asString(raw.disponible_desde),
     disponible_desde_texto: asString(raw.disponible_desde_texto),
@@ -36,6 +37,12 @@ export function fechaDisponibleTexto(e: Pick<ElegibilidadPrestamo, 'disponible_d
   if (e.disponible_desde_texto) return e.disponible_desde_texto;
   const m = e.disponible_desde ? /^(\d{4})-(\d{2})-(\d{2})/.exec(e.disponible_desde) : null;
   return m ? `${m[3]}/${m[2]}/${m[1]}` : null;
+}
+
+/** Texto de respaldo si el backend no manda `mensaje` (mismo texto que el backend). */
+export function mensajeNoElegible(mesesMinimos: number, fecha: string | null): string {
+  const base = `Necesitas mínimo ${mesesMinimos} meses de antigüedad para solicitar un préstamo.`;
+  return fecha ? `${base} Podrás solicitarlo a partir del ${fecha}.` : base;
 }
 
 export interface VistaElegibilidad {
@@ -71,11 +78,7 @@ export function vistaElegibilidad(e: ElegibilidadPrestamo | null | undefined): V
     botonHabilitado: false,
     aviso: {
       titulo: 'Aún no puedes solicitar un préstamo',
-      mensaje:
-        e.mensaje ??
-        (fecha
-          ? `Disponible al cumplir ${e.meses_minimos} meses de antigüedad: a partir del ${fecha}.`
-          : `Disponible al cumplir ${e.meses_minimos} meses de antigüedad.`),
+      mensaje: e.mensaje ?? mensajeNoElegible(e.meses_minimos, fecha),
     },
   };
 }

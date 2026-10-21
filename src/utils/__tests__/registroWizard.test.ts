@@ -4,8 +4,15 @@ import {
   camposDelPaso,
   datosParaEnviar,
   documentosPorSubir,
+  documentosSinResolver,
+  documentosSinTener,
   edadCumplida,
+  excedeMaximoCarta,
+  maxCartaRegistro,
   pasoParaReanudar,
+  puedeFinalizarRegistro,
+  sinTenerVigentes,
+  textoDocumentos,
   textoProgreso,
   validarCoherencia,
   validarFormato,
@@ -156,13 +163,77 @@ describe('registroWizard: envío y reanudación', () => {
   });
 });
 
+describe('registroWizard: «No tengo este documento» y carta compromiso', () => {
+  const base = { tipo: 'x', obligatorio: true, puede_subir: true, puede_reemplazar: false, puede_solicitar_cambio: false };
+  const conDocs = (parcial: Partial<EstadoRegistro> = {}) =>
+    estado({
+      datos: { completo: true, faltan: [], campos: CAMPOS },
+      documentos: {
+        ...estado().documentos,
+        lista: [
+          { ...base, id: 1, nombre: 'INE', estado: 'pendiente' },
+          { ...base, id: 2, nombre: 'CURP', estado: 'en_revision' },
+          { ...base, id: 3, nombre: 'Comprobante', estado: 'pendiente' },
+        ],
+      },
+      ...parcial,
+    });
+
+  test('solo valen las marcas de documentos que siguen faltando', () => {
+    expect(sinTenerVigentes(conDocs(), [3, 2, 99, 1])).toEqual([1, 3]);
+    expect(documentosSinTener(conDocs(), [3]).map((d) => d.nombre)).toEqual(['Comprobante']);
+    expect(documentosSinResolver(conDocs(), [3]).map((d) => d.nombre)).toEqual(['INE']);
+  });
+
+  test('puede terminar con carta solo si todo lo que falta está marcado y los datos están completos', () => {
+    expect(puedeFinalizarRegistro(conDocs(), [3])).toBe(false);
+    expect(puedeFinalizarRegistro(conDocs(), [1, 3])).toBe(true);
+    expect(puedeFinalizarRegistro(conDocs({ datos: { completo: false, faltan: [{ campo: 'curp', etiqueta: 'CURP' }], campos: CAMPOS } }), [1, 3])).toBe(false);
+    expect(puedeFinalizarRegistro(conDocs({ puede_finalizar: true }), [])).toBe(true);
+  });
+
+  test('más «No tengo» que el máximo de una carta: puede terminar, pero sin carta', () => {
+    const cuatro = conDocs({
+      documentos: {
+        ...conDocs().documentos,
+        lista: [...conDocs().documentos.lista, { ...base, id: 4, nombre: 'Acta', estado: 'pendiente' }],
+      },
+    });
+    expect(maxCartaRegistro(cuatro)).toBe(2);
+    expect(excedeMaximoCarta(cuatro, [1, 3])).toBe(false);
+    expect(excedeMaximoCarta(cuatro, [1, 3, 4])).toBe(true);
+    expect(puedeFinalizarRegistro(cuatro, [1, 3, 4])).toBe(true);
+    // Las marcas de documentos ya subidos no cuentan.
+    expect(excedeMaximoCarta(cuatro, [1, 2, 3])).toBe(false);
+    expect(excedeMaximoCarta({ ...cuatro, max_documentos_carta: 3 }, [1, 3, 4])).toBe(false);
+  });
+
+  test('con todo marcado reanuda en revisión, no en documentos', () => {
+    expect(pasoParaReanudar(conDocs(), null, [1])).toBe(4);
+    expect(pasoParaReanudar(conDocs(), null, [1, 3])).toBe(5);
+  });
+
+  test('texto de documentos en singular y plural', () => {
+    expect(textoDocumentos(1)).toBe('1 documento');
+    expect(textoDocumentos(3)).toBe('3 documentos');
+  });
+});
+
 describe('borrador local y compresión', () => {
   test('el borrador se serializa sin vacíos y se recupera; basura → vacío', () => {
-    const texto = serializarBorrador({ paso: 'domicilio', valores: { curp: 'X', rfc: '  ' } });
-    expect(deserializarBorrador(texto)).toEqual({ paso: 'domicilio', valores: { curp: 'X' } });
-    expect(deserializarBorrador('{no json')).toEqual({ paso: null, valores: {} });
-    expect(deserializarBorrador(JSON.stringify({ paso: 'hackeo', valores: { a: 1 } }))).toEqual({ paso: null, valores: {} });
+    const texto = serializarBorrador({ paso: 'domicilio', valores: { curp: 'X', rfc: '  ' }, sinTener: [] });
+    expect(deserializarBorrador(texto)).toEqual({ paso: 'domicilio', valores: { curp: 'X' }, sinTener: [] });
+    expect(deserializarBorrador('{no json')).toEqual({ paso: null, valores: {}, sinTener: [] });
+    expect(deserializarBorrador(JSON.stringify({ paso: 'hackeo', valores: { a: 1 } }))).toEqual({ paso: null, valores: {}, sinTener: [] });
     expect(claveBorrador('12/a b')).toBe('registro_borrador_12_a_b');
+  });
+
+  test('las marcas «No tengo» se guardan como ids válidos sin repetir', () => {
+    const texto = serializarBorrador({ paso: 'documentos', valores: {}, sinTener: [3, 3, 7] });
+    expect(deserializarBorrador(texto).sinTener).toEqual([3, 7]);
+    expect(deserializarBorrador(JSON.stringify({ paso: 'documentos', valores: {}, sinTener: ['3', -1, 2.5, 9] })).sinTener).toEqual([9]);
+    // Borrador de una versión anterior (sin la clave): vacío.
+    expect(deserializarBorrador(JSON.stringify({ paso: 'documentos', valores: {} })).sinTener).toEqual([]);
   });
 
   test('medida destino y nombre de la foto comprimida', () => {

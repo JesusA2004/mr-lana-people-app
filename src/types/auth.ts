@@ -1,3 +1,5 @@
+import type { BloqueoDocumentos, CartaCompromisoResumen } from './cartaCompromiso';
+
 /**
  * Confirmado contra backend real (App\Http\Controllers\Api\V1\AuthController::login/me,
  * ver capacitaciones/docs/API_MOVIL.md y docs/AUTENTICACION.md): se inicia
@@ -22,6 +24,14 @@ export interface AuthUser {
    * Ausente (backend anterior) = no se bloquea nada.
    */
   registro_completo?: boolean;
+  /**
+   * Documentos pendientes sin carta compromiso vigente: `activo` = la app
+   * solo deja subir documentos (pantalla `/documentos-pendientes`). Ausente
+   * (backend anterior) = no se bloquea nada.
+   */
+  bloqueo_documentos?: BloqueoDocumentos | null;
+  /** Carta compromiso de documentos pendientes (banner mientras está vigente). */
+  carta_compromiso?: CartaCompromisoResumen | null;
   /** Compatibilidad con formas alternativas de respuesta. */
   email?: string | null;
   name?: string;

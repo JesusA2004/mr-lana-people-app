@@ -61,6 +61,8 @@ export const queryKeys = {
   datosFaltantes: ['colaborador', 'datos-faltantes'] as const,
   /** Registro completo antes de entrar (cuenta creada por QR). */
   registro: ['colaborador', 'registro'] as const,
+  /** Carta compromiso de documentos pendientes + bloqueo por documentos. */
+  cartaCompromiso: ['colaborador', 'carta-compromiso'] as const,
   misPrestamos: ['colaborador', 'prestamos'] as const,
   miPrestamo: (id: string | number) => ['colaborador', 'prestamos', String(id)] as const,
   miJerarquia: ['colaborador', 'jerarquia'] as const,

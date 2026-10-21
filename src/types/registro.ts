@@ -1,3 +1,4 @@
+import type { CartaCompromiso } from './cartaCompromiso';
 import type { DocumentoIncorporacion } from './document';
 import type { IncorporacionProgreso } from './incorporation';
 
@@ -36,6 +37,19 @@ export interface EstadoRegistro {
     lista: DocumentoIncorporacion[];
   };
   puede_finalizar: boolean;
+  /**
+   * Máximo de documentos «No tengo» que cubre una carta compromiso. Con más
+   * marcados se puede terminar, pero sin carta y con la app limitada a subir
+   * documentos. Backends anteriores no lo mandan (usar 2).
+   */
+  max_documentos_carta?: number;
   /** Texto humano de lo que falta («datos: CURP, RFC», «documentos: INE»). */
   pendientes: string[];
+  /**
+   * Solo en la respuesta de `POST registro/finalizar`: carta compromiso
+   * generada por los documentos marcados «No tengo este documento» (null o
+   * ausente = no se generó; también null si marcó más de
+   * `max_documentos_carta`).
+   */
+  carta_compromiso?: CartaCompromiso | null;
 }
