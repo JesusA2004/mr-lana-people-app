@@ -6,12 +6,13 @@ import { queryKeys, rhQueryKeyPrefix } from '@/api/queryKeys';
 import { rhSolicitudesApi } from '@/api/rh/solicitudes';
 import { equipoApi } from '@/api/trabajo';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
+import { usePermisos } from '@/hooks/usePermisos';
 import { useEquipoPendientes } from '@/hooks/queries/useTrabajo';
 import { useRefrescarAlVolver } from '@/hooks/useRefrescarAlVolver';
 import type { AprobacionItem, BandejaAprobaciones } from '@/types/aprobaciones';
 import { armarBandeja } from '@/utils/flujoAprobacion';
 import { isNotFoundError } from '@/utils/errors';
-import { hasAnyPermission, isSelfServiceModuleEnabled } from '@/utils/modules';
+import { isSelfServiceModuleEnabled } from '@/utils/modules';
 import { retryUnlessClientError, SENSITIVE_MUTATION } from './queryOptions';
 
 /** Permisos con los que el backend deja dar la autorización final (`conteoPendientes`). */
@@ -19,8 +20,8 @@ export const PERMISOS_AUTORIZAR = ['rh.solicitudes.aprobar', 'solicitudes.aproba
 
 /** ¿La cuenta puede tener autorizaciones finales de RH? (capabilities + permisos del backend, nunca el rol). */
 export function useEsAutorizadorRh(): boolean {
-  const bootstrap = useMobileBootstrap(true);
-  return Boolean(bootstrap.data?.capabilities.rh) && hasAnyPermission(bootstrap.data?.user.permissions, PERMISOS_AUTORIZAR);
+  const permisos = usePermisos();
+  return Boolean(permisos.capacidades?.rh) && permisos.puedeAlguno(PERMISOS_AUTORIZAR);
 }
 
 /**

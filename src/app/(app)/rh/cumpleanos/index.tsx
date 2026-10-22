@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { FiltroChips } from '@/components/FiltroChips';
 import { AppHeader } from '@/components/AppHeader';
@@ -10,6 +10,7 @@ import { FadeInView } from '@/components/FadeInView';
 import { EmptyState } from '@/components/EmptyState';
 import { RhBirthdayCard } from '@/components/RhBirthdayCard';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
+import { CampoBusqueda } from '@/components/ui/CampoBusqueda';
 import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useRhCumpleanosInfinite } from '@/hooks/queries/useRhCumpleanos';
@@ -56,7 +57,7 @@ export default function RhCumpleanosListScreen() {
 
   return (
     <View style={styles.container}>
-      <AppHeader title="Cumpleaños" showBack onBackPress={() => router.back()} />
+      <AppHeader title="Cumpleaños" showBack />
 
       {meta ? (
         <View style={styles.statsRow}>
@@ -66,19 +67,13 @@ export default function RhCumpleanosListScreen() {
         </View>
       ) : null}
 
-      <View style={styles.searchWrapper}>
-        <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
-        <TextInput
-          value={searchInput}
-          onChangeText={setSearchInput}
-          placeholder="Nombre o número de empleado"
-          placeholderTextColor={Colors.textMuted}
-          style={styles.searchInput}
-          autoCapitalize="none"
-          autoCorrect={false}
-          accessibilityLabel="Buscar en cumpleaños"
-        />
-      </View>
+      <CampoBusqueda
+        value={searchInput}
+        onChangeText={setSearchInput}
+        placeholder="Nombre o número de empleado"
+        accessibilityLabel="Buscar en cumpleaños"
+        style={styles.searchWrapper}
+      />
 
       <FiltroChips opciones={FILTERS} valor={periodo} onChange={setPeriodo} />
 
@@ -86,6 +81,8 @@ export default function RhCumpleanosListScreen() {
         data={items}
         keyExtractor={(item) => `${item.colaborador.id}-${item.greeting_id ?? 'sin-tarjeta'}`}
         contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={Colors.primary} />}
         ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
         onEndReachedThreshold={0.4}
@@ -173,22 +170,8 @@ const crearEstilos = (Colors: ColorPalette) =>
     flexShrink: 1,
   },
   searchWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
     marginHorizontal: Spacing.lg,
     marginBottom: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    height: 40,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: FontSize.sm,
-    color: Colors.text,
   },
   listContent: {
     width: '100%',

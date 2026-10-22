@@ -4,7 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { renderScrollConTeclado } from '@/components/FormularioScroll';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { celebracionesApi } from '@/api/celebraciones';
@@ -193,8 +193,8 @@ export default function CelebracionScreen() {
   ) : null;
 
   return (
-    // keyboard-controller: el campo del mensaje sube sobre el teclado en Android e iOS.
-    <KeyboardAvoidingView style={styles.container} behavior="padding">
+    // keyboard-controller: la lista usa KeyboardAwareScrollView, el campo del mensaje sube sobre el teclado.
+    <View style={styles.container}>
       <AppHeader title="Celebración" showBack onBackPress={() => volverAtras(router)} />
       {celebracion.isLoading ? (
         <View style={styles.loading}>
@@ -214,7 +214,7 @@ export default function CelebracionScreen() {
           data={data?.puede_ver_todos ? items : []}
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={[styles.list, { paddingBottom: paddingInferiorBarra(insets.bottom) + Spacing.xl }]}
-          keyboardShouldPersistTaps="handled"
+          renderScrollComponent={renderScrollConTeclado}
           ListHeaderComponent={header}
           ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
           refreshControl={<RefreshControl refreshing={celebracion.isRefetching} onRefresh={() => void celebracion.refetch()} tintColor={Colors.primary} />}
@@ -233,7 +233,7 @@ export default function CelebracionScreen() {
           renderItem={({ item }) => <MensajeCard mensaje={item} token={token} />}
         />
       )}
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

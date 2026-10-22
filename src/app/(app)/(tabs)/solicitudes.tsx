@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { FiltroChips } from '@/components/FiltroChips';
 import { Button } from '@/components/Button';
@@ -14,6 +14,7 @@ import { MascotAssistant } from '@/components/mascot/MascotAssistant';
 import { PressableScale } from '@/components/PressableScale';
 import { RequestCard } from '@/components/RequestCard';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
+import { CampoBusqueda } from '@/components/ui/CampoBusqueda';
 import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { MascotMessages } from '@/constants/mascotMessages';
@@ -90,25 +91,7 @@ export default function SolicitudesScreen() {
       />
 
       {!isLoading && solicitudes.length > 0 ? (
-        <View style={styles.searchWrapper}>
-          <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Buscar por folio o tipo"
-            accessibilityLabel="Buscar por folio o tipo"
-            returnKeyType="search"
-            placeholderTextColor={Colors.textMuted}
-            style={styles.searchInput}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          {search ? (
-            <PressableScale haptic={false} accessibilityLabel="Limpiar búsqueda" hitSlop={12} onPress={() => setSearch('')}>
-              <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
-            </PressableScale>
-          ) : null}
-        </View>
+        <CampoBusqueda value={search} onChangeText={setSearch} placeholder="Buscar por folio o tipo" style={styles.searchWrapper} />
       ) : null}
 
       {!isLoading && solicitudes.length > 0 ? (
@@ -122,6 +105,8 @@ export default function SolicitudesScreen() {
         data={filtered}
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={Colors.primary} />}
         ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
         onEndReachedThreshold={0.4}
@@ -196,23 +181,8 @@ const crearEstilos = (Colors: ColorPalette) =>
     justifyContent: 'center',
   },
   searchWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
     marginHorizontal: Spacing.lg,
     marginBottom: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    minHeight: Layout.minTouchTarget,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  searchInput: {
-    flex: 1,
-    minHeight: Layout.minTouchTarget,
-    fontSize: FontSize.md,
-    color: Colors.text,
   },
   listContent: {
     width: '100%',

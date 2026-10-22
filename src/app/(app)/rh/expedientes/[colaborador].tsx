@@ -1,27 +1,30 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { rhExpedientesApi } from '@/api/rh/expedientes';
 import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { DescargaExpedienteModal } from '@/components/DescargaExpedienteModal';
 import { ErrorState } from '@/components/ErrorState';
+import { FilaDocumentoExpediente } from '@/components/FilaDocumentoExpediente';
 import { MotivoModal } from '@/components/MotivoModal';
-import { PressableScale } from '@/components/PressableScale';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
 import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useRhExpediente, useRhExpedienteAprobarIncorporacion, useRhExpedienteRechazarIncorporacion } from '@/hooks/queries/useRhExpedientes';
-import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
+import { usePermisos } from '@/hooks/usePermisos';
 import { toast } from '@/store/toastStore';
 import { getErrorMessage, isConcurrencyConflict, logError } from '@/utils/errors';
-import { hasPermission } from '@/utils/capabilities';
 import { haptics } from '@/utils/haptics';
 
 /**
  * Expediente completo RH (AGENTS.md sección 14): detalle del colaborador,
- * documentos y navegación al visor seguro de cada uno + aprobar/rechazar
+ * documentos (cada uno con «Descargar» si el backend lo autoriza), «Descargar
+ * expediente completo (ZIP)» con pantalla de progreso, y aprobar/rechazar
  * incorporación. `rh_auxiliar` (solo lectura) nunca ve estos dos botones —
  * se comprueba contra el permiso real, no contra el nombre del rol.
  */
@@ -31,14 +34,18 @@ export default function RhExpedienteDetailScreen() {
   const router = useRouter();
   const { colaborador: colaboradorId } = useLocalSearchParams<{ colaborador: string }>();
   const { data: expediente, isLoading, isError, error, refetch, isRefetching } = useRhExpediente(colaboradorId);
-  const bootstrap = useMobileBootstrap(true);
+  const permisos = usePermisos();
   const aprobarIncorporacion = useRhExpedienteAprobarIncorporacion();
   const rechazarIncorporacion = useRhExpedienteRechazarIncorporacion();
   const [showRechazar, setShowRechazar] = useState(false);
+  const [descargandoZip, setDescargandoZip] = useState(false);
 
-  const permissions = bootstrap.data?.user.permissions;
-  const canApproveIncorporation = hasPermission(permissions, 'rh.expedientes.incorporacion.aprobar');
-  const canRejectIncorporation = hasPermission(permissions, 'rh.expedientes.incorporacion.rechazar');
+  const canApproveIncorporation = permisos.puede('rh.expedientes.incorporacion.aprobar');
+  const canRejectIncorporation = permisos.puede('rh.expedientes.incorporacion.rechazar');
+  const puedeZip = expediente?.puede_descargar_expediente === true;
+  const nombreColaborador = expediente?.colaborador.nombre ?? 'Colaborador';
+  const numeroEmpleado = expediente?.colaborador.numero_empleado;
+  const nombreZip = numeroEmpleado ? `Expediente ${numeroEmpleado} - ${nombreColaborador}` : `Expediente - ${nombreColaborador}`;
   const pending = aprobarIncorporacion.isPending || rechazarIncorporacion.isPending;
 
   function handleActionError(err: unknown) {
@@ -124,27 +131,46 @@ export default function RhExpedienteDetailScreen() {
               ) : null}
             </Card>
 
+            {puedeZip && colaboradorId ? (
+              <Card style={styles.zipCard}>
+                <View style={styles.zipRow}>
+                  <View style={styles.zipIcon}>
+                    <Ionicons name="archive-outline" size={24} color={Colors.primaryDark} />
+                  </View>
+                  <View style={styles.documentText}>
+                    <Text style={styles.zipTitle}>Expediente completo</Text>
+                    <Text style={styles.collaboratorMeta}>Un ZIP con todos los documentos vigentes, su historial y un índice.</Text>
+                  </View>
+                </View>
+                <Button title="Descargar expediente completo (ZIP)" leftIcon="download-outline" onPress={() => setDescargandoZip(true)} />
+              </Card>
+            ) : null}
+
             <Text style={styles.sectionTitle}>Documentos</Text>
             <View style={styles.list}>
-              {expediente.documentos.map((documento) => (
-                <PressableScale
-                  key={documento.id}
-                  style={styles.documentRow}
-                  onPress={() => router.push(`/(app)/rh/expedientes/${colaboradorId}/documentos/${documento.id}` as never)}>
-                  <View style={styles.documentText}>
-                    <Text style={styles.documentName} numberOfLines={1}>
-                      {documento.nombre}
-                      {documento.obligatorio ? ' *' : ''}
-                    </Text>
-                    {documento.motivo_rechazo ? (
-                      <Text style={styles.documentReason} numberOfLines={1}>
-                        {documento.motivo_rechazo}
-                      </Text>
-                    ) : null}
-                  </View>
-                  <StatusBadge status={documento.estado} />
-                </PressableScale>
-              ))}
+              {expediente.documentos.map((documento) => {
+                const documentoId = documento.id;
+                return (
+                  <FilaDocumentoExpediente
+                    key={documentoId ?? `tipo-${documento.tipo_id ?? documento.tipo}`}
+                    nombre={documento.nombre}
+                    obligatorio={documento.obligatorio}
+                    estado={documento.estado}
+                    motivoRechazo={documento.motivo_rechazo}
+                    tituloDescarga={`${documento.nombre} - ${nombreColaborador}`}
+                    pathDescarga={
+                      documentoId !== null && documento.puede_descargar && colaboradorId
+                        ? rhExpedientesApi.descargarDocumentoPath(colaboradorId, documentoId)
+                        : null
+                    }
+                    onPress={
+                      documentoId !== null
+                        ? () => router.push(`/(app)/rh/expedientes/${colaboradorId}/documentos/${documentoId}` as never)
+                        : undefined
+                    }
+                  />
+                );
+              })}
             </View>
 
             {canApproveIncorporation || canRejectIncorporation ? (
@@ -170,6 +196,16 @@ export default function RhExpedienteDetailScreen() {
         onCancel={() => setShowRechazar(false)}
         onConfirm={handleRechazar}
       />
+
+      {colaboradorId ? (
+        <DescargaExpedienteModal
+          visible={descargandoZip}
+          path={rhExpedientesApi.descargarZipPath(colaboradorId)}
+          colaborador={nombreColaborador}
+          nombreArchivo={nombreZip}
+          onClose={() => setDescargandoZip(false)}
+        />
+      ) : null}
     </View>
   );
 }
@@ -213,6 +249,27 @@ const crearEstilos = (Colors: ColorPalette) =>
   },
   list: {
     gap: Spacing.sm,
+  },
+  zipCard: {
+    gap: Spacing.md,
+  },
+  zipRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  zipIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: Radius.lg,
+    backgroundColor: Colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  zipTitle: {
+    fontSize: FontSize.md,
+    fontWeight: '800',
+    color: Colors.text,
   },
   documentRow: {
     flexDirection: 'row',

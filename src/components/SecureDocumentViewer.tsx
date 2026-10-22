@@ -214,10 +214,14 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
 
   const nombreSugerido = downloadFileName ?? title;
   const archivoLocal = fileUri && sniffedType ? { uri: fileUri, tipo: sniffedType, tamano } : null;
-  const sinVistaPrevia = status === 'unsupported' || vistaPreviaFallo;
+  // Con descarga autorizada, un PDF se abre en el lector del teléfono (la
+  // vista previa embebida fallaba en varios Android): pantalla «Abrir
+  // documento» / «Guardar en el teléfono» en vez del visor.
+  const pdfFuera = allowDownload && isPdf && status === 'ready';
+  const sinVistaPrevia = status === 'unsupported' || vistaPreviaFallo || pdfFuera;
   // «Descargar PDF» / «Abrir con…» fijos abajo cuando el documento SÍ se ve
   // (acción secundaria siempre visible) — solo si el backend autorizó la descarga.
-  const mostrarBarra = allowDownload && status === 'ready' && !vistaPreviaFallo && archivoLocal !== null;
+  const mostrarBarra = allowDownload && status === 'ready' && !vistaPreviaFallo && !pdfFuera && archivoLocal !== null;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={mostrarBarra ? ['top', 'left', 'right'] : ['top', 'left', 'right', 'bottom']}>
@@ -248,8 +252,11 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
               variante="pantalla"
               titulo={nombreSugerido}
               archivoLocal={archivoLocal}
+              accionPrincipal={pdfFuera ? 'abrir' : 'guardar'}
               motivo={
-                vistaPreviaFallo
+                pdfFuera
+                  ? 'El PDF ya está listo. Ábrelo en el lector de tu teléfono o guarda una copia.'
+                  : vistaPreviaFallo
                   ? 'No se pudo mostrar la vista previa en este teléfono. Descárgalo o ábrelo con otra aplicación.'
                   : 'Este tipo de archivo no tiene vista previa en la app. Descárgalo o ábrelo con otra aplicación.'
               }

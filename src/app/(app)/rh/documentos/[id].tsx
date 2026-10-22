@@ -9,7 +9,7 @@ import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
 import { FieldComparisonRow, FieldMatchRow } from '@/components/FieldComparisonRow';
 import { MotivoModal } from '@/components/MotivoModal';
-import { SecureDocumentViewer } from '@/components/SecureDocumentViewer';
+import { DescargaDocumento } from '@/components/DescargaDocumento';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
 import { rhDocumentosApi } from '@/api/rh/documentos';
@@ -17,12 +17,12 @@ import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constant
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useRhDocumentExtraction, useRhDocumentExtractionAplicar, useRhDocumentExtractionIgnorar } from '@/hooks/queries/useRhDocumentExtraction';
-import { useRhDocumento, useRhDocumentoAprobar, useRhDocumentoRechazar } from '@/hooks/queries/useRhDocumentos';
-import { useAuthStore } from '@/store/authStore';
+import { useRhDocumento, useRhDocumentoAprobar, useRhDocumentoPedirCorreccion, useRhDocumentoRechazar } from '@/hooks/queries/useRhDocumentos';
 import { toast } from '@/store/toastStore';
 import type { DocumentExtraction, ExtractedFieldKey, ExtractionApplicableField } from '@/types/documentExtraction';
 import { hasPermission } from '@/utils/capabilities';
 import { formatDateTime } from '@/utils/dates';
+import { tipoEsperadoPorNombre } from '@/utils/descargaDocumento';
 import {
   extractedFieldLabel,
   extractionStatusLabel,
@@ -32,23 +32,27 @@ import {
 } from '@/utils/documentExtraction';
 import { getErrorMessage, isConcurrencyConflict, logError } from '@/utils/errors';
 import { isExperimentalFeatureEnabled } from '@/utils/featureFlags';
-import { joinName } from '@/utils/formatters';
 import { haptics } from '@/utils/haptics';
-import { canApprove, canReject } from '@/utils/rhActions';
+import { canApprove, canReject, hasAction } from '@/utils/rhActions';
 import { confirmAction } from '@/utils/confirm';
 
-/** Detalle de documento RH (AGENTS.md sección 11): visor seguro dentro de la app, nunca descarga/comparte. */
+/**
+ * Revisión de un documento por RH: el PDF se abre en el lector del teléfono
+ * (la vista previa dentro de la app no funcionaba en Android) y al volver
+ * siguen aquí Aprobar / Pedir corrección / Rechazar, solo si el backend lo
+ * permite. «Guardar en el teléfono» solo con `puede_descargar`.
+ */
 export default function RhDocumentoDetailScreen() {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const { id, focus } = useLocalSearchParams<{ id: string; focus?: string }>();
-  const user = useAuthStore((state) => state.user);
   const { data: documento, isLoading, isError, error, refetch, isRefetching } = useRhDocumento(id);
   const aprobar = useRhDocumentoAprobar();
   const rechazar = useRhDocumentoRechazar();
+  const pedirCorreccion = useRhDocumentoPedirCorreccion();
   const [showRechazar, setShowRechazar] = useState(false);
-  const [viewerOpen, setViewerOpen] = useState(false);
+  const [showCorreccion, setShowCorreccion] = useState(false);
 
   const bootstrap = useMobileBootstrap(true);
   // "Análisis automático" — módulo EXPERIMENTAL fail-CLOSED (auditoría de
@@ -70,7 +74,7 @@ export default function RhDocumentoDetailScreen() {
   const extractionOffsetRef = useRef<number | null>(null);
   const scrolledToFocusRef = useRef(false);
 
-  const pending = aprobar.isPending || rechazar.isPending;
+  const pending = aprobar.isPending || rechazar.isPending || pedirCorreccion.isPending;
 
   function maybeScrollToExtraction() {
     if (focus !== 'extraccion' || scrolledToFocusRef.current) return;
@@ -126,19 +130,27 @@ export default function RhDocumentoDetailScreen() {
     );
   };
 
-  if (viewerOpen && id) {
-    const watermarkLabel = `${joinName(user?.nombre, user?.apellidos) ?? 'RH'} · ${formatDateTime(new Date().toISOString())}`;
-    return (
-      <SecureDocumentViewer
-        path={rhDocumentosApi.verPath(id)}
-        title={documento?.nombre ?? 'Documento'}
-        watermarkLabel={watermarkLabel}
-        onClose={() => setViewerOpen(false)}
-        // Documento interno de expediente RH: nunca ofrecer descarga/compartir (sección 33).
-        allowDownload={false}
-      />
+  const handleCorreccion = (motivo: string) => {
+    if (!id) return;
+    pedirCorreccion.mutate(
+      { id, motivo },
+      {
+        onSuccess: () => {
+          haptics.success();
+          toast.success('Se pidió corrección al colaborador.');
+          setShowCorreccion(false);
+        },
+        onError: handleActionError,
+      },
     );
-  }
+  };
+
+  const puedeGuardar = documento?.puede_descargar === true;
+  // Abrir para revisar: permiso de ver el archivo (o de descargarlo).
+  const puedeAbrir = puedeGuardar || hasAction(documento?.acciones_permitidas, 'ver_archivo');
+  const puedeAprobar = canApprove(documento?.acciones_permitidas);
+  const puedeRechazar = canReject(documento?.acciones_permitidas);
+  const puedeCorregir = documento?.puede_pedir_correccion === true;
 
   return (
     <View style={styles.container}>
@@ -173,7 +185,15 @@ export default function RhDocumentoDetailScreen() {
               </Text>
             </Card>
 
-            <Button title="Ver documento" leftIcon="eye-outline" variant="outline" onPress={() => setViewerOpen(true)} />
+            {puedeAbrir && id ? (
+              <DescargaDocumento
+                titulo={`${documento.tipo ?? documento.nombre} - ${documento.colaborador.nombre}`}
+                path={puedeGuardar ? rhDocumentosApi.descargarPath(id) : rhDocumentosApi.verPath(id)}
+                tipoEsperado={tipoEsperadoPorNombre(documento.nombre_original)}
+                permitirGuardar={puedeGuardar}
+                accionPrincipal="abrir"
+              />
+            ) : null}
 
             {documento.fecha_subida ? (
               <Card style={styles.fieldCard}>
@@ -250,15 +270,30 @@ export default function RhDocumentoDetailScreen() {
               </View>
             ) : null}
 
-            {canApprove(documento.acciones_permitidas) || canReject(documento.acciones_permitidas) ? (
-              <View style={styles.actions}>
-                {canReject(documento.acciones_permitidas) ? (
-                  <Button title="Rechazar" variant="danger" onPress={() => setShowRechazar(true)} disabled={pending} style={styles.actionButton} />
+            {puedeAprobar || puedeRechazar || puedeCorregir ? (
+              <Card style={styles.decisionCard}>
+                <Text style={styles.decisionTitle}>¿Qué decides sobre este documento?</Text>
+                {puedeAprobar ? (
+                  <Button title="Aprobar" leftIcon="checkmark-circle-outline" onPress={handleAprobar} loading={aprobar.isPending} disabled={pending} />
                 ) : null}
-                {canApprove(documento.acciones_permitidas) ? (
-                  <Button title="Aprobar" onPress={handleAprobar} loading={aprobar.isPending} disabled={pending} style={styles.actionButton} />
+                {puedeCorregir || puedeRechazar ? (
+                  <View style={styles.actions}>
+                    {puedeCorregir ? (
+                      <Button
+                        title="Pedir corrección"
+                        variant="outline"
+                        leftIcon="create-outline"
+                        onPress={() => setShowCorreccion(true)}
+                        disabled={pending}
+                        style={styles.actionButton}
+                      />
+                    ) : null}
+                    {puedeRechazar ? (
+                      <Button title="Rechazar" variant="danger" leftIcon="close-circle-outline" onPress={() => setShowRechazar(true)} disabled={pending} style={styles.actionButton} />
+                    ) : null}
+                  </View>
                 ) : null}
-              </View>
+              </Card>
             ) : null}
           </>
         )}
@@ -272,6 +307,16 @@ export default function RhDocumentoDetailScreen() {
         submitting={rechazar.isPending}
         onCancel={() => setShowRechazar(false)}
         onConfirm={handleRechazar}
+      />
+
+      <MotivoModal
+        visible={showCorreccion}
+        title="Pedir corrección"
+        description="Dile al colaborador qué debe corregir; podrá volver a subir el documento desde Mi expediente."
+        confirmLabel="Pedir corrección"
+        submitting={pedirCorreccion.isPending}
+        onCancel={() => setShowCorreccion(false)}
+        onConfirm={handleCorreccion}
       />
     </View>
   );
@@ -518,7 +563,14 @@ const crearEstilos = (Colors: ColorPalette) =>
   actions: {
     flexDirection: 'row',
     gap: Spacing.sm,
-    marginTop: Spacing.sm,
+  },
+  decisionCard: {
+    gap: Spacing.sm,
+  },
+  decisionTitle: {
+    fontSize: FontSize.md,
+    fontWeight: '800',
+    color: Colors.text,
   },
   actionButton: {
     flex: 1,

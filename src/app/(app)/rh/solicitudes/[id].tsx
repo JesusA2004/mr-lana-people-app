@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -18,7 +18,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { WorkflowTimeline } from '@/components/WorkflowTimeline';
 import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
-import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
+import { usePermisos } from '@/hooks/usePermisos';
 import {
   useRhSolicitud,
   useRhSolicitudAprobar,
@@ -27,7 +27,6 @@ import {
   useRhSolicitudRechazar,
 } from '@/hooks/queries/useRhSolicitudes';
 import { toast } from '@/store/toastStore';
-import { hasPermission } from '@/utils/capabilities';
 import { formatDateLong, formatDateTime } from '@/utils/dates';
 import { getErrorMessage, isConcurrencyConflict, logError } from '@/utils/errors';
 import { formatCurrencyMXN, humanizeRequestType } from '@/utils/formatters';
@@ -70,10 +69,9 @@ import { nivelesAprobacionToTimeline } from '@/utils/workflow';
 export default function RhSolicitudDetailScreen() {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
-  const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: solicitud, isLoading, isError, error, refetch, isRefetching } = useRhSolicitud(id);
-  const bootstrap = useMobileBootstrap(true);
+  const permisos = usePermisos();
   const aprobar = useRhSolicitudAprobar();
   const rechazar = useRhSolicitudRechazar();
   const correccion = useRhSolicitudCorreccion();
@@ -83,10 +81,8 @@ export default function RhSolicitudDetailScreen() {
 
   const pending = aprobar.isPending || rechazar.isPending || correccion.isPending || estadoMutation.isPending;
 
-  const permissions = bootstrap.data?.user.permissions;
-  // Espejo de `actualizarEstado()`: `en_revision` exige la habilidad
-
-  const puedeTomar = solicitud?.estado === 'enviada' && hasPermission(permissions, 'solicitudes.revisar');
+  // Espejo de `actualizarEstado()`: `en_revision` exige la habilidad `solicitudes.revisar`.
+  const puedeTomar = solicitud?.estado === 'enviada' && permisos.puede('solicitudes.revisar');
   const nivelesTimeline = solicitud ? nivelesAprobacionToTimeline(solicitud.vistos_buenos, solicitud.estado) : [];
   // Motor de aprobaciones (2026-10-20): pasos reales y si ESTA cuenta puede actuar ahora.
   const flujo = solicitud ? normalizeFlujo(solicitud) : null;
@@ -189,7 +185,7 @@ export default function RhSolicitudDetailScreen() {
 
   return (
     <View style={styles.container}>
-      <AppHeader title={solicitud?.folio ?? 'Solicitud'} showBack onBackPress={() => router.back()} />
+      <AppHeader title={solicitud?.folio ?? 'Solicitud'} showBack />
 
       <ScrollView
         contentContainerStyle={styles.content}

@@ -33,6 +33,7 @@ import { useMiDescriptivoPuesto } from '@/hooks/queries/useDescriptivoPuesto';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useAprobacionesConteo, useEsAutorizadorRh } from '@/hooks/queries/useAprobaciones';
 import { useEquipo, useEquipoPendientes, useTareasConteos } from '@/hooks/queries/useTrabajo';
+import { usePermisos } from '@/hooks/usePermisos';
 import { useAuthStore } from '@/store/authStore';
 import { useColores } from '@/theme/ThemeProvider';
 import type { Solicitud } from '@/types/request';
@@ -43,7 +44,8 @@ import { isFeatureEnabled } from '@/utils/featureFlags';
 import { formatCurrencyMXN, joinName, pluralize } from '@/utils/formatters';
 import { textoProgreso } from '@/utils/induccion';
 import { prestamoEstadoLabel, prestamoVigente } from '@/utils/loan';
-import { hasAnyPermission, isSelfServiceModuleEnabled } from '@/utils/modules';
+import { isSelfServiceModuleEnabled } from '@/utils/modules';
+import { openCrossExperienceRoute } from '@/utils/crossNavigation';
 import { reciboPeriodoLabel } from '@/utils/payroll';
 
 /**
@@ -71,14 +73,11 @@ export default function DashboardScreen() {
   const vacacionesEnabled = isFeatureEnabled(bootstrap.data?.features, 'vacaciones');
   // Ciclo laboral (backend 2026-09-22) — API estable, ver `utils/modules.ts`.
   const features = bootstrap.data?.features;
-  const permissions = bootstrap.data?.user.permissions;
   const documentosLaboralesEnabled = isSelfServiceModuleEnabled(features, 'documentos_laborales');
   const recibosEnabled = isSelfServiceModuleEnabled(features, 'recibos');
   const prestamosEnabled = isSelfServiceModuleEnabled(features, 'prestamos');
-  const contratosEnabled = isSelfServiceModuleEnabled(features, 'contratos');
   const tareasEnabled = isSelfServiceModuleEnabled(features, 'tareas');
   const equipoEnabled = isSelfServiceModuleEnabled(features, 'equipo');
-  const evaluacionesEnabled = isSelfServiceModuleEnabled(features, 'evaluaciones');
   const birthday = useBirthdayGreeting(cumpleanosEnabled);
   // Aniversario laboral: sistema aparte de cumpleaños (sin feature flag —
   // `GET /celebraciones/activas` ya filtra por policy). Se prioriza el
@@ -101,10 +100,16 @@ export default function DashboardScreen() {
   const recibos = useMisRecibos(recibosEnabled);
   const prestamos = useMisPrestamos(prestamosEnabled);
   const tareasConteos = useTareasConteos(tareasEnabled);
+  // Modo colaborador y modo operativo NUNCA se mezclan (docs/ROLES_Y_NAVEGACION.md):
+  // si la cuenta tiene Gestión RH, aprobar, «Mi equipo» y evaluaciones viven
+  // allá; aquí solo queda un aviso para cambiar cuando algo le espera. Sin
+  // Gestión RH (p. ej. un supervisor), Mi espacio es su único lugar.
+  const permisos = usePermisos();
+  const operacionAqui = !permisos.operacionEnGestionRh;
   // "Mi equipo" se decide con la jerarquía REAL que devuelve el backend
   // (subordinados o pendientes), no con el nombre del rol.
-  const equipo = useEquipo(equipoEnabled);
-  const equipoPendientes = useEquipoPendientes(equipoEnabled);
+  const equipo = useEquipo(equipoEnabled && operacionAqui);
+  const equipoPendientes = useEquipoPendientes(equipoEnabled && operacionAqui);
 
   const tareasAbiertas = tareasConteos.data?.abiertas ?? 0;
   const reciboReciente = recibos.data?.pages[0]?.data[0] ?? null;
@@ -116,12 +121,13 @@ export default function DashboardScreen() {
   const esJefe = equipoCount > 0 || equipoPendientesCount > 0 || (equipoPendientes.data?.en_espera.length ?? 0) > 0;
   // Badge único del motor de aprobaciones: solo lo que la cuenta puede aprobar AHORA.
   const esAutorizadorRh = useEsAutorizadorRh();
-  const aprobacionesConteo = useAprobacionesConteo((equipoEnabled && esJefe) || esAutorizadorRh);
+  const aprobacionesConteo = useAprobacionesConteo(!operacionAqui || (equipoEnabled && esJefe) || esAutorizadorRh);
   const aprobacionesPendientes = aprobacionesConteo.data?.total ?? 0;
-  const muestraAprobaciones = (equipoEnabled && esJefe) || esAutorizadorRh || aprobacionesPendientes > 0;
+  const muestraAprobaciones = operacionAqui && ((equipoEnabled && esJefe) || esAutorizadorRh || aprobacionesPendientes > 0);
+  // Con Gestión RH: solo el aviso «te esperan N en Gestión RH» (nunca botones operativos aquí).
+  const aprobacionesEnGestionRh = !operacionAqui && aprobacionesPendientes > 0;
   // Correcciones que esperan algo de la persona (responder a RH / volver a subir).
   const correccionesPendientes = bootstrap.data?.counts.correcciones_pendientes ?? 0;
-  const puedeVerEvaluaciones = evaluacionesEnabled && (esJefe || hasAnyPermission(permissions, ['evaluaciones.ver', 'evaluaciones.autorizar']));
 
   const perfil = data?.perfil;
   const nombre = joinName(perfil?.nombre, perfil?.apellidos);
@@ -166,8 +172,8 @@ export default function DashboardScreen() {
               void miProceso.refetch();
               void datosFaltantes.refetch();
               if (tareasEnabled) void tareasConteos.refetch();
-              if (equipoEnabled) void equipoPendientes.refetch();
-              void aprobacionesConteo.refetch();
+              if (equipoEnabled && operacionAqui) void equipoPendientes.refetch();
+              if (aprobacionesConteo.isEnabled) void aprobacionesConteo.refetch();
               // Carta compromiso / documentos pendientes vienen en `/me`.
               void refrescarUsuario();
             }}
@@ -297,6 +303,19 @@ export default function DashboardScreen() {
               </FadeInView>
             ) : null}
 
+            {aprobacionesEnGestionRh ? (
+              <FadeInView index={1}>
+                <TarjetaAviso
+                  icono="checkmark-done-outline"
+                  tono="aviso"
+                  titulo={aprobacionesPendientes === 1 ? 'Una aprobación te espera' : `${aprobacionesPendientes} aprobaciones te esperan`}
+                  mensaje="Se deciden en Gestión RH, junto con tu equipo y sus evaluaciones."
+                  accion="Ir a Gestión RH"
+                  onPress={() => openCrossExperienceRoute('/aprobaciones', 'rh')}
+                />
+              </FadeInView>
+            ) : null}
+
             {/* ── Indicadores ──────────────────────────────────────────── */}
             <View style={styles.statGrid}>
               {vacacionesEnabled ? (
@@ -396,19 +415,12 @@ export default function DashboardScreen() {
                 <AccesoRapido icono="folder-outline" etiqueta="Documentos laborales" onPress={() => router.push('/documentos-laborales')} />
               ) : null}
               {recibosEnabled ? <AccesoRapido icono="receipt-outline" etiqueta="Mis recibos" onPress={() => router.push('/recibos')} /> : null}
-              {contratosEnabled ? <AccesoRapido icono="document-text-outline" etiqueta="Mis contratos" onPress={() => router.push('/contratos')} /> : null}
               {prestamosEnabled ? <AccesoRapido icono="cash-outline" etiqueta="Préstamos" onPress={() => router.push('/prestamos')} /> : null}
-              {puedeVerEvaluaciones ? (
-                <AccesoRapido icono="clipboard-outline" etiqueta="Evaluaciones" onPress={() => router.push('/evaluaciones')} />
-              ) : tareasEnabled ? (
-                <AccesoRapido icono="checkbox-outline" etiqueta="Tareas" badge={tareasAbiertas} onPress={() => router.push('/tareas')} />
-              ) : null}
               {(miProceso.data?.lecciones.length ?? 0) > 0 ? (
                 <AccesoRapido icono="school-outline" etiqueta="Mis lecciones" onPress={() => router.push('/lecciones')} />
               ) : null}
               <AccesoRapido icono="people-circle-outline" etiqueta="Directorio" onPress={() => router.push('/directorio')} />
               <AccesoRapido icono="book-outline" etiqueta="Inducción" onPress={() => router.push(induccion ? '/induccion' : '/induccion/presentacion')} />
-              <AccesoRapido icono="help-buoy-outline" etiqueta="Ayuda" onPress={() => router.push('/ayuda')} />
             </RejillaAccesos>
 
             {/* ── Solicitudes recientes ───────────────────────────────── */}

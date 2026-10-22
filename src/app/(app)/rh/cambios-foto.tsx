@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { FlatList, Image, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
@@ -30,7 +29,6 @@ import { haptics } from '@/utils/haptics';
 export default function RhCambiosFotoScreen() {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
-  const router = useRouter();
   const token = useAuthStore((s) => s.token);
   const { data, isLoading, isError, error, refetch, isRefetching } = useRhCambiosFoto();
   const revisar = useRevisarCambioFoto();
@@ -55,7 +53,7 @@ export default function RhCambiosFotoScreen() {
 
   return (
     <View style={styles.container}>
-      <AppHeader title="Cambios de foto" showBack onBackPress={() => router.back()} />
+      <AppHeader title="Cambios de foto" showBack />
 
       {isLoading ? (
         <View style={styles.content}>
@@ -93,10 +91,14 @@ export default function RhCambiosFotoScreen() {
                   </View>
                 </View>
 
-                <View style={styles.acciones}>
-                  <Button title="Rechazar" variant="outline" onPress={() => setRechazando(item)} disabled={revisar.isPending} style={{ flex: 1 }} />
-                  <Button title="Aprobar" onPress={() => ejecutar(item, 'aprobar')} loading={revisar.isPending && revisar.variables?.id === item.id && revisar.variables?.accion === 'aprobar'} disabled={revisar.isPending} style={{ flex: 1 }} />
-                </View>
+                {item.puede_revisar === false ? (
+                  <Text style={styles.fotoEtiqueta}>Otra persona con permiso revisa este cambio.</Text>
+                ) : (
+                  <View style={styles.acciones}>
+                    <Button title="Rechazar" variant="outline" onPress={() => setRechazando(item)} disabled={revisar.isPending} style={{ flex: 1 }} />
+                    <Button title="Aprobar" onPress={() => ejecutar(item, 'aprobar')} loading={revisar.isPending && revisar.variables?.id === item.id && revisar.variables?.accion === 'aprobar'} disabled={revisar.isPending} style={{ flex: 1 }} />
+                  </View>
+                )}
               </Card>
             </FadeInView>
           )}

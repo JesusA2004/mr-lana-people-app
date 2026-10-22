@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ApprovalTimeline } from '@/components/ApprovalTimeline';
 import { AppHeader } from '@/components/AppHeader';
@@ -12,7 +12,7 @@ import { MascotAssistant } from '@/components/mascot/MascotAssistant';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { SeccionTitulo, TarjetaProgreso } from '@/components/ui';
 import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
-import { useEstilos } from '@/theme/ThemeProvider';
+import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useIncorporacion } from '@/hooks/queries/useIncorporacion';
 import { getDevErrorDetail, getErrorMessage } from '@/utils/errors';
 import { deriveIncorporationSteps } from '@/utils/incorporation';
@@ -36,17 +36,20 @@ const ESTADO_MENSAJE: Record<string, string> = {
 
 export default function IncorporacionScreen() {
   const styles = useEstilos(crearEstilos);
+  const Colors = useColores();
   const router = useRouter();
-  const { data, isLoading, isError, error, refetch } = useIncorporacion();
+  const { data, isLoading, isError, error, refetch, isRefetching } = useIncorporacion();
 
   const steps = useMemo(() => (data ? deriveIncorporationSteps(data.estado) : []), [data]);
   const pendingDocs = useMemo(() => data?.documentos.filter((doc) => doc.obligatorio && doc.estado !== 'aprobado') ?? [], [data]);
 
   return (
     <View style={styles.container}>
-      <AppHeader title="Mi incorporación" showBack onBackPress={() => router.back()} />
+      <AppHeader title="Mi incorporación" showBack />
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={Colors.primary} />}>
         {isLoading ? (
           <View style={{ gap: Spacing.lg }}>
             <SkeletonBlock height={100} radius={Radius.lg} />

@@ -1,6 +1,6 @@
 import * as Clipboard from 'expo-clipboard';
 import * as Device from 'expo-device';
-import { Redirect, useRouter } from 'expo-router';
+import { Redirect } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -47,7 +47,6 @@ const PERMISSION_LABEL: Record<PushPermissionState, string> = {
  */
 export default function DiagnosticoPushScreen() {
   const styles = useEstilos(crearEstilos);
-  const router = useRouter();
   const diag = usePushDiagnosticsStore();
   const [registering, setRegistering] = useState(false);
   const [sending, setSending] = useState(false);
@@ -106,7 +105,7 @@ export default function DiagnosticoPushScreen() {
 
   return (
     <View style={styles.container}>
-      <AppHeader title="Diagnóstico Push" subtitle="Solo QA · no visible en producción" showBack onBackPress={() => router.back()} />
+      <AppHeader title="Diagnóstico Push" subtitle="Solo QA · no visible en producción" showBack />
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.inner}>
           {!supportsRemotePush ? <Notice tone="warning">Push remoto no está disponible aquí (Expo Go o web). Usa el APK preview o un Development Build.</Notice> : null}

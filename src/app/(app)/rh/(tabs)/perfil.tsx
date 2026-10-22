@@ -45,17 +45,8 @@ export default function RhPerfilScreen() {
           </View>
         ) : null}
 
-        <PressableScale style={styles.linkCard} onPress={() => router.push('/induccion/presentacion')}>
-          <View style={styles.linkIcon}>
-            <Ionicons name="easel-outline" size={20} color={Colors.primaryDark} />
-          </View>
-          <View style={styles.linkText}>
-            <Text style={styles.linkTitle}>Presentar inducción</Text>
-            <Text style={styles.linkCaption}>El documento oficial, para una sesión por Meet o en sala</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
-        </PressableScale>
-
+        {/* «Presentar inducción» (elegir a quién, sala/Meet, material) es del Portal Web:
+            requiere pantalla grande y onboarding.presentar_induccion. */}
         <PressableScale style={styles.linkCard} onPress={() => router.push('/directorio')}>
           <View style={styles.linkIcon}>
             <Ionicons name="people-circle-outline" size={20} color={Colors.primaryDark} />

@@ -1,14 +1,15 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Notice, Screen } from '@/components/ciclo/Screen';
 import { MoneyField } from '@/components/forms/MoneyField';
 import { ElegibilidadPrestamoResumen } from '@/components/ElegibilidadPrestamoResumen';
-import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
-import { useColores, useEstilos } from '@/theme/ThemeProvider';
+import { Input } from '@/components/Input';
+import { FontSize, LineHeight, Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { usePrestamoElegibilidad } from '@/hooks/queries/useCorrecciones';
 import { useCreateSolicitud } from '@/hooks/queries/useSolicitudes';
@@ -29,7 +30,6 @@ import { vistaElegibilidad } from '@/utils/prestamoElegibilidad';
  * bueno → RH → firma) se ve en Préstamos.
  */
 export default function SolicitarPrestamoScreen() {
-  const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const crear = useCreateSolicitud();
@@ -113,28 +113,19 @@ export default function SolicitarPrestamoScreen() {
           error={errors.monto}
         />
 
-        <View style={styles.field}>
-          <Text style={styles.label}>Motivo</Text>
-          <TextInput
-            value={motivo}
-            onChangeText={(text) => {
-              setMotivo(text);
-              if (errors.motivo) setErrors((e) => ({ ...e, motivo: undefined }));
-            }}
-            placeholder="Explica brevemente para qué necesitas el préstamo"
-            placeholderTextColor={Colors.textMuted}
-            multiline
-            maxLength={LOAN_REASON_MAX}
-            style={[styles.textarea, errors.motivo && styles.textareaError]}
-            accessibilityLabel="Motivo del préstamo"
-          />
-          <View style={styles.row}>
-            {errors.motivo ? <Text style={styles.error}>{errors.motivo}</Text> : <View />}
-            <Text style={styles.counter}>
-              {motivo.length}/{LOAN_REASON_MAX}
-            </Text>
-          </View>
-        </View>
+        <Input
+          label="Motivo"
+          value={motivo}
+          onChangeText={(text) => {
+            setMotivo(text);
+            if (errors.motivo) setErrors((e) => ({ ...e, motivo: undefined }));
+          }}
+          placeholder="Explica brevemente para qué necesitas el préstamo"
+          multiline
+          maxLength={LOAN_REASON_MAX}
+          error={errors.motivo}
+          accessibilityLabel="Motivo del préstamo"
+        />
       </Card>
       ) : null}
 
@@ -150,46 +141,9 @@ const crearEstilos = (Colors: ColorPalette) =>
   card: {
     gap: Spacing.lg,
   },
-  field: {
-    gap: Spacing.xs,
-  },
-  label: {
-    fontSize: FontSize.sm,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  textarea: {
-    minHeight: 110,
-    maxHeight: 200,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.surface,
-    padding: Spacing.md,
-    fontSize: FontSize.md,
-    color: Colors.text,
-    textAlignVertical: 'top',
-  },
-  textareaError: {
-    borderColor: Colors.danger,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: Spacing.sm,
-  },
-  error: {
-    flex: 1,
-    fontSize: FontSize.xs,
-    color: Colors.danger,
-  },
-  counter: {
-    fontSize: FontSize.xs,
-    color: Colors.textMuted,
-  },
   help: {
     fontSize: FontSize.sm,
     color: Colors.textMuted,
-    lineHeight: 20,
+    lineHeight: LineHeight.sm,
   },
 });

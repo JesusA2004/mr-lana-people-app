@@ -19,6 +19,7 @@ import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { usePerfil } from '@/hooks/queries/usePerfil';
 import { useEsAutorizadorRh } from '@/hooks/queries/useAprobaciones';
 import { useEquipo } from '@/hooks/queries/useTrabajo';
+import { usePermisos } from '@/hooks/usePermisos';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { formatDateLong } from '@/utils/dates';
 import { getErrorMessage } from '@/utils/errors';
@@ -44,7 +45,10 @@ export default function PerfilScreen() {
   const incorporacion = useIncorporacion();
   const miProceso = useMiProceso();
   const bootstrap = useMobileBootstrap(true);
-  const equipo = useEquipo(isSelfServiceModuleEnabled(bootstrap.data?.features, 'equipo'));
+  const permisos = usePermisos();
+  // Con Gestión RH, lo operativo (aprobar, su equipo) vive allá: Mi espacio no lo mezcla.
+  const operacionAqui = !permisos.operacionEnGestionRh;
+  const equipo = useEquipo(isSelfServiceModuleEnabled(bootstrap.data?.features, 'equipo') && operacionAqui);
 
   const nombre = joinName(perfil?.nombre, perfil?.apellidos) ?? perfil?.nombre_completo;
   const watermarkLabel = [nombre, perfil?.numero_empleado ? `EMP-${perfil.numero_empleado}` : null].filter(Boolean).join(' · ');
@@ -91,7 +95,8 @@ export default function PerfilScreen() {
       caption: correccionesPendientes > 0 ? 'Recursos Humanos espera tu respuesta' : 'Estado de los cambios que pediste',
       badge: correccionesPendientes,
     },
-    { route: '/incorporacion', icon: 'briefcase-outline', title: 'Mi incorporación', caption: 'Avance de tu proceso de alta' },
+    // Solo mientras el alta sigue en curso; aprobada, su expediente ya lo dice todo.
+    Boolean(incorporacion.data) && incorporacion.data?.estado !== 'aprobado' && { route: '/incorporacion', icon: 'briefcase-outline', title: 'Mi incorporación', caption: 'Avance de tu proceso de alta' },
     isSelfServiceModuleEnabled(features, 'documentos_laborales') && {
       route: '/documentos-laborales',
       icon: 'folder-outline',
@@ -105,7 +110,7 @@ export default function PerfilScreen() {
   const linksTrabajo = soloLinks([
     isSelfServiceModuleEnabled(features, 'jerarquia') && { route: '/jerarquia', icon: 'git-network-outline', title: 'Mi jerarquía', caption: 'Jefe inmediato, gerente y estructura' },
     isSelfServiceModuleEnabled(features, 'tareas') && { route: '/tareas', icon: 'checkbox-outline', title: 'Tareas', caption: 'Pendientes por atender' },
-    (esAutorizadorRh || (esJefe && isSelfServiceModuleEnabled(features, 'equipo'))) && {
+    operacionAqui && (esAutorizadorRh || (esJefe && isSelfServiceModuleEnabled(features, 'equipo'))) && {
       route: '/aprobaciones',
       icon: 'checkmark-done-outline',
       title: 'Aprobaciones',
@@ -116,7 +121,6 @@ export default function PerfilScreen() {
     { route: miProceso.data?.induccion ? '/induccion' : '/induccion/presentacion', icon: 'book-outline', title: 'Inducción Mr. Lana', caption: 'El documento oficial y tu evaluación' },
   ]);
   const linksAyuda = soloLinks([
-    { route: '/notificaciones', icon: 'notifications-outline', title: 'Notificaciones', caption: 'Avisos de RH, tus solicitudes y celebraciones' },
     { route: '/ayuda', icon: 'help-buoy-outline', title: 'Ayuda', caption: 'Preguntas frecuentes y contacto' },
     { route: '/configuracion', icon: 'settings-outline', title: 'Configuración', caption: 'Seguridad, experiencia y cerrar sesión' },
   ]);

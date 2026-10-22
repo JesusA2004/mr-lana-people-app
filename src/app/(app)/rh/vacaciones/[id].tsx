@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -24,7 +24,6 @@ import { canApprove, canReject } from '@/utils/rhActions';
 export default function RhVacacionDetailScreen() {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
-  const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: vacacion, isLoading, isError, error, refetch, isRefetching } = useRhVacacion(id);
   const aprobar = useRhVacacionAprobar();
@@ -79,7 +78,7 @@ export default function RhVacacionDetailScreen() {
 
   return (
     <View style={styles.container}>
-      <AppHeader title="Vacaciones" showBack onBackPress={() => router.back()} />
+      <AppHeader title="Vacaciones" showBack />
 
       <ScrollView
         contentContainerStyle={styles.content}

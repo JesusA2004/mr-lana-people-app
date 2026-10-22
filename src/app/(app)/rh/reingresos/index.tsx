@@ -1,6 +1,5 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
@@ -11,8 +10,9 @@ import { ItemCard, LoadMore } from '@/components/ciclo/ItemCard';
 import { EmptyMessage, Notice, Screen, SectionTitle } from '@/components/ciclo/Screen';
 import { MotivoModal } from '@/components/MotivoModal';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
-import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
-import { useColores, useEstilos } from '@/theme/ThemeProvider';
+import { CampoBusqueda } from '@/components/ui/CampoBusqueda';
+import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 import { useRhDecidirReingreso, useRhReingresoBuscar, useRhReingresoHistorial, useRhReingresos, useRhSolicitarReingreso } from '@/hooks/queries/useRhReingresos';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { toast } from '@/store/toastStore';
@@ -44,7 +44,6 @@ const FILTROS_ESTADO: { value: FiltroEstado; label: string }[] = [
  * alta a alguien nuevo si ya existe.
  */
 export default function RhReingresosScreen() {
-  const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   const [tab, setTab] = useState<Tab>('buscar');
   const { isOffline } = useNetworkStatus();
@@ -121,19 +120,12 @@ export default function RhReingresosScreen() {
     <Screen title="Reingresos" subtitle="Reactivar a la misma persona" header={<FilterChips options={TABS} value={tab} onChange={setTab} />}>
       {tab === 'buscar' ? (
         <View style={styles.gapLg}>
-          <View style={styles.searchWrapper}>
-            <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
-            <TextInput
-              value={searchInput}
-              onChangeText={setSearchInput}
-              placeholder="Nombre, número de empleado, CURP o RFC"
-              placeholderTextColor={Colors.textMuted}
-              style={styles.searchInput}
-              autoCapitalize="none"
-              autoCorrect={false}
-              accessibilityLabel="Buscar persona para reingreso"
-            />
-          </View>
+          <CampoBusqueda
+            value={searchInput}
+            onChangeText={setSearchInput}
+            placeholder="Nombre, número de empleado, CURP o RFC"
+            accessibilityLabel="Buscar persona para reingreso"
+          />
 
           {busqueda.isLoading ? <SkeletonCardList count={2} /> : null}
           {busqueda.data?.length === 0 ? <EmptyMessage message={q.length > 0 ? 'No se encontró a nadie con ese dato.' : 'No hay bajas recientes.'} /> : null}
@@ -284,22 +276,6 @@ const crearEstilos = (Colors: ColorPalette) =>
   },
   gapLg: {
     gap: Spacing.lg,
-  },
-  searchWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: Radius.lg,
-    paddingHorizontal: Spacing.md,
-    height: 44,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: Colors.text,
   },
   cardHeader: {
     flexDirection: 'row',

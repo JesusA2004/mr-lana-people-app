@@ -8,7 +8,7 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
 import { MotivoModal } from '@/components/MotivoModal';
-import { SecureDocumentViewer } from '@/components/SecureDocumentViewer';
+import { DescargaDocumento } from '@/components/DescargaDocumento';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
 import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
@@ -17,39 +17,45 @@ import {
   useRhExpediente,
   useRhExpedienteAprobarDocumento,
   useRhExpedienteAutorizarCambioDocumento,
+  useRhExpedientePedirCorreccionDocumento,
   useRhExpedienteRechazarDocumento,
 } from '@/hooks/queries/useRhExpedientes';
-import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
-import { useAuthStore } from '@/store/authStore';
+import { usePermisos } from '@/hooks/usePermisos';
 import { toast } from '@/store/toastStore';
-import { hasPermission } from '@/utils/capabilities';
 import { formatDateTime } from '@/utils/dates';
+import { tipoEsperadoPorNombre } from '@/utils/descargaDocumento';
 import { getErrorMessage, isConcurrencyConflict, logError } from '@/utils/errors';
-import { joinName } from '@/utils/formatters';
 import { haptics } from '@/utils/haptics';
 
-/** Documento individual del expediente (AGENTS.md sección 14): visor seguro + aprobar/rechazar/autorizar cambio, siempre por permiso real. */
+/**
+ * Documento individual del expediente: se abre en el lector del teléfono
+ * (PDF/imagen) y aquí mismo quedan Aprobar / Pedir corrección / Rechazar /
+ * Autorizar cambio, siempre por permiso real. «Guardar en el teléfono» solo
+ * si el backend manda `puede_descargar` (un gerente nunca descarga).
+ */
 export default function RhExpedienteDocumentoScreen() {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const { colaborador: colaboradorId, documento: documentoId } = useLocalSearchParams<{ colaborador: string; documento: string }>();
-  const user = useAuthStore((state) => state.user);
-  const bootstrap = useMobileBootstrap(true);
+  const permisos = usePermisos();
   const { data: expediente, isLoading, isError, error, refetch, isRefetching } = useRhExpediente(colaboradorId);
   const aprobar = useRhExpedienteAprobarDocumento();
   const rechazar = useRhExpedienteRechazarDocumento();
   const autorizarCambio = useRhExpedienteAutorizarCambioDocumento();
+  const pedirCorreccion = useRhExpedientePedirCorreccionDocumento();
   const [showRechazar, setShowRechazar] = useState(false);
-  const [viewerOpen, setViewerOpen] = useState(false);
+  const [showCorreccion, setShowCorreccion] = useState(false);
 
   const documento = useMemo(() => expediente?.documentos.find((item) => String(item.id) === String(documentoId)), [expediente, documentoId]);
 
-  const permissions = bootstrap.data?.user.permissions;
-  const canApproveDoc = hasPermission(permissions, 'rh.expedientes.documentos.aprobar');
-  const canRejectDoc = hasPermission(permissions, 'rh.expedientes.documentos.rechazar');
-  const canAuthorizeChange = hasPermission(permissions, 'rh.expedientes.documentos.autorizar-cambio');
-  const pending = aprobar.isPending || rechazar.isPending || autorizarCambio.isPending;
+  const canApproveDoc = permisos.puede('rh.expedientes.documentos.aprobar');
+  const canRejectDoc = permisos.puede('rh.expedientes.documentos.rechazar');
+  const canAuthorizeChange = permisos.puede('rh.expedientes.documentos.autorizar-cambio');
+  const canCorrect = documento?.puede_pedir_correccion === true;
+  const puedeGuardar = documento?.puede_descargar === true;
+  const puedeAbrir = puedeGuardar || permisos.puede('rh.expedientes.documentos.ver');
+  const pending = aprobar.isPending || rechazar.isPending || autorizarCambio.isPending || pedirCorreccion.isPending;
 
   function handleActionError(err: unknown) {
     logError('rhExpedienteDocumento.accion', err);
@@ -119,17 +125,26 @@ export default function RhExpedienteDocumentoScreen() {
     ]);
   };
 
-  if (viewerOpen && colaboradorId && documentoId) {
-    const watermarkLabel = `${joinName(user?.nombre, user?.apellidos) ?? 'RH'} · ${formatDateTime(new Date().toISOString())}`;
-    return (
-      <SecureDocumentViewer
-        path={rhExpedientesApi.verDocumentoPath(colaboradorId, documentoId)}
-        title={documento?.nombre ?? 'Documento'}
-        watermarkLabel={watermarkLabel}
-        onClose={() => setViewerOpen(false)}
-      />
+  const handleCorreccion = (motivo: string) => {
+    if (!colaboradorId || !documentoId) return;
+    pedirCorreccion.mutate(
+      { colaboradorId, documentoId, motivo },
+      {
+        onSuccess: () => {
+          haptics.success();
+          toast.success('Se pidió corrección al colaborador.');
+          setShowCorreccion(false);
+        },
+        onError: handleActionError,
+      },
     );
-  }
+  };
+
+  // Solo un archivo entregado y por revisar admite decisión (mismos estados que el backend).
+  const decidible = documento?.id != null && ['cargado', 'en_revision', 'cambio_solicitado'].includes(documento.estado);
+  const verAprobar = canApproveDoc && decidible;
+  const verRechazar = canRejectDoc && decidible;
+  const verAutorizar = canAuthorizeChange && documento?.estado === 'cambio_solicitado';
 
   return (
     <View style={styles.container}>
@@ -157,7 +172,19 @@ export default function RhExpedienteDocumentoScreen() {
               </View>
             </Card>
 
-            <Button title="Ver documento" leftIcon="eye-outline" variant="outline" onPress={() => setViewerOpen(true)} />
+            {puedeAbrir && colaboradorId && documentoId ? (
+              <DescargaDocumento
+                titulo={`${documento.nombre} - ${expediente?.colaborador.nombre ?? ''}`}
+                path={
+                  puedeGuardar
+                    ? rhExpedientesApi.descargarDocumentoPath(colaboradorId, documentoId)
+                    : rhExpedientesApi.verDocumentoPath(colaboradorId, documentoId)
+                }
+                tipoEsperado={tipoEsperadoPorNombre(documento.nombre_original)}
+                permitirGuardar={puedeGuardar}
+                accionPrincipal="abrir"
+              />
+            ) : null}
 
             {documento.fecha_subida ? (
               <Card style={styles.fieldCard}>
@@ -173,25 +200,47 @@ export default function RhExpedienteDocumentoScreen() {
               </Card>
             ) : null}
 
-            {canApproveDoc || canRejectDoc || canAuthorizeChange ? (
-              <View style={styles.actions}>
-                {canAuthorizeChange ? (
+            {verAprobar || verRechazar || verAutorizar || canCorrect ? (
+              <Card style={styles.decisionCard}>
+                <Text style={styles.decisionTitle}>¿Qué decides sobre este documento?</Text>
+                {verAprobar ? (
+                  <Button title="Aprobar" leftIcon="checkmark-circle-outline" onPress={handleAprobar} loading={aprobar.isPending} disabled={pending} />
+                ) : null}
+                {canCorrect || verRechazar ? (
+                  <View style={styles.actions}>
+                    {canCorrect ? (
+                      <Button
+                        title="Pedir corrección"
+                        variant="outline"
+                        leftIcon="create-outline"
+                        onPress={() => setShowCorreccion(true)}
+                        disabled={pending}
+                        style={styles.actionButton}
+                      />
+                    ) : null}
+                    {verRechazar ? (
+                      <Button
+                        title="Rechazar"
+                        variant="danger"
+                        leftIcon="close-circle-outline"
+                        onPress={() => setShowRechazar(true)}
+                        disabled={pending}
+                        style={styles.actionButton}
+                      />
+                    ) : null}
+                  </View>
+                ) : null}
+                {verAutorizar ? (
                   <Button
                     title="Autorizar cambio"
                     variant="outline"
+                    leftIcon="swap-horizontal-outline"
                     onPress={handleAutorizarCambio}
                     loading={autorizarCambio.isPending}
                     disabled={pending}
-                    style={styles.actionButton}
                   />
                 ) : null}
-                {canRejectDoc ? (
-                  <Button title="Rechazar" variant="danger" onPress={() => setShowRechazar(true)} disabled={pending} style={styles.actionButton} />
-                ) : null}
-                {canApproveDoc ? (
-                  <Button title="Aprobar" onPress={handleAprobar} loading={aprobar.isPending} disabled={pending} style={styles.actionButton} />
-                ) : null}
-              </View>
+              </Card>
             ) : null}
           </>
         )}
@@ -205,6 +254,16 @@ export default function RhExpedienteDocumentoScreen() {
         submitting={rechazar.isPending}
         onCancel={() => setShowRechazar(false)}
         onConfirm={handleRechazar}
+      />
+
+      <MotivoModal
+        visible={showCorreccion}
+        title="Pedir corrección"
+        description="Dile al colaborador qué debe corregir; podrá volver a subir el documento desde Mi expediente."
+        confirmLabel="Pedir corrección"
+        submitting={pedirCorreccion.isPending}
+        onCancel={() => setShowCorreccion(false)}
+        onConfirm={handleCorreccion}
       />
     </View>
   );
@@ -260,7 +319,14 @@ const crearEstilos = (Colors: ColorPalette) =>
   actions: {
     flexDirection: 'row',
     gap: Spacing.sm,
-    marginTop: Spacing.sm,
+  },
+  decisionCard: {
+    gap: Spacing.sm,
+  },
+  decisionTitle: {
+    fontSize: FontSize.md,
+    fontWeight: '800',
+    color: Colors.text,
   },
   actionButton: {
     flex: 1,

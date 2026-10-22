@@ -1,11 +1,13 @@
-import { Modal, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
+import { Modal, ScrollView, StyleSheet, Text, View, type TextInputProps } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { paddingInferiorBarra } from '@/components/BarraAccionInferior';
 import { Button } from '@/components/Button';
-import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
-import { useColores, useEstilos } from '@/theme/ThemeProvider';
+import { MODO_CIERRE_TECLADO } from '@/components/FormularioScroll';
+import { Input } from '@/components/Input';
+import { FontSize, LineHeight, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 
 export interface FormSheetProps {
   visible: boolean;
@@ -44,11 +46,12 @@ export function FormSheet({
       {/* keyboard-controller: la hoja (y sus botones) sube sobre el teclado en Android e iOS. */}
       <KeyboardAvoidingView behavior="padding" style={styles.backdrop}>
         <View style={[styles.sheet, { paddingBottom: paddingInferiorBarra(insets.bottom) }]}>
+          <View style={styles.asa} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />
           <Text style={styles.title} accessibilityRole="header">
             {title}
           </Text>
           {description ? <Text style={styles.description}>{description}</Text> : null}
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.fields}>
+          <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode={MODO_CIERRE_TECLADO} contentContainerStyle={styles.fields}>
             {children}
           </ScrollView>
           <View style={styles.actions}>
@@ -73,22 +76,12 @@ export interface FieldProps extends TextInputProps {
   error?: string;
 }
 
-export function Field({ label, error, style, multiline, ...props }: FieldProps) {
-  const Colors = useColores();
-  const styles = useEstilos(crearEstilos);
-  return (
-    <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
-      <TextInput
-        accessibilityLabel={label}
-        placeholderTextColor={Colors.textMuted}
-        multiline={multiline}
-        style={[styles.input, multiline && styles.multiline, error && styles.inputError, style]}
-        {...props}
-      />
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-    </View>
-  );
+/**
+ * Campo de la hoja: es el `Input` estándar (anillo de foco, «Siguiente»
+ * encadena al siguiente campo, multilínea que crece, error anunciado).
+ */
+export function Field({ label, error, ...props }: FieldProps) {
+  return <Input label={label} error={error} {...props} />;
 }
 
 const crearEstilos = (Colors: ColorPalette) =>
@@ -103,16 +96,30 @@ const crearEstilos = (Colors: ColorPalette) =>
       borderTopLeftRadius: Radius.xl,
       borderTopRightRadius: Radius.xl,
       padding: Spacing.lg,
+      paddingTop: Spacing.sm,
       gap: Spacing.sm,
       maxHeight: '90%',
+      width: '100%',
+      maxWidth: 640,
+      alignSelf: 'center',
+    },
+    asa: {
+      alignSelf: 'center',
+      width: 40,
+      height: 4,
+      borderRadius: Radius.full,
+      backgroundColor: Colors.border,
+      marginBottom: Spacing.sm,
     },
     title: {
       fontSize: FontSize.lg,
+      lineHeight: LineHeight.lg,
       fontWeight: '800',
       color: Colors.text,
     },
     description: {
       fontSize: FontSize.sm,
+      lineHeight: LineHeight.sm,
       color: Colors.textMuted,
     },
     fields: {
@@ -126,35 +133,5 @@ const crearEstilos = (Colors: ColorPalette) =>
     },
     flex: {
       flex: 1,
-    },
-    field: {
-      gap: 4,
-    },
-    label: {
-      fontSize: FontSize.sm,
-      fontWeight: '700',
-      color: Colors.text,
-    },
-    input: {
-      minHeight: 46,
-      borderWidth: 1,
-      borderColor: Colors.border,
-      borderRadius: Radius.md,
-      paddingHorizontal: Spacing.md,
-      paddingVertical: Spacing.sm,
-      fontSize: FontSize.md,
-      color: Colors.text,
-      backgroundColor: Colors.surface,
-    },
-    multiline: {
-      minHeight: 90,
-      textAlignVertical: 'top',
-    },
-    inputError: {
-      borderColor: Colors.danger,
-    },
-    error: {
-      fontSize: FontSize.xs,
-      color: Colors.danger,
     },
   });

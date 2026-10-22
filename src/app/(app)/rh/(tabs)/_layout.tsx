@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TabIcon } from '@/components/TabIcon';
 import { useColores } from '@/theme/ThemeProvider';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
-import { hasPermission } from '@/utils/capabilities';
+import { usePermisos } from '@/hooks/usePermisos';
 
 const TAB_BAR_BASE_HEIGHT = 64;
 const ICON_SIZE = 23;
@@ -18,9 +18,12 @@ export default function RhTabsLayout() {
 
   const pendientesCount = bootstrap.data?.counts.rh_pendientes ?? 0;
   const notificationsCount = bootstrap.data?.counts.notifications ?? 0;
-  // Sin `rh.colaboradores.ver` (p. ej. un gerente) la pestaña no se ofrece:
-  // el backend respondería 403. Su gente la ve en «Mi equipo».
-  const puedeVerColaboradores = hasPermission(bootstrap.data?.user.permissions, 'rh.colaboradores.ver');
+  const permisos = usePermisos();
+  // Cada pestaña SOLO con el permiso que exige su endpoint (si no, 403):
+  // sin `rh.colaboradores.ver` (p. ej. un gerente) su gente está en «Mi
+  // equipo»; sin `rh.pendientes.ver` (Dirección, Jurídico) no hay bandeja RH.
+  const puedeVerColaboradores = permisos.puede('rh.colaboradores.ver');
+  const puedeVerPendientes = permisos.puede('rh.pendientes.ver');
 
   return (
     <Tabs
@@ -52,6 +55,7 @@ export default function RhTabsLayout() {
         name="pendientes"
         options={{
           title: 'Pendientes',
+          href: puedeVerPendientes ? undefined : null,
           tabBarIcon: ({ color, focused }) => (
             <TabIcon
               name={focused ? 'checkbox' : 'checkbox-outline'}

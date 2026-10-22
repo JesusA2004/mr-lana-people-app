@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import { AppHeader } from '@/components/AppHeader';
@@ -14,7 +13,6 @@ import { useColores } from '@/theme/ThemeProvider';
  */
 export default function PresentacionInduccionScreen() {
   const Colors = useColores();
-  const router = useRouter();
   const pdf = usePresentacionInduccion();
 
   if (!pdf.data) {
@@ -23,7 +21,7 @@ export default function PresentacionInduccionScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: Colors.background }]}>
-      <AppHeader title="Inducción Mr. Lana" subtitle="Modo presentación" showBack onBackPress={() => router.back()} />
+      <AppHeader title="Inducción Mr. Lana" subtitle="Modo presentación" showBack />
       <VisorPdfPaginado path={pdf.data.path} cacheName={`induccion-${pdf.data.totalPaginas}.pdf`} titulo={pdf.data.titulo} />
     </View>
   );

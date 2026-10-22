@@ -2,13 +2,18 @@
 
 ## Tokens (`src/constants/colors.ts`)
 
-- `Colors` se resuelve **una vez al arrancar** según el tema del sistema
-  (claro/oscuro). Cambiar el tema con la app abierta se aplica al reabrirla.
-  `_layout.tsx` fija además Alert/pickers/teclado al mismo esquema.
+- **Solo tema claro** (pastel/crema). No hay modo oscuro ni se sigue el
+  esquema del sistema (ver encabezado de `colors.ts`). `Colors` puede ajustarse desde
+  Administración → Apariencia (`src/theme/tema.ts`).
 - Nunca colores literales en componentes normales. Excepciones permitidas:
   cámara (`escanear-qr`), visor de documentos (fondo negro), texto sobre
   color sólido (`Colors.white`).
 - `Spacing` (4–48), `Radius` (8–24), `FontSize` (12–30), `Shadow` (3 niveles).
+- `LineHeight` (un interlineado por cada `FontSize`) y `Typography`
+  (presets `display · title · headline · subtitle · body · bodyStrong ·
+  label · caption · overline`): `titulo: { ...Typography.title, color: Colors.text }`.
+  Nunca alturas fijas en contenedores de texto: con letra grande de
+  accesibilidad deben crecer (`minHeight`, no `height`).
 - `Layout.maxContentWidth` 720 · `Layout.maxFormWidth` 560 ·
   `Layout.twoColumnBreakpoint` 600 · `Layout.minTouchTarget` 44.
 
@@ -33,6 +38,34 @@
 | `StatusBadge` | Estado con ícono + texto (nunca solo color). |
 | `SkeletonBlock` | Carga con pulso; estático con Reducir movimiento. |
 | `confirmAction()` | Confirmación antes de cualquier acción sobre documentos/trámites. |
+| `Input` | Campo estándar: anillo de foco, `hint`, error anunciado, `leftIcon`, contador (`showCounter`, por defecto en multilínea con `maxLength`). `label` es opcional (sin él usa `accessibilityLabel`/`placeholder`). Multilínea crece 112 → 220 dp. |
+| `CampoBusqueda` (`ui`) | Buscador de listas: lupa, limpiar de 44 dp, foco, tecla «Buscar». |
+| `Field` / `FormSheet` | Hoja modal con campos (`Field` = `Input`). |
+
+## Teclado (react-native-keyboard-controller)
+
+- `KeyboardProvider` vive en `src/app/_layout.tsx` (una sola vez).
+- **Toda pantalla con campos** usa `Screen` (ciclo) o `FormularioScroll`
+  (`KeyboardAwareScrollView`): el campo enfocado —y el caret de un campo
+  multilínea mientras se escribe— nunca queda bajo el teclado ni bajo la
+  barra inferior. `keyboardShouldPersistTaps="handled"`; el teclado se
+  cierra al arrastrar (`MODO_CIERRE_TECLADO`: `interactive` en iOS,
+  `on-drag` en Android).
+- **Listas con un campo** (celebración, muro de cumpleaños):
+  `<FlatList renderScrollComponent={renderScrollConTeclado} />`.
+  Listas con buscador arriba: `keyboardShouldPersistTaps="handled"` +
+  `keyboardDismissMode="on-drag"`.
+- **Acciones de envío** en `Screen footer` / `BarraAccionInferior`
+  (`KeyboardStickyView`): suben pegadas al teclado.
+- **Siguiente campo**: `Input` de una línea sin `onSubmitEditing` propio
+  muestra «Siguiente» y salta al siguiente campo de la pantalla
+  (`KeyboardController.setFocusTo('next')`); en el último cierra el
+  teclado. Para enviar desde el último campo, pasa
+  `returnKeyType="done"` + `onSubmitEditing`.
+- Modales con campos (`MotivoModal`, `FormSheet`): `KeyboardAvoidingView`
+  de keyboard-controller con `behavior="padding"`.
+- No se usa `KeyboardToolbar`: chocaría con `BarraAccionInferior`, que ya
+  ocupa el borde superior del teclado.
 
 ## Movimiento
 

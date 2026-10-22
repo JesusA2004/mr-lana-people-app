@@ -1,18 +1,18 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { FiltroChips } from '@/components/FiltroChips';
 import { AppHeader } from '@/components/AppHeader';
 import { ErrorState } from '@/components/ErrorState';
 import { FadeInView } from '@/components/FadeInView';
 import { EmptyState } from '@/components/EmptyState';
-import { PressableScale } from '@/components/PressableScale';
 import { RhPendienteCard } from '@/components/RhPendienteCard';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
-import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { CampoBusqueda } from '@/components/ui/CampoBusqueda';
+import { FontSize, Layout, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
+import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useRhPendientesInfinite } from '@/hooks/queries/useRhPendientes';
 import type { RhPendienteFiltro } from '@/types/rh';
 import { getErrorMessage } from '@/utils/errors';
@@ -32,6 +32,11 @@ export default function RhPendientesScreen() {
   const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const [tipo, setTipo] = useState<RhPendienteFiltro>('todos');
+  // «Vacaciones» es la tabla LEGACY (las nuevas llegan en Solicitudes): el
+  // filtro solo aparece mientras quede alguna por cerrar (contador del backend).
+  const bootstrap = useMobileBootstrap(true);
+  const vacacionesLegacy = bootstrap.data?.counts.rh_vacaciones ?? 0;
+  const filtros = useMemo(() => FILTERS.filter((f) => f.value !== 'vacaciones' || vacacionesLegacy > 0 || tipo === 'vacaciones'), [vacacionesLegacy, tipo]);
   const [searchInput, setSearchInput] = useState('');
   const [q, setQ] = useState('');
 
@@ -61,31 +66,22 @@ export default function RhPendientesScreen() {
     <View style={styles.container}>
       <AppHeader title="Pendientes" subtitle={data?.pages[0]?.meta.total ? `${data.pages[0].meta.total} en total` : undefined} />
 
-      <View style={styles.searchWrapper}>
-        <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
-        <TextInput
-          value={searchInput}
-          onChangeText={setSearchInput}
-          placeholder="Nombre, número de empleado o folio"
-          placeholderTextColor={Colors.textMuted}
-          style={styles.searchInput}
-          autoCapitalize="none"
-          autoCorrect={false}
-          accessibilityLabel="Buscar en pendientes"
-        />
-        {searchInput ? (
-          <PressableScale haptic={false} accessibilityLabel="Limpiar búsqueda" onPress={() => setSearchInput('')}>
-            <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
-          </PressableScale>
-        ) : null}
-      </View>
+      <CampoBusqueda
+        value={searchInput}
+        onChangeText={setSearchInput}
+        placeholder="Nombre, número de empleado o folio"
+        accessibilityLabel="Buscar en pendientes"
+        style={styles.searchWrapper}
+      />
 
-      <FiltroChips opciones={FILTERS} valor={tipo} onChange={setTipo} />
+      <FiltroChips opciones={filtros} valor={tipo} onChange={setTipo} />
 
       <FlatList
         data={pendientes}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={Colors.primary} />}
         ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
         onEndReachedThreshold={0.4}
@@ -112,9 +108,16 @@ export default function RhPendientesScreen() {
           ) : tipo === 'todos' && !q ? (
             <EmptyState icon="checkmark-done-circle-outline" message="No hay pendientes por revisar. ¡Buen trabajo!" />
           ) : (
-            <View style={styles.emptyFilter}>
-              <Text style={styles.emptyFilterText}>No hay pendientes que coincidan.</Text>
-            </View>
+            <EmptyState
+              icon="search-outline"
+              title="Sin coincidencias"
+              message="No hay pendientes que coincidan con tu búsqueda o filtro."
+              actionLabel="Quitar filtros"
+              onAction={() => {
+                setTipo('todos');
+                setSearchInput('');
+              }}
+            />
           )
         }
       />
@@ -129,22 +132,8 @@ const crearEstilos = (Colors: ColorPalette) =>
     backgroundColor: Colors.background,
   },
   searchWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
     marginHorizontal: Spacing.lg,
     marginBottom: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    height: 40,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: FontSize.sm,
-    color: Colors.text,
   },
   listContent: {
     width: '100%',
@@ -153,14 +142,6 @@ const crearEstilos = (Colors: ColorPalette) =>
     padding: Spacing.lg,
     paddingTop: 0,
     flexGrow: 1,
-  },
-  emptyFilter: {
-    paddingVertical: Spacing.xxl,
-    alignItems: 'center',
-  },
-  emptyFilterText: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
   },
   footerLoading: {
     paddingVertical: Spacing.lg,

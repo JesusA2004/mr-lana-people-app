@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -32,7 +32,6 @@ import type { AvisoItem } from '@/types/aviso';
  */
 export default function AvisoDetalleScreen() {
   const styles = useEstilos(crearEstilos);
-  const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const token = useAuthStore((state) => state.token);
   const authHeaders = token ? { Authorization: `Bearer ${token}` } : undefined;
@@ -48,7 +47,7 @@ export default function AvisoDetalleScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- solo debe marcarse una vez por montaje, no en cada cambio de la mutación.
   }, [aviso]);
 
-  const header = <AppHeader title="Aviso" showBack onBackPress={() => router.back()} />;
+  const header = <AppHeader title="Aviso" showBack />;
 
   if (!aviso) {
     return (

@@ -1,14 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, LineHeight, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
+import { volverAtras } from '@/utils/navegacion';
 
 export interface AppHeaderProps {
   title: string;
   subtitle?: string;
   showBack?: boolean;
+  /**
+   * Por defecto «Atrás» usa `volverAtras`: si la pantalla quedó sola en la
+   * pila (se abrió desde un push o un enlace), vuelve al inicio de la
+   * experiencia activa en vez de quedarse sin salida.
+   */
   onBackPress?: () => void;
   right?: React.ReactNode;
   /**
@@ -29,18 +36,25 @@ export function AppHeader({ title, subtitle, showBack = false, onBackPress, righ
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const alRegresar = onBackPress ?? (() => volverAtras(router));
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + Spacing.sm }]}>
       <View style={styles.row}>
         <View style={styles.left}>
           {showBack ? (
-            <Pressable accessibilityRole="button" accessibilityLabel="Regresar" hitSlop={12} onPress={onBackPress} style={styles.backButton}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Regresar"
+              hitSlop={4}
+              onPress={alRegresar}
+              style={({ pressed }) => [styles.backButton, pressed && styles.backButtonPressed]}>
               <Ionicons name="chevron-back" size={22} color={Colors.text} />
             </Pressable>
           ) : null}
           <View style={styles.titleColumn}>
-            <Text style={styles.title} numberOfLines={titleNumberOfLines === 0 ? undefined : titleNumberOfLines}>
+            <Text style={styles.title} accessibilityRole="header" numberOfLines={titleNumberOfLines === 0 ? undefined : titleNumberOfLines}>
               {title}
             </Text>
             {subtitle ? (
@@ -79,9 +93,10 @@ const crearEstilos = (Colors: ColorPalette) =>
       flex: 1,
       minWidth: 0,
     },
+    // 40 dp visibles + hitSlop = área táctil ≥ 44 dp.
     backButton: {
-      width: 36,
-      height: 36,
+      width: 40,
+      height: 40,
       borderRadius: Radius.full,
       backgroundColor: Colors.surface,
       borderWidth: 1,
@@ -89,13 +104,19 @@ const crearEstilos = (Colors: ColorPalette) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
+    backButtonPressed: {
+      backgroundColor: Colors.surfaceMuted,
+      transform: [{ scale: 0.96 }],
+    },
     title: {
       fontSize: FontSize.xl,
+      lineHeight: LineHeight.xl,
       fontWeight: '800',
       color: Colors.text,
     },
     subtitle: {
       fontSize: FontSize.sm,
+      lineHeight: LineHeight.sm,
       color: Colors.textMuted,
       marginTop: 2,
     },

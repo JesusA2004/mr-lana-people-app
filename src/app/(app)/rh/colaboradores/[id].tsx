@@ -29,6 +29,7 @@ import {
   useRhDocumentosLaborales,
 } from '@/hooks/queries/useRhCicloLaboral';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { usePermisos } from '@/hooks/usePermisos';
 import { toast } from '@/store/toastStore';
 import { ALTA_STEPS, altaBloqueos, altaStepIndex, canActivarAlta } from '@/utils/alta';
 import { formatDateLong } from '@/utils/dates';
@@ -51,8 +52,11 @@ export default function RhColaboradorDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: colaborador, isLoading, isError, error, refetch, isRefetching } = useRhColaborador(id);
+  const permisos = usePermisos();
   const bootstrap = useMobileBootstrap(true);
   const permissions = bootstrap.data?.user.permissions;
+  // Onboarding (refuerzo, activos, cierre): solo quien lo ve, gestiona o entrega activos.
+  const puedeOnboarding = permisos.puedeAlguno(['onboarding.ver', 'onboarding.gestionar', 'onboarding.entregar_activos']);
   const sections = new Set(visibleColaboradorSections(permissions));
   const nombre = colaborador?.nombre ?? '';
 
@@ -61,7 +65,7 @@ export default function RhColaboradorDetailScreen() {
 
   return (
     <View style={styles.container}>
-      <AppHeader title={colaborador?.nombre ?? 'Colaborador'} showBack onBackPress={() => router.back()} />
+      <AppHeader title={colaborador?.nombre ?? 'Colaborador'} showBack />
 
       <ScrollView
         contentContainerStyle={styles.content}
@@ -102,7 +106,9 @@ export default function RhColaboradorDetailScreen() {
             ) : null}
 
             {/* Onboarding: refuerzo de lecciones, activos/responsivas y cierre (las acciones las decide el backend). */}
-            <Button title="Onboarding" leftIcon="school-outline" variant="outline" onPress={() => router.push(`/(app)/rh/onboarding/${id}` as never)} />
+            {puedeOnboarding ? (
+              <Button title="Onboarding" leftIcon="school-outline" variant="outline" onPress={() => router.push(`/(app)/rh/onboarding/${id}` as never)} />
+            ) : null}
 
             {sections.has('documentos_laborales') || sections.has('alta') ? (
               <LazySection icon="documents-outline" title="Documentos de contratación" caption="Contratos oficiales del puesto: generar → imprimir → firmar → escanear">

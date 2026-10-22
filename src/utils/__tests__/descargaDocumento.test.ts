@@ -3,11 +3,14 @@ import {
   etiquetaDescarga,
   formatearTamano,
   mensajeErrorDescarga,
+  mensajeErrorDescargaExpediente,
   mensajeParaErrorDescarga,
   mimeParaTipo,
   nombreArchivoSeguro,
   porcentajeDescarga,
+  progresoEnBytes,
   statusDesdeErrorDescarga,
+  tipoEsperadoPorNombre,
   tipoLegible,
   utiParaTipo,
 } from '../descargaDocumento';
@@ -101,5 +104,17 @@ describe('errores de descarga', () => {
     expect(mensajeErrorDescarga(502)).toMatch(/nuestro lado/);
     expect(mensajeErrorDescarga(undefined, true)).toMatch(/conexión/);
     expect(mensajeParaErrorDescarga(new Error('HTTP 403'))).toMatch(/permiso/);
+  });
+});
+
+describe('progreso del expediente en ZIP', () => {
+  it('muestra bytes descargados y total', () => {
+    expect(progresoEnBytes(0, 100)).toBeNull();
+    expect(progresoEnBytes(512 * 1024, 2 * 1024 * 1024)).toBe('512 KB de 2.0 MB');
+    expect(progresoEnBytes(2048, 0)).toBe('2 KB');
+    expect(tipoEsperadoPorNombre('INE.JPG')).toBe('jpeg');
+    expect(tipoEsperadoPorNombre(null)).toBe('pdf');
+    expect(mensajeErrorDescargaExpediente(403)).toContain('expediente completo');
+    expect(mensajeErrorDescargaExpediente(undefined, true)).toContain('el expediente');
   });
 });

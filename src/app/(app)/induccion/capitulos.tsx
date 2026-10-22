@@ -70,7 +70,7 @@ export default function InduccionLecturaScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: Colors.background }]}>
-      <AppHeader title="Inducción Mr. Lana" showBack onBackPress={() => router.back()} />
+      <AppHeader title="Inducción Mr. Lana" showBack />
       <VisorPdfPaginado
         path={pdf.data.path}
         cacheName={`induccion-${pdf.data.totalPaginas}.pdf`}

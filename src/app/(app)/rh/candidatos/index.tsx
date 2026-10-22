@@ -1,14 +1,13 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { FilterChips } from '@/components/ciclo/FilterChips';
 import { ItemCard, LoadMore } from '@/components/ciclo/ItemCard';
 import { EmptyMessage, Screen } from '@/components/ciclo/Screen';
-import { PressableScale } from '@/components/PressableScale';
-import { Radius, Spacing, type ColorPalette } from '@/constants/colors';
-import { useColores, useEstilos } from '@/theme/ThemeProvider';
+import { CampoBusqueda } from '@/components/ui/CampoBusqueda';
+import { Spacing } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 import { useRhCandidatos } from '@/hooks/queries/useRhCandidatos';
 import { candidatoBadge } from '@/utils/candidato';
 import { formatDateShort } from '@/utils/dates';
@@ -38,7 +37,6 @@ const FILTROS: { value: Filtro; label: string }[] = [
 
 /** Reclutamiento — `GET /rh/candidatos` (permiso `candidatos.ver`, alcance). */
 export default function RhCandidatosScreen() {
-  const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const [filtro, setFiltro] = useState<Filtro>('todos');
@@ -64,24 +62,7 @@ export default function RhCandidatosScreen() {
       onRefresh={() => void query.refetch()}
       header={
         <View style={styles.header}>
-          <View style={styles.searchWrapper}>
-            <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
-            <TextInput
-              value={searchInput}
-              onChangeText={setSearchInput}
-              placeholder="Nombre o correo..."
-              placeholderTextColor={Colors.textMuted}
-              style={styles.searchInput}
-              autoCapitalize="none"
-              autoCorrect={false}
-              accessibilityLabel="Buscar candidato"
-            />
-            {searchInput ? (
-              <PressableScale haptic={false} accessibilityLabel="Limpiar búsqueda" onPress={() => setSearchInput('')}>
-                <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
-              </PressableScale>
-            ) : null}
-          </View>
+          <CampoBusqueda value={searchInput} onChangeText={setSearchInput} placeholder="Nombre o correo…" accessibilityLabel="Buscar candidato" />
           <FilterChips options={FILTROS} value={filtro} onChange={setFiltro} />
         </View>
       }>
@@ -109,28 +90,12 @@ export default function RhCandidatosScreen() {
   );
 }
 
-const crearEstilos = (Colors: ColorPalette) =>
+const crearEstilos = () =>
   StyleSheet.create({
   header: {
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.md,
     gap: Spacing.sm,
-  },
-  searchWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: Radius.lg,
-    paddingHorizontal: Spacing.md,
-    height: 44,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: Colors.text,
   },
   list: {
     gap: Spacing.md,

@@ -7,6 +7,7 @@ import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { Motion } from '@/constants/motion';
 import { crearGuardiaDobleToque } from '@/utils/dobleToque';
+import { haptics } from '@/utils/haptics';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -30,6 +31,13 @@ export interface ButtonProps {
   leftIcon?: keyof typeof Ionicons.glyphMap;
   /** Ícono a la derecha del texto (Ionicons). */
   rightIcon?: keyof typeof Ionicons.glyphMap;
+  /** Vibración ligera al presionar. Default: sí en `primary`/`secondary`/`danger` (acciones principales), no en `outline`/`ghost`. */
+  haptic?: boolean;
+  /** Texto para lector de pantalla si difiere del título (p. ej. botón con solo ícono + título corto). */
+  accessibilityLabel?: string;
+  /** Pista de accesibilidad (qué pasa al tocar). */
+  accessibilityHint?: string;
+  testID?: string;
 }
 
 /**
@@ -41,7 +49,21 @@ export interface ButtonProps {
  * Feedback de press: mismo scale sutil que `PressableScale` (Motion.scale.pressed),
  * desactivado con "Reducir movimiento".
  */
-export function Button({ title, onPress, variant = 'primary', loading = false, disabled = false, fullWidth = true, style, leftIcon, rightIcon }: ButtonProps) {
+export function Button({
+  title,
+  onPress,
+  variant = 'primary',
+  loading = false,
+  disabled = false,
+  fullWidth = true,
+  style,
+  leftIcon,
+  rightIcon,
+  haptic,
+  accessibilityLabel,
+  accessibilityHint,
+  testID,
+}: ButtonProps) {
   'use no memo';
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
@@ -75,10 +97,14 @@ export function Button({ title, onPress, variant = 'primary', loading = false, d
   return (
     <AnimatedPressable
       accessibilityRole="button"
-      accessibilityLabel={title}
+      accessibilityLabel={accessibilityLabel ?? title}
+      accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled: isDisabled, busy: loading || ocupado }}
+      testID={testID}
+      hitSlop={4}
       onPress={() => {
         if (isDisabled) return;
+        if (haptic ?? (variant !== 'outline' && variant !== 'ghost')) haptics.tap();
         guardia.ejecutar(onPress, () => setOcupado(false));
         if (guardia.ocupado) setOcupado(true);
       }}

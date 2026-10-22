@@ -93,11 +93,24 @@ export interface MobileBootstrapCounts {
   [key: string]: number | undefined;
 }
 
+/**
+ * `ciclo_laboral` del bootstrap (`MobileBootstrapService::cicloLaboral()`):
+ * banderas de ACCIÓN por cuenta (`aprobar_entrevista`, `autorizar_rh`,
+ * `entregar_activos`, `decidir_reingreso`…), cada una calculada en backend
+ * con el permiso/Policy real. Opcional: un backend anterior no la manda
+ * (ausente = la acción no se ofrece). Leer SIEMPRE con `usePermisos().accion()`.
+ */
+export interface MobileBootstrapCicloLaboral {
+  acciones?: Record<string, boolean | undefined>;
+  [key: string]: unknown;
+}
+
 export interface MobileBootstrap {
   user: MobileBootstrapUser;
   capabilities: MobileBootstrapCapabilities;
   features: MobileBootstrapFeatures;
   counts: MobileBootstrapCounts;
+  ciclo_laboral?: MobileBootstrapCicloLaboral;
   server: {
     time: string;
     timezone: string;

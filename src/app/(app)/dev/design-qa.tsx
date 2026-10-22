@@ -1,4 +1,4 @@
-import { Redirect, useRouter } from 'expo-router';
+import { Redirect } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -52,7 +52,6 @@ const SWATCHES: ColorToken[] = [
 export default function DesignQaScreen() {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
-  const router = useRouter();
   const [chip, setChip] = useState<'todas' | 'pendientes' | 'aprobadas'>('todas');
   const [input, setInput] = useState('');
 
@@ -60,7 +59,7 @@ export default function DesignQaScreen() {
 
   return (
     <View style={styles.container}>
-      <AppHeader title="Design QA" subtitle="Tema único: claro" showBack onBackPress={() => router.back()} />
+      <AppHeader title="Design QA" subtitle="Tema único: claro" showBack />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.inner}>
           <Notice tone="info">La app es solo clara (crema/pastel). El login es oscuro por diseño.</Notice>

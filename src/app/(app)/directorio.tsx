@@ -1,17 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
-import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/AppHeader';
 import { paddingInferiorBarra } from '@/components/BarraAccionInferior';
 import { Card } from '@/components/Card';
 import { FilterChips } from '@/components/ciclo/FilterChips';
+import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
 import { PressableScale } from '@/components/PressableScale';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
+import { CampoBusqueda } from '@/components/ui/CampoBusqueda';
 import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useDirectorio, useOpcionesDirectorio } from '@/hooks/queries/useDirectorio';
 import { toast } from '@/store/toastStore';
@@ -28,7 +29,6 @@ import { getErrorMessage } from '@/utils/errors';
 export default function DirectorioScreen() {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const [texto, setTexto] = useState('');
   const [busqueda, setBusqueda] = useState('');
@@ -55,25 +55,16 @@ export default function DirectorioScreen() {
 
   return (
     <View style={styles.container}>
-      <AppHeader title="Directorio" subtitle={typeof total === 'number' ? `${total} colaboradores` : undefined} showBack onBackPress={() => router.back()} />
+      <AppHeader title="Directorio" subtitle={typeof total === 'number' ? `${total} colaboradores` : undefined} showBack />
 
-      <View style={styles.busqueda}>
-        <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
-        <TextInput
-          value={texto}
-          onChangeText={setTexto}
-          placeholder="Nombre o número de empleado"
-          placeholderTextColor={Colors.textMuted}
-          style={styles.busquedaInput}
-          autoCorrect={false}
-          accessibilityLabel="Buscar en el directorio"
-        />
-        {texto ? (
-          <PressableScale haptic={false} accessibilityLabel="Limpiar búsqueda" onPress={() => setTexto('')} style={styles.limpiar}>
-            <Ionicons name="close-circle" size={18} color={Colors.textMuted} />
-          </PressableScale>
-        ) : null}
-      </View>
+      <CampoBusqueda
+        value={texto}
+        onChangeText={setTexto}
+        placeholder="Nombre o número de empleado"
+        autoCapitalize="words"
+        accessibilityLabel="Buscar en el directorio"
+        style={styles.busqueda}
+      />
       {chipsSucursal.length > 1 ? (
         <View style={styles.chips}>
           <FilterChips options={chipsSucursal} value={sucursal} onChange={setSucursal} />
@@ -100,7 +91,11 @@ export default function DirectorioScreen() {
           ) : query.isError ? (
             <ErrorState message={getErrorMessage(query.error)} onRetry={() => void query.refetch()} />
           ) : (
-            <Text style={styles.vacio}>{busqueda ? 'Nadie coincide con tu búsqueda.' : 'No hay colaboradores para mostrar.'}</Text>
+            <EmptyState
+              icon={busqueda ? 'search-outline' : 'people-outline'}
+              title={busqueda ? 'Sin coincidencias' : undefined}
+              message={busqueda ? 'Nadie coincide con tu búsqueda. Prueba con otro nombre o número de empleado.' : 'No hay colaboradores para mostrar.'}
+            />
           )
         }
       />
@@ -158,21 +153,7 @@ function FilaDirectorio({ colaborador }: { colaborador: ColaboradorDirectorio })
 const crearEstilos = (Colors: ColorPalette) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: Colors.background },
-    busqueda: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: Spacing.sm,
-      marginHorizontal: Spacing.lg,
-      marginBottom: Spacing.sm,
-      paddingHorizontal: Spacing.md,
-      minHeight: 44,
-      borderRadius: Radius.full,
-      backgroundColor: Colors.surface,
-      borderWidth: 1,
-      borderColor: Colors.border,
-    },
-    busquedaInput: { flex: 1, fontSize: FontSize.sm, color: Colors.text, minHeight: 44 },
-    limpiar: { minWidth: 32, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+    busqueda: { marginHorizontal: Spacing.lg, marginBottom: Spacing.sm },
     chips: { paddingHorizontal: Spacing.lg, marginBottom: Spacing.sm },
     lista: { width: '100%', maxWidth: Layout.maxContentWidth, alignSelf: 'center', padding: Spacing.lg, paddingTop: 0, flexGrow: 1 },
     fila: { gap: Spacing.xs },
@@ -191,5 +172,4 @@ const crearEstilos = (Colors: ColorPalette) =>
     contactoTexto: { flex: 1, fontSize: FontSize.sm, fontWeight: '700', color: Colors.primaryDark },
     sinDato: { fontSize: FontSize.xs, color: Colors.textMuted },
     footer: { paddingVertical: Spacing.lg },
-    vacio: { fontSize: FontSize.sm, color: Colors.textMuted, textAlign: 'center', paddingVertical: Spacing.xl },
   });

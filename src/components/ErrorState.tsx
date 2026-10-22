@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { Button } from './Button';
 
-import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, LineHeight, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 
 export interface ErrorStateProps {
@@ -17,14 +17,16 @@ export function ErrorState({ message = 'Ocurrió un error inesperado.', onRetry,
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   return (
-    <View style={styles.container}>
-      <View style={styles.iconWrapper}>
+    <View style={styles.container} accessibilityLiveRegion="polite">
+      <View style={styles.iconWrapper} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         <Ionicons name="alert-circle-outline" size={32} color={Colors.danger} />
       </View>
-      <Text style={styles.title}>Algo salió mal</Text>
+      <Text style={styles.title} accessibilityRole="header">
+        Algo salió mal
+      </Text>
       <Text style={styles.message}>{message}</Text>
       {__DEV__ && devDetail ? <Text style={styles.devDetail}>{devDetail}</Text> : null}
-      {onRetry ? <Button title="Reintentar" onPress={onRetry} variant="outline" fullWidth={false} style={styles.action} /> : null}
+      {onRetry ? <Button title="Reintentar" leftIcon="refresh" onPress={onRetry} variant="outline" fullWidth={false} style={styles.action} /> : null}
     </View>
   );
 }
@@ -57,6 +59,8 @@ const crearEstilos = (Colors: ColorPalette) =>
       color: Colors.textMuted,
       textAlign: 'center',
       marginTop: Spacing.xs,
+      lineHeight: LineHeight.sm,
+      maxWidth: 420,
     },
     devDetail: {
       fontSize: FontSize.xs,

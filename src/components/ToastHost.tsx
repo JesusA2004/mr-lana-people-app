@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { Easing, FadeInDown, FadeOutUp } from 'react-native-reanimated';
 
-import { FontSize, Radius, Shadow, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, LineHeight, Radius, Shadow, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores } from '@/theme/ThemeProvider';
 import { useToastStore, type ToastItem, type ToastType } from '@/store/toastStore';
 import { haptics } from '@/utils/haptics';
@@ -51,9 +51,11 @@ function ToastRow({ item, onDismiss }: { item: ToastItem; onDismiss: () => void 
     <Animated.View
       entering={FadeInDown.duration(220).easing(Easing.out(Easing.cubic))}
       exiting={FadeOutUp.duration(180)}
-      style={[styles.toast, { backgroundColor: style.background }]}>
-      <Ionicons name={style.icon} size={20} color={style.color} />
-      <Text style={[styles.message, { color: Colors.text }]} numberOfLines={3}>
+      accessibilityRole="alert"
+      accessibilityLiveRegion={item.type === 'error' ? 'assertive' : 'polite'}
+      style={[styles.toast, { backgroundColor: style.background, borderColor: style.color }]}>
+      <Ionicons name={style.icon} size={22} color={style.color} />
+      <Text style={[styles.message, { color: Colors.text }]} numberOfLines={4}>
         {item.message}
       </Text>
       {item.actionLabel && item.onAction ? (
@@ -69,8 +71,8 @@ function ToastRow({ item, onDismiss }: { item: ToastItem; onDismiss: () => void 
           <Text style={[styles.actionLabel, { color: style.color }]}>{item.actionLabel}</Text>
         </Pressable>
       ) : null}
-      <Pressable accessibilityRole="button" accessibilityLabel="Cerrar aviso" hitSlop={10} onPress={onDismiss}>
-        <Ionicons name="close" size={16} color={Colors.textMuted} />
+      <Pressable accessibilityRole="button" accessibilityLabel="Cerrar aviso" hitSlop={6} onPress={onDismiss} style={styles.closeButton}>
+        <Ionicons name="close" size={18} color={Colors.textMuted} />
       </Pressable>
     </Animated.View>
   );
@@ -89,17 +91,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
     borderRadius: Radius.lg,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingVertical: Spacing.sm,
+    paddingLeft: Spacing.md,
+    paddingRight: Spacing.xs,
+    minHeight: 56,
     ...Shadow.lg,
   },
   message: {
     flex: 1,
     fontSize: FontSize.sm,
+    lineHeight: LineHeight.sm,
     fontWeight: '600',
   },
   actionButton: {
-    paddingHorizontal: Spacing.xs,
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.sm,
+  },
+  closeButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   actionLabel: {
     fontSize: FontSize.sm,

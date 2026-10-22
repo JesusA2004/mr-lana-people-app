@@ -63,3 +63,12 @@ export function useRhExpedienteRechazarIncorporacion() {
     onSuccess: () => invalidateRhQueries(queryClient),
   });
 }
+
+export function useRhExpedientePedirCorreccionDocumento() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ colaboradorId, documentoId, motivo }: { colaboradorId: string | number; documentoId: string | number; motivo: string }) =>
+      rhExpedientesApi.pedirCorreccionDocumento(colaboradorId, documentoId, motivo),
+    onSuccess: () => invalidateRhQueries(queryClient),
+  });
+}

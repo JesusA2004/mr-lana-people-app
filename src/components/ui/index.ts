@@ -3,6 +3,7 @@
  * sección «Componentes base 2026-10», para cuándo usar cada uno.
  */
 export { AccesoRapido, RejillaAccesos, type AccesoRapidoProps } from './AccesoRapido';
+export { CampoBusqueda, type CampoBusquedaProps } from './CampoBusqueda';
 export { ControlSegmentado, type ControlSegmentadoProps, type OpcionSegmento } from './ControlSegmentado';
 export { EncabezadoSaludo, type EncabezadoSaludoProps } from './EncabezadoSaludo';
 export { FilaLista, type FilaListaProps } from './FilaLista';

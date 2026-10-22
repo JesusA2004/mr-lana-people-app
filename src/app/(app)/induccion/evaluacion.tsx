@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { EmptyMessage, Notice, Screen, SectionTitle } from '@/components/ciclo/Screen';
+import { Input } from '@/components/Input';
 import { PressableScale } from '@/components/PressableScale';
 import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useMiProceso } from '@/hooks/queries/useCicloLaboral';
@@ -168,14 +169,12 @@ export default function EvaluacionInduccionScreen() {
               <Text style={styles.preguntaTexto}>
                 Caso {n + 1} ({caso.puntosMax} {caso.puntosMax === 1 ? 'punto' : 'puntos'}). {caso.enunciado}
               </Text>
-              <TextInput
+              <Input
                 value={respuestas.d[caso.clave] ?? ''}
                 onChangeText={(texto) => fijarD(caso.clave, texto)}
                 placeholder="Escribe tu respuesta con tus propias palabras"
-                placeholderTextColor={Colors.textMuted}
                 multiline
                 maxLength={2000}
-                style={styles.textoLibre}
                 accessibilityLabel={`Respuesta del caso ${n + 1}`}
               />
             </Card>
@@ -208,14 +207,12 @@ export default function EvaluacionInduccionScreen() {
           })}
           <Card style={styles.pregunta}>
             <Text style={styles.preguntaTexto}>¿Qué tema te gustaría reforzar?</Text>
-            <TextInput
+            <Input
               value={opinion.tema_reforzar ?? ''}
               onChangeText={(texto) => setOpinion((prev) => ({ ...prev, tema_reforzar: texto }))}
               placeholder="Opcional"
-              placeholderTextColor={Colors.textMuted}
               multiline
               maxLength={500}
-              style={styles.textoLibre}
               accessibilityLabel="Tema que te gustaría reforzar"
             />
           </Card>
@@ -265,17 +262,6 @@ const crearEstilos = (Colors: ColorPalette) =>
       backgroundColor: Colors.surface,
       alignItems: 'center',
       justifyContent: 'center',
-    },
-    textoLibre: {
-      minHeight: 96,
-      padding: Spacing.md,
-      borderRadius: Radius.md,
-      borderWidth: 1,
-      borderColor: Colors.border,
-      backgroundColor: Colors.surface,
-      fontSize: FontSize.md,
-      color: Colors.text,
-      textAlignVertical: 'top',
     },
     ayuda: { fontSize: FontSize.sm, color: Colors.textMuted, textAlign: 'center' },
   });

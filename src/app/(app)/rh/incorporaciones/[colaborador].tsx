@@ -83,7 +83,7 @@ export default function RhIncorporacionDetailScreen() {
 
   return (
     <View style={styles.container}>
-      <AppHeader title="Incorporación" showBack onBackPress={() => router.back()} />
+      <AppHeader title="Incorporación" showBack />
 
       <ScrollView
         contentContainerStyle={styles.content}

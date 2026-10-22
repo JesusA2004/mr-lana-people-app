@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 
@@ -69,14 +68,13 @@ export function Screen({
 }: ScreenProps) {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
-  const router = useRouter();
   const hasError = error !== null && error !== undefined;
   const [alturaBarra, setAlturaBarra] = useState(0);
   const mostrarFooter = Boolean(footer) && !isLoading && !hasError;
 
   return (
     <View style={styles.container}>
-      <AppHeader title={title} subtitle={subtitle} showBack={showBack} onBackPress={() => router.back()} right={right} />
+      <AppHeader title={title} subtitle={subtitle} showBack={showBack} right={right} />
       {header}
       <FormularioScroll
         alturaBarra={mostrarFooter ? alturaBarra : 0}

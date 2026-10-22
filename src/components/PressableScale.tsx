@@ -1,5 +1,5 @@
 import { Pressable, type GestureResponderEvent, type StyleProp, type ViewStyle } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { Motion } from '@/constants/motion';
 import { haptics } from '@/utils/haptics';
@@ -45,6 +45,7 @@ export function PressableScale({
   // el AST sin saber de esta convención de Reanimated), así que se
   // silencia explícitamente línea por línea — es el patrón oficial de
   // Reanimated, no un descuido.
+  const reducedMotion = useReducedMotion();
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -52,6 +53,8 @@ export function PressableScale({
   }));
 
   function handlePressIn() {
+    // Reducir movimiento: sin scale (queda el ripple/opacidad del sistema).
+    if (disabled || reducedMotion) return;
     // eslint-disable-next-line react-hooks/immutability -- mutación de shared value de Reanimated, patrón esperado.
     scale.value = withTiming(Motion.scale.pressed, { duration: Motion.duration.press });
   }

@@ -104,7 +104,7 @@ export default function ConfiguracionScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <AppHeader title="Configuración" showBack onBackPress={() => router.back()} />
+      <AppHeader title="Configuración" showBack />
 
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.sectionLabel}>Cuenta</Text>

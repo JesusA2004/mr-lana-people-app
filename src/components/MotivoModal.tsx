@@ -7,7 +7,7 @@ import { paddingInferiorBarra } from './BarraAccionInferior';
 import { Button } from './Button';
 import { Input } from './Input';
 
-import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, LineHeight, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useEstilos } from '@/theme/ThemeProvider';
 
 export interface MotivoModalProps {
@@ -54,7 +54,10 @@ export function MotivoModal({ visible, title, description, confirmLabel, submitt
           accessibilityLabel="Cerrar"
         />
         <View style={[styles.sheet, { paddingBottom: paddingInferiorBarra(insets.bottom) }]}>
-          <Text style={styles.title}>{title}</Text>
+          <View style={styles.asa} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />
+          <Text style={styles.title} accessibilityRole="header">
+            {title}
+          </Text>
           {description ? <Text style={styles.description}>{description}</Text> : null}
           <Input
             label="Motivo"
@@ -63,7 +66,6 @@ export function MotivoModal({ visible, title, description, confirmLabel, submitt
             onChangeText={setMotivo}
             multiline
             numberOfLines={4}
-            style={styles.textarea}
             editable={!submitting}
             autoFocus
           />
@@ -96,22 +98,30 @@ const crearEstilos = (Colors: ColorPalette) =>
     borderTopLeftRadius: Radius.xl,
     borderTopRightRadius: Radius.xl,
     padding: Spacing.xl,
+    paddingTop: Spacing.sm,
     gap: Spacing.md,
+    width: '100%',
+    maxWidth: 640,
+    alignSelf: 'center',
+  },
+  asa: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.border,
   },
   title: {
     fontSize: FontSize.lg,
+    lineHeight: LineHeight.lg,
     fontWeight: '800',
     color: Colors.text,
   },
   description: {
     fontSize: FontSize.sm,
+    lineHeight: LineHeight.sm,
     color: Colors.textMuted,
     marginTop: -Spacing.sm,
-  },
-  textarea: {
-    minHeight: 96,
-    textAlignVertical: 'top',
-    paddingTop: Spacing.sm,
   },
   actions: {
     flexDirection: 'row',

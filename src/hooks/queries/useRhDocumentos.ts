@@ -35,3 +35,11 @@ export function useRhDocumentoRechazar() {
     onSuccess: () => invalidateRhQueries(queryClient),
   });
 }
+
+export function useRhDocumentoPedirCorreccion() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, motivo }: { id: string | number; motivo: string }) => rhDocumentosApi.pedirCorreccion(id, motivo),
+    onSuccess: () => invalidateRhQueries(queryClient),
+  });
+}

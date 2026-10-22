@@ -3,12 +3,13 @@ import { useLocalSearchParams } from 'expo-router';
 
 import { DocumentosProcesoCard } from '@/components/ciclo/DocumentosProcesoCard';
 import { useMemo, useState } from 'react';
-import { Alert, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { InfoRow } from '@/components/ciclo/InfoRow';
 import { Notice, Screen, SectionTitle } from '@/components/ciclo/Screen';
+import { Input } from '@/components/Input';
 import { MotivoModal } from '@/components/MotivoModal';
 import { PressableScale } from '@/components/PressableScale';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -136,7 +137,6 @@ function initialCriterios(evaluacion: Evaluacion): CriterioForm[] {
 }
 
 function CapturaForm({ evaluacion }: { evaluacion: Evaluacion }) {
-  const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   const capturar = useCapturarEvaluacion(evaluacion.id);
   const { isOffline } = useNetworkStatus();
@@ -191,28 +191,25 @@ function CapturaForm({ evaluacion }: { evaluacion: Evaluacion }) {
       {criterios.map((c, index) => (
         <View key={`${c.criterio}-${index}`} style={styles.criterio}>
           <Text style={styles.criterioLabel}>{c.criterio}</Text>
-          <TextInput
-            accessibilityLabel={`Calificación de ${c.criterio}, de 0 a 10`}
-            keyboardType="decimal-pad"
-            placeholder="0 – 10"
-            placeholderTextColor={Colors.textMuted}
-            value={c.calificacion}
-            maxLength={5}
-            onChangeText={(text) => setCriterios((prev) => prev.map((item, i) => (i === index ? { ...item, calificacion: text } : item)))}
-            style={styles.scoreInput}
-          />
-          <TextInput
+          <View style={styles.scoreInput}>
+            <Input
+              accessibilityLabel={`Calificación de ${c.criterio}, de 0 a 10`}
+              keyboardType="decimal-pad"
+              inputMode="decimal"
+              placeholder="0 – 10"
+              value={c.calificacion}
+              maxLength={5}
+              error={getFieldError(capturar.error, `criterios.${index}.calificacion`) ?? undefined}
+              onChangeText={(text) => setCriterios((prev) => prev.map((item, i) => (i === index ? { ...item, calificacion: text } : item)))}
+            />
+          </View>
+          <Input
             accessibilityLabel={`Comentario de ${c.criterio}`}
             placeholder="Comentario (opcional)"
-            placeholderTextColor={Colors.textMuted}
             value={c.comentario}
             maxLength={500}
             onChangeText={(text) => setCriterios((prev) => prev.map((item, i) => (i === index ? { ...item, comentario: text } : item)))}
-            style={styles.textInput}
           />
-          {getFieldError(capturar.error, `criterios.${index}.calificacion`) ? (
-            <Text style={styles.error}>{getFieldError(capturar.error, `criterios.${index}.calificacion`)}</Text>
-          ) : null}
         </View>
       ))}
 
@@ -222,15 +219,13 @@ function CapturaForm({ evaluacion }: { evaluacion: Evaluacion }) {
         <Choice label="No renovar" selected={recomiendaRenovar === false} onPress={() => setRecomiendaRenovar(false)} />
       </View>
 
-      <TextInput
-        accessibilityLabel="Observaciones"
+      <Input
+        label="Observaciones"
         placeholder="Observaciones (opcional)"
-        placeholderTextColor={Colors.textMuted}
         value={observaciones}
         onChangeText={setObservaciones}
         multiline
         maxLength={2000}
-        style={[styles.textInput, styles.multiline]}
       />
       {isOffline ? <Notice tone="warning">Sin conexión: la evaluación requiere confirmación del servidor.</Notice> : null}
       <Button title="Enviar evaluación" leftIcon="send-outline" disabled={!listo || isOffline} loading={capturar.isPending} onPress={enviar} />
@@ -239,7 +234,6 @@ function CapturaForm({ evaluacion }: { evaluacion: Evaluacion }) {
 }
 
 function Autorizacion({ evaluacion }: { evaluacion: Evaluacion }) {
-  const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   const autorizar = useAutorizarEvaluacion(evaluacion.id);
   const devolver = useDevolverEvaluacion(evaluacion.id);
@@ -289,25 +283,21 @@ function Autorizacion({ evaluacion }: { evaluacion: Evaluacion }) {
       </View>
       {renovar !== null ? <Notice tone={renovar ? 'info' : 'warning'}>{consecuenciaAutorizacion(renovar)}</Notice> : null}
       {renovar === false ? (
-        <TextInput
-          accessibilityLabel="Motivo de no renovación"
-          placeholder="Motivo de no renovación (opcional)"
-          placeholderTextColor={Colors.textMuted}
+        <Input
+          label="Motivo de no renovación"
+          placeholder="Opcional"
           value={motivoNoRenovacion}
           onChangeText={setMotivoNoRenovacion}
           multiline
           maxLength={1000}
-          style={[styles.textInput, styles.multiline]}
         />
       ) : null}
-      <TextInput
-        accessibilityLabel="Comentario de autorización"
+      <Input
+        label="Comentario de autorización"
         placeholder="Comentario (opcional)"
-        placeholderTextColor={Colors.textMuted}
         value={comentario}
         onChangeText={setComentario}
         maxLength={1000}
-        style={styles.textInput}
       />
       {isOffline ? <Notice tone="warning">Sin conexión: esta acción requiere confirmación del servidor.</Notice> : null}
       <View style={styles.choiceRow}>
@@ -392,34 +382,8 @@ const crearEstilos = (Colors: ColorPalette) =>
     color: Colors.text,
   },
   scoreInput: {
-    minHeight: 44,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.md,
-    fontSize: FontSize.md,
-    color: Colors.text,
-    backgroundColor: Colors.surface,
-    width: 110,
-  },
-  textInput: {
-    minHeight: 44,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    fontSize: FontSize.sm,
-    color: Colors.text,
-    backgroundColor: Colors.surface,
-  },
-  multiline: {
-    minHeight: 88,
-    textAlignVertical: 'top',
-  },
-  error: {
-    fontSize: FontSize.xs,
-    color: Colors.danger,
+    width: 160,
+    maxWidth: '100%',
   },
   choiceRow: {
     flexDirection: 'row',

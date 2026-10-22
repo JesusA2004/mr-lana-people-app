@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { Button } from './Button';
 
-import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, LineHeight, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 
 export interface EmptyStateProps {
@@ -60,7 +60,7 @@ const crearEstilos = (Colors: ColorPalette) =>
       fontSize: FontSize.sm,
       color: Colors.textMuted,
       textAlign: 'center',
-      lineHeight: 20,
+      lineHeight: LineHeight.sm,
       maxWidth: 420,
     },
     action: {

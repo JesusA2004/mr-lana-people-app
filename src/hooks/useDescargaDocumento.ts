@@ -1,4 +1,4 @@
-import { Directory, File, Paths } from 'expo-file-system';
+import { Directory, File, FileMode, Paths } from 'expo-file-system';
 import * as IntentLauncher from 'expo-intent-launcher';
 import * as Sharing from 'expo-sharing';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -89,6 +89,59 @@ export async function guardarEnDispositivo(origen: ArchivoLocal, titulo: string)
   const nombre = nombreArchivoSeguro(titulo, extensionForSniffedType(origen.tipo));
   const mime = mimeParaTipo(origen.tipo);
 
+  return guardarArchivoLocal({ uri: origen.uri, nombre, mime, uti: utiParaTipo(origen.tipo), titulo });
+}
+
+/** Archivo cualquiera ya en la caché de la app (p. ej. el ZIP del expediente). */
+export interface ArchivoParaGuardar {
+  uri: string;
+  /** Nombre final con extensión («Expediente 4321 - Ana Lopez.zip»). */
+  nombre: string;
+  mime: string;
+  /** UTI de iOS (mejora «Guardar en Archivos»). */
+  uti?: string;
+  /** Título del sheet nativo. */
+  titulo: string;
+}
+
+/** Bloque de copia hacia la carpeta elegida (Android): nunca el archivo entero en memoria. */
+const BLOQUE_COPIA = 512 * 1024;
+
+/**
+ * Copia por bloques con `FileHandle` (sirve para `content://` del Storage
+ * Access Framework): un ZIP de cientos de MB nunca se carga completo en JS.
+ * Cede el hilo entre bloques para que la pantalla siga respondiendo.
+ */
+async function copiarPorBloques(origen: File, destino: File): Promise<void> {
+  const total = origen.size;
+  const lector = origen.open(FileMode.ReadOnly);
+  try {
+    const escritor = destino.open(FileMode.WriteOnly);
+    try {
+      let copiados = 0;
+      while (copiados < total) {
+        const bloque = lector.readBytes(Math.min(BLOQUE_COPIA, total - copiados));
+        if (bloque.length === 0) break;
+        escritor.writeBytes(bloque);
+        copiados += bloque.length;
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+    } finally {
+      escritor.close();
+    }
+  } finally {
+    lector.close();
+  }
+}
+
+/**
+ * Guarda una COPIA de un archivo de la caché fuera de la app:
+ * - Android: carpeta elegida por la persona (SAF, sin permisos de
+ *   almacenamiento), copiada por bloques.
+ * - iOS: sheet nativo → «Guardar en Archivos», AirDrop, correo…
+ * Devuelve false si la persona canceló.
+ */
+export async function guardarArchivoLocal(archivo: ArchivoParaGuardar): Promise<boolean> {
   if (Platform.OS === 'android') {
     let carpeta: Directory;
     try {
@@ -98,29 +151,73 @@ export async function guardarEnDispositivo(origen: ArchivoLocal, titulo: string)
       throw error;
     }
     if (!carpeta) return false;
-    const bytes = await new File(origen.uri).bytes();
-    const destino = carpeta.createFile(nombre, mime);
-    destino.write(bytes);
+    const destino = carpeta.createFile(archivo.nombre, archivo.mime);
+    try {
+      await copiarPorBloques(new File(archivo.uri), destino);
+    } catch (error) {
+      borrarSinFallar(destino);
+      throw error;
+    }
     return true;
   }
 
-  return compartirCopia(origen, nombre, mime, titulo);
+  return compartirArchivoLocal(archivo);
 }
 
-async function compartirCopia(origen: ArchivoLocal, nombre: string, mime: string, titulo: string): Promise<boolean> {
+/**
+ * Sheet nativo de compartir (ambas plataformas): Drive, WhatsApp, correo,
+ * «Guardar en Archivos» en iOS. Usa una copia con nombre legible que se
+ * borra al cerrar el sheet.
+ */
+export async function compartirArchivoLocal(archivo: ArchivoParaGuardar): Promise<boolean> {
   if (!(await Sharing.isAvailableAsync())) {
     throw new Error('compartir-no-disponible');
   }
-  // Copia con nombre legible SOLO mientras se abre el sheet; se borra al cerrar.
-  const copia = new File(Paths.cache, nombre);
+  const copia = new File(Paths.cache, archivo.nombre);
   try {
     borrarSinFallar(copia);
-    await new File(origen.uri).copy(copia);
-    await Sharing.shareAsync(copia.uri, { mimeType: mime, UTI: utiParaTipo(origen.tipo), dialogTitle: titulo });
+    await new File(archivo.uri).copy(copia);
+    await Sharing.shareAsync(copia.uri, { mimeType: archivo.mime, UTI: archivo.uti, dialogTitle: archivo.titulo });
     return true;
   } finally {
     borrarSinFallar(copia);
   }
+}
+
+async function compartirCopia(origen: ArchivoLocal, nombre: string, mime: string, titulo: string): Promise<boolean> {
+  return compartirArchivoLocal({ uri: origen.uri, nombre, mime, uti: utiParaTipo(origen.tipo), titulo });
+}
+
+/**
+ * Descarga AUTENTICADA de un archivo grande (p. ej. el expediente completo
+ * en ZIP) directo a disco, con progreso en bytes y cancelable. A diferencia
+ * de `descargarDocumentoPrivado` no adivina el tipo: el llamador ya sabe qué
+ * pidió (`extension`).
+ */
+export async function descargarArchivoPrivado(
+  path: string,
+  token: string | null,
+  opciones: { extension: string; accept?: string; onProgreso?: (bytesEscritos: number, bytesTotales: number) => void; signal?: AbortSignal },
+): Promise<File> {
+  const destino = new File(Paths.cache, uniqueTempFileName(opciones.extension));
+  try {
+    const tarea = File.createDownloadTask(`${API_URL}${path}`, destino, {
+      headers: token ? { Authorization: `Bearer ${token}`, Accept: opciones.accept ?? '*/*' } : undefined,
+      signal: opciones.signal,
+      onProgress: ({ bytesWritten, totalBytes }) => opciones.onProgreso?.(bytesWritten, totalBytes),
+    });
+    const descargado = await tarea.downloadAsync();
+    if (!descargado || descargado.size === 0) throw new Error('El archivo descargado está vacío.');
+    return descargado;
+  } catch (error) {
+    borrarSinFallar(destino);
+    throw error;
+  }
+}
+
+/** Borra un archivo temporal sin lanzar (para limpiar al cerrar pantallas). */
+export function borrarTemporal(archivo: File | null | undefined): void {
+  borrarSinFallar(archivo);
 }
 
 /**

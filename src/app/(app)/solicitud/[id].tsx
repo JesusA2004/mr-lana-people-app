@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { solicitudesApi } from '@/api/solicitudes';
 import { AppHeader } from '@/components/AppHeader';
@@ -69,7 +69,7 @@ export default function SolicitudDetalleScreen() {
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [formatoAbierto, setFormatoAbierto] = useState(false);
 
-  const { data: solicitud, isLoading, isError, error, refetch } = useSolicitud(id);
+  const { data: solicitud, isLoading, isError, error, refetch, isRefetching } = useSolicitud(id);
   const cancelMutation = useCancelSolicitud();
   const addAttachmentMutation = useAddSolicitudAttachment(id);
 
@@ -196,9 +196,11 @@ export default function SolicitudDetalleScreen() {
 
   return (
     <View style={styles.container}>
-      <AppHeader title="Detalle de solicitud" showBack onBackPress={() => router.back()} />
+      <AppHeader title="Detalle de solicitud" showBack />
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={Colors.primary} />}>
         {isLoading ? (
           <View style={{ gap: Spacing.lg }}>
             <SkeletonBlock height={100} radius={Radius.lg} />

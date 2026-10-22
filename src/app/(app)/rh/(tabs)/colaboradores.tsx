@@ -1,11 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/AppHeader';
 import { Card } from '@/components/Card';
+import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
+import { CampoBusqueda } from '@/components/ui/CampoBusqueda';
 import { FadeInView } from '@/components/FadeInView';
 import { PressableScale } from '@/components/PressableScale';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
@@ -52,29 +54,20 @@ export default function RhColaboradoresScreen() {
         }
       />
 
-      <View style={styles.searchWrapper}>
-        <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
-        <TextInput
-          value={searchInput}
-          onChangeText={setSearchInput}
-          placeholder="Nombre o número de empleado"
-          placeholderTextColor={Colors.textMuted}
-          style={styles.searchInput}
-          autoCapitalize="none"
-          autoCorrect={false}
-          accessibilityLabel="Buscar colaborador"
-        />
-        {searchInput ? (
-          <PressableScale haptic={false} accessibilityLabel="Limpiar búsqueda" onPress={() => setSearchInput('')}>
-            <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
-          </PressableScale>
-        ) : null}
-      </View>
+      <CampoBusqueda
+        value={searchInput}
+        onChangeText={setSearchInput}
+        placeholder="Nombre o número de empleado"
+        accessibilityLabel="Buscar colaborador"
+        style={styles.searchWrapper}
+      />
 
       <FlatList
         data={colaboradores}
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={Colors.primary} />}
         ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
         renderItem={({ item, index }) => (
@@ -88,9 +81,11 @@ export default function RhColaboradoresScreen() {
           ) : isError ? (
             <ErrorState message={getErrorMessage(error)} onRetry={() => void refetch()} />
           ) : (
-            <View style={styles.emptyFilter}>
-              <Text style={styles.emptyFilterText}>{q ? 'No hay colaboradores que coincidan.' : 'Sin colaboradores en tu alcance.'}</Text>
-            </View>
+            <EmptyState
+              icon={q ? 'search-outline' : 'people-outline'}
+              title={q ? 'Sin coincidencias' : undefined}
+              message={q ? 'No hay colaboradores que coincidan. Prueba con otro nombre o número de empleado.' : 'Sin colaboradores en tu alcance.'}
+            />
           )
         }
       />
@@ -141,22 +136,8 @@ const crearEstilos = (Colors: ColorPalette) =>
     backgroundColor: Colors.background,
   },
   searchWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
     marginHorizontal: Spacing.lg,
     marginBottom: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    height: 40,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: FontSize.sm,
-    color: Colors.text,
   },
   listContent: {
     width: '100%',
@@ -187,7 +168,7 @@ const crearEstilos = (Colors: ColorPalette) =>
   },
   badge: {
     minWidth: 22,
-    height: 22,
+    minHeight: 22,
     borderRadius: Radius.full,
     backgroundColor: Colors.dangerSoft,
     alignItems: 'center',
@@ -198,14 +179,5 @@ const crearEstilos = (Colors: ColorPalette) =>
     fontSize: FontSize.xs,
     fontWeight: '800',
     color: Colors.danger,
-  },
-  emptyFilter: {
-    paddingVertical: Spacing.xxl,
-    alignItems: 'center',
-  },
-  emptyFilterText: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
-    textAlign: 'center',
   },
 });

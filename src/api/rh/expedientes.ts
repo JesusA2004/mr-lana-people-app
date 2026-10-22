@@ -1,4 +1,5 @@
 import { apiClient, extractData } from '../client';
+import { normalizarRhExpediente } from '../normalizers/rhExpediente';
 
 import type { PaginatedResponse } from '@/types/api';
 import type { RhExpediente } from '@/types/rh';
@@ -25,12 +26,28 @@ export const rhExpedientesApi = {
 
   async getById(colaboradorId: number | string): Promise<RhExpediente> {
     const response = await apiClient.get(`/rh/expedientes/${colaboradorId}`);
-    return extractData<RhExpediente>(response.data);
+    // El show NO viene envuelto en `data` (ver normalizarRhExpediente).
+    return normalizarRhExpediente(extractData<unknown>(response.data));
   },
 
-  /** Ruta relativa para el visor seguro (streaming, Bearer manual) — ver `SecureDocumentViewer`. */
+  /** Ruta relativa para REVISAR el archivo (streaming, Bearer manual): se abre en el lector del teléfono. */
   verDocumentoPath(colaboradorId: number | string, documentoId: number | string): string {
     return `/rh/expedientes/${colaboradorId}/documentos/${documentoId}/ver`;
+  },
+
+  /** Guardar una copia del documento (solo si `puede_descargar`; el backend vuelve a autorizar). */
+  descargarDocumentoPath(colaboradorId: number | string, documentoId: number | string): string {
+    return `/rh/expedientes/${colaboradorId}/documentos/${documentoId}/descargar`;
+  },
+
+  /** «Descargar expediente completo (ZIP)» — mismo ZIP con INDICE.csv que la web (solo si `puede_descargar_expediente`). */
+  descargarZipPath(colaboradorId: number | string): string {
+    return `/rh/expedientes/${colaboradorId}/descargar-zip`;
+  },
+
+  /** «Pedir corrección» (`motivo` obligatorio). */
+  async pedirCorreccionDocumento(colaboradorId: number | string, documentoId: number | string, motivo: string): Promise<void> {
+    await apiClient.post(`/rh/expedientes/${colaboradorId}/documentos/${documentoId}/correccion`, { motivo });
   },
 
   async aprobarDocumento(colaboradorId: number | string, documentoId: number | string, comentario?: string): Promise<void> {

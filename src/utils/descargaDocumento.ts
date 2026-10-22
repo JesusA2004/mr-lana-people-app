@@ -146,3 +146,40 @@ export function mensajeErrorDescarga(status: number | undefined, deRed = false):
 export function mensajeParaErrorDescarga(error: unknown): string {
   return mensajeErrorDescarga(statusDesdeErrorDescarga(error), esErrorDeRed(error));
 }
+
+/**
+ * «3.4 MB de 12 MB» (o solo «3.4 MB» si el servidor no mandó Content-Length)
+ * para la pantalla de descarga de archivos grandes (expediente en ZIP).
+ */
+export function progresoEnBytes(bytesEscritos: number, bytesTotales: number | null | undefined): string | null {
+  const escritos = formatearTamano(bytesEscritos);
+  if (!escritos) return null;
+  const total = formatearTamano(bytesTotales ?? null);
+  return total ? `${escritos} de ${total}` : escritos;
+}
+
+/** Mensaje de error de la descarga del expediente completo (ZIP). */
+export function mensajeErrorDescargaExpediente(status: number | undefined, deRed = false): string {
+  switch (status) {
+    case 403:
+      return 'No tienes permiso para descargar el expediente completo.';
+    case 404:
+      return 'No encontramos este expediente. Actualiza la pantalla e intenta de nuevo.';
+    case 429:
+      return 'Ya pediste varias descargas seguidas. Espera un minuto e intenta de nuevo.';
+    default:
+      return mensajeErrorDescarga(status, deRed).replace('el documento', 'el expediente');
+  }
+}
+
+/**
+ * Tipo esperado ANTES de descargar, por la extensión del nombre original
+ * (solo para el texto/icono del botón; al bajar, manda la firma binaria).
+ */
+export function tipoEsperadoPorNombre(nombre: string | null | undefined): SniffedFileType {
+  const ext = /\.([a-z0-9]+)$/i.exec(nombre ?? '')?.[1]?.toLowerCase();
+  if (ext === 'jpg' || ext === 'jpeg') return 'jpeg';
+  if (ext === 'png') return 'png';
+  if (ext === 'docx') return 'docx';
+  return 'pdf';
+}

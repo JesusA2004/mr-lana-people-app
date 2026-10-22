@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { FontSize, LineHeight, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { formatCurrencyMXN, parseCurrencyInput } from '@/utils/formatters';
 
@@ -25,10 +26,11 @@ export interface MoneyFieldProps {
 export function MoneyField({ label, value, onChange, error, helper, placeholder = '0.00' }: MoneyFieldProps) {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
+  const [enfocado, setEnfocado] = useState(false);
   return (
     <View style={styles.container}>
       <Text style={styles.label}>{label}</Text>
-      <View style={[styles.inputWrapper, error && styles.inputWrapperError]}>
+      <View style={[styles.inputWrapper, enfocado && styles.inputWrapperFocused, error ? styles.inputWrapperError : null]}>
         <Text style={styles.currency}>$</Text>
         <TextInput
           style={styles.input}
@@ -36,13 +38,21 @@ export function MoneyField({ label, value, onChange, error, helper, placeholder 
           inputMode="decimal"
           placeholder={placeholder}
           placeholderTextColor={Colors.textMuted}
+          selectionColor={Colors.primary}
+          cursorColor={Colors.primary}
+          accessibilityLabel={`${label}, en pesos`}
+          accessibilityHint={error ? `Error: ${error}` : undefined}
           value={value === undefined ? '' : String(value)}
           onChangeText={(text) => onChange(parseCurrencyInput(text))}
+          onFocus={() => setEnfocado(true)}
+          onBlur={() => setEnfocado(false)}
         />
         <Text style={styles.suffix}>MXN</Text>
       </View>
       {error ? (
-        <Text style={styles.error}>{error}</Text>
+        <Text style={styles.error} accessibilityLiveRegion="polite">
+          {error}
+        </Text>
       ) : (
         <Text style={styles.helper}>{value !== undefined ? formatCurrencyMXN(value) : (helper ?? '')}</Text>
       )}
@@ -52,23 +62,25 @@ export function MoneyField({ label, value, onChange, error, helper, placeholder 
 
 const crearEstilos = (Colors: ColorPalette) =>
   StyleSheet.create({
-  container: { gap: Spacing.xs },
-  label: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.text },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    borderWidth: 1.5,
-    borderColor: Colors.border,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.surface,
-    paddingHorizontal: Spacing.md,
-    height: 48,
-  },
-  inputWrapperError: { borderColor: Colors.danger },
-  currency: { fontSize: FontSize.lg, fontWeight: '800', color: Colors.primaryDark },
-  input: { flex: 1, fontSize: FontSize.lg, fontWeight: '700', color: Colors.text },
-  suffix: { fontSize: FontSize.xs, fontWeight: '700', color: Colors.textMuted },
-  error: { fontSize: FontSize.xs, color: Colors.danger, fontWeight: '600' },
-  helper: { fontSize: FontSize.xs, color: Colors.textMuted },
-});
+    container: { gap: Spacing.xs + 2 },
+    label: { fontSize: FontSize.sm, lineHeight: LineHeight.sm, fontWeight: '700', color: Colors.text },
+    inputWrapper: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.sm,
+      borderWidth: 1.5,
+      borderColor: Colors.border,
+      borderRadius: Radius.md,
+      backgroundColor: Colors.surface,
+      paddingHorizontal: Spacing.md,
+      // Sin alto fijo: con letra grande de accesibilidad el campo crece, no corta.
+      minHeight: 52,
+    },
+    inputWrapperFocused: { borderColor: Colors.primary },
+    inputWrapperError: { borderColor: Colors.danger },
+    currency: { fontSize: FontSize.lg, fontWeight: '800', color: Colors.primaryDark },
+    input: { flex: 1, minHeight: 50, paddingVertical: Spacing.sm, fontSize: FontSize.lg, fontWeight: '700', color: Colors.text, outlineWidth: 0 },
+    suffix: { fontSize: FontSize.xs, fontWeight: '700', color: Colors.textMuted },
+    error: { fontSize: FontSize.xs, lineHeight: LineHeight.xs, color: Colors.danger, fontWeight: '600' },
+    helper: { fontSize: FontSize.xs, lineHeight: LineHeight.xs, color: Colors.textMuted },
+  });

@@ -98,7 +98,7 @@ export default function RhCumpleanoDetailScreen() {
 
   return (
     <View style={styles.container}>
-      <AppHeader title="Felicitación" showBack onBackPress={() => router.back()} />
+      <AppHeader title="Felicitación" showBack />
 
       <ScrollView
         contentContainerStyle={styles.content}

@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { ActivityIndicator, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { AnimatedProgressBar } from './AnimatedProgressBar';
@@ -26,6 +27,17 @@ export interface DescargaDocumentoProps {
   motivo?: string;
   /** `pantalla`: centrado a pantalla completa (visor sin vista previa). `tarjeta`: bloque dentro de un detalle. */
   variante?: 'pantalla' | 'tarjeta';
+  /**
+   * false = solo «Abrir documento» (lector del teléfono), sin guardar una
+   * copia: para quien puede REVISAR el documento pero el backend no le
+   * autorizó descargarlo (`puede_descargar`). Default true.
+   */
+  permitirGuardar?: boolean;
+  /**
+   * `abrir` (revisión de RH): el botón grande es «Abrir documento» y
+   * guardar queda como secundario. Default `guardar`.
+   */
+  accionPrincipal?: 'guardar' | 'abrir';
   style?: StyleProp<ViewStyle>;
 }
 
@@ -56,6 +68,8 @@ export function DescargaDocumento({
   tamanoConocido,
   motivo,
   variante = 'tarjeta',
+  permitirGuardar = true,
+  accionPrincipal = 'guardar',
   style,
 }: DescargaDocumentoProps) {
   const Colors = useColores();
@@ -64,7 +78,33 @@ export function DescargaDocumento({
   const tipo = descarga.archivo?.tipo ?? tipoEsperado;
   const tamano = formatearTamano(descarga.archivo?.tamano ?? tamanoConocido);
   const descargando = descarga.estado === 'descargando';
-  const icono = tipo === 'png' || tipo === 'jpeg' ? 'image-outline' : tipo === 'pdf' ? 'document-text-outline' : 'document-outline';
+  const esImagen = tipo === 'png' || tipo === 'jpeg';
+  const icono = esImagen ? 'image-outline' : tipo === 'pdf' ? 'document-text-outline' : 'document-outline';
+  const abrirPrimero = accionPrincipal === 'abrir' || !permitirGuardar;
+  const enError = descarga.estado === 'error';
+
+  const botonGuardar = permitirGuardar ? (
+    <Button
+      key="guardar"
+      title={enError && !abrirPrimero ? 'Reintentar descarga' : abrirPrimero ? 'Guardar en el teléfono' : etiquetaDescarga(tipo)}
+      variant={abrirPrimero ? 'outline' : 'primary'}
+      leftIcon={enError && !abrirPrimero ? 'refresh' : 'download-outline'}
+      onPress={() => (enError && !abrirPrimero ? descarga.reintentar() : descarga.guardar())}
+      loading={descarga.ocupado === 'guardar'}
+      disabled={descarga.ocupado !== null}
+    />
+  ) : null;
+  const botonAbrir = (
+    <Button
+      key="abrir"
+      title={enError && abrirPrimero ? 'Reintentar' : abrirPrimero ? 'Abrir documento' : 'Abrir con…'}
+      variant={abrirPrimero ? 'primary' : 'outline'}
+      leftIcon={enError && abrirPrimero ? 'refresh' : 'open-outline'}
+      onPress={() => descarga.abrirCon()}
+      loading={descarga.ocupado === 'abrir'}
+      disabled={descarga.ocupado !== null}
+    />
+  );
 
   return (
     <View style={[variante === 'pantalla' ? styles.pantalla : null, style]}>
@@ -113,23 +153,16 @@ export function DescargaDocumento({
           </View>
         ) : null}
 
-        <View style={styles.acciones}>
-          <Button
-            title={descarga.estado === 'error' ? 'Reintentar descarga' : etiquetaDescarga(tipo)}
-            leftIcon={descarga.estado === 'error' ? 'refresh' : 'download-outline'}
-            onPress={() => (descarga.estado === 'error' ? descarga.reintentar() : descarga.guardar())}
-            loading={descarga.ocupado === 'guardar'}
-            disabled={descarga.ocupado !== null}
-          />
-          <Button
-            title="Abrir con…"
-            variant="outline"
-            leftIcon="open-outline"
-            onPress={() => descarga.abrirCon()}
-            loading={descarga.ocupado === 'abrir'}
-            disabled={descarga.ocupado !== null}
-          />
-        </View>
+        {esImagen && descarga.archivo ? (
+          // Las imágenes sí se ven bien dentro de la app (expo-image, archivo local).
+          <Image source={{ uri: descarga.archivo.uri }} style={styles.vistaImagen} contentFit="contain" accessibilityLabel={titulo} />
+        ) : null}
+
+        <View style={styles.acciones}>{abrirPrimero ? [botonAbrir, botonGuardar] : [botonGuardar, botonAbrir]}</View>
+
+        {abrirPrimero ? (
+          <Text style={styles.ayuda}>Se abre en el lector de PDF o la galería de tu teléfono. Al volver, sigues en esta pantalla.</Text>
+        ) : null}
       </View>
     </View>
   );
@@ -231,4 +264,11 @@ const crearEstilos = (Colors: ColorPalette) =>
     },
     exitoTexto: { flex: 1, fontSize: FontSize.sm, fontWeight: '600', color: Colors.success },
     acciones: { gap: Spacing.sm },
+    vistaImagen: {
+      width: '100%',
+      height: 260,
+      borderRadius: Radius.md,
+      backgroundColor: Colors.surfaceMuted,
+    },
+    ayuda: { fontSize: FontSize.xs, color: Colors.textMuted, textAlign: 'center', lineHeight: 17 },
   });

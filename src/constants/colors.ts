@@ -148,6 +148,51 @@ export const FontSize = {
 } as const;
 
 /**
+ * Interlineado de cada tamaño de `FontSize` (≈ 1.35–1.45×). Úsalo junto con
+ * el tamaño para que los párrafos respiren y, con letra grande de
+ * accesibilidad, el renglón escale sin encimarse (RN escala `lineHeight` con
+ * `fontScale` igual que `fontSize`).
+ */
+export const LineHeight = {
+  xs: 17,
+  sm: 19,
+  md: 22,
+  lg: 24,
+  xl: 28,
+  xxl: 32,
+  xxxl: 38,
+} as const;
+
+/**
+ * Escala tipográfica (presets listos para `StyleSheet`): un solo lugar para
+ * la jerarquía de textos. Sin color (cada pantalla elige `text`/`textMuted`).
+ *
+ * ```ts
+ * titulo: { ...Typography.title, color: Colors.text }
+ * ```
+ */
+export const Typography = {
+  /** Hero / número grande. */
+  display: { fontSize: FontSize.xxxl, lineHeight: LineHeight.xxxl, fontWeight: '800' },
+  /** Título de pantalla. */
+  title: { fontSize: FontSize.xxl, lineHeight: LineHeight.xxl, fontWeight: '800' },
+  /** Encabezado de sección / tarjeta destacada. */
+  headline: { fontSize: FontSize.xl, lineHeight: LineHeight.xl, fontWeight: '800' },
+  /** Título de tarjeta o fila. */
+  subtitle: { fontSize: FontSize.lg, lineHeight: LineHeight.lg, fontWeight: '700' },
+  /** Texto de lectura. */
+  body: { fontSize: FontSize.md, lineHeight: LineHeight.md, fontWeight: '400' },
+  /** Texto de lectura con énfasis. */
+  bodyStrong: { fontSize: FontSize.md, lineHeight: LineHeight.md, fontWeight: '700' },
+  /** Etiquetas de campo, metadatos. */
+  label: { fontSize: FontSize.sm, lineHeight: LineHeight.sm, fontWeight: '700' },
+  /** Notas, ayudas, fechas. */
+  caption: { fontSize: FontSize.xs, lineHeight: LineHeight.xs, fontWeight: '500' },
+  /** Sobretítulo en mayúsculas. */
+  overline: { fontSize: FontSize.xs, lineHeight: LineHeight.xs, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase' },
+} as const;
+
+/**
  * Compatible Android (elevation) / iOS (shadow*). Tres niveles nada más — no
  * inventar sombras nuevas por pantalla. Sombra cálida y mínima.
  */

@@ -221,6 +221,12 @@ export interface RhDocumento {
   motivo_rechazo?: string | null;
   acciones_permitidas: AllowedAction[];
   workflow?: Workflow;
+  /** Nombre del archivo que subió el colaborador (para el nombre al guardar). */
+  nombre_original?: string | null;
+  /** Backend autorizó «Guardar en el teléfono» (EmployeeDocumentPolicy::descargar). Ausente (API vieja) = no. */
+  puede_descargar?: boolean;
+  /** Backend autorizó «Pedir corrección» (EmployeeDocumentPolicy::pedirCorreccion). Ausente = no. */
+  puede_pedir_correccion?: boolean;
   [key: string]: unknown;
 }
 
@@ -266,7 +272,9 @@ export interface RhColaborador {
 }
 
 export interface RhExpedienteDocumento {
-  id: number;
+  /** Id del archivo vigente (`employee_documents.id`); null = el colaborador aún no lo entrega. */
+  id: number | null;
+  tipo_id?: number;
   tipo: string;
   nombre: string;
   obligatorio: boolean;
@@ -274,7 +282,12 @@ export interface RhExpedienteDocumento {
   motivo_rechazo?: string | null;
   fecha_subida?: string | null;
   fecha_revision?: string | null;
+  nombre_original?: string | null;
   acciones_permitidas?: AllowedAction[];
+  /** Backend autorizó descargarlo (EmployeeDocumentPolicy::descargar). Ausente (API vieja) = no. */
+  puede_descargar?: boolean;
+  /** Backend autorizó «Pedir corrección». Ausente = no. */
+  puede_pedir_correccion?: boolean;
   [key: string]: unknown;
 }
 
@@ -283,6 +296,8 @@ export interface RhExpediente {
   estado: string;
   documentos: RhExpedienteDocumento[];
   acciones_permitidas?: AllowedAction[];
+  /** «Descargar expediente completo (ZIP)» (EmployeeDocumentPolicy::descargarExpediente). Ausente = no. */
+  puede_descargar_expediente?: boolean;
   [key: string]: unknown;
 }
 
@@ -303,4 +318,10 @@ export interface RhCambioFoto {
   foto_actual_url: string | null;
   /** Propuesta pendiente (Bearer token). */
   foto_propuesta_url: string;
+  /**
+   * La cuenta puede aprobar/rechazar ESTE cambio (CambioFotoPerfilPolicy::revisar:
+   * permiso + alcance + nunca la foto propia). Ausente (backend anterior) = sí,
+   * como antes; el backend vuelve a validar.
+   */
+  puede_revisar?: boolean;
 }

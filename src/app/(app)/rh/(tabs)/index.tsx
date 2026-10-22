@@ -18,13 +18,13 @@ import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useRhContratosPorVencer } from '@/hooks/queries/useRhCicloLaboral';
 import { useRhCumpleanosInfinite } from '@/hooks/queries/useRhCumpleanos';
 import { useRhDashboard } from '@/hooks/queries/useRhDashboard';
-import { useTareasConteos } from '@/hooks/queries/useTrabajo';
+import { useAprobacionesConteo, useEsAutorizadorRh } from '@/hooks/queries/useAprobaciones';
+import { useEquipo, useEquipoPendientes, useTareasConteos } from '@/hooks/queries/useTrabajo';
+import { usePermisos } from '@/hooks/usePermisos';
 import { useAuthStore } from '@/store/authStore';
-import { hasPermission } from '@/utils/capabilities';
 import { getErrorMessage } from '@/utils/errors';
-import { isExperimentalFeatureEnabled, isFeatureEnabled } from '@/utils/featureFlags';
+import { isExperimentalFeatureEnabled } from '@/utils/featureFlags';
 import { joinName } from '@/utils/formatters';
-import { isRhModuleEnabled, type RhModule } from '@/utils/modules';
 import { openRhWeb } from '@/utils/openRhWeb';
 import { rhPendienteDetailRoute } from '@/utils/rhRoutes';
 
@@ -43,12 +43,18 @@ export default function RhDashboardScreen() {
   const insets = useSafeAreaInsets();
   const user = useAuthStore((state) => state.user);
 
-  const { data, isLoading, isError, error, refetch, isRefetching } = useRhDashboard(true);
   const bootstrap = useMobileBootstrap(true);
+  const permisos = usePermisos();
+  // GET /rh/dashboard exige `rh.mobile.dashboard.ver` y GET /rh/pendientes
+  // `rh.pendientes.ver`: Dirección o Jurídico tienen Gestión RH (autorizan
+  // préstamos, cierres…) sin bandeja RH. Sin el permiso ni se pide (nada
+  // de pantallas en error por un 403): solo se muestran sus atajos.
+  const puedeTablero = permisos.puede('rh.mobile.dashboard.ver');
+  const puedeBandejaRh = permisos.puede('rh.pendientes.ver');
+  const { data, isLoading, isError, error, refetch, isRefetching } = useRhDashboard(puedeTablero);
   // Feature encendido Y permiso: sin `rh.cumpleanos.ver` el backend responde
   // 403, así que ni se pide ni se muestra el acceso.
-  const cumpleanosEnabled =
-    isFeatureEnabled(bootstrap.data?.features, 'cumpleanos') && hasPermission(bootstrap.data?.user.permissions, 'rh.cumpleanos.ver');
+  const cumpleanosEnabled = permisos.feature('cumpleanos') && permisos.puede('rh.cumpleanos.ver');
   // Formatos/extracción OCR: fail-CLOSED (bug de producto corregido) —
   // ausente = oculto, sin importar que el backend real ya tenga el
   // catálogo/OCR funcionando (ver docs/BACKEND_GAPS_FINAL.md: ambos quedan
@@ -56,13 +62,21 @@ export default function RhDashboardScreen() {
   // producto de esta auditoría).
   const extractionEnabled = isExperimentalFeatureEnabled(bootstrap.data?.features, 'document_extraction');
 
-  const permissions = bootstrap.data?.user.permissions;
-  const features = bootstrap.data?.features;
-  const moduloOn = (module: RhModule) => isRhModuleEnabled(features, permissions, module);
-  const tareas = useTareasConteos(true);
+  const moduloOn = permisos.moduloRh;
+  const tareas = useTareasConteos(permisos.autoservicio('tareas'));
   const tareasCount = tareas.data?.abiertas ?? 0;
   const porVencer = useRhContratosPorVencer(30, moduloOn('contratos'));
 
+  // Lo operativo de un jefe (vistos buenos, su equipo) vive AQUÍ cuando la
+  // cuenta tiene Gestión RH — Mi espacio ya no lo mezcla (usePermisos).
+  const equipoEnabled = permisos.autoservicio('equipo');
+  const equipo = useEquipo(equipoEnabled);
+  const equipoPendientes = useEquipoPendientes(equipoEnabled);
+  const esJefe = (equipo.data?.length ?? 0) > 0 || (equipoPendientes.data?.aprobar.length ?? 0) > 0 || (equipoPendientes.data?.en_espera.length ?? 0) > 0;
+  const esAutorizadorRh = useEsAutorizadorRh();
+  const aprobacionesConteo = useAprobacionesConteo((equipoEnabled && esJefe) || esAutorizadorRh);
+  const aprobacionesPendientes = aprobacionesConteo.data?.total ?? 0;
+  const muestraAprobaciones = (equipoEnabled && esJefe) || esAutorizadorRh || aprobacionesPendientes > 0;
 
   type Modulo = { route: string; icon: keyof typeof Ionicons.glyphMap; label: string; badge?: number };
   const only = (items: (Modulo | false)[]) => items.filter((m): m is Modulo => m !== false);
@@ -71,14 +85,18 @@ export default function RhDashboardScreen() {
   // a lo que se decide desde el teléfono. Nómina, documentos maestros,
   // importadores, reportes, catálogos y configuración viven en el Portal
   // Web (tarjeta «Continuar en el Portal Web»). Cada atajo aparece SOLO
-  // con el permiso real que exige su endpoint (`utils/modules.ts`).
+  // con el permiso real que exige su endpoint (`usePermisos`).
   const atajos = only([
+    muestraAprobaciones && { route: '/aprobaciones', icon: 'checkmark-done-outline', label: 'Aprobaciones', badge: aprobacionesPendientes },
+    equipoEnabled && esJefe && { route: '/equipo', icon: 'people-outline', label: 'Mi equipo' },
     // Mismo permiso que GET /rh/colaboradores; un gerente sin él ve a su gente en «Mi equipo».
-    hasPermission(permissions, 'rh.colaboradores.ver') && { route: '/(app)/rh/(tabs)/colaboradores', icon: 'search-outline', label: 'Buscar persona' },
+    permisos.puede('rh.colaboradores.ver') && { route: '/(app)/rh/(tabs)/colaboradores', icon: 'search-outline', label: 'Buscar persona' },
     moduloOn('candidatos') && { route: '/(app)/rh/candidatos', icon: 'people-circle-outline', label: 'Candidatos' },
     moduloOn('evaluaciones') && { route: '/evaluaciones', icon: 'clipboard-outline', label: 'Evaluaciones' },
+    // Reingresos: solo quien los decide (gestionar + autorizar RH, bandera del backend).
+    moduloOn('reingresos') && permisos.accion('decidir_reingreso') && { route: '/(app)/rh/reingresos', icon: 'refresh-circle-outline', label: 'Reingresos' },
     // Mismo permiso que GET /rh/cambios-foto (CambioFotoPerfilPolicy).
-    hasPermission(permissions, 'expedientes.revisar') && { route: '/(app)/rh/cambios-foto', icon: 'image-outline', label: 'Cambios de foto' },
+    permisos.puede('expedientes.revisar') && { route: '/(app)/rh/cambios-foto', icon: 'image-outline', label: 'Cambios de foto' },
   ]);
 
   const cumpleanosHoy = useRhCumpleanosInfinite({ periodo: 'hoy' }, cumpleanosEnabled);
@@ -94,7 +112,7 @@ export default function RhDashboardScreen() {
 
   // Resumen: solo contadores que el backend entrega — nada se calcula aquí.
   type Stat = { key: string; label: string; value: number; highlight?: boolean; route: string };
-  const stats: Stat[] = data
+  const stats: Stat[] = data && puedeBandejaRh
     ? [
         { key: 'pendientes', label: 'Pendientes', value: data.resumen.pendientes_total, highlight: true, route: '/(app)/rh/(tabs)/pendientes' },
         ...(moduloOn('contratos') && porVencer.data
@@ -128,27 +146,44 @@ export default function RhDashboardScreen() {
 
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={Colors.primary} />}>
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={() => {
+              if (puedeTablero) void refetch();
+              void bootstrap.refetch();
+              if (equipoEnabled) void equipoPendientes.refetch();
+              void aprobacionesConteo.refetch();
+              void tareas.refetch();
+            }}
+            tintColor={Colors.primary}
+          />
+        }>
         <View style={styles.inner}>
-          {isLoading ? (
+          {puedeTablero && isLoading ? (
             <View style={styles.skeletonWrapper}>
               <SkeletonBlock height={110} radius={Radius.lg} />
               <SkeletonCardList count={3} />
             </View>
-          ) : isError ? (
+          ) : puedeTablero && isError ? (
             <ErrorState message={getErrorMessage(error)} onRetry={() => void refetch()} />
-          ) : !data ? null : (
+          ) : (
             <>
               {/* "Vacaciones" YA NO es un contador propio: `resumen.vacaciones`
                   es de la tabla LEGACY; las vacaciones nuevas cuentan dentro
                   de `resumen.solicitudes` (sección 35). */}
-              <View style={styles.statGrid}>
-                {stats.map((stat) => (
-                  <StatTile key={stat.key} label={stat.label} value={stat.value} highlight={stat.highlight} wide={wide} onPress={() => open(stat.route)} />
-                ))}
-              </View>
+              {stats.length > 0 ? (
+                <View style={styles.statGrid}>
+                  {stats.map((stat) => (
+                    <StatTile key={stat.key} label={stat.label} value={stat.value} highlight={stat.highlight} wide={wide} onPress={() => open(stat.route)} />
+                  ))}
+                </View>
+              ) : null}
 
-              {data.resumen.vacaciones > 0 ? (
+              {/* Lo que se resuelve desde el teléfono, arriba: sin desplazarse. */}
+              <ModuleSection title="Resolver" modulos={atajos} onOpen={open} />
+
+              {data && puedeBandejaRh && data.resumen.vacaciones > 0 ? (
                 <Card onPress={() => open('/(app)/rh/(tabs)/pendientes')} style={styles.legacyCard}>
                   <Ionicons name="airplane-outline" size={20} color={Colors.textMuted} />
                   <View style={styles.rowText}>
@@ -161,7 +196,7 @@ export default function RhDashboardScreen() {
                 </Card>
               ) : null}
 
-              {extractionEnabled && extractionsPending ? (
+              {extractionEnabled && extractionsPending && puedeBandejaRh ? (
                 <Card onPress={() => open('/(app)/rh/(tabs)/pendientes')} style={styles.accentCard}>
                   <Ionicons name="sparkles-outline" size={20} color={Colors.primaryDark} />
                   <View style={styles.rowText}>
@@ -201,30 +236,31 @@ export default function RhDashboardScreen() {
                 </Card>
               ) : null}
 
-              <Text style={styles.sectionTitle} accessibilityRole="header">
-                Pendientes importantes
-              </Text>
-              {data.urgentes.length === 0 ? (
-                <Card>
-                  <View style={styles.emptyRow}>
-                    <Ionicons name="checkmark-circle-outline" size={22} color={Colors.success} />
-                    <Text style={styles.emptyText}>No hay pendientes urgentes por ahora.</Text>
-                  </View>
-                </Card>
-              ) : (
-                <View style={styles.list}>
-                  {data.urgentes.slice(0, 5).map((pendiente, index) => (
-                    <FadeInView key={pendiente.id} index={index}>
-                      <RhPendienteCard pendiente={pendiente} onPress={() => open(rhPendienteDetailRoute(pendiente))} />
-                    </FadeInView>
-                  ))}
+              {data && puedeBandejaRh ? (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle} accessibilityRole="header">
+                    Pendientes importantes
+                  </Text>
+                  {data.urgentes.length === 0 ? (
+                    <Card>
+                      <View style={styles.emptyRow}>
+                        <Ionicons name="checkmark-circle-outline" size={22} color={Colors.success} />
+                        <Text style={styles.emptyText}>No hay pendientes urgentes por ahora.</Text>
+                      </View>
+                    </Card>
+                  ) : (
+                    <View style={styles.list}>
+                      {data.urgentes.slice(0, 5).map((pendiente, index) => (
+                        <FadeInView key={pendiente.id} index={index}>
+                          <RhPendienteCard pendiente={pendiente} onPress={() => open(rhPendienteDetailRoute(pendiente))} />
+                        </FadeInView>
+                      ))}
+                    </View>
+                  )}
                 </View>
-              )}
-
+              ) : null}
 
               <BirthdayWallBanner enabled={cumpleanosEnabled} />
-
-              <ModuleSection title="Resolver" modulos={atajos} onOpen={open} />
 
               {/* Administración (nómina, documentos maestros, altas,
                   importaciones, reportes, configuración): Portal Web. */}

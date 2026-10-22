@@ -66,7 +66,7 @@ export default function AyudaScreen() {
 
   return (
     <View style={styles.container}>
-      <AppHeader title="Ayuda" showBack onBackPress={() => router.back()} />
+      <AppHeader title="Ayuda" showBack />
 
       <ScrollView contentContainerStyle={styles.content}>
         <FadeInView index={0}>

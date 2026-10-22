@@ -4,7 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { renderScrollConTeclado } from '@/components/FormularioScroll';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { LocalUploadFile } from '@/api/upload';
@@ -190,8 +190,8 @@ export default function MuroCumpleanosScreen() {
   ) : null;
 
   return (
-    // keyboard-controller: el campo del mensaje sube sobre el teclado en Android e iOS.
-    <KeyboardAvoidingView style={styles.container} behavior="padding">
+    // keyboard-controller: la lista usa KeyboardAwareScrollView, el campo del mensaje sube sobre el teclado.
+    <View style={styles.container}>
       <AppHeader title="Muro de cumpleaños" showBack onBackPress={() => volverAtras(router)} />
       {wall.isLoading ? (
         <View style={styles.loading}>
@@ -211,7 +211,7 @@ export default function MuroCumpleanosScreen() {
           data={items}
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={[styles.list, { paddingBottom: paddingInferiorBarra(insets.bottom) + Spacing.xl }]}
-          keyboardShouldPersistTaps="handled"
+          renderScrollComponent={renderScrollConTeclado}
           ListHeaderComponent={header}
           ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
           refreshControl={
@@ -239,7 +239,7 @@ export default function MuroCumpleanosScreen() {
           renderItem={({ item }) => <MensajeCard mensaje={item} token={token} onDelete={() => void borrar(item)} />}
         />
       )}
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
