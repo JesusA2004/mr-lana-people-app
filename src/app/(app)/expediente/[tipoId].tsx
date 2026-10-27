@@ -101,7 +101,7 @@ export default function DocumentoDetalleScreen() {
                 <DocumentTypeIcon clave={documento.tipo} size={56} />
                 <View style={styles.previewText}>
                   <Text style={styles.previewName}>{documento.nombre}</Text>
-                  {documento.obligatorio ? <Text style={styles.requiredNote}>Documento requerido</Text> : null}
+                  <Text style={styles.requiredNote}>{documento.obligatorio ? 'Documento requerido' : 'Opcional: no es necesario para completar tu expediente'}</Text>
                 </View>
               </View>
               <View style={styles.headerRow}>

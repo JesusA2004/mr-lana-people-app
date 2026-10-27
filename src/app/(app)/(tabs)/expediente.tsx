@@ -43,8 +43,11 @@ export default function ExpedienteScreen() {
   const progreso = toExpedienteProgress(data?.progreso);
   const breakdown = progressBreakdown(progreso);
   const documentos = data?.documentos ?? [];
-  // El expediente solo pide documentos requeridos; lo opcional entra por Solicitudes.
-  const requeridos = documentos.filter((d) => d.obligatorio);
+  // El expediente pide los documentos requeridos; lo opcional entra por
+  // Solicitudes. Excepción: el backend también manda el PAR opcional de un
+  // requerido (la «Carta de recomendación 2», backend 2026-10-27) con
+  // `obligatorio: false`; se lista junto a los requeridos marcado «(opcional)».
+  const requeridos = documentos.filter((d) => d.obligatorio || d.par);
   const abrir = (documento: DocumentoIncorporacion) => router.push({ pathname: '/expediente/[tipoId]', params: { tipoId: String(documento.id) } });
 
   return (
@@ -136,10 +139,10 @@ function DocumentList({ title, documentos, onOpen }: { title: string; documentos
             key={documento.id}
             icono={glyph.icon}
             tono={TONO_DOCUMENTO[glyph.tone]}
-            titulo={documento.nombre}
+            titulo={documento.obligatorio ? documento.nombre : `${documento.nombre} (opcional)`}
             subtitulo={glyph.label}
             subtituloConTono
-            accessibilityLabel={`${documento.nombre}: ${glyph.label}`}
+            accessibilityLabel={`${documento.nombre}${documento.obligatorio ? '' : ' (opcional)'}: ${glyph.label}`}
             onPress={() => onOpen(documento)}
           />
         );
