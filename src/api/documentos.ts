@@ -10,6 +10,8 @@ export interface UploadDocumentoParams {
   fileUri: string;
   fileName: string;
   mimeType: string;
+  /** El archivo trae también el documento par (`documento.par`): el backend lo registra en ambos. */
+  incluyePar?: boolean;
   onProgress?: (percent: number) => void;
 }
 
@@ -28,10 +30,12 @@ export const documentosApi = {
    * cambio primero). La respuesta es el estado completo de la incorporación
    * (no solo el documento subido), igual que devuelve el propio controlador.
    */
-  async upload({ documentTypeId, fileUri, fileName, mimeType, onProgress }: UploadDocumentoParams): Promise<IncorporacionResponse> {
+  async upload({ documentTypeId, fileUri, fileName, mimeType, incluyePar, onProgress }: UploadDocumentoParams): Promise<IncorporacionResponse> {
     const formData = new FormData();
     // React Native FormData: el archivo se describe con { uri, name, type }, no con un Blob real.
     formData.append('archivo', { uri: fileUri, name: fileName, type: mimeType } as unknown as Blob);
+    // Regla `boolean` de Laravel: acepta '1'/'0', no 'true'.
+    if (incluyePar) formData.append('incluye_par', '1');
 
     const response = await apiClient.post(`/colaborador/incorporacion/documentos/${documentTypeId}/subir`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },

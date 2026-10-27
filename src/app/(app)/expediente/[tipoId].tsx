@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/AppHeader';
 import { BarraAccionInferior } from '@/components/BarraAccionInferior';
@@ -30,6 +30,8 @@ export default function DocumentoDetalleScreen() {
   const uploadMutation = useUploadDocumento();
   const solicitarCambioMutation = useSolicitarCambioDocumento();
   const [sheetVisible, setSheetVisible] = useState(false);
+  // «Este archivo trae también la otra carta» (solo tipos con par).
+  const [incluyePar, setIncluyePar] = useState(false);
 
   const documento =
     ref === 'documento'
@@ -43,8 +45,13 @@ export default function DocumentoDetalleScreen() {
       fileUri: file.uri,
       fileName: file.name,
       mimeType: file.mimeType,
+      incluyePar: ofrecePar && incluyePar,
       onProgress,
     });
+    if (ofrecePar && incluyePar && documento.par) {
+      toast.success(`Se registró también en «${documento.par.nombre}». Recursos Humanos revisa cada una por separado.`);
+    }
+    setIncluyePar(false);
   };
 
   const handleSolicitarCambio = async () => {
@@ -68,6 +75,7 @@ export default function DocumentoDetalleScreen() {
   const canUploadDirectly = Boolean(documento && (documento.puede_subir || documento.puede_reemplazar));
   const canRequestChange = Boolean(documento?.puede_solicitar_cambio);
   const hasUploadedFile = Boolean(documento && documento.estado !== 'pendiente');
+  const ofrecePar = Boolean(canUploadDirectly && documento?.par?.puede_subir);
 
   return (
     <View style={styles.container}>
@@ -119,6 +127,21 @@ export default function DocumentoDetalleScreen() {
                 <Text style={styles.emptyText}>Todavía no has cargado este documento.</Text>
               </Card>
             )}
+
+            {ofrecePar && documento.par ? (
+              <Card>
+                <View style={styles.parRow}>
+                  <View style={styles.previewText}>
+                    <Text style={styles.parTitle}>Este archivo trae también la «{documento.par.nombre}»</Text>
+                    <Text style={styles.requiredNote}>
+                      Puedes subir cada carta por separado (foto o PDF) o, si vienen juntas, un solo archivo para las dos. Recursos Humanos revisa cada
+                      una por su lado.
+                    </Text>
+                  </View>
+                  <Switch value={incluyePar} onValueChange={setIncluyePar} accessibilityLabel={`Este archivo trae también la ${documento.par.nombre}`} />
+                </View>
+              </Card>
+            ) : null}
 
             {canRequestChange && !canUploadDirectly ? (
               <TarjetaAviso
@@ -247,6 +270,16 @@ const crearEstilos = (Colors: ColorPalette) =>
     fontSize: FontSize.sm,
     color: Colors.textMuted,
     textAlign: 'center',
+  },
+  parRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  parTitle: {
+    fontSize: FontSize.sm,
+    fontWeight: '700',
+    color: Colors.text,
   },
   rejectionHint: {
     fontSize: FontSize.xs,

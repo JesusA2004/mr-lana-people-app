@@ -35,4 +35,10 @@ export interface DocumentoIncorporacion {
   documento_id?: number | null;
   fecha_subida?: string | null;
   fecha_revision?: string | null;
+  /**
+   * Documento que puede venir en el MISMO archivo (las dos cartas de
+   * recomendación, backend 2026-10-27). Si `puede_subir`, al subir se ofrece
+   * «Este archivo trae también…» (`incluyePar`). Null/ausente = sin par.
+   */
+  par?: { id: number; nombre: string; puede_subir: boolean } | null;
 }

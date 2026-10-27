@@ -28,6 +28,8 @@ export const DOCUMENT_TYPE_META: Record<string, DocumentTypeMeta> = {
   contrato: { icon: 'document-text-outline', color: Colors.neutral, background: Colors.neutralSoft },
   aviso_privacidad: { icon: 'shield-checkmark-outline', color: Colors.info, background: Colors.infoSoft },
   carta_confidencialidad: { icon: 'lock-closed-outline', color: Colors.info, background: Colors.infoSoft },
+  carta_recomendacion_1: { icon: 'mail-open-outline', color: Colors.secondary, background: Colors.secondarySoft },
+  carta_recomendacion_2: { icon: 'mail-open-outline', color: Colors.secondary, background: Colors.secondarySoft },
   cv: { icon: 'briefcase-outline', color: Colors.neutral, background: Colors.neutralSoft },
   reglamento: { icon: 'list-outline', color: Colors.neutral, background: Colors.neutralSoft },
   incapacidad: { icon: 'pulse-outline', color: Colors.warning, background: Colors.warningSoft },
