@@ -6,6 +6,8 @@
  * idioma del resto de la API REST. Ver `utils/appLinks.ts` para el mapeo.
  */
 export type PushResourceType =
+  // Citas de reclutamiento (gerente y subgerente)
+  | 'agenda_evento'
   // Colaborador
   | 'solicitud'
   | 'documento'

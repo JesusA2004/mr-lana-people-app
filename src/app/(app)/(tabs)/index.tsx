@@ -244,6 +244,19 @@ export default function DashboardScreen() {
               </FadeInView>
             ) : null}
 
+            {operacionAqui && permisos.puede('agenda.ver') ? (
+              <FadeInView index={0}>
+                <TarjetaAviso
+                  icono="calendar-outline"
+                  tono="info"
+                  titulo="Mi agenda"
+                  mensaje="Entrevistas y estudios socioeconómicos de tu sucursal."
+                  accion="Ver agenda"
+                  onPress={() => router.push('/agenda' as never)}
+                />
+              </FadeInView>
+            ) : null}
+
             {porCorregir && correccionesPendientes === 0 ? (
               <FadeInView index={0}>
                 <TarjetaAviso

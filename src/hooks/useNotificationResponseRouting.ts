@@ -53,6 +53,11 @@ export function invalidateAfterPush(data?: PushNotificationData): void {
     void queryClient.invalidateQueries({ queryKey: queryKeys.incorporacion });
   }
 
+  if (data?.type === 'agenda_evento') {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.agenda });
+    if (data.resource_id) void queryClient.invalidateQueries({ queryKey: queryKeys.agendaEvento(data.resource_id) });
+  }
+
   if (data?.type === 'cumpleanos_muro') {
     void queryClient.invalidateQueries({ queryKey: ['cumpleanos', 'muros'] });
   }

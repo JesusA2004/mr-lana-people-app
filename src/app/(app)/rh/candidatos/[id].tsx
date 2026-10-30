@@ -4,8 +4,10 @@ import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Image, Linking, Share, StyleSheet, Text, View } from 'react-native';
 
+import { rhCandidatosApi } from '@/api/rh/candidatos';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { DescargaDocumento } from '@/components/DescargaDocumento';
 import { FilterChips } from '@/components/ciclo/FilterChips';
 import { Field, FormSheet } from '@/components/ciclo/FormSheet';
 import { InfoRow } from '@/components/ciclo/InfoRow';
@@ -21,7 +23,7 @@ import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useRhCandidato, useRhIniciarContratacion, useRhOperarCandidato, type RhCandidatoOperacion } from '@/hooks/queries/useRhCandidatos';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { toast } from '@/store/toastStore';
-import type { ContratacionQr, IniciarContratacionPayload } from '@/types/rhCandidato';
+import type { CandidatoEvidencia, ContratacionQr, IniciarContratacionPayload } from '@/types/rhCandidato';
 import { candidatoBadge } from '@/utils/candidato';
 import { confirmAction } from '@/utils/confirm';
 import { buildIniciarContratacionPayload, mensajeCompartirQr, MODALIDADES_CONTRATACION } from '@/utils/contratacion';
@@ -240,6 +242,8 @@ export default function RhCandidatoDetailScreen() {
             {candidato.motivo_salida ? <InfoRow label="Motivo" value={candidato.motivo_salida} /> : null}
           </Card>
 
+          {candidato.tiene_cv ? <DescargaDocumento titulo={`CV de ${candidato.nombre_completo}`} path={rhCandidatosApi.cvPath(Number(id))} /> : null}
+
           {candidato.entrevistas.length > 0 ? (
             <Card style={styles.gap}>
               <SectionTitle>Entrevistas</SectionTitle>
@@ -264,7 +268,7 @@ export default function RhCandidatoDetailScreen() {
                   {p.resumen_resultados ? <Text style={styles.subItemTitle}>{p.resumen_resultados}</Text> : <Text style={styles.muted}>Link enviado, en espera de resultados.</Text>}
                   {p.revision_resultado ? <Text style={styles.muted}>Revisión: {p.revision_resultado === 'viable' ? 'Viable' : 'No viable'}</Text> : null}
                   {p.revision_observaciones ? <Text style={styles.muted}>{p.revision_observaciones}</Text> : null}
-                  {p.evidencias.length > 0 ? <Text style={styles.muted}>{p.evidencias.length} archivo(s) adjunto(s)</Text> : null}
+                  <EvidenciasCandidato candidatoId={Number(id)} evidencias={p.evidencias} />
                 </View>
               ))}
             </Card>
@@ -279,7 +283,7 @@ export default function RhCandidatoDetailScreen() {
                   <Text style={styles.muted}>{s.direccion}</Text>
                   <Text style={styles.muted}>Resultado: {s.resultado_etiqueta ?? s.resultado}</Text>
                   {s.riesgos ? <Text style={styles.muted}>Riesgos: {s.riesgos}</Text> : null}
-                  {s.evidencias.length > 0 ? <Text style={styles.muted}>{s.evidencias.length} evidencia(s)</Text> : null}
+                  <EvidenciasCandidato candidatoId={Number(id)} evidencias={s.evidencias} />
                 </View>
               ))}
             </Card>
@@ -606,6 +610,22 @@ export default function RhCandidatoDetailScreen() {
         </>
       ) : null}
     </Screen>
+  );
+}
+
+function EvidenciasCandidato({ candidatoId, evidencias }: { candidatoId: number; evidencias: CandidatoEvidencia[] }) {
+  return (
+    <>
+      {evidencias.map((evidencia) => (
+        <DescargaDocumento
+          key={evidencia.id}
+          titulo={evidencia.nombre ?? evidencia.tipo_etiqueta ?? 'Evidencia'}
+          path={rhCandidatosApi.evidenciaPath(candidatoId, evidencia.id)}
+          tipoEsperado={evidencia.mime === 'application/pdf' ? 'pdf' : 'unknown'}
+          tamanoConocido={evidencia.tamano}
+        />
+      ))}
+    </>
   );
 }
 

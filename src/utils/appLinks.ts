@@ -178,6 +178,9 @@ export function resolveResourceRoute(data: PushNotificationData): string | null 
     // sus contratos (colaborador).
     case 'contrato_indeterminado':
       return colaboradorId ? `/(app)/rh/colaboradores/${colaboradorId}` : '/contratos';
+    // Citas de reclutamiento: pantalla compartida (el subgerente es colaborador).
+    case 'agenda_evento':
+      return id ? `/agenda/${id}` : '/agenda';
 
     default:
       // Eventos de reclutamiento/reingreso (`candidato_preautorizado`,
@@ -295,6 +298,7 @@ const SHARED_PUSH_TYPES = new Set<PushResourceType>([
   'aniversario_general',
   'celebracion_mensaje',
   'push_test',
+  'agenda_evento',
   // Periodo de prueba y excepción de Dirección General: Evaluaciones es
   // compartida (jefe, RH y DG la usan desde cualquier experiencia).
   'evaluacion_periodo',

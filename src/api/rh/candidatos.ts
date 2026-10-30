@@ -37,6 +37,14 @@ export const rhCandidatosApi = {
     return normalizePaginated(response.data, normalizeCandidatoFila);
   },
 
+  cvPath(id: number | string): string {
+    return `/rh/candidatos/${id}/cv`;
+  },
+
+  evidenciaPath(id: number | string, evidenciaId: number | string): string {
+    return `/rh/candidatos/${id}/evidencias/${evidenciaId}`;
+  },
+
   async get(id: number | string): Promise<CandidatoFicha> {
     const response = await apiClient.get(`/rh/candidatos/${id}`);
     return normalizeCandidatoFicha(extractData<unknown>(response.data));

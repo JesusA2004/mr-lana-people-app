@@ -92,6 +92,7 @@ export default function RhDashboardScreen() {
     // Mismo permiso que GET /rh/colaboradores; un gerente sin él ve a su gente en «Mi equipo».
     permisos.puede('rh.colaboradores.ver') && { route: '/(app)/rh/(tabs)/colaboradores', icon: 'search-outline', label: 'Buscar persona' },
     moduloOn('candidatos') && { route: '/(app)/rh/candidatos', icon: 'people-circle-outline', label: 'Candidatos' },
+    permisos.puede('agenda.ver') && { route: '/agenda', icon: 'calendar-outline', label: 'Mi agenda' },
     moduloOn('evaluaciones') && { route: '/evaluaciones', icon: 'clipboard-outline', label: 'Evaluaciones' },
     // Reingresos: solo quien los decide (gestionar + autorizar RH, bandera del backend).
     moduloOn('reingresos') && permisos.accion('decidir_reingreso') && { route: '/(app)/rh/reingresos', icon: 'refresh-circle-outline', label: 'Reingresos' },

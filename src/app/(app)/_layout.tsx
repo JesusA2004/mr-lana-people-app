@@ -25,6 +25,7 @@ import { useAppLockStore } from '@/store/appLockStore';
 import { useAuthStore } from '@/store/authStore';
 import { useExperienceStore } from '@/store/experienceStore';
 import { usePendingNavigationStore } from '@/store/pendingNavigationStore';
+import { hasPermission } from '@/utils/capabilities';
 import { experienceAvailability, resolveExperience, shouldCorrectStoredExperience, type ExperienceAvailability } from '@/utils/experience';
 import { getErrorMessage } from '@/utils/errors';
 import { isFeatureEnabled } from '@/utils/featureFlags';
@@ -84,6 +85,9 @@ export default function AppLayout() {
   const equipoEnabled = isSelfServiceModuleEnabled(features, 'equipo');
   const evaluacionesEnabled = isSelfServiceModuleEnabled(features, 'evaluaciones');
   const tareasEnabled = isSelfServiceModuleEnabled(features, 'tareas');
+
+  // Hasta que responda el bootstrap se deja la ruta montada para no perder un push; el backend decide con 403.
+  const agendaEnabled = !bootstrap.data || hasPermission(bootstrap.data.user.permissions, 'agenda.ver');
 
   const birthday = useBirthdayGreeting(cumpleanosEnabled);
   useBirthdayAutoCelebration(cumpleanosEnabled ? birthday.data : null);
@@ -212,6 +216,11 @@ export default function AppLayout() {
           <Stack.Screen name="tareas" />
         </Stack.Protected>
         {/* Compartidas: directorio de contacto corporativo e inducción en modo presentación (RH por Meet). */}
+        <Stack.Protected guard={agendaEnabled}>
+          <Stack.Screen name="agenda/index" />
+          <Stack.Screen name="agenda/nueva" />
+          <Stack.Screen name="agenda/[id]" />
+        </Stack.Protected>
         <Stack.Screen name="directorio" />
         <Stack.Screen name="induccion/presentacion" />
         <Stack.Screen name="notificaciones" />
