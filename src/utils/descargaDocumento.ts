@@ -1,7 +1,7 @@
 /**
  * Utilidades PURAS (sin módulos nativos) de la descarga de documentos:
  * tamaño legible, nombre de archivo seguro, tipo legible y mensaje de error
- * por status. Las usan `useDescargaDocumento`, `DescargaDocumento` y
+ * por status. Las usan `useDescargaDocumento`, `DocumentoProtegido` y
  * `SecureDocumentViewer`; se prueban en `__tests__/descargaDocumento.test.ts`.
  */
 import type { SniffedFileType } from './fileSniff';
@@ -129,10 +129,14 @@ export function mensajeErrorDescarga(status: number | undefined, deRed = false):
       return 'No tienes permiso para descargar este documento.';
     case 404:
       return 'Este documento ya no está disponible. Pide a Recursos Humanos que lo revise.';
+    case 409:
+      return 'Este documento todavía no está disponible. Revisa su estado o consulta a Recursos Humanos.';
     case 410:
       return 'Este documento ya no está vigente.';
     case 413:
       return 'El documento es demasiado grande para descargarlo en el teléfono. Pídelo a Recursos Humanos.';
+    case 429:
+      return 'Ya pediste varias descargas seguidas. Espera un minuto e intenta de nuevo.';
     case 503:
       return 'El almacenamiento de documentos no está disponible en este momento. Intenta de nuevo en unos minutos.';
     default:
@@ -170,6 +174,16 @@ export function mensajeErrorDescargaExpediente(status: number | undefined, deRed
     default:
       return mensajeErrorDescarga(status, deRed).replace('el documento', 'el expediente');
   }
+}
+
+/** Tipo esperado ANTES de descargar, por el MIME que mandó la API. */
+export function tipoEsperadoPorMime(mime: string | null | undefined): SniffedFileType {
+  const m = (mime ?? '').toLowerCase();
+  if (m === 'application/pdf') return 'pdf';
+  if (m === 'image/jpeg' || m === 'image/jpg') return 'jpeg';
+  if (m === 'image/png') return 'png';
+  if (m.includes('wordprocessingml')) return 'docx';
+  return 'unknown';
 }
 
 /**

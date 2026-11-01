@@ -30,6 +30,7 @@ import { useMaintenanceStore } from '@/store/maintenanceStore';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { ThemeProvider, useColores } from '@/theme/ThemeProvider';
 import { logError } from '@/utils/errors';
+import { barrerTemporalesDocumentos } from '@/utils/privateAssetCache';
 import { isSplashReady, resolveStartupView } from '@/utils/startup';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -42,6 +43,9 @@ try {
   logError('Appearance.setColorScheme', error);
 }
 SystemUI.setBackgroundColorAsync(Colors.background).catch(() => {});
+
+// Documentos que un cierre abrupto dejó en caché: nunca sobreviven al siguiente arranque.
+barrerTemporalesDocumentos();
 
 /** Íconos oscuros sobre los fondos crema (el login fija los suyos en claro). */
 const STATUS_BAR_STYLE = 'dark';
