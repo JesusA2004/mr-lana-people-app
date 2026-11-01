@@ -33,6 +33,7 @@ export function normalizePdfInduccion(raw: unknown): PdfInduccion {
     path: indice >= 0 ? url.slice(indice + '/api/v1'.length) : '/induccion/pdf',
     titulo: asString(r.titulo) ?? 'Inducción Mr. Lana',
     totalPaginas: asNumber(r.total_paginas) ?? 0,
+    puedeDescargar: r.puede_descargar === true,
   };
 }
 

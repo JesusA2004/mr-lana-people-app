@@ -16,7 +16,6 @@ import { StepTimeline } from '@/components/ciclo/StepTimeline';
 import { RequestStatusTimeline } from '@/components/RequestStatusTimeline';
 import { DocumentoProtegido } from '@/components/DocumentoProtegido';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
-import { AUTORIZADO_POR_POLICY_ACTUAL } from '@/utils/autorizacionDocumento';
 import { SolicitudFormatoOficialCard } from '@/components/SolicitudFormatoOficialCard';
 import { StatusBadge } from '@/components/StatusBadge';
 import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
@@ -328,12 +327,11 @@ export default function SolicitudDetalleScreen() {
                       {permiso.autorizado_en ? ` el ${formatDateTime(permiso.autorizado_en)}` : ''}. Imprímelo para las firmas de tu jefe
                       inmediato, Recursos Humanos y la tuya.
                     </Text>
-                    {/* RONDA 2: `permiso.puede_descargar`. Hoy `SolicitudInternaPolicy::descargarFormato` es la misma regla que abrir esta tarjeta. */}
                     <DocumentoProtegido
                       titulo={`Permiso ${solicitud.folio ?? ''}`.trim()}
                       modo="descarga"
                       path={solicitudesApi.permisoPdfPath(solicitud.id)}
-                      puedeDescargar={AUTORIZADO_POR_POLICY_ACTUAL}
+                      puedeDescargar={permiso.puede_descargar === true}
                     />
                   </>
                 ) : (

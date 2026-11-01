@@ -84,6 +84,7 @@ export default function InduccionLecturaScreen() {
       <VisorPdfPaginado
         path={pdf.data.path}
         titulo={pdf.data.titulo}
+        puedeDescargar={pdf.data.puedeDescargar}
         paginaInicial={resumen?.ultimaPagina ?? 1}
         onPagina={alMostrar}
         nota={resumen?.completado ? null : faltan > 0 ? `Te faltan ${faltan} página(s)` : null}

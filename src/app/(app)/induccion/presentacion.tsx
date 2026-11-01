@@ -22,7 +22,7 @@ export default function PresentacionInduccionScreen() {
   return (
     <View style={[styles.container, { backgroundColor: Colors.background }]}>
       <AppHeader title="Inducción Mr. Lana" subtitle="Modo presentación" showBack />
-      <VisorPdfPaginado path={pdf.data.path} titulo={pdf.data.titulo} />
+      <VisorPdfPaginado path={pdf.data.path} titulo={pdf.data.titulo} puedeDescargar={pdf.data.puedeDescargar} />
     </View>
   );
 }

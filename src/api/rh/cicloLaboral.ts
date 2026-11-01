@@ -117,6 +117,11 @@ export const rhDocumentosLaboralesApi = {
     return `/rh/documentos-laborales/${id}/descargar`;
   },
 
+  /** Consulta en línea: basta `ver`, sin exigir `descargar`. */
+  verPath(id: number | string): string {
+    return `/rh/documentos-laborales/${id}/ver`;
+  },
+
   async imprimir(id: number | string, observaciones?: string | null): Promise<LaborDocument> {
     const response = await apiClient.post(`/rh/documentos-laborales/${id}/imprimir`, { observaciones: observaciones || null });
     return normalizeLaborDocument(extractData<unknown>(response.data));
@@ -402,6 +407,11 @@ export const rhActasApi = {
 
   anexoPath(id: number | string, anexoId: number | string): string {
     return `/rh/actas/${id}/anexos/${anexoId}`;
+  },
+
+  /** Consulta en línea: basta `ver` del acta. */
+  anexoVerPath(id: number | string, anexoId: number | string): string {
+    return `/rh/actas/${id}/anexos/${anexoId}/ver`;
   },
 };
 

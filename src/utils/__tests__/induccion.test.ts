@@ -69,6 +69,7 @@ describe('inducción: carga y progreso (datos del servidor)', () => {
       path: '/induccion/pdf',
       titulo: 'Inducción Mr. Lana',
       totalPaginas: 30,
+      puedeDescargar: false,
     });
   });
 });

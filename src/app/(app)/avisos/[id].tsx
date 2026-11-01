@@ -15,7 +15,6 @@ import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constant
 import { useAviso, useMarcarAvisoLeido } from '@/hooks/queries/useAvisos';
 import { useAuthStore } from '@/store/authStore';
 import { useEstilos } from '@/theme/ThemeProvider';
-import { AUTORIZADO_POR_POLICY_ACTUAL } from '@/utils/autorizacionDocumento';
 import { formatDateTime } from '@/utils/dates';
 import { getErrorMessage, isNotFoundError } from '@/utils/errors';
 import type { AvisoItem } from '@/types/aviso';
@@ -92,12 +91,11 @@ export default function AvisoDetalleScreen() {
         </Card>
 
         {tipo === 'pdf' && aviso.archivo ? (
-          // RONDA 2: `aviso.archivo.puede_descargar`. Hoy `AvisoController::exigirPuedeVer` es la única regla: destinatario.
           <DocumentoProtegido
             titulo={aviso.archivo.nombre ?? aviso.titulo}
             modo="descarga"
             path={avisosApi.archivoPath(aviso.id)}
-            puedeDescargar={AUTORIZADO_POR_POLICY_ACTUAL}
+            puedeDescargar={aviso.archivo.puede_descargar === true}
             tamanoConocido={aviso.archivo.tamano}
           />
         ) : null}

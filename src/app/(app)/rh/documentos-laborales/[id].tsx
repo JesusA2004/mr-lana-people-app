@@ -23,10 +23,11 @@ import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useRhDocumentoLaboral, useRhOperarDocumentoLaboral, type RhDocumentoOperacion } from '@/hooks/queries/useRhCicloLaboral';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useAuthStore } from '@/store/authStore';
 import { toast } from '@/store/toastStore';
-import { AUTORIZADO_POR_POLICY_ACTUAL } from '@/utils/autorizacionDocumento';
 import { formatDateLong, formatDateTime } from '@/utils/dates';
 import { getActionErrorMessage, getFieldError, logError } from '@/utils/errors';
+import { joinName } from '@/utils/formatters';
 import { haptics } from '@/utils/haptics';
 import {
   availableRhDocumentOperations,
@@ -68,6 +69,8 @@ export default function RhDocumentoLaboralScreen() {
   const bootstrap = useMobileBootstrap(true);
   const operar = useRhOperarDocumentoLaboral(Number(id), documento?.colaborador?.id ?? null);
   const { isOffline } = useNetworkStatus();
+  const user = useAuthStore((state) => state.user);
+  const marcaDeAgua = `${joinName(user?.nombre, user?.apellidos) ?? 'RH'} · ${new Date().toLocaleString('es-MX')}`;
 
   const [sheetElegido, setSheet] = useState<Sheet>(null);
   const [atajoConsumido, setAtajoConsumido] = useState(false);
@@ -161,23 +164,20 @@ export default function RhDocumentoLaboralScreen() {
             <InfoRow label="Firmado digitalmente" value={formatDateTime(documento.firmado_digital_en)} />
           </Card>
 
-          {/*
-            RONDA 2: `documento.puede_descargar` y ruta de consulta. Hoy `GeneratedDocumentPolicy::descargar`
-            exige `contratos.descargar` solo en contratos ajenos; sin él, la ruta responde 403 y aquí se ve el error.
-          */}
           <DocumentoProtegido
             titulo={documento.titulo}
-            modo="descarga"
+            modo={documento.puede_descargar ? 'descarga' : 'consulta'}
             path={rhDocumentosLaboralesApi.descargarPath(documento.id)}
-            puedeDescargar={AUTORIZADO_POR_POLICY_ACTUAL}
+            puedeDescargar={documento.puede_descargar}
+            pathConsulta={rhDocumentosLaboralesApi.verPath(documento.id)}
+            marcaDeAgua={marcaDeAgua}
           />
           {accion === 'word' ? (
-            // RONDA 2: `documento.puede_descargar_word`. Hoy lo decide `GeneratedDocumentPolicy::descargarWord` en la ruta.
             <DocumentoProtegido
               titulo={`${documento.titulo} (Word)`}
               modo="descarga"
               path={rhDocumentosProcesoApi.wordPath(documento.id)}
-              puedeDescargar={AUTORIZADO_POR_POLICY_ACTUAL}
+              puedeDescargar={documento.puede_descargar_word}
               tipoEsperado="docx"
             />
           ) : null}

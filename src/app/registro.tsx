@@ -326,7 +326,7 @@ export default function RegistroScreen() {
             <BrandLogo width={150} />
           </View>
         </View>
-        <CartaGenerada carta={cartaGenerada} onVer={() => setVisor({ tipo: 'carta', folio: cartaGenerada.folio })} onContinuar={continuarALaApp} />
+        <CartaGenerada carta={cartaGenerada} onVer={() => setVisor({ tipo: 'carta', folio: cartaGenerada.folio, puedeDescargar: cartaGenerada.puede_descargar })} onContinuar={continuarALaApp} />
         <CartaCompromisoVisor visor={visor} onClose={() => setVisor(null)} />
       </SafeAreaView>
     );

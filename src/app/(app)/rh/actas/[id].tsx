@@ -12,10 +12,11 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
 import { useEstilos } from '@/theme/ThemeProvider';
 import { useRhActa } from '@/hooks/queries/useRhCicloLaboral';
+import { useAuthStore } from '@/store/authStore';
 import type { ActaCircunstanciada, ActaPersona } from '@/types/rhCiclo';
 import { actaBadge, actaEntregaLabel, actaEstadoLabel, AVISO_ACTAS_SOLO_CONSULTA } from '@/utils/acta';
 import { formatDateLong, formatDateTime } from '@/utils/dates';
-import { AUTORIZADO_POR_POLICY_ACTUAL } from '@/utils/autorizacionDocumento';
+import { joinName } from '@/utils/formatters';
 
 /** «Puesto · Área» de una persona del acta (solo lo que mande el backend). */
 function puestoArea(persona: Pick<ActaPersona, 'puesto' | 'area'>): string | null {
@@ -37,6 +38,8 @@ export default function RhActaScreen() {
   const acta = query.data;
 
   const c = acta?.circunstanciada ?? null;
+  const user = useAuthStore((state) => state.user);
+  const marcaDeAgua = `${joinName(user?.nombre, user?.apellidos) ?? 'RH'} · ${new Date().toLocaleString('es-MX')}`;
 
   return (
     <Screen
@@ -112,12 +115,13 @@ export default function RhActaScreen() {
             {(acta.anexos ?? []).length === 0 ? <Text style={styles.muted}>Sin anexos.</Text> : null}
             {(acta.anexos ?? []).map((anexo) => (
               <View key={anexo.id} style={styles.anexo}>
-                {/* RONDA 2: `anexo.puede_descargar` y ruta de consulta. Hoy `ActaAdministrativaPolicy::descargarAnexo` (actas.descargar o quien levantó el acta) decide en la ruta; sin él se ve el 403. */}
                 <DocumentoProtegido
                   titulo={anexo.nombre ?? `Anexo ${anexo.id}`}
-                  modo="descarga"
+                  modo={anexo.puede_descargar ? 'descarga' : 'consulta'}
                   path={rhActasApi.anexoPath(acta.id, anexo.id)}
-                  puedeDescargar={AUTORIZADO_POR_POLICY_ACTUAL}
+                  puedeDescargar={anexo.puede_descargar}
+                  pathConsulta={rhActasApi.anexoVerPath(acta.id, anexo.id)}
+                  marcaDeAgua={marcaDeAgua}
                 />
                 {anexo.descripcion ? <Text style={styles.muted}>{anexo.descripcion}</Text> : null}
                 {anexo.fecha_identificacion ? <Text style={styles.muted}>Identificado: {anexo.fecha_identificacion}</Text> : null}

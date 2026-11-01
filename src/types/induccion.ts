@@ -27,6 +27,7 @@ export interface PdfInduccion {
   path: string;
   titulo: string;
   totalPaginas: number;
+  puedeDescargar: boolean;
 }
 
 export type EstadoEvaluacionInduccion =

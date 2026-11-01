@@ -8,6 +8,7 @@ function normalizePuede(value: unknown): AgendaPuede {
     gestionar: raw.gestionar === true,
     registrar_resultado: raw.registrar_resultado === true,
     ver_datos_candidato: raw.ver_datos_candidato === true,
+    descargar_cv: raw.descargar_cv === true,
     reprogramar: raw.reprogramar === true,
     cancelar: raw.cancelar === true,
     capturar: raw.capturar === true,

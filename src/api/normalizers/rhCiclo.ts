@@ -204,6 +204,7 @@ export function normalizeActa(value: unknown, catalogos: ActaCatalogos = SIN_CAT
         relacion_hechos: asString(a.relacion_hechos),
         mime: asString(a.mime),
         size: asNumber(a.size),
+        puede_descargar: a.puede_descargar === true,
       };
     });
   }

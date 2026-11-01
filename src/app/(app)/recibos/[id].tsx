@@ -5,7 +5,6 @@ import { DocumentoProtegido } from '@/components/DocumentoProtegido';
 import { ReciboDetail } from '@/components/ciclo/ReciboDetail';
 import { Notice, Screen } from '@/components/ciclo/Screen';
 import { useMiRecibo } from '@/hooks/queries/useCicloLaboral';
-import { AUTORIZADO_POR_POLICY_ACTUAL } from '@/utils/autorizacionDocumento';
 
 /**
  * Detalle del recibo de nómina — `GET /colaborador/recibos/{id}` (Policy
@@ -30,12 +29,11 @@ export default function MiReciboScreen() {
         <>
           <ReciboDetail recibo={recibo} />
           {recibo.tiene_pdf ? (
-            // RONDA 2: `recibo.puede_descargar`. Hoy `ReciboNominaPolicy::descargar` basta con `ver` para el recibo propio.
             <DocumentoProtegido
               titulo={`Recibo de nómina ${recibo.folio ?? ''}`.trim()}
               modo="descarga"
               path={recibosApi.pdfPath(recibo.id)}
-              puedeDescargar={AUTORIZADO_POR_POLICY_ACTUAL}
+              puedeDescargar={recibo.puede_descargar === true}
             />
           ) : (
             <Notice tone="warning">El comprobante PDF aún no está disponible.</Notice>

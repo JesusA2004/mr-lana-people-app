@@ -4,6 +4,8 @@ export interface AdjuntoAviso {
   nombre: string | null;
   tamano: number | null;
   mime: string | null;
+  /** Ausente = no. */
+  puede_descargar?: boolean;
 }
 
 /**

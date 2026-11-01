@@ -199,7 +199,7 @@ export default function DocumentosPendientesScreen() {
                 title="Descargar carta compromiso"
                 variant="outline"
                 leftIcon="download-outline"
-                onPress={() => setVisor({ tipo: 'carta', folio: cartaNueva.folio })}
+                onPress={() => setVisor({ tipo: 'carta', folio: cartaNueva.folio, puedeDescargar: cartaNueva.puede_descargar })}
               />
             </View>
             <Button title="Continuar a la app" rightIcon="log-in-outline" onPress={continuarConCarta} />
@@ -263,7 +263,7 @@ export default function DocumentosPendientesScreen() {
                     title="Descargar carta compromiso"
                     variant="outline"
                     leftIcon="download-outline"
-                    onPress={() => setVisor({ tipo: 'carta', folio: carta.folio })}
+                    onPress={() => setVisor({ tipo: 'carta', folio: carta.folio, puedeDescargar: carta.puede_descargar })}
                   />
                 </View>
               ) : null}

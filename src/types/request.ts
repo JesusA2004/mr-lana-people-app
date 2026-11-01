@@ -294,6 +294,8 @@ export interface SolicitudPermisoResumen {
   autorizado_por: string | null;
   autorizado_en: string | null;
   pdf_disponible: boolean;
+  /** Ausente = no. */
+  puede_descargar?: boolean;
 }
 
 /**

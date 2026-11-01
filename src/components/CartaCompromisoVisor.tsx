@@ -10,13 +10,12 @@ import { SecureDocumentViewer } from './SecureDocumentViewer';
 import { cartaCompromisoApi } from '@/api/cartaCompromiso';
 import { Spacing, type ColorPalette } from '@/constants/colors';
 import { useEstilos } from '@/theme/ThemeProvider';
-import { AUTORIZADO_POR_POLICY_ACTUAL } from '@/utils/autorizacionDocumento';
 
 export type VisorCartaCompromiso =
   /** Vista previa ANTES de terminar el registro (`POST carta-compromiso/vista-previa`). */
   | { tipo: 'vista-previa'; documentos: number[] }
   /** Carta ya generada (`GET carta-compromiso/pdf`), con descarga. */
-  | { tipo: 'carta'; folio?: string | null };
+  | { tipo: 'carta'; folio?: string | null; puedeDescargar?: boolean };
 
 /**
  * Carta compromiso de documentos pendientes, a pantalla completa:
@@ -27,20 +26,19 @@ export type VisorCartaCompromiso =
 export function CartaCompromisoVisor({ visor, onClose }: { visor: VisorCartaCompromiso | null; onClose: () => void }) {
   return (
     <Modal visible={visor !== null} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
-      {visor?.tipo === 'vista-previa' ? <VistaPrevia documentos={visor.documentos} onClose={onClose} /> : visor?.tipo === 'carta' ? <CartaGenerada folio={visor.folio} onClose={onClose} /> : null}
+      {visor?.tipo === 'vista-previa' ? <VistaPrevia documentos={visor.documentos} onClose={onClose} /> : visor?.tipo === 'carta' ? <CartaGenerada folio={visor.folio} puedeDescargar={visor.puedeDescargar === true} onClose={onClose} /> : null}
     </Modal>
   );
 }
 
-function CartaGenerada({ folio, onClose }: { folio?: string | null; onClose: () => void }) {
+function CartaGenerada({ folio, puedeDescargar, onClose }: { folio?: string | null; puedeDescargar: boolean; onClose: () => void }) {
   const styles = useEstilos(crearEstilos);
   return (
     <SafeAreaView style={styles.pantalla}>
       <View style={styles.cerrar}>
         <Button title="Cerrar" variant="ghost" leftIcon="close" fullWidth={false} onPress={onClose} />
       </View>
-      {/* RONDA 2: `puede_descargar`. Hoy `CartaCompromisoController` solo entrega la carta propia. */}
-      <DocumentoProtegido titulo={folio ? `Carta compromiso ${folio}` : 'Carta compromiso'} modo="descarga" path={cartaCompromisoApi.pdfPath()} puedeDescargar={AUTORIZADO_POR_POLICY_ACTUAL} />
+      <DocumentoProtegido titulo={folio ? `Carta compromiso ${folio}` : 'Carta compromiso'} modo="descarga" path={cartaCompromisoApi.pdfPath()} puedeDescargar={puedeDescargar} />
     </SafeAreaView>
   );
 }

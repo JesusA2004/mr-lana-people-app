@@ -11,6 +11,7 @@ export interface AgendaPuede {
   gestionar: boolean;
   registrar_resultado: boolean;
   ver_datos_candidato: boolean;
+  descargar_cv: boolean;
   reprogramar: boolean;
   cancelar: boolean;
   capturar: boolean;

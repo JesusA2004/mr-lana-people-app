@@ -47,6 +47,8 @@ export interface CartaCompromiso {
   fecha_limite: string;
   dias_restantes: number;
   documentos: { document_type_id: number; nombre: string }[];
+  /** Ausente = no. */
+  puede_descargar?: boolean;
   generada_en: string;
 }
 

@@ -15,7 +15,6 @@ import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors
 import { API_URL } from '@/constants/config';
 import { useAuthStore } from '@/store/authStore';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
-import { AUTORIZADO_POR_POLICY_ACTUAL } from '@/utils/autorizacionDocumento';
 import { getErrorMessage, logError } from '@/utils/errors';
 import { descartarPdfInduccion, obtenerPdfInduccion } from '@/utils/induccionCache';
 import { construirHtmlVisorPdfPaginado, partirEnTrozos } from '@/utils/pdfViewerHtml';
@@ -27,6 +26,8 @@ export interface VisorPdfPaginadoProps {
   /** Ruta relativa a la API (con Bearer); nunca una URL pública. */
   path: string;
   titulo: string;
+  /** Respaldo de descarga si el visor no dibuja: solo con la bandera del backend. */
+  puedeDescargar?: boolean;
   paginaInicial?: number;
   /** Se llama cuando una página QUEDÓ DIBUJADA en pantalla (no al pedirla). */
   onPagina?: (numero: number, total: number) => void;
@@ -42,7 +43,7 @@ export interface VisorPdfPaginadoProps {
  * inducción (mismo PDF oficial que la web) — nunca se reconstruye el
  * documento en componentes nativos.
  */
-export function VisorPdfPaginado({ path, titulo, paginaInicial = 1, onPagina, accionFinal, nota }: VisorPdfPaginadoProps) {
+export function VisorPdfPaginado({ path, titulo, puedeDescargar = false, paginaInicial = 1, onPagina, accionFinal, nota }: VisorPdfPaginadoProps) {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   const token = useAuthStore((state) => state.token);
@@ -176,10 +177,7 @@ export function VisorPdfPaginado({ path, titulo, paginaInicial = 1, onPagina, ac
     return (
       <View style={styles.errorBox}>
         <ErrorState message={error} onRetry={reintentar} />
-        {errorDibujo ? (
-          // RONDA 2 (decisión pendiente): ¿se conserva este respaldo? Hoy la ruta solo exige `puede_ver_contenido`.
-          <DocumentoProtegido titulo={titulo} modo="descarga" path={path} puedeDescargar={AUTORIZADO_POR_POLICY_ACTUAL} />
-        ) : null}
+        {errorDibujo && puedeDescargar ? <DocumentoProtegido titulo={titulo} modo="descarga" path={path} puedeDescargar /> : null}
       </View>
     );
   }

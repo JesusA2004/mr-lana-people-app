@@ -21,7 +21,6 @@ import { useAgenda, useAgendaEvento, useOperarAgenda, type AgendaOperacion } fro
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { toast } from '@/store/toastStore';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
-import { AUTORIZADO_POR_POLICY_ACTUAL } from '@/utils/autorizacionDocumento';
 import { agendaBadge, faltaEnResultado, horaParaApi, urlRuta } from '@/utils/agenda';
 import { formatDateLong, toApiDateString } from '@/utils/dates';
 import { getActionErrorMessage, logError } from '@/utils/errors';
@@ -148,8 +147,7 @@ export default function AgendaEventoScreen() {
             {evento.domicilio ? <InfoRow label="Domicilio" value={evento.domicilio} icon="home-outline" /> : null}
           </Card>
 
-          {/* RONDA 2: `evento.puede.descargar_cv`. Hoy `AgendaEventoPolicy` con `agenda.ver_datos_candidato` no separa ver de descargar. */}
-          {evento.candidato.tiene_cv ? <DocumentoProtegido titulo={`CV de ${evento.candidato.nombre}`} modo="descarga" path={agendaApi.cvPath(evento.id)} puedeDescargar={AUTORIZADO_POR_POLICY_ACTUAL} /> : null}
+          {evento.candidato.tiene_cv ? <DocumentoProtegido titulo={`CV de ${evento.candidato.nombre}`} modo="descarga" path={agendaApi.cvPath(evento.id)} puedeDescargar={evento.puede.descargar_cv} /> : null}
 
           {evento.resultado_etiqueta ? (
             <Card style={styles.gap}>

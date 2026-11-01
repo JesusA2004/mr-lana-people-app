@@ -130,6 +130,8 @@ export interface ActaAnexo {
   relacion_hechos: string | null;
   mime: string | null;
   size: number | null;
+  /** Autorización por anexo; ausente = no. */
+  puede_descargar: boolean;
 }
 
 /** Persona del acta resuelta por el backend desde un colaborador real (`ActaService::fichaPersona`). */

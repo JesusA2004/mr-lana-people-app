@@ -34,6 +34,8 @@ export interface ReciboNomina {
   estado_etiqueta: string;
   /** `false` ⇒ el PDF aún no se generó: la UI NO ofrece botón de PDF. */
   tiene_pdf: boolean;
+  /** Autorización por recibo; ausente = no. */
+  puede_descargar?: boolean;
   leyenda: string;
   /** Solo en detalle. */
   conceptos?: ReciboConcepto[];
