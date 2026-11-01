@@ -9,12 +9,13 @@ import { normalizeActa, normalizeActaCatalogos } from '@/api/normalizers/rhCiclo
  * gerente, recibos impresos y configuración de build.
  */
 describe('configuración de la app', () => {
-  it('versionCode válido sin retroceder, versión 1.2.0 y el paquete Android intacto', () => {
+  it('versionCode válido sin retroceder, versión 1.3.0 y el paquete Android intacto', () => {
     // EAS sube versionCode en cada build (autoIncrement + appVersionSource: local), así que
-    // se valida el invariante: entero que nunca baja del último publicado en main (19).
+    // se valida el invariante: entero que nunca baja de 20. El APK anterior es el 19 y
+    // `evaluateUpdate` solo fuerza la actualización si el build nuevo es mayor.
     expect(Number.isInteger(appConfig.expo.android.versionCode)).toBe(true);
-    expect(appConfig.expo.android.versionCode).toBeGreaterThanOrEqual(19);
-    expect(appConfig.expo.version).toBe('1.2.0');
+    expect(appConfig.expo.android.versionCode).toBeGreaterThanOrEqual(20);
+    expect(appConfig.expo.version).toBe('1.3.0');
     expect(appConfig.expo.android.package).toBe('com.mrlana.people');
     expect(appConfig.expo.android.googleServicesFile).toBe('./google-services.json');
   });
