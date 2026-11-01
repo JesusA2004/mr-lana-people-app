@@ -214,8 +214,15 @@ export default function RhCierreDetailScreen() {
               {has('calcular') ? (
                 <Button title={cierre.finiquito ? 'Recalcular finiquito' : 'Calcular finiquito'} variant="outline" leftIcon="calculator-outline" disabled={isOffline} onPress={() => setSheet('calcular')} />
               ) : null}
-              {/* RONDA 2: `POST /rh/cierres/{id}/finiquito/revisar` no existe en la API (daba 404). La operación `revisar` sigue en `utils/cierre.ts` y `rhCicloLaboralApi`: al agregar la ruta se restaura aquí el botón «Marcar finiquito como revisado». */}
-              {has('revisar') ? <Notice tone="info">La revisión del finiquito se hace por ahora en el portal web de PEOPLE.</Notice> : null}
+              {has('revisar') ? (
+                <Button
+                  title="Marcar finiquito como revisado"
+                  variant="outline"
+                  leftIcon="checkmark-done-outline"
+                  disabled={isOffline || operar.isPending}
+                  onPress={() => confirmar('Marcar como revisado', 'El finiquito quedará marcado como revisado con tu nombre.', { tipo: 'revisar' }, 'Finiquito revisado.')}
+                />
+              ) : null}
               {has('generar_finiquito') ? (
                 <Button
                   title="Generar documento de finiquito"
