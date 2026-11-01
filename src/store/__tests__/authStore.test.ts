@@ -5,7 +5,7 @@
  */
 import { AxiosError, type AxiosResponse } from 'axios';
 
-import { useAuthStore } from '../authStore';
+import { AVISO_SESION_EXPIRADA, useAuthStore } from '../authStore';
 
 import { useAppLockStore } from '@/store/appLockStore';
 import { useExperienceStore } from '@/store/experienceStore';
@@ -318,5 +318,24 @@ describe('documentos pendientes (carta compromiso)', () => {
     await Promise.all([useAuthStore.getState().refrescarUsuario(), useAuthStore.getState().refrescarUsuario()]);
     expect(mockAuthApi.me).toHaveBeenCalledTimes(1);
     expect(useAuthStore.getState().user?.bloqueo_documentos?.activo).toBe(true);
+  });
+});
+
+describe('aviso de sesión expirada', () => {
+  beforeEach(() => {
+    resetState();
+    useAuthStore.setState({ avisoSesion: null });
+  });
+
+  it('expirarSesion saca a la persona y deja el motivo para el login', async () => {
+    useAuthStore.setState({ token: 'tkn', user: USER as never, isAuthenticated: true });
+    await useAuthStore.getState().expirarSesion();
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    expect(useAuthStore.getState().avisoSesion).toBe(AVISO_SESION_EXPIRADA);
+  });
+
+  it('sin sesión no inventa un aviso', async () => {
+    await useAuthStore.getState().expirarSesion();
+    expect(useAuthStore.getState().avisoSesion).toBeNull();
   });
 });

@@ -20,6 +20,8 @@ export const RESTORE_REQUEST_TIMEOUT_MS = 10000;
 /** SecureStore puede colgarse en algunos Android con el keystore dañado: nunca debe dejar el splash infinito. */
 const SECURE_STORE_TIMEOUT_MS = 5000;
 
+export const AVISO_SESION_EXPIRADA = 'Tu sesión expiró. Vuelve a iniciar sesión para continuar.';
+
 export const SESSION_PERSIST_ERROR_MESSAGE =
   'No pudimos guardar tu sesión de forma segura en este dispositivo. Inténtalo de nuevo; si continúa, reinicia la app.';
 
@@ -39,6 +41,12 @@ interface AuthState {
   /** true mientras un reintento de verificación está en curso. */
   isVerifying: boolean;
   isLoggingOut: boolean;
+  /** Por qué se cerró la sesión sin que la persona lo pidiera: lo muestra el login. */
+  avisoSesion: string | null;
+  /** La sesión venció (401 en una descarga nativa, que no pasa por el interceptor de Axios). */
+  expirarSesion: () => Promise<void>;
+  /** El login ya tomó el aviso. */
+  limpiarAvisoSesion: () => void;
   /** Usuario = primer nombre + primer apellido («Jesus Arizmendi»), no el correo. */
   login: (username: string, password: string) => Promise<void>;
   /** Cambia la contraseña temporal y libera la app (POST /cambiar-contrasena). */
@@ -143,9 +151,13 @@ export const useAuthStore = create<AuthState>((set, get) => {
   }
 
   // Cualquier 401 de cualquier endpoint autenticado expulsa la sesión.
+  // Sin aviso, la persona caía al login sin saber por qué. Un 401 sin sesión
+  // (contraseña incorrecta en el propio login) no es una expiración.
   setUnauthorizedHandler(() => {
+    const habiaSesion = get().token !== null;
     void clearPersistedToken();
     clearSessionState();
+    if (habiaSesion) set({ avisoSesion: AVISO_SESION_EXPIRADA });
   });
 
   // 403 «registro_incompleto»: la cuenta debe volver al asistente de registro.
@@ -184,9 +196,11 @@ export const useAuthStore = create<AuthState>((set, get) => {
         set({ token: null, user: null, isAuthenticated: false, pendingVerification: true });
         return;
       }
-      // 401 (ya lo limpió el interceptor) o rechazo definitivo: fuera.
+      // 401 (ya lo limpió el interceptor) o rechazo definitivo: fuera. El token
+      // guardado se rechazó: la persona ya había iniciado sesión antes.
       await clearPersistedToken();
       clearSessionState();
+      set({ avisoSesion: AVISO_SESION_EXPIRADA });
     }
   }
 
@@ -198,6 +212,18 @@ export const useAuthStore = create<AuthState>((set, get) => {
     pendingVerification: false,
     isVerifying: false,
     isLoggingOut: false,
+    avisoSesion: null,
+
+    async expirarSesion() {
+      if (get().token === null) return;
+      await clearPersistedToken();
+      clearSessionState();
+      set({ avisoSesion: AVISO_SESION_EXPIRADA });
+    },
+
+    limpiarAvisoSesion() {
+      set({ avisoSesion: null });
+    },
 
     async login(username, password) {
       // El backend recorta y compara sin mayúsculas/acentos; la contraseña solo con trim().

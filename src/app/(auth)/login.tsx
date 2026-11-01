@@ -13,6 +13,7 @@ import { BrandLogo } from '@/components/BrandLogo';
 import { Button } from '@/components/Button';
 import { FormularioScroll } from '@/components/FormularioScroll';
 import { Input } from '@/components/Input';
+import { TarjetaAviso } from '@/components/ui';
 import { FontSize, Layout, Radius, Shadow, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { REMEMBERED_USERNAME_KEY } from '@/constants/config';
@@ -42,6 +43,8 @@ export default function LoginScreen() {
   const router = useRouter();
   const login = useAuthStore((state) => state.login);
   const [formError, setFormError] = useState<string | null>(null);
+  const avisoSesion = useAuthStore((state) => state.avisoSesion);
+  const limpiarAvisoSesion = useAuthStore((state) => state.limpiarAvisoSesion);
 
   const {
     control,
@@ -65,6 +68,7 @@ export default function LoginScreen() {
 
   const onSubmit = async (values: LoginFormValues) => {
     setFormError(null);
+    limpiarAvisoSesion();
     const username = values.username.trim().replace(/\s+/g, ' ');
     try {
       await login(username, values.password);
@@ -93,6 +97,7 @@ export default function LoginScreen() {
             <View style={styles.form}>
               <Text style={styles.heading}>Bienvenido de nuevo</Text>
               <Text style={styles.subheading}>Inicia sesión con tu cuenta de colaborador</Text>
+              {avisoSesion ? <TarjetaAviso icono="time-outline" tono="info" titulo="Sesión expirada" mensaje={avisoSesion} /> : null}
 
               <Controller
                 control={control}
