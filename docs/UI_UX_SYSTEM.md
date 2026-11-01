@@ -87,26 +87,27 @@ Con `SHOW_DEV_TOOLS`: Configuración → Herramientas QA → **Design QA**
 (componentes en el tema actual + ambas paletas lado a lado, textos largos,
 botones largos).
 
-## Descarga de documentos (PDF y demás)
+## Documentos: `DocumentoProtegido` (componente único)
 
-Regla: todo documento que se pueda ver en la app también se puede **descargar o abrir con otra app** cuando el backend lo autoriza (`allowDownload` / `puede_descargar`), sobre todo si la vista previa no funciona en ese teléfono.
+Las pantallas no eligen visor: usan `src/components/DocumentoProtegido.tsx` con su `modo`. Una prueba estática (`src/__tests__/documentos.visor.guard.test.ts`) falla si una pantalla normal importa un visor PDF.
 
-| Pieza | Uso |
-|---|---|
-| `DescargaDocumento` (`src/components/DescargaDocumento.tsx`) | Tarjeta (`variante="tarjeta"`) o pantalla (`"pantalla"`) con nombre, tipo, tamaño, botón grande «Descargar PDF», «Abrir con…», progreso de descarga y error legible. Recibe `path` (ruta relativa de la API) o `archivoLocal` (archivo ya descargado). |
-| `BarraDescargaDocumento` | Las mismas dos acciones como `BarraAccionInferior` (safe area) debajo de un visor que sí previsualizó. |
-| `useDescargaDocumento` (`src/hooks/useDescargaDocumento.ts`) | Lógica: descarga autenticada (`File.createDownloadTask` con `Authorization: Bearer`, directo a `Paths.cache`, `onProgress`), detección de tipo por firma binaria, guardar y abrir. |
-| `utils/descargaDocumento.ts` | Puras y probadas: `formatearTamano`, `nombreArchivoSeguro`, `tipoLegible`, `mensajeErrorDescarga` (401/403/404/413/5xx/red). |
+| Modo | Muestra | Salida del archivo |
+|---|---|---|
+| `descarga` | Nombre, estado, «Descargar PDF», «Abrir con…», progreso, error. Sin visor embebido. | Solo con `puedeDescargar === true`. Sin flag no hay botones. |
+| `consulta` | Visor autenticado con `FLAG_SECURE` y marca de agua, más una frase con la restricción. | Ninguna, aunque llegue el flag. |
+| `firma` | Visor para revisar. Solo un dibujo correcto llama `onAperturaVerificada`; cerrar o fallar no. Si falla: error y «Reintentar». | Opcional con `puedeDescargar`; abrir con otra app no habilita la firma. |
 
-- **Descargar** — Android: el usuario elige la carpeta (`Directory.pickDirectoryAsync()`, Storage Access Framework, sin permisos de almacenamiento) y se escribe la copia con su MIME real. iOS: sheet nativo (`Sharing.shareAsync` con UTI) → «Guardar en Archivos».
-- **Abrir con…** — Android: `IntentLauncher.startActivityAsync('android.intent.action.VIEW', { data: file.contentUri, flags: 1, type })` (permiso de lectura temporal). iOS: sheet nativo («Abrir en…»).
-- Nunca una URL pública del NAS ni el token en la URL; las copias temporales se borran al cerrar el visor y, por si acaso, en el logout (`clearPrivateAssetCache`, prefijo `mrlana-doc-`).
-- `SecureDocumentViewer` ya lo integra: si el PDF no se puede dibujar (pdf.js/WKWebView) o el tipo no tiene vista previa, cambia solo a `DescargaDocumento` en modo pantalla. Documentos internos de RH (`allowDownload={false}`) nunca ofrecen descarga.
+Excepciones: inducción (`VisorPdfPaginado`) y videos conservan su visor; la vista previa de la carta compromiso es un borrador por POST.
+
+- **Autorización provisional:** `AUTORIZADO_POR_POLICY_ACTUAL` (`utils/autorizacionDocumento.ts`) marca dónde el backend aún no manda flag; cada uso explica qué autoriza hoy el Policy. Se reemplaza en la ronda 2.
+- **Descargar** — Android: carpeta elegida por la persona (SAF, sin permisos de almacenamiento). iOS: sheet nativo con UTI.
+- **Abrir con…** — Android: intent VIEW con el `content://` de una copia con nombre legible (`mrlana-salida/`). iOS: sheet nativo.
+- **Temporales:** `mrlana-doc-*` y `mrlana-salida/` se borran al salir de la pantalla, al arrancar (`barrerTemporalesDocumentos`) y en el logout. La caché de inducción (`induccion-v2-*`) va ligada a la versión del archivo, se escribe de forma atómica y se borra en el logout.
+- Nunca una URL pública del NAS ni el token en la URL.
 
 ```tsx
-<DescargaDocumento titulo="Recibo de nómina 15/10/2026" path={recibosApi.pdfPath(id)} />
+<DocumentoProtegido titulo="Recibo de nómina" modo="descarga" path={recibosApi.pdfPath(id)} puedeDescargar={recibo.puede_descargar} />
 ```
-
 
 ## Componentes base 2026-10 (`src/components/ui`)
 

@@ -54,7 +54,7 @@ export function extensionForSniffedType(type: SniffedFileType): string {
  * true solo para los tipos que `SecureDocumentViewer` sabe dibujar
  * (WebView para PDF, `Image` para PNG/JPEG). Un DOCX o cualquier otro tipo
  * reconocible-pero-no-visualizable es "downloadable-only": el visor no lo
- * pinta, pero SÍ puede guardarse/compartirse si `allowDownload` lo permite
+ * pinta, pero SÍ puede guardarse/compartirse con `DocumentoProtegido` si está autorizado
  * — nunca se confunde con un archivo inválido.
  */
 export function isPreviewableSniffedType(type: SniffedFileType): boolean {

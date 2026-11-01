@@ -21,7 +21,19 @@ import { logError } from '@/utils/errors';
  *   teléfono: se lee del disco y se pasa al WebView en trozos por
  *   `postMessage` (un PDF de 10+ MB no se incrusta en el HTML).
  */
-export function PdfViewer({ fileUri, style, onError }: { fileUri: string; style?: StyleProp<ViewStyle>; onError?: (message: string) => void }) {
+export interface PdfViewerProps {
+  fileUri: string;
+  style?: StyleProp<ViewStyle>;
+  onError?: (message: string) => void;
+  /**
+   * El documento SÍ se dibujó: Android, cuando pdf.js terminó su primera página;
+   * iOS, cuando WKWebView terminó de cargar sin error. Es la única señal de
+   * «abrió de verdad» (la firma depende de ella).
+   */
+  onRendered?: () => void;
+}
+
+export function PdfViewer({ fileUri, style, onError, onRendered }: PdfViewerProps) {
   const styles = useEstilos(crearEstilos);
   if (Platform.OS === 'ios') {
     return (
@@ -31,7 +43,8 @@ export function PdfViewer({ fileUri, style, onError }: { fileUri: string; style?
         allowFileAccess
         allowingReadAccessToURL={fileUri}
         javaScriptEnabled={false}
-        // WKWebView no pudo abrir el archivo: el visor cambia a «Descargar PDF / Abrir con…».
+        // `onLoad` solo corre si cargó bien (`onLoadEnd` también corre con error).
+        onLoad={() => onRendered?.()}
         onError={() => onError?.(MENSAJE_ERROR)}
         onHttpError={() => onError?.(MENSAJE_ERROR)}
         style={[styles.webview, style]}
@@ -39,12 +52,12 @@ export function PdfViewer({ fileUri, style, onError }: { fileUri: string; style?
     );
   }
 
-  return <AndroidPdfViewer fileUri={fileUri} style={style} onError={onError} />;
+  return <AndroidPdfViewer fileUri={fileUri} style={style} onError={onError} onRendered={onRendered} />;
 }
 
-const MENSAJE_ERROR = 'No se pudo mostrar este documento. Descárgalo o ábrelo con otra aplicación.';
+const MENSAJE_ERROR = 'No se pudo mostrar este documento en este teléfono.';
 
-function AndroidPdfViewer({ fileUri, style, onError }: { fileUri: string; style?: StyleProp<ViewStyle>; onError?: (message: string) => void }) {
+function AndroidPdfViewer({ fileUri, style, onError, onRendered }: PdfViewerProps) {
   const styles = useEstilos(crearEstilos);
   const webviewRef = useRef<WebView>(null);
   const base64Ref = useRef<string | null>(null);
@@ -59,6 +72,10 @@ function AndroidPdfViewer({ fileUri, style, onError }: { fileUri: string; style?
   useEffect(() => {
     onErrorRef.current = onError;
   }, [onError]);
+  const onRenderedRef = useRef(onRendered);
+  useEffect(() => {
+    onRenderedRef.current = onRendered;
+  }, [onRendered]);
 
   const fallar = (detalle: unknown) => {
     logError('PdfViewer', detalle instanceof Error ? detalle : new Error(String(detalle)));
@@ -114,6 +131,7 @@ function AndroidPdfViewer({ fileUri, style, onError }: { fileUri: string; style?
       enviarSiListo();
     } else if (data.type === 'rendered') {
       setCargando(false);
+      onRenderedRef.current?.();
     } else if (data.type === 'error') {
       fallar(data.message ?? 'pdf.js');
     }
@@ -145,7 +163,7 @@ function AndroidPdfViewer({ fileUri, style, onError }: { fileUri: string; style?
         // render de Android: sin este handler, el WebView se queda en
         // blanco/cargando para siempre, sin ningún mensaje de error — se ve
         // igual que "el documento no abre". Se trata como el mismo error
-        // que uno de pdf.js, con la misma salida (guardar/compartir).
+        // que uno de pdf.js.
         onRenderProcessGone={() => fallar(new Error('Android: render process terminado (sin memoria) al mostrar el PDF.'))}
         style={styles.webview}
       />

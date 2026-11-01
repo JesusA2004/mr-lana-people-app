@@ -1,14 +1,11 @@
 import { useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
 
 import { recibosApi } from '@/api/cicloLaboral';
-import { Button } from '@/components/Button';
-import { DescargaDocumento } from '@/components/DescargaDocumento';
+import { DocumentoProtegido } from '@/components/DocumentoProtegido';
 import { ReciboDetail } from '@/components/ciclo/ReciboDetail';
 import { Notice, Screen } from '@/components/ciclo/Screen';
-import { SecureDocumentViewer } from '@/components/SecureDocumentViewer';
 import { useMiRecibo } from '@/hooks/queries/useCicloLaboral';
-import { slugifyFilename } from '@/utils/formatters';
+import { AUTORIZADO_POR_POLICY_ACTUAL } from '@/utils/autorizacionDocumento';
 
 /**
  * Detalle del recibo de nómina — `GET /colaborador/recibos/{id}` (Policy
@@ -18,26 +15,13 @@ import { slugifyFilename } from '@/utils/formatters';
 export default function MiReciboScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const query = useMiRecibo(id);
-  const [viewerOpen, setViewerOpen] = useState(false);
   const recibo = query.data;
-
-  if (viewerOpen && recibo) {
-    return (
-      <SecureDocumentViewer
-        path={recibosApi.pdfPath(recibo.id)}
-        title={recibo.folio ?? 'Recibo de nómina'}
-        onClose={() => setViewerOpen(false)}
-        allowDownload
-        downloadFileName={slugifyFilename(`recibo-${recibo.folio ?? recibo.id}`)}
-      />
-    );
-  }
 
   return (
     <Screen
       title="Recibo de nómina"
       isLoading={query.isLoading}
-      error={query.error}
+      error={query.error} hayDatos={query.data !== undefined}
       notFoundMessage="Este recibo ya no está disponible."
       onRetry={() => void query.refetch()}
       refreshing={query.isRefetching}
@@ -46,10 +30,13 @@ export default function MiReciboScreen() {
         <>
           <ReciboDetail recibo={recibo} />
           {recibo.tiene_pdf ? (
-            <>
-              <Button title="Ver comprobante PDF" leftIcon="document-outline" variant="outline" onPress={() => setViewerOpen(true)} />
-              <DescargaDocumento titulo={`Recibo de nómina ${recibo.folio ?? ''}`.trim()} path={recibosApi.pdfPath(recibo.id)} />
-            </>
+            // RONDA 2: `recibo.puede_descargar`. Hoy `ReciboNominaPolicy::descargar` basta con `ver` para el recibo propio.
+            <DocumentoProtegido
+              titulo={`Recibo de nómina ${recibo.folio ?? ''}`.trim()}
+              modo="descarga"
+              path={recibosApi.pdfPath(recibo.id)}
+              puedeDescargar={AUTORIZADO_POR_POLICY_ACTUAL}
+            />
           ) : (
             <Notice tone="warning">El comprobante PDF aún no está disponible.</Notice>
           )}

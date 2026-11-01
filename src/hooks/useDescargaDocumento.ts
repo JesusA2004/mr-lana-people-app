@@ -15,10 +15,11 @@ import {
   utiParaTipo,
 } from '@/utils/descargaDocumento';
 import { logError } from '@/utils/errors';
+import { CARPETA_SALIDA_DOCUMENTOS } from '@/utils/privateAssetCache';
 import { extensionForSniffedType, sniffFileType, type SniffedFileType } from '@/utils/fileSniff';
 import { uniqueTempFileName } from '@/utils/tempFileName';
 
-/** Archivo ya descargado (por ejemplo, por `SecureDocumentViewer`). */
+/** Archivo ya descargado a la caché privada de la app. */
 export interface ArchivoLocal {
   uri: string;
   tipo: SniffedFileType;
@@ -69,6 +70,21 @@ function borrarSinFallar(archivo: File | null | undefined) {
   } catch {
     // No crítico: el sistema operativo limpia Paths.cache eventualmente.
   }
+}
+
+/**
+ * Copia con NOMBRE LEGIBLE para lo que sale de la app («Contrato.pdf», nunca
+ * `mrlana-doc-…`): vive en una subcarpeta propia de la caché para que dos
+ * documentos no choquen con otros archivos y el barrido de arranque la borre
+ * entera si la app se cerró de golpe (`barrerTemporalesDocumentos`).
+ */
+async function copiaLegible(origen: File, nombre: string): Promise<File> {
+  const carpeta = new Directory(Paths.cache, CARPETA_SALIDA_DOCUMENTOS);
+  carpeta.create({ idempotent: true, intermediates: true });
+  const copia = new File(carpeta, nombre);
+  borrarSinFallar(copia);
+  await origen.copy(copia);
+  return copia;
 }
 
 /** El usuario cerró el selector de carpeta / el sheet: no es un error que mostrar. */
@@ -173,10 +189,9 @@ export async function compartirArchivoLocal(archivo: ArchivoParaGuardar): Promis
   if (!(await Sharing.isAvailableAsync())) {
     throw new Error('compartir-no-disponible');
   }
-  const copia = new File(Paths.cache, archivo.nombre);
+  let copia: File | null = null;
   try {
-    borrarSinFallar(copia);
-    await new File(archivo.uri).copy(copia);
+    copia = await copiaLegible(new File(archivo.uri), archivo.nombre);
     await Sharing.shareAsync(copia.uri, { mimeType: archivo.mime, UTI: archivo.uti, dialogTitle: archivo.titulo });
     return true;
   } finally {
@@ -222,14 +237,16 @@ export function borrarTemporal(archivo: File | null | undefined): void {
 
 /**
  * «Abrir con…»: otra app del teléfono (lector de PDF, Drive, WPS…).
- * - Android: intent VIEW con el `content://` del archivo (FileProvider de
- *   expo-file-system, `File.contentUri`) y permiso de lectura temporal.
+ * - Android: intent VIEW con el `content://` de una copia con nombre legible
+ *   (FileProvider de expo-file-system, `File.contentUri`) y permiso de lectura
+ *   temporal. Devuelve esa copia: la otra app puede seguir leyéndola al volver,
+ *   así que la borra quien la pidió al salir de la pantalla.
  * - iOS: sheet nativo, que ofrece «Abrir en…».
  */
-export async function abrirConOtraApp(origen: ArchivoLocal, titulo: string): Promise<void> {
+export async function abrirConOtraApp(origen: ArchivoLocal, titulo: string): Promise<File | null> {
   const mime = mimeParaTipo(origen.tipo);
   if (Platform.OS === 'android') {
-    const archivo = new File(origen.uri);
+    const archivo = await copiaLegible(new File(origen.uri), nombreArchivoSeguro(titulo, extensionForSniffedType(origen.tipo)));
     try {
       await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
         data: archivo.contentUri,
@@ -237,12 +254,14 @@ export async function abrirConOtraApp(origen: ArchivoLocal, titulo: string): Pro
         type: mime,
       });
     } catch (error) {
+      borrarSinFallar(archivo);
       logError('abrirConOtraApp', error);
       throw new Error('sin-app');
     }
-    return;
+    return archivo;
   }
   await compartirCopia(origen, nombreArchivoSeguro(titulo, extensionForSniffedType(origen.tipo)), mime, titulo);
+  return null;
 }
 
 /** Mensaje humano para errores de guardar/abrir (no de la descarga HTTP). */
@@ -254,12 +273,12 @@ export function mensajeErrorAccionLocal(error: unknown): string {
 }
 
 export interface UseDescargaDocumentoOpciones {
-  /** Ruta relativa a la API (`/colaborador/recibos/12/pdf`). Se ignora si llega `archivoLocal`. */
+  /** Ruta relativa a la API (`/colaborador/recibos/12/pdf`). */
   path?: string | null;
-  /** Archivo que ya está en disco (evita una segunda descarga). */
-  archivoLocal?: ArchivoLocal | null;
   /** Título visible: se usa para el nombre sugerido al guardar. */
   titulo: string;
+  /** `consultar`: los errores hablan de consultar, no de descargar. */
+  intencion?: 'descargar' | 'consultar';
 }
 
 export interface UseDescargaDocumentoResultado {
@@ -267,6 +286,8 @@ export interface UseDescargaDocumentoResultado {
   /** 0–100 durante la descarga; null si el servidor no informó el tamaño. */
   progreso: number | null;
   error: string | null;
+  /** Status HTTP del último error de descarga (para que la UI decida si reintentar tiene sentido). */
+  statusError: number | undefined;
   archivo: ArchivoLocal | null;
   /** Acción en curso (para el spinner del botón correcto). */
   ocupado: 'guardar' | 'abrir' | null;
@@ -274,67 +295,103 @@ export interface UseDescargaDocumentoResultado {
   aviso: string | null;
   guardar: () => Promise<void>;
   abrirCon: () => Promise<void>;
+  /** Repite la última acción (guardar o abrir). */
   reintentar: () => void;
+  /** Baja el archivo (una sola vez aunque se pida dos veces) sin sacarlo de la app. */
+  obtener: () => Promise<ArchivoLocal | null>;
+  /** Borra la copia local: la siguiente acción vuelve a bajarla. */
+  descartar: () => void;
 }
 
 /**
- * Hook de la descarga de un documento: si recibe `archivoLocal` solo ofrece
- * guardar/abrir; si recibe `path`, primero lo descarga (autenticado, con
- * progreso) la primera vez que la persona pide «Descargar» o «Abrir con…».
- * Borra su copia temporal al desmontarse. Ver `DescargaDocumento`.
+ * Hook de la descarga de un documento: la primera vez que la persona pide
+ * algo lo baja (autenticado, con progreso) y lo reutiliza después: nunca hay
+ * dos descargas del mismo documento en la misma pantalla, ni por doble toque.
+ * Borra sus copias temporales al desmontarse. Ver `DocumentoProtegido`.
  */
-export function useDescargaDocumento({ path, archivoLocal, titulo }: UseDescargaDocumentoOpciones): UseDescargaDocumentoResultado {
+export function useDescargaDocumento({ path, titulo, intencion = 'descargar' }: UseDescargaDocumentoOpciones): UseDescargaDocumentoResultado {
   const token = useAuthStore((state) => state.token);
-  const logout = useAuthStore((state) => state.logout);
-  const [descargado, setDescargado] = useState<ArchivoLocal | null>(null);
+  const expirarSesion = useAuthStore((state) => state.expirarSesion);
+  const [archivo, setArchivo] = useState<ArchivoLocal | null>(null);
   const [estado, setEstado] = useState<EstadoDescarga>('inactivo');
   const [progreso, setProgreso] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [statusError, setStatusError] = useState<number | undefined>(undefined);
   const [ocupado, setOcupado] = useState<'guardar' | 'abrir' | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const propioRef = useRef<File | null>(null);
+  const salidaRef = useRef<File | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
+  // Refs, no estado: dos toques en el mismo frame ven el mismo render.
+  const enVueloRef = useRef<Promise<ArchivoLocal | null> | null>(null);
+  const accionEnCursoRef = useRef(false);
+  const ultimaAccionRef = useRef<'guardar' | 'abrir'>('guardar');
+  const localRef = useRef<ArchivoLocal | null>(null);
 
   useEffect(
     () => () => {
       controllerRef.current?.abort();
       borrarSinFallar(propioRef.current);
+      borrarSinFallar(salidaRef.current);
     },
     [],
   );
 
-  const archivo = archivoLocal ?? descargado;
+  const descartar = useCallback(() => {
+    borrarSinFallar(propioRef.current);
+    borrarSinFallar(salidaRef.current);
+    propioRef.current = null;
+    salidaRef.current = null;
+    localRef.current = null;
+    setArchivo(null);
+    setEstado('inactivo');
+  }, []);
 
-  const obtener = useCallback(async (): Promise<ArchivoLocal | null> => {
-    if (archivoLocal) return archivoLocal;
-    if (descargado) return descargado;
-    if (!path) return null;
+  const obtener = useCallback((): Promise<ArchivoLocal | null> => {
+    if (localRef.current) return Promise.resolve(localRef.current);
+    if (enVueloRef.current) return enVueloRef.current;
+    if (!path) return Promise.resolve(null);
     const controller = new AbortController();
     controllerRef.current = controller;
     setEstado('descargando');
-    setProgreso(0);
+    setProgreso(null);
     setError(null);
-    try {
-      const { archivo: file, tipo } = await descargarDocumentoPrivado(path, token, { onProgreso: setProgreso, signal: controller.signal });
-      propioRef.current = file;
-      const local = { uri: file.uri, tipo, tamano: file.size };
-      setDescargado(local);
-      setEstado('listo');
-      return local;
-    } catch (err) {
-      if (controller.signal.aborted) return null;
-      logError('useDescargaDocumento', err);
-      if (statusDesdeErrorDescarga(err) === 401) void logout();
-      setError(mensajeParaErrorDescarga(err));
-      setEstado('error');
-      return null;
-    } finally {
-      setProgreso(null);
-    }
-  }, [archivoLocal, descargado, path, token, logout]);
+    setStatusError(undefined);
+    const promesa = (async () => {
+      try {
+        const { archivo: file, tipo } = await descargarDocumentoPrivado(path, token, { onProgreso: setProgreso, signal: controller.signal });
+        if (controller.signal.aborted) {
+          borrarSinFallar(file);
+          return null;
+        }
+        propioRef.current = file;
+        const local = { uri: file.uri, tipo, tamano: file.size };
+        localRef.current = local;
+        setArchivo(local);
+        setEstado('listo');
+        return local;
+      } catch (err) {
+        if (controller.signal.aborted) return null;
+        logError('useDescargaDocumento', err);
+        const status = statusDesdeErrorDescarga(err);
+        setStatusError(status);
+        setError(status === 403 && intencion === 'consultar' ? 'No tienes permiso para consultar este documento.' : mensajeParaErrorDescarga(err));
+        setEstado('error');
+        if (status === 401) void expirarSesion();
+        return null;
+      } finally {
+        enVueloRef.current = null;
+        setProgreso(null);
+      }
+    })();
+    enVueloRef.current = promesa;
+    return promesa;
+  }, [path, token, expirarSesion, intencion]);
 
   const ejecutar = async (accion: 'guardar' | 'abrir') => {
-    if (ocupado) return;
+    if (accionEnCursoRef.current) return;
+    accionEnCursoRef.current = true;
+    ultimaAccionRef.current = accion;
     setOcupado(accion);
     setAviso(null);
     try {
@@ -345,7 +402,8 @@ export function useDescargaDocumento({ path, archivoLocal, titulo }: UseDescarga
         const guardado = await guardarEnDispositivo(local, titulo);
         if (guardado && Platform.OS === 'android') setAviso('Documento guardado en la carpeta que elegiste.');
       } else {
-        await abrirConOtraApp(local, titulo);
+        const copia = await abrirConOtraApp(local, titulo);
+        if (copia) salidaRef.current = copia;
       }
     } catch (err) {
       if (!esCancelacion(err)) {
@@ -353,14 +411,16 @@ export function useDescargaDocumento({ path, archivoLocal, titulo }: UseDescarga
         setError(mensajeErrorAccionLocal(err));
       }
     } finally {
+      accionEnCursoRef.current = false;
       setOcupado(null);
     }
   };
 
   return {
-    estado: archivoLocal ? 'listo' : estado,
+    estado,
     progreso,
     error,
+    statusError,
     archivo,
     ocupado,
     aviso,
@@ -369,7 +429,9 @@ export function useDescargaDocumento({ path, archivoLocal, titulo }: UseDescarga
     reintentar: () => {
       setError(null);
       setEstado('inactivo');
-      void ejecutar('guardar');
+      void ejecutar(ultimaAccionRef.current);
     },
+    obtener,
+    descartar,
   };
 }

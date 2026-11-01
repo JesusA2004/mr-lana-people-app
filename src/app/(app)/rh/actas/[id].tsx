@@ -1,5 +1,4 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { rhActasApi } from '@/api/rh/cicloLaboral';
@@ -8,17 +7,15 @@ import { Card } from '@/components/Card';
 import { InfoRow } from '@/components/ciclo/InfoRow';
 import { Notice, Screen, SectionTitle } from '@/components/ciclo/Screen';
 import { StepTimeline } from '@/components/ciclo/StepTimeline';
-import { PressableScale } from '@/components/PressableScale';
-import { SecureDocumentViewer } from '@/components/SecureDocumentViewer';
+import { DocumentoProtegido } from '@/components/DocumentoProtegido';
 import { StatusBadge } from '@/components/StatusBadge';
 import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
 import { useEstilos } from '@/theme/ThemeProvider';
 import { useRhActa } from '@/hooks/queries/useRhCicloLaboral';
-import { useAuthStore } from '@/store/authStore';
 import type { ActaCircunstanciada, ActaPersona } from '@/types/rhCiclo';
 import { actaBadge, actaEntregaLabel, actaEstadoLabel, AVISO_ACTAS_SOLO_CONSULTA } from '@/utils/acta';
 import { formatDateLong, formatDateTime } from '@/utils/dates';
-import { joinName, slugifyFilename } from '@/utils/formatters';
+import { AUTORIZADO_POR_POLICY_ACTUAL } from '@/utils/autorizacionDocumento';
 
 /** «Puesto · Área» de una persona del acta (solo lo que mande el backend). */
 function puestoArea(persona: Pick<ActaPersona, 'puesto' | 'area'>): string | null {
@@ -38,21 +35,6 @@ export default function RhActaScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const query = useRhActa(id);
   const acta = query.data;
-  const user = useAuthStore((state) => state.user);
-  const [anexoAbierto, setAnexoAbierto] = useState<{ id: number; nombre: string } | null>(null);
-
-  if (anexoAbierto && acta) {
-    return (
-      <SecureDocumentViewer
-        path={rhActasApi.anexoPath(acta.id, anexoAbierto.id)}
-        title={anexoAbierto.nombre}
-        watermarkLabel={`${joinName(user?.nombre, user?.apellidos) ?? 'RH'} · ${new Date().toLocaleString('es-MX')}`}
-        onClose={() => setAnexoAbierto(null)}
-        allowDownload
-        downloadFileName={slugifyFilename(anexoAbierto.nombre)}
-      />
-    );
-  }
 
   const c = acta?.circunstanciada ?? null;
 
@@ -61,7 +43,7 @@ export default function RhActaScreen() {
       title="Acta"
       subtitle={acta?.folio ?? undefined}
       isLoading={query.isLoading}
-      error={query.error}
+      error={query.error} hayDatos={query.data !== undefined}
       notFoundMessage="Esta acta ya no está disponible."
       onRetry={() => void query.refetch()}
       refreshing={query.isRefetching}
@@ -129,17 +111,18 @@ export default function RhActaScreen() {
             <SectionTitle>Anexos</SectionTitle>
             {(acta.anexos ?? []).length === 0 ? <Text style={styles.muted}>Sin anexos.</Text> : null}
             {(acta.anexos ?? []).map((anexo) => (
-              <PressableScale
-                key={anexo.id}
-                accessibilityRole="button"
-                accessibilityLabel={`Ver anexo ${anexo.nombre ?? ''}`}
-                onPress={() => setAnexoAbierto({ id: anexo.id, nombre: anexo.nombre ?? 'Anexo' })}
-                style={styles.anexo}>
-                <Text style={styles.link}>{anexo.nombre ?? `Anexo ${anexo.id}`}</Text>
+              <View key={anexo.id} style={styles.anexo}>
+                {/* RONDA 2: `anexo.puede_descargar` y ruta de consulta. Hoy `ActaAdministrativaPolicy::descargarAnexo` (actas.descargar o quien levantó el acta) decide en la ruta; sin él se ve el 403. */}
+                <DocumentoProtegido
+                  titulo={anexo.nombre ?? `Anexo ${anexo.id}`}
+                  modo="descarga"
+                  path={rhActasApi.anexoPath(acta.id, anexo.id)}
+                  puedeDescargar={AUTORIZADO_POR_POLICY_ACTUAL}
+                />
                 {anexo.descripcion ? <Text style={styles.muted}>{anexo.descripcion}</Text> : null}
                 {anexo.fecha_identificacion ? <Text style={styles.muted}>Identificado: {anexo.fecha_identificacion}</Text> : null}
                 {anexo.relacion_hechos ? <Text style={styles.muted}>Relación con los hechos: {anexo.relacion_hechos}</Text> : null}
-              </PressableScale>
+              </View>
             ))}
           </Card>
 

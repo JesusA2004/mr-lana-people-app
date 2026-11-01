@@ -9,15 +9,17 @@ import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
 import { FieldComparisonRow, FieldMatchRow } from '@/components/FieldComparisonRow';
 import { MotivoModal } from '@/components/MotivoModal';
-import { DescargaDocumento } from '@/components/DescargaDocumento';
+import { DocumentoProtegido } from '@/components/DocumentoProtegido';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
+import { TransicionEstado } from '@/components/TransicionEstado';
 import { rhDocumentosApi } from '@/api/rh/documentos';
 import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useRhDocumentExtraction, useRhDocumentExtractionAplicar, useRhDocumentExtractionIgnorar } from '@/hooks/queries/useRhDocumentExtraction';
 import { useRhDocumento, useRhDocumentoAprobar, useRhDocumentoPedirCorreccion, useRhDocumentoRechazar } from '@/hooks/queries/useRhDocumentos';
+import { useAuthStore } from '@/store/authStore';
 import { toast } from '@/store/toastStore';
 import type { DocumentExtraction, ExtractedFieldKey, ExtractionApplicableField } from '@/types/documentExtraction';
 import { hasPermission } from '@/utils/capabilities';
@@ -32,15 +34,15 @@ import {
 } from '@/utils/documentExtraction';
 import { getErrorMessage, isConcurrencyConflict, logError } from '@/utils/errors';
 import { isExperimentalFeatureEnabled } from '@/utils/featureFlags';
+import { joinName } from '@/utils/formatters';
 import { haptics } from '@/utils/haptics';
 import { canApprove, canReject, hasAction } from '@/utils/rhActions';
 import { confirmAction } from '@/utils/confirm';
 
 /**
- * Revisión de un documento por RH: el PDF se abre en el lector del teléfono
- * (la vista previa dentro de la app no funcionaba en Android) y al volver
- * siguen aquí Aprobar / Pedir corrección / Rechazar, solo si el backend lo
- * permite. «Guardar en el teléfono» solo con `puede_descargar`.
+ * Revisión de un documento por RH. Con `puede_descargar`: tarjeta de descarga.
+ * Sin él pero con `ver_archivo`: consulta dentro de la app, sin salida a otra
+ * app. Aprobar / Pedir corrección / Rechazar, solo si el backend lo permite.
  */
 export default function RhDocumentoDetailScreen() {
   const Colors = useColores();
@@ -54,6 +56,7 @@ export default function RhDocumentoDetailScreen() {
   const [showRechazar, setShowRechazar] = useState(false);
   const [showCorreccion, setShowCorreccion] = useState(false);
 
+  const user = useAuthStore((state) => state.user);
   const bootstrap = useMobileBootstrap(true);
   // "Análisis automático" — módulo EXPERIMENTAL fail-CLOSED (auditoría de
   // integración: el backend real ya lo implementa por completo, pero se
@@ -148,6 +151,7 @@ export default function RhDocumentoDetailScreen() {
   const puedeGuardar = documento?.puede_descargar === true;
   // Abrir para revisar: permiso de ver el archivo (o de descargarlo).
   const puedeAbrir = puedeGuardar || hasAction(documento?.acciones_permitidas, 'ver_archivo');
+  const marcaDeAgua = `${joinName(user?.nombre, user?.apellidos) ?? 'RH'} · ${new Date().toLocaleString('es-MX')}`;
   const puedeAprobar = canApprove(documento?.acciones_permitidas);
   const puedeRechazar = canReject(documento?.acciones_permitidas);
   const puedeCorregir = documento?.puede_pedir_correccion === true;
@@ -160,11 +164,12 @@ export default function RhDocumentoDetailScreen() {
         ref={scrollRef}
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={Colors.primary} />}>
+        <TransicionEstado estado={isLoading ? 'cargando' : isError && !documento ? 'error' : 'contenido'} style={{ gap: Spacing.lg }}>
         {isLoading ? (
           <View style={{ gap: Spacing.lg }}>
             <SkeletonBlock height={160} radius={Radius.lg} />
           </View>
-        ) : isError ? (
+        ) : isError && !documento ? (
           <ErrorState message={getErrorMessage(error)} onRetry={() => void refetch()} />
         ) : !documento ? null : (
           <>
@@ -186,12 +191,14 @@ export default function RhDocumentoDetailScreen() {
             </Card>
 
             {puedeAbrir && id ? (
-              <DescargaDocumento
+              <DocumentoProtegido
                 titulo={`${documento.tipo ?? documento.nombre} - ${documento.colaborador.nombre}`}
-                path={puedeGuardar ? rhDocumentosApi.descargarPath(id) : rhDocumentosApi.verPath(id)}
+                modo={puedeGuardar ? 'descarga' : 'consulta'}
+                path={rhDocumentosApi.descargarPath(id)}
+                puedeDescargar={puedeGuardar}
+                pathConsulta={rhDocumentosApi.verPath(id)}
+                marcaDeAgua={marcaDeAgua}
                 tipoEsperado={tipoEsperadoPorNombre(documento.nombre_original)}
-                permitirGuardar={puedeGuardar}
-                accionPrincipal="abrir"
               />
             ) : null}
 
@@ -297,6 +304,7 @@ export default function RhDocumentoDetailScreen() {
             ) : null}
           </>
         )}
+        </TransicionEstado>
       </ScrollView>
 
       <MotivoModal

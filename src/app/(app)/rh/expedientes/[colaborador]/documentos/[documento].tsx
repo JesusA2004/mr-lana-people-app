@@ -8,9 +8,10 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
 import { MotivoModal } from '@/components/MotivoModal';
-import { DescargaDocumento } from '@/components/DescargaDocumento';
+import { DocumentoProtegido } from '@/components/DocumentoProtegido';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
+import { TransicionEstado } from '@/components/TransicionEstado';
 import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import {
@@ -21,17 +22,19 @@ import {
   useRhExpedienteRechazarDocumento,
 } from '@/hooks/queries/useRhExpedientes';
 import { usePermisos } from '@/hooks/usePermisos';
+import { useAuthStore } from '@/store/authStore';
 import { toast } from '@/store/toastStore';
 import { formatDateTime } from '@/utils/dates';
 import { tipoEsperadoPorNombre } from '@/utils/descargaDocumento';
 import { getErrorMessage, isConcurrencyConflict, logError } from '@/utils/errors';
+import { joinName } from '@/utils/formatters';
 import { haptics } from '@/utils/haptics';
 
 /**
- * Documento individual del expediente: se abre en el lector del teléfono
- * (PDF/imagen) y aquí mismo quedan Aprobar / Pedir corrección / Rechazar /
- * Autorizar cambio, siempre por permiso real. «Guardar en el teléfono» solo
- * si el backend manda `puede_descargar` (un gerente nunca descarga).
+ * Documento individual del expediente. Con `puede_descargar`: tarjeta de
+ * descarga. Sin él pero con `rh.expedientes.documentos.ver` (hoy `auditor` y
+ * `sistemas` según el seeder): consulta dentro de la app, sin salida a otra
+ * app. Aprobar / Pedir corrección / Rechazar / Autorizar cambio, por permiso real.
  */
 export default function RhExpedienteDocumentoScreen() {
   const Colors = useColores();
@@ -39,6 +42,7 @@ export default function RhExpedienteDocumentoScreen() {
   const router = useRouter();
   const { colaborador: colaboradorId, documento: documentoId } = useLocalSearchParams<{ colaborador: string; documento: string }>();
   const permisos = usePermisos();
+  const user = useAuthStore((state) => state.user);
   const { data: expediente, isLoading, isError, error, refetch, isRefetching } = useRhExpediente(colaboradorId);
   const aprobar = useRhExpedienteAprobarDocumento();
   const rechazar = useRhExpedienteRechazarDocumento();
@@ -55,6 +59,7 @@ export default function RhExpedienteDocumentoScreen() {
   const canCorrect = documento?.puede_pedir_correccion === true;
   const puedeGuardar = documento?.puede_descargar === true;
   const puedeAbrir = puedeGuardar || permisos.puede('rh.expedientes.documentos.ver');
+  const marcaDeAgua = `${joinName(user?.nombre, user?.apellidos) ?? 'RH'} · ${new Date().toLocaleString('es-MX')}`;
   const pending = aprobar.isPending || rechazar.isPending || autorizarCambio.isPending || pedirCorreccion.isPending;
 
   function handleActionError(err: unknown) {
@@ -153,11 +158,12 @@ export default function RhExpedienteDocumentoScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={Colors.primary} />}>
+        <TransicionEstado estado={isLoading ? 'cargando' : isError && !expediente ? 'error' : 'contenido'} style={{ gap: Spacing.lg }}>
         {isLoading ? (
           <View style={{ gap: Spacing.lg }}>
             <SkeletonBlock height={160} radius={Radius.lg} />
           </View>
-        ) : isError ? (
+        ) : isError && !expediente ? (
           <ErrorState message={getErrorMessage(error)} onRetry={() => void refetch()} />
         ) : !documento ? (
           <ErrorState message="No encontramos este documento en el expediente." onRetry={() => void refetch()} />
@@ -173,16 +179,14 @@ export default function RhExpedienteDocumentoScreen() {
             </Card>
 
             {puedeAbrir && colaboradorId && documentoId ? (
-              <DescargaDocumento
+              <DocumentoProtegido
                 titulo={`${documento.nombre} - ${expediente?.colaborador.nombre ?? ''}`}
-                path={
-                  puedeGuardar
-                    ? rhExpedientesApi.descargarDocumentoPath(colaboradorId, documentoId)
-                    : rhExpedientesApi.verDocumentoPath(colaboradorId, documentoId)
-                }
+                modo={puedeGuardar ? 'descarga' : 'consulta'}
+                path={rhExpedientesApi.descargarDocumentoPath(colaboradorId, documentoId)}
+                puedeDescargar={puedeGuardar}
+                pathConsulta={rhExpedientesApi.verDocumentoPath(colaboradorId, documentoId)}
+                marcaDeAgua={marcaDeAgua}
                 tipoEsperado={tipoEsperadoPorNombre(documento.nombre_original)}
-                permitirGuardar={puedeGuardar}
-                accionPrincipal="abrir"
               />
             ) : null}
 
@@ -244,6 +248,7 @@ export default function RhExpedienteDocumentoScreen() {
             ) : null}
           </>
         )}
+        </TransicionEstado>
       </ScrollView>
 
       <MotivoModal

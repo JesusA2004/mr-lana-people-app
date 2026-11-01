@@ -7,7 +7,7 @@ import { Image, Linking, Share, StyleSheet, Text, View } from 'react-native';
 import { rhCandidatosApi } from '@/api/rh/candidatos';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
-import { DescargaDocumento } from '@/components/DescargaDocumento';
+import { DocumentoProtegido } from '@/components/DocumentoProtegido';
 import { FilterChips } from '@/components/ciclo/FilterChips';
 import { Field, FormSheet } from '@/components/ciclo/FormSheet';
 import { InfoRow } from '@/components/ciclo/InfoRow';
@@ -21,6 +21,8 @@ import { Stepper } from '@/components/Stepper';
 import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useRhCandidato, useRhIniciarContratacion, useRhOperarCandidato, type RhCandidatoOperacion } from '@/hooks/queries/useRhCandidatos';
+import { AUTORIZADO_POR_POLICY_ACTUAL } from '@/utils/autorizacionDocumento';
+import { tipoEsperadoPorMime } from '@/utils/descargaDocumento';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { toast } from '@/store/toastStore';
 import type { CandidatoEvidencia, ContratacionQr, IniciarContratacionPayload } from '@/types/rhCandidato';
@@ -204,7 +206,7 @@ export default function RhCandidatoDetailScreen() {
       title="Candidato"
       subtitle={candidato?.nombre_completo}
       isLoading={query.isLoading}
-      error={query.error}
+      error={query.error} hayDatos={query.data !== undefined}
       notFoundMessage="Este candidato ya no está disponible."
       onRetry={() => void query.refetch()}
       refreshing={query.isRefetching}
@@ -242,7 +244,8 @@ export default function RhCandidatoDetailScreen() {
             {candidato.motivo_salida ? <InfoRow label="Motivo" value={candidato.motivo_salida} /> : null}
           </Card>
 
-          {candidato.tiene_cv ? <DescargaDocumento titulo={`CV de ${candidato.nombre_completo}`} path={rhCandidatosApi.cvPath(Number(id))} /> : null}
+          {/* RONDA 2: `candidato.puede_descargar_cv`. Hoy `CandidatoPolicy::view` no separa ver de descargar (la web tampoco). */}
+          {candidato.tiene_cv ? <DocumentoProtegido titulo={`CV de ${candidato.nombre_completo}`} modo="descarga" path={rhCandidatosApi.cvPath(Number(id))} puedeDescargar={AUTORIZADO_POR_POLICY_ACTUAL} /> : null}
 
           {candidato.entrevistas.length > 0 ? (
             <Card style={styles.gap}>
@@ -617,11 +620,14 @@ function EvidenciasCandidato({ candidatoId, evidencias }: { candidatoId: number;
   return (
     <>
       {evidencias.map((evidencia) => (
-        <DescargaDocumento
+        // RONDA 2: `evidencia.puede_descargar`. Hoy `CandidatoPolicy::view`, igual que el CV.
+        <DocumentoProtegido
           key={evidencia.id}
           titulo={evidencia.nombre ?? evidencia.tipo_etiqueta ?? 'Evidencia'}
+          modo="descarga"
           path={rhCandidatosApi.evidenciaPath(candidatoId, evidencia.id)}
-          tipoEsperado={evidencia.mime === 'application/pdf' ? 'pdf' : 'unknown'}
+          puedeDescargar={AUTORIZADO_POR_POLICY_ACTUAL}
+          tipoEsperado={tipoEsperadoPorMime(evidencia.mime)}
           tamanoConocido={evidencia.tamano}
         />
       ))}

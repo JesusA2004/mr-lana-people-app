@@ -6,21 +6,20 @@ import { Alert, StyleSheet, Text, View } from 'react-native';
 import { documentosLaboralesApi } from '@/api/documentosLaborales';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
-import { DescargaDocumento } from '@/components/DescargaDocumento';
+import { DocumentoProtegido } from '@/components/DocumentoProtegido';
 import { InfoRow } from '@/components/ciclo/InfoRow';
 import { Notice, Screen, SectionTitle } from '@/components/ciclo/Screen';
 import { StepTimeline } from '@/components/ciclo/StepTimeline';
 import { PressableScale } from '@/components/PressableScale';
-import { SecureDocumentViewer } from '@/components/SecureDocumentViewer';
 import { StatusBadge } from '@/components/StatusBadge';
 import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useFirmarDocumentoLaboral, useLaborDocument } from '@/hooks/queries/useLaborDocuments';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { AUTORIZADO_POR_POLICY_ACTUAL } from '@/utils/autorizacionDocumento';
 import { toast } from '@/store/toastStore';
 import { formatDateLong, formatDateTime } from '@/utils/dates';
 import { getActionErrorMessage, logError } from '@/utils/errors';
-import { slugifyFilename } from '@/utils/formatters';
 import { haptics } from '@/utils/haptics';
 import {
   buildLaborDocumentTimeline,
@@ -35,8 +34,9 @@ import {
  *
  * Firma: `POST /colaborador/documentos-laborales/{id}/firmar` con
  * `acepto=true`. Solo se ofrece en `pendiente_firma_colaborador`
- * (`GeneratedDocumentPolicy::firmar`) y exige confirmación consciente:
- * abrir el documento + marcar "Leí y acepto". El colaborador NUNCA
+ * (`GeneratedDocumentPolicy::firmar`) y exige confirmación consciente: que el
+ * documento se haya DIBUJADO en el visor (cerrar o fallar no cuenta) + marcar
+ * "Leí y acepto". El colaborador NUNCA
  * administra impresión, envío, recepción ni archivo físico — eso es de RH.
  */
 export default function DocumentoLaboralDetailScreen() {
@@ -48,26 +48,11 @@ export default function DocumentoLaboralDetailScreen() {
   const query = useLaborDocument(Number.isFinite(numericId) ? numericId : undefined);
   const firmar = useFirmarDocumentoLaboral();
   const { isOffline } = useNetworkStatus();
-  const [viewerOpen, setViewerOpen] = useState(false);
-  const [leido, setLeido] = useState(false);
+  /** Solo `onAperturaVerificada` lo enciende: el PDF se dibujó de verdad. */
+  const [aperturaVerificada, setAperturaVerificada] = useState(false);
   const [acepto, setAcepto] = useState(false);
 
   const documento = query.data ?? null;
-
-  if (viewerOpen && documento) {
-    return (
-      <SecureDocumentViewer
-        path={documentosLaboralesApi.descargarPath(documento.id)}
-        title={documento.titulo}
-        onClose={() => {
-          setViewerOpen(false);
-          setLeido(true);
-        }}
-        allowDownload
-        downloadFileName={slugifyFilename(documento.titulo)}
-      />
-    );
-  }
 
   const puedeFirmar = !!documento && canColaboradorSign(documento);
 
@@ -107,7 +92,7 @@ export default function DocumentoLaboralDetailScreen() {
     <Screen
       title="Documento laboral"
       isLoading={query.isLoading}
-      error={query.error}
+      error={query.error} hayDatos={query.data !== undefined}
       onRetry={() => void query.refetch()}
       refreshing={query.isRefetching}
       onRefresh={() => void query.refetch()}>
@@ -128,11 +113,21 @@ export default function DocumentoLaboralDetailScreen() {
             <InfoRow label="Requiere firma digital" value={documento.requiere_firma_digital ? 'Sí' : 'No'} icon="create-outline" />
             <InfoRow label="Firmado digitalmente" value={formatDateTime(documento.firmado_digital_en)} icon="checkmark-done-outline" />
             <InfoRow label="Versión de plantilla" value={documento.version_plantilla} icon="layers-outline" />
-            <Button title="Ver documento" leftIcon="eye-outline" variant="outline" onPress={() => setViewerOpen(true)} />
           </Card>
 
-          {/* Descarga autenticada siempre disponible (por si la vista previa no abre en este teléfono). */}
-          <DescargaDocumento titulo={documento.titulo} path={documentosLaboralesApi.descargarPath(documento.id)} />
+          {/*
+            RONDA 2: `documento.puede_descargar`. Hoy `GeneratedDocumentPolicy::descargar`
+            autoriza siempre al titular, y `ver` ya filtró esta pantalla. La ruta de consulta
+            también será propia en la ronda 2; hoy solo existe `/descargar`.
+          */}
+          <DocumentoProtegido
+            titulo={documento.titulo}
+            modo={puedeFirmar ? 'firma' : 'descarga'}
+            path={documentosLaboralesApi.descargarPath(documento.id)}
+            puedeDescargar={AUTORIZADO_POR_POLICY_ACTUAL}
+            pathConsulta={puedeFirmar ? documentosLaboralesApi.descargarPath(documento.id) : undefined}
+            onAperturaVerificada={() => setAperturaVerificada(true)}
+          />
 
           {puedeFirmar ? (
             <Card style={styles.gap}>
@@ -141,13 +136,13 @@ export default function DocumentoLaboralDetailScreen() {
                 Lee el documento completo antes de firmar. Tu aceptación digital tiene validez interna y queda registrada con fecha, dispositivo y huella
                 del archivo.
               </Notice>
-              {!leido ? <Text style={styles.hint}>Abre el documento con «Ver documento» para habilitar la firma.</Text> : null}
+              {!aperturaVerificada ? <Text style={styles.hint}>Abre el documento y espera a que se muestre para habilitar la firma.</Text> : null}
               <PressableScale
                 accessibilityRole="button"
                 accessibilityLabel="Leí el documento y acepto su contenido"
-                disabled={!leido}
+                disabled={!aperturaVerificada}
                 onPress={() => setAcepto((value) => !value)}
-                style={[styles.checkRow, !leido && styles.disabled] as object}>
+                style={[styles.checkRow, !aperturaVerificada && styles.disabled] as object}>
                 <Ionicons name={acepto ? 'checkbox' : 'square-outline'} size={24} color={acepto ? Colors.primary : Colors.textMuted} />
                 <Text style={styles.checkLabel}>Leí el documento y acepto su contenido.</Text>
               </PressableScale>
@@ -155,7 +150,7 @@ export default function DocumentoLaboralDetailScreen() {
               <Button
                 title="Firmar / Aceptar"
                 leftIcon="create-outline"
-                disabled={!acepto || !leido || isOffline}
+                disabled={!acepto || !aperturaVerificada || isOffline}
                 loading={firmar.isPending}
                 onPress={confirmarFirma}
               />

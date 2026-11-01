@@ -6,7 +6,7 @@ import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { apiClient } from '@/api/client';
 import { BarraAccionInferior } from './BarraAccionInferior';
 import { Button } from './Button';
-import { DescargaDocumento } from './DescargaDocumento';
+import { DocumentoProtegido } from './DocumentoProtegido';
 import { ErrorState } from './ErrorState';
 import { PressableScale } from './PressableScale';
 import { SkeletonBlock } from './SkeletonBlock';
@@ -15,6 +15,7 @@ import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors
 import { API_URL } from '@/constants/config';
 import { useAuthStore } from '@/store/authStore';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
+import { AUTORIZADO_POR_POLICY_ACTUAL } from '@/utils/autorizacionDocumento';
 import { getErrorMessage, logError } from '@/utils/errors';
 import { construirHtmlVisorPdfPaginado, partirEnTrozos } from '@/utils/pdfViewerHtml';
 import { Ionicons } from '@expo/vector-icons';
@@ -167,11 +168,7 @@ export function VisorPdfPaginado({ path, cacheName, titulo, paginaInicial = 1, o
     return (
       <View style={styles.errorBox}>
         {errorDibujo ? (
-          <DescargaDocumento
-            titulo={titulo}
-            path={path}
-            motivo="No se pudo mostrar la vista previa en este teléfono. Descárgalo o ábrelo con otra aplicación."
-          />
+          <DocumentoProtegido titulo={titulo} modo="descarga" path={path} puedeDescargar={AUTORIZADO_POR_POLICY_ACTUAL} />
         ) : (
           <ErrorState
             message={error}

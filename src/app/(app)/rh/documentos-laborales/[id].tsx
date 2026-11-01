@@ -13,21 +13,20 @@ import { Field, FormSheet } from '@/components/ciclo/FormSheet';
 import { InfoRow } from '@/components/ciclo/InfoRow';
 import { Notice, Screen, SectionTitle } from '@/components/ciclo/Screen';
 import { StepTimeline } from '@/components/ciclo/StepTimeline';
+import { DocumentoProtegido } from '@/components/DocumentoProtegido';
 import { DocumentUploadSheet } from '@/components/DocumentUploadSheet';
 import { MotivoModal } from '@/components/MotivoModal';
 import { PressableScale } from '@/components/PressableScale';
-import { SecureDocumentViewer } from '@/components/SecureDocumentViewer';
 import { StatusBadge } from '@/components/StatusBadge';
 import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useRhDocumentoLaboral, useRhOperarDocumentoLaboral, type RhDocumentoOperacion } from '@/hooks/queries/useRhCicloLaboral';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { useAuthStore } from '@/store/authStore';
 import { toast } from '@/store/toastStore';
+import { AUTORIZADO_POR_POLICY_ACTUAL } from '@/utils/autorizacionDocumento';
 import { formatDateLong, formatDateTime } from '@/utils/dates';
 import { getActionErrorMessage, getFieldError, logError } from '@/utils/errors';
-import { joinName, slugifyFilename } from '@/utils/formatters';
 import { haptics } from '@/utils/haptics';
 import {
   availableRhDocumentOperations,
@@ -62,17 +61,14 @@ export default function RhDocumentoLaboralScreen() {
   const styles = useEstilos(crearEstilos);
   const router = useRouter();
   // accion: atajo desde "Documentos del proceso" (siguiente acción que
-  // decidió el backend): abre directo el visor, el Word o el paso físico.
+  // decidió el backend): muestra el Word o abre el paso físico.
   const { id, accion } = useLocalSearchParams<{ id: string; accion?: string }>();
   const query = useRhDocumentoLaboral(id);
   const documento = query.data;
   const bootstrap = useMobileBootstrap(true);
-  const user = useAuthStore((state) => state.user);
   const operar = useRhOperarDocumentoLaboral(Number(id), documento?.colaborador?.id ?? null);
   const { isOffline } = useNetworkStatus();
 
-  const [viewerOpen, setViewerOpen] = useState(accion === 'ver');
-  const [wordOpen, setWordOpen] = useState(accion === 'word');
   const [sheetElegido, setSheet] = useState<Sheet>(null);
   const [atajoConsumido, setAtajoConsumido] = useState(false);
   const [observaciones, setObservaciones] = useState('');
@@ -88,32 +84,6 @@ export default function RhDocumentoLaboralScreen() {
   // cargó y la operación está permitida; al cerrarse ya no reaparece.
   const sheetAtajo: Sheet = !atajoConsumido && accion && ATAJO_A_OPERACION[accion] && opsDisponibles.includes(ATAJO_A_OPERACION[accion]) ? ATAJO_A_OPERACION[accion] : null;
   const sheet: Sheet = sheetElegido ?? sheetAtajo;
-
-  if (wordOpen && documento) {
-    return (
-      <SecureDocumentViewer
-        path={rhDocumentosProcesoApi.wordPath(documento.id)}
-        title={`${documento.titulo} (Word)`}
-        watermarkLabel={`${joinName(user?.nombre, user?.apellidos) ?? 'RH'} · ${new Date().toLocaleString('es-MX')}`}
-        onClose={() => setWordOpen(false)}
-        allowDownload
-        downloadFileName={slugifyFilename(documento.titulo)}
-      />
-    );
-  }
-
-  if (viewerOpen && documento) {
-    return (
-      <SecureDocumentViewer
-        path={rhDocumentosLaboralesApi.descargarPath(documento.id)}
-        title={documento.titulo}
-        watermarkLabel={`${joinName(user?.nombre, user?.apellidos) ?? 'RH'} · ${new Date().toLocaleString('es-MX')}`}
-        onClose={() => setViewerOpen(false)}
-        allowDownload
-        downloadFileName={slugifyFilename(documento.titulo)}
-      />
-    );
-  }
 
   const ops = opsDisponibles;
 
@@ -149,7 +119,7 @@ export default function RhDocumentoLaboralScreen() {
     <Screen
       title="Documento laboral"
       isLoading={query.isLoading}
-      error={query.error}
+      error={query.error} hayDatos={query.data !== undefined}
       notFoundMessage="Este documento ya no está disponible."
       onRetry={() => void query.refetch()}
       refreshing={query.isRefetching}
@@ -189,8 +159,28 @@ export default function RhDocumentoLaboralScreen() {
                 .join(', ')}
             />
             <InfoRow label="Firmado digitalmente" value={formatDateTime(documento.firmado_digital_en)} />
-            <Button title="Ver documento" variant="outline" leftIcon="eye-outline" onPress={() => setViewerOpen(true)} />
           </Card>
+
+          {/*
+            RONDA 2: `documento.puede_descargar` y ruta de consulta. Hoy `GeneratedDocumentPolicy::descargar`
+            exige `contratos.descargar` solo en contratos ajenos; sin él, la ruta responde 403 y aquí se ve el error.
+          */}
+          <DocumentoProtegido
+            titulo={documento.titulo}
+            modo="descarga"
+            path={rhDocumentosLaboralesApi.descargarPath(documento.id)}
+            puedeDescargar={AUTORIZADO_POR_POLICY_ACTUAL}
+          />
+          {accion === 'word' ? (
+            // RONDA 2: `documento.puede_descargar_word`. Hoy lo decide `GeneratedDocumentPolicy::descargarWord` en la ruta.
+            <DocumentoProtegido
+              titulo={`${documento.titulo} (Word)`}
+              modo="descarga"
+              path={rhDocumentosProcesoApi.wordPath(documento.id)}
+              puedeDescargar={AUTORIZADO_POR_POLICY_ACTUAL}
+              tipoEsperado="docx"
+            />
+          ) : null}
 
           {documento.original_fisico ? (
             <Card style={styles.gap}>

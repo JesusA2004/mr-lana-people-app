@@ -1,11 +1,16 @@
 import type { File } from 'expo-file-system';
 import { useCallback } from 'react';
-import { Modal } from 'react-native';
+import { Modal, StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Button } from './Button';
+import { DocumentoProtegido } from './DocumentoProtegido';
 import { SecureDocumentViewer } from './SecureDocumentViewer';
 
 import { cartaCompromisoApi } from '@/api/cartaCompromiso';
-import { slugifyFilename } from '@/utils/formatters';
+import { Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
+import { AUTORIZADO_POR_POLICY_ACTUAL } from '@/utils/autorizacionDocumento';
 
 export type VisorCartaCompromiso =
   /** Vista previa ANTES de terminar el registro (`POST carta-compromiso/vista-previa`). */
@@ -14,26 +19,29 @@ export type VisorCartaCompromiso =
   | { tipo: 'carta'; folio?: string | null };
 
 /**
- * Visor a pantalla completa de la carta compromiso de documentos
- * pendientes. Reutiliza `SecureDocumentViewer` (descarga autenticada,
- * visor PDF de iOS/Android, «Descargar PDF / Abrir con…»). La vista previa
- * es un POST, así que se le pasa su propia forma de descargar.
+ * Carta compromiso de documentos pendientes, a pantalla completa:
+ * - `carta` (ya generada): tarjeta de descarga, sin visor embebido.
+ * - `vista-previa` (POST, borrador antes de terminar el registro): solo
+ *   consulta, con el visor seguro; todavía no es un documento que se entregue.
  */
 export function CartaCompromisoVisor({ visor, onClose }: { visor: VisorCartaCompromiso | null; onClose: () => void }) {
   return (
     <Modal visible={visor !== null} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
-      {visor?.tipo === 'vista-previa' ? (
-        <VistaPrevia documentos={visor.documentos} onClose={onClose} />
-      ) : visor?.tipo === 'carta' ? (
-        <SecureDocumentViewer
-          path={cartaCompromisoApi.pdfPath()}
-          title={visor.folio ? `Carta compromiso ${visor.folio}` : 'Carta compromiso'}
-          onClose={onClose}
-          allowDownload
-          downloadFileName={slugifyFilename(`carta-compromiso-${visor.folio ?? 'documentos'}`)}
-        />
-      ) : null}
+      {visor?.tipo === 'vista-previa' ? <VistaPrevia documentos={visor.documentos} onClose={onClose} /> : visor?.tipo === 'carta' ? <CartaGenerada folio={visor.folio} onClose={onClose} /> : null}
     </Modal>
+  );
+}
+
+function CartaGenerada({ folio, onClose }: { folio?: string | null; onClose: () => void }) {
+  const styles = useEstilos(crearEstilos);
+  return (
+    <SafeAreaView style={styles.pantalla}>
+      <View style={styles.cerrar}>
+        <Button title="Cerrar" variant="ghost" leftIcon="close" fullWidth={false} onPress={onClose} />
+      </View>
+      {/* RONDA 2: `puede_descargar`. Hoy `CartaCompromisoController` solo entrega la carta propia. */}
+      <DocumentoProtegido titulo={folio ? `Carta compromiso ${folio}` : 'Carta compromiso'} modo="descarga" path={cartaCompromisoApi.pdfPath()} puedeDescargar={AUTORIZADO_POR_POLICY_ACTUAL} />
+    </SafeAreaView>
   );
 }
 
@@ -60,3 +68,9 @@ function VistaPrevia({ documentos, onClose }: { documentos: number[]; onClose: (
     />
   );
 }
+
+const crearEstilos = (Colors: ColorPalette) =>
+  StyleSheet.create({
+    pantalla: { flex: 1, padding: Spacing.lg, gap: Spacing.lg, backgroundColor: Colors.background },
+    cerrar: { alignItems: 'flex-end' },
+  });

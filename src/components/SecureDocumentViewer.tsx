@@ -1,14 +1,13 @@
 import { File, Paths } from 'expo-file-system';
 import { Image } from 'expo-image';
 import * as ScreenCapture from 'expo-screen-capture';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AnimatedProgressBar } from './AnimatedProgressBar';
 
 import { Button } from './Button';
-import { BarraDescargaDocumento, DescargaDocumento } from './DescargaDocumento';
 import { ErrorState } from './ErrorState';
 import { PdfViewer } from './PdfViewer';
 import { SecurityWatermark } from './SecurityWatermark';
@@ -17,6 +16,7 @@ import { SkeletonBlock } from './SkeletonBlock';
 import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useEstilos } from '@/theme/ThemeProvider';
 import { API_URL } from '@/constants/config';
+import type { ArchivoLocal } from '@/hooks/useDescargaDocumento';
 import { useAuthStore } from '@/store/authStore';
 import { mensajeParaErrorDescarga, porcentajeDescarga, statusDesdeErrorDescarga } from '@/utils/descargaDocumento';
 import { extensionForSniffedType, isPreviewableSniffedType, sniffFileType, type SniffedFileType } from '@/utils/fileSniff';
@@ -25,7 +25,7 @@ import { uniqueTempFileName } from '@/utils/tempFileName';
 
 export interface SecureDocumentViewerProps {
   /** Ruta relativa a la API (ej. `rhDocumentosApi.verPath(id)`) — nunca una URL absoluta expuesta al cliente. */
-  path: string;
+  path?: string;
   title: string;
   /**
    * Nombre del usuario RH + fecha/hora (AGENTS.md sección 11) — nunca datos
@@ -35,23 +35,8 @@ export interface SecureDocumentViewerProps {
    */
   watermarkLabel?: string;
   onClose: () => void;
-  /**
-   * true solo cuando el backend ya autorizó descarga para este documento
-   * concreto (`puede_descargar`/`acciones_permitidas` incluye `"download"`)
-   * — nunca un botón de guardar/compartir incondicional (sección 33: RH
-   * nunca descarga documentos internos por defecto). Reutiliza el archivo
-   * ya descargado para el visor: abre el sheet nativo de compartir/guardar
-   * (`expo-sharing`) en vez de una segunda descarga.
-   */
-  allowDownload?: boolean;
-  /**
-   * Nombre BASE (sin extensión) sugerido al guardar/compartir — la
-   * extensión siempre es la real, detectada por firma binaria del archivo
-   * (sección 73: nunca exponer UUID/ruta del NAS ni confiar en una
-   * extensión que no se verificó). Usar `slugifyFilename()` para
-   * construirlo.
-   */
-  downloadFileName?: string;
+  /** Archivo que el llamador ya bajó (y conserva): el visor no descarga nada ni lo borra. */
+  archivoLocal?: ArchivoLocal | null;
   /**
    * Obtención propia del archivo, para documentos que NO salen de un GET
    * (p. ej. la vista previa de la carta compromiso, que es un POST): debe
@@ -60,6 +45,10 @@ export interface SecureDocumentViewerProps {
    * (`useCallback`) para no recargar en cada render.
    */
   descargar?: (destino: File, signal: AbortSignal) => Promise<File>;
+  /** El documento se dibujó de verdad (no al abrir ni al cerrar el visor). */
+  onDibujado?: () => void;
+  /** No se pudo dibujar (visor, archivo dañado o tipo sin vista previa). */
+  onFalloVisualizacion?: (mensaje: string) => void;
 }
 
 /** Clave PROPIA de protección de captura — nunca la del hook global (`useAppPrivacyProtection`), para que ninguno libere la protección del otro por accidente (ver `expo-screen-capture`: las claves llevan cuenta independiente, `allowScreenCaptureAsync` de una clave nunca apaga la de otra mientras siga activa). */
@@ -71,11 +60,10 @@ type ViewerStatus = 'loading' | 'ready' | 'error' | 'unsupported';
  * Visor seguro reutilizable (AGENTS.md sección 11, generalizado en la
  * extensión "documents intelligence and hr tools", sección 32): PDF/JPG/PNG
  * vía streaming autenticado con Bearer (nunca la ruta física del NAS),
- * protección de captura de pantalla mientras está abierto, watermark
- * opcional, y descarga opcional solo cuando el backend la autoriza
- * explícitamente. Usado por expediente colaborador/RH, adjuntos de
- * solicitud RH, formatos generados, documentos laborales y recibos de
- * nómina — un solo componente, nunca duplicado por tipo de documento.
+ * protección de captura de pantalla mientras está abierto y watermark
+ * opcional. NUNCA guarda, comparte ni entrega el archivo a otra app: eso solo
+ * existe en `DocumentoProtegido` modo `descarga`. Las pantallas no lo usan
+ * directo: es el motor de los modos `consulta` y `firma`.
  *
  * Descarga a disco (auditoría de integración — "ARCHIVOS GRANDES"):
  * en vez de pedir el archivo completo como `ArrayBuffer` en JS (costoso en
@@ -94,17 +82,17 @@ type ViewerStatus = 'loading' | 'ready' | 'error' | 'unsupported';
  * visor de PDF nativo de Android/iOS reconozca `file://...pdf` dentro del
  * WebView.
  */
-export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, allowDownload = false, downloadFileName, descargar }: SecureDocumentViewerProps) {
+export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, archivoLocal, descargar, onDibujado, onFalloVisualizacion }: SecureDocumentViewerProps) {
   const styles = useEstilos(crearEstilos);
   const token = useAuthStore((state) => state.token);
-  const logout = useAuthStore((state) => state.logout);
-  const [status, setStatus] = useState<ViewerStatus>('loading');
+  const expirarSesion = useAuthStore((state) => state.expirarSesion);
+  const previsualizable = archivoLocal ? isPreviewableSniffedType(archivoLocal.tipo) : false;
+  const [status, setStatus] = useState<ViewerStatus>(archivoLocal ? (previsualizable ? 'ready' : 'unsupported') : 'loading');
   const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined);
-  const [fileUri, setFileUri] = useState<string | null>(null);
-  const [sniffedType, setSniffedType] = useState<SniffedFileType | null>(null);
+  const [fileUri, setFileUri] = useState<string | null>(archivoLocal?.uri ?? null);
+  const [sniffedType, setSniffedType] = useState<SniffedFileType | null>(archivoLocal?.tipo ?? null);
   const [progreso, setProgreso] = useState<number | null>(null);
-  const [tamano, setTamano] = useState<number | null>(null);
-  /** El archivo bajó bien pero el visor (pdf.js / WebView) no pudo dibujarlo: se ofrece descargarlo. */
+  /** El archivo bajó bien pero el visor (pdf.js / WebView) no pudo dibujarlo. */
   const [vistaPreviaFallo, setVistaPreviaFallo] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
 
@@ -115,7 +103,18 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
     };
   }, []);
 
+  const avisarFallo = useCallback(
+    (mensaje: string) => {
+      setVistaPreviaFallo(true);
+      onFalloVisualizacion?.(mensaje);
+    },
+    [onFalloVisualizacion],
+  );
+
+  const tieneArchivoPropio = Boolean(archivoLocal);
+
   useEffect(() => {
+    if (tieneArchivoPropio) return undefined;
     let cancelled = false;
     let downloadedFile: File | null = null;
     const controller = new AbortController();
@@ -156,22 +155,18 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
         const sniffed = sniffFileType(head);
 
         // Renombra a la extensión real (necesario para que el WebView
-        // reconozca un PDF local por su extensión, y para que
-        // "Guardar o compartir" ofrezca la extensión correcta).
+        // reconozca un PDF local por su extensión).
         const finalFile = new File(Paths.cache, uniqueTempFileName(extensionForSniffedType(sniffed)));
         await downloaded.move(finalFile);
         downloadedFile = finalFile;
 
         if (cancelled) return;
         setSniffedType(sniffed);
-        setTamano(finalFile.size);
 
         // Bug corregido en la sincronización 2026-09-15: antes, un tipo no
         // reconocido (p. ej. un DOCX, que el sniffer no distinguía) cortaba
         // aquí con `return` ANTES de `setFileUri()` — el archivo quedaba
-        // descargado en disco pero la UI nunca se enteraba, así que
-        // "Guardar o compartir" jamás aparecía para un documento
-        // perfectamente válido.
+        // descargado en disco pero la UI nunca se enteraba.
         //
         // El tamaño ya se validó (`size === 0` lanzó arriba) y la descarga
         // completa tuvo éxito (un status no-2xx ya habría rechazado la
@@ -180,8 +175,7 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
         // dibujarlo (p. ej. DOCX). Estados conceptuales:
         //   - previewable      → PDF/PNG/JPEG: se dibuja en el visor.
         //   - downloadable-only → cualquier otro tipo no vacío (DOCX,
-        //     binarios no reconocidos): no se previsualiza, pero SIGUE
-        //     pudiendo guardarse/compartirse si `allowDownload` lo permite.
+        //     binarios no reconocidos): este visor no lo dibuja.
         //   - invalid          → 0 bytes/corrupto: ya se descartó arriba,
         //     nunca llega a tener `fileUri`.
         setFileUri(finalFile.uri);
@@ -189,7 +183,7 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
       } catch (error) {
         if (cancelled) return;
         logError('SecureDocumentViewer', error);
-        if (statusDesdeErrorDescarga(error) === 401) void logout();
+        if (statusDesdeErrorDescarga(error) === 401) void expirarSesion();
         setErrorMessage(mensajeParaErrorDescarga(error));
         setStatus('error');
       }
@@ -208,23 +202,19 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
         // No crítico: el sistema operativo limpia `Paths.cache` eventualmente.
       }
     };
-  }, [path, token, retryCount, logout, descargar]);
+  }, [tieneArchivoPropio, path, token, retryCount, expirarSesion, descargar]);
+
+  // Un tipo sin vista previa no se «abrió»: quien espera el dibujo debe saberlo.
+  useEffect(() => {
+    if (status === 'unsupported') onFalloVisualizacion?.('Este archivo no puede mostrarse en la app.');
+  }, [status, onFalloVisualizacion]);
 
   const isPdf = sniffedType === 'pdf';
 
-  const nombreSugerido = downloadFileName ?? title;
-  const archivoLocal = fileUri && sniffedType ? { uri: fileUri, tipo: sniffedType, tamano } : null;
-  // Con descarga autorizada, un PDF se abre en el lector del teléfono (la
-  // vista previa embebida fallaba en varios Android): pantalla «Abrir
-  // documento» / «Guardar en el teléfono» en vez del visor.
-  const pdfFuera = allowDownload && isPdf && status === 'ready';
-  const sinVistaPrevia = status === 'unsupported' || vistaPreviaFallo || pdfFuera;
-  // «Descargar PDF» / «Abrir con…» fijos abajo cuando el documento SÍ se ve
-  // (acción secundaria siempre visible) — solo si el backend autorizó la descarga.
-  const mostrarBarra = allowDownload && status === 'ready' && !vistaPreviaFallo && !pdfFuera && archivoLocal !== null;
+  const sinVistaPrevia = status === 'unsupported' || vistaPreviaFallo;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={mostrarBarra ? ['top', 'left', 'right'] : ['top', 'left', 'right', 'bottom']}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
       <View style={styles.header}>
         <Text style={styles.title} numberOfLines={1}>
           {title}
@@ -247,38 +237,21 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, all
         ) : status === 'error' ? (
           <ErrorState message={errorMessage} onRetry={() => setRetryCount((c) => c + 1)} />
         ) : sinVistaPrevia ? (
-          allowDownload && archivoLocal ? (
-            <DescargaDocumento
-              variante="pantalla"
-              titulo={nombreSugerido}
-              archivoLocal={archivoLocal}
-              accionPrincipal={pdfFuera ? 'abrir' : 'guardar'}
-              motivo={
-                pdfFuera
-                  ? 'El PDF ya está listo. Ábrelo en el lector de tu teléfono o guarda una copia.'
-                  : vistaPreviaFallo
-                  ? 'No se pudo mostrar la vista previa en este teléfono. Descárgalo o ábrelo con otra aplicación.'
-                  : 'Este tipo de archivo no tiene vista previa en la app. Descárgalo o ábrelo con otra aplicación.'
-              }
-            />
-          ) : (
-            <View style={styles.unsupportedBox}>
-              <Text style={styles.unsupportedText}>Este archivo no puede previsualizarse en la app.</Text>
-              <Text style={styles.unsupportedHint}>Este documento no se descarga en el teléfono. Consúltalo en el portal web de PEOPLE.</Text>
-            </View>
-          )
+          <View style={styles.unsupportedBox}>
+            <Text style={styles.unsupportedText}>Este archivo no puede mostrarse en este teléfono.</Text>
+            <Text style={styles.unsupportedHint}>Consúltalo en el portal web de PEOPLE.</Text>
+          </View>
         ) : fileUri && isPdf ? (
           // iOS: visor nativo de WKWebView. Android: pdf.js (su WebView no
-          // dibuja PDFs). Si falla, se cambia a la pantalla de descarga.
-          <PdfViewer fileUri={fileUri} style={styles.webview} onError={() => setVistaPreviaFallo(true)} />
+          // dibuja PDFs). Si falla, se avisa: el visor nunca saca el archivo de la app.
+          <PdfViewer fileUri={fileUri} style={styles.webview} onError={avisarFallo} onRendered={onDibujado} />
         ) : fileUri ? (
-          <Image source={{ uri: fileUri }} style={styles.image} contentFit="contain" accessibilityLabel={title} onError={() => setVistaPreviaFallo(true)} />
+          <Image source={{ uri: fileUri }} style={styles.image} contentFit="contain" accessibilityLabel={title} onLoad={() => onDibujado?.()} onError={() => avisarFallo('No se pudo mostrar este documento en este teléfono.')} />
         ) : null}
 
         {status === 'ready' && !vistaPreviaFallo && watermarkLabel ? <SecurityWatermark label={watermarkLabel} /> : null}
       </View>
 
-      {mostrarBarra && archivoLocal ? <BarraDescargaDocumento titulo={nombreSugerido} archivoLocal={archivoLocal} /> : null}
     </SafeAreaView>
   );
 }

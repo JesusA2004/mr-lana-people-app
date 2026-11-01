@@ -14,8 +14,9 @@ import { FlujoAprobacionTimeline } from '@/components/FlujoAprobacionTimeline';
 import { MascotAssistant } from '@/components/mascot/MascotAssistant';
 import { StepTimeline } from '@/components/ciclo/StepTimeline';
 import { RequestStatusTimeline } from '@/components/RequestStatusTimeline';
-import { SecureDocumentViewer } from '@/components/SecureDocumentViewer';
+import { DocumentoProtegido } from '@/components/DocumentoProtegido';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
+import { AUTORIZADO_POR_POLICY_ACTUAL } from '@/utils/autorizacionDocumento';
 import { SolicitudFormatoOficialCard } from '@/components/SolicitudFormatoOficialCard';
 import { StatusBadge } from '@/components/StatusBadge';
 import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
@@ -26,7 +27,7 @@ import { toast } from '@/store/toastStore';
 import { canCancelSolicitud } from '@/types/request';
 import { formatDateLong, formatDateTime } from '@/utils/dates';
 import { getDevErrorDetail, getErrorMessage, logError } from '@/utils/errors';
-import { formatCurrencyMXN, humanizeRequestType, slugifyFilename } from '@/utils/formatters';
+import { formatCurrencyMXN, humanizeRequestType } from '@/utils/formatters';
 import { haptics } from '@/utils/haptics';
 import { normalizeCorreccion, normalizeHistorial } from '@/utils/correcciones';
 import { formatFechaHoraFlujo, normalizeFlujo, textoPendienteDe } from '@/utils/flujoAprobacion';
@@ -67,7 +68,6 @@ export default function SolicitudDetalleScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [confirmVisible, setConfirmVisible] = useState(false);
-  const [formatoAbierto, setFormatoAbierto] = useState(false);
 
   const { data: solicitud, isLoading, isError, error, refetch, isRefetching } = useSolicitud(id);
   const cancelMutation = useCancelSolicitud();
@@ -181,18 +181,6 @@ export default function SolicitudDetalleScreen() {
       },
     });
   };
-
-  if (formatoAbierto && solicitud && permiso?.pdf_disponible) {
-    return (
-      <SecureDocumentViewer
-        path={solicitudesApi.permisoPdfPath(solicitud.id)}
-        title={`Permiso ${solicitud.folio ?? ''}`.trim()}
-        onClose={() => setFormatoAbierto(false)}
-        allowDownload
-        downloadFileName={slugifyFilename(`permiso-${solicitud.folio ?? solicitud.id}`)}
-      />
-    );
-  }
 
   return (
     <View style={styles.container}>
@@ -340,7 +328,13 @@ export default function SolicitudDetalleScreen() {
                       {permiso.autorizado_en ? ` el ${formatDateTime(permiso.autorizado_en)}` : ''}. Imprímelo para las firmas de tu jefe
                       inmediato, Recursos Humanos y la tuya.
                     </Text>
-                    <Button title="Ver formato oficial" leftIcon="document-outline" variant="outline" onPress={() => setFormatoAbierto(true)} />
+                    {/* RONDA 2: `permiso.puede_descargar`. Hoy `SolicitudInternaPolicy::descargarFormato` es la misma regla que abrir esta tarjeta. */}
+                    <DocumentoProtegido
+                      titulo={`Permiso ${solicitud.folio ?? ''}`.trim()}
+                      modo="descarga"
+                      path={solicitudesApi.permisoPdfPath(solicitud.id)}
+                      puedeDescargar={AUTORIZADO_POR_POLICY_ACTUAL}
+                    />
                   </>
                 ) : (
                   <Text style={styles.detailValue}>El formato se genera cuando Recursos Humanos autoriza tu permiso.</Text>
