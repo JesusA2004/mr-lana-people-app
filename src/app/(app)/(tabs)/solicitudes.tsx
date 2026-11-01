@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { FiltroChips } from '@/components/FiltroChips';
@@ -22,6 +22,7 @@ import { requestFamily, type RequestFamily } from '@/constants/requestTypes';
 import { useSolicitudesInfinite } from '@/hooks/queries/useSolicitudes';
 import type { RequestStatus, Solicitud } from '@/types/request';
 import { getErrorMessage } from '@/utils/errors';
+import { debeCargarMasParaFiltro } from '@/utils/filtroPaginado';
 import { humanizeRequestStatus } from '@/utils/formatters';
 
 /**
@@ -58,7 +59,7 @@ export default function SolicitudesScreen() {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   const router = useRouter();
-  const { data, isLoading, isError, error, refetch, isRefetching, fetchNextPage, hasNextPage, isFetchingNextPage } = useSolicitudesInfinite();
+  const { data, dataUpdatedAt, isLoading, isError, isFetchNextPageError, error, refetch, isRefetching, fetchNextPage, hasNextPage, isFetchingNextPage } = useSolicitudesInfinite();
   const [family, setFamily] = useState<RequestFamily | 'todas'>('todas');
   const [estado, setEstado] = useState<RequestStatus | 'todos'>('todos');
   const [search, setSearch] = useState('');
@@ -75,6 +76,11 @@ export default function SolicitudesScreen() {
     [solicitudes, family, estado, search],
   );
   const hasActiveFilter = family !== 'todas' || estado !== 'todos' || Boolean(search);
+  // Búsqueda y filtros son locales: «Sin resultados» solo se puede afirmar tras revisar todas las páginas.
+  const buscandoMas = debeCargarMasParaFiltro({ resultados: filtered.length, hayFiltroLocal: hasActiveFilter, hasNextPage, isFetchingNextPage, fallo: isFetchNextPageError });
+  useEffect(() => {
+    if (buscandoMas) void fetchNextPage();
+  }, [buscandoMas, fetchNextPage, dataUpdatedAt]);
 
   return (
     <View style={styles.container}>
@@ -126,12 +132,17 @@ export default function SolicitudesScreen() {
             <View style={styles.footerLoading}>
               <Text style={styles.footerLoadingText}>Cargando más…</Text>
             </View>
+          ) : isFetchNextPageError && hasNextPage ? (
+            <View style={styles.footerLoading}>
+              <Text style={styles.footerLoadingText}>No pudimos cargar más solicitudes.</Text>
+              <Button title="Reintentar" variant="ghost" leftIcon="refresh" fullWidth={false} onPress={() => void fetchNextPage()} />
+            </View>
           ) : null
         }
         ListEmptyComponent={
-          isLoading ? (
+          isLoading || buscandoMas || (hasActiveFilter && isFetchingNextPage) ? (
             <SkeletonCardList count={4} />
-          ) : isError ? (
+          ) : isError && !isFetchNextPageError ? (
             <ErrorState message={getErrorMessage(error)} onRetry={() => void refetch()} />
           ) : !hasActiveFilter ? (
             <MascotAssistant
