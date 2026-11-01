@@ -20,6 +20,7 @@ export type ModoDocumento = 'descarga' | 'consulta' | 'firma';
 
 export const TEXTO_RESTRICCION_CONSULTA = 'Este documento solo se puede consultar en la app. No se puede descargar ni compartir.';
 export const TEXTO_SIN_AUTORIZACION = 'No tienes autorización para descargar este documento.';
+export const TEXTO_FIRMA_BLOQUEADA = 'Si sigue sin mostrarse, acude a Recursos Humanos para firmarlo.';
 const TEXTO_NO_ABRIO = 'No se pudo abrir el documento en este teléfono.';
 
 /** Clave propia: nunca la del hook global de privacidad. Ver la nota de `abrirVisor`. */
@@ -33,8 +34,8 @@ export interface DocumentoProtegidoProps {
   path?: string | null;
   /**
    * Autorización de descarga de ESTE documento. Solo `true` muestra «Descargar
-   * PDF» y «Abrir con…»: ausente es NO. Donde el backend aún no manda flag, la
-   * pantalla pasa `AUTORIZADO_POR_POLICY_ACTUAL` con su justificación.
+   * PDF» y «Abrir con…»: ausente es NO. Sale siempre de la bandera que manda
+   * el backend por documento.
    */
   puedeDescargar?: boolean;
   /** Modos `consulta` y `firma`: ruta para ver dentro de la app. */
@@ -111,7 +112,9 @@ export function DocumentoProtegido({
   };
 
   const alFallarVisor = (mensaje: string) => {
-    setErrorApertura(mensaje || TEXTO_NO_ABRIO);
+    const texto = mensaje || TEXTO_NO_ABRIO;
+    // Sin dibujo no hay firma ni vía alterna: se dice a dónde acudir.
+    setErrorApertura(modo === 'firma' ? `${texto} ${TEXTO_FIRMA_BLOQUEADA}` : texto);
     cerrarVisor();
     // Un archivo dañado no debe reusarse: «Reintentar» lo baja de nuevo.
     descarga.descartar();

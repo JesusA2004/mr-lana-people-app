@@ -37,6 +37,16 @@ export const documentosLaboralesApi = {
     return `/colaborador/documentos-laborales/${id}/descargar`;
   },
 
+  /** Consulta en línea (`GET .../ver`): basta `ver`. Con la firma pendiente, el servidor anota la petición. */
+  verPath(id: number | string): string {
+    return `/colaborador/documentos-laborales/${id}/ver`;
+  },
+
+  /** Confirma al servidor que el PDF de `/ver` se dibujó. La firma lo exige; no marca nada como leído. */
+  async registrarApertura(id: number | string): Promise<void> {
+    await apiClient.post(`/colaborador/documentos-laborales/${id}/apertura`);
+  },
+
   /**
    * Aceptación / firma digital (`acepto=true` es obligatorio en backend,
    * `accepted`). Solo el titular y solo en `pendiente_firma_colaborador`;

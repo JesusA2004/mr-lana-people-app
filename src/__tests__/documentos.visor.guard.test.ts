@@ -49,6 +49,7 @@ describe('regla de documentos', () => {
   it('la firma no se marca al cerrar el visor', () => {
     const pantalla = readFileSync(join(SRC, 'app/(app)/documentos-laborales/[id].tsx'), 'utf8');
     expect(pantalla).not.toMatch(/onClose/);
-    expect(pantalla).toMatch(/onAperturaVerificada=\{\(\) => setAperturaVerificada\(true\)\}/);
+    expect(pantalla).toMatch(/onAperturaVerificada=\{registrarApertura\}/);
+    expect(pantalla).toMatch(/onSuccess: \(\) => setAperturaVerificada\(true\)/);
   });
 });

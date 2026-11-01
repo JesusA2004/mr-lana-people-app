@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import { documentosLaboralesApi } from '@/api/documentosLaborales';
@@ -14,9 +14,8 @@ import { PressableScale } from '@/components/PressableScale';
 import { StatusBadge } from '@/components/StatusBadge';
 import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
-import { useFirmarDocumentoLaboral, useLaborDocument } from '@/hooks/queries/useLaborDocuments';
+import { useFirmarDocumentoLaboral, useLaborDocument, useRegistrarAperturaDocumento } from '@/hooks/queries/useLaborDocuments';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { AUTORIZADO_POR_POLICY_ACTUAL } from '@/utils/autorizacionDocumento';
 import { toast } from '@/store/toastStore';
 import { formatDateLong, formatDateTime } from '@/utils/dates';
 import { getActionErrorMessage, logError } from '@/utils/errors';
@@ -48,13 +47,30 @@ export default function DocumentoLaboralDetailScreen() {
   const query = useLaborDocument(Number.isFinite(numericId) ? numericId : undefined);
   const firmar = useFirmarDocumentoLaboral();
   const { isOffline } = useNetworkStatus();
-  /** Solo `onAperturaVerificada` lo enciende: el PDF se dibujó de verdad. */
+  const apertura = useRegistrarAperturaDocumento();
+  /** Solo se enciende si el PDF se dibujó de verdad Y el servidor lo registró. */
   const [aperturaVerificada, setAperturaVerificada] = useState(false);
+  const aperturaEnCurso = useRef(false);
   const [acepto, setAcepto] = useState(false);
 
   const documento = query.data ?? null;
 
   const puedeFirmar = !!documento && canColaboradorSign(documento);
+
+  const registrarApertura = () => {
+    if (!documento || aperturaVerificada || aperturaEnCurso.current) return;
+    aperturaEnCurso.current = true;
+    apertura.mutate(documento.id, {
+      onSuccess: () => setAperturaVerificada(true),
+      onError: (error) => {
+        logError('documentoLaboral.apertura', error);
+        toast.error(getActionErrorMessage(error));
+      },
+      onSettled: () => {
+        aperturaEnCurso.current = false;
+      },
+    });
+  };
 
   const confirmarFirma = () => {
     if (!documento) return;
@@ -76,6 +92,9 @@ export default function DocumentoLaboralDetailScreen() {
                   void query.refetch();
                 },
                 onError: (error) => {
+                  // Nunca se da por hecha la apertura: el servidor manda.
+                  setAcepto(false);
+                  setAperturaVerificada(false);
                   logError('documentoLaboral.firmar', error);
                   haptics.error();
                   toast.error(getActionErrorMessage(error));
@@ -115,18 +134,13 @@ export default function DocumentoLaboralDetailScreen() {
             <InfoRow label="Versión de plantilla" value={documento.version_plantilla} icon="layers-outline" />
           </Card>
 
-          {/*
-            RONDA 2: `documento.puede_descargar`. Hoy `GeneratedDocumentPolicy::descargar`
-            autoriza siempre al titular, y `ver` ya filtró esta pantalla. La ruta de consulta
-            también será propia en la ronda 2; hoy solo existe `/descargar`.
-          */}
           <DocumentoProtegido
             titulo={documento.titulo}
-            modo={puedeFirmar ? 'firma' : 'descarga'}
+            modo={puedeFirmar ? 'firma' : documento.puede_descargar ? 'descarga' : 'consulta'}
             path={documentosLaboralesApi.descargarPath(documento.id)}
-            puedeDescargar={AUTORIZADO_POR_POLICY_ACTUAL}
-            pathConsulta={puedeFirmar ? documentosLaboralesApi.descargarPath(documento.id) : undefined}
-            onAperturaVerificada={() => setAperturaVerificada(true)}
+            puedeDescargar={documento.puede_descargar}
+            pathConsulta={documentosLaboralesApi.verPath(documento.id)}
+            onAperturaVerificada={registrarApertura}
           />
 
           {puedeFirmar ? (
@@ -136,7 +150,7 @@ export default function DocumentoLaboralDetailScreen() {
                 Lee el documento completo antes de firmar. Tu aceptación digital tiene validez interna y queda registrada con fecha, dispositivo y huella
                 del archivo.
               </Notice>
-              {!aperturaVerificada ? <Text style={styles.hint}>Abre el documento y espera a que se muestre para habilitar la firma.</Text> : null}
+              {!aperturaVerificada ? <Text style={styles.hint}>Abre el documento y espera a que se muestre para habilitar la firma. Si no se muestra en tu teléfono, acude a Recursos Humanos.</Text> : null}
               <PressableScale
                 accessibilityRole="button"
                 accessibilityLabel="Leí el documento y acepto su contenido"

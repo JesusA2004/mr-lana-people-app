@@ -72,6 +72,8 @@ export function normalizeLaborDocument(value: unknown): LaborDocument {
     related_id: asId(raw.related_id),
     colaborador: normalizeColaboradorRef(raw.colaborador),
     original_fisico: normalizeOriginalFisico(raw.original_fisico),
+    puede_descargar: raw.puede_descargar === true,
+    puede_descargar_word: raw.puede_descargar_word === true,
   };
   if (Array.isArray(raw.eventos)) {
     documento.eventos = raw.eventos.map(normalizeEvento);

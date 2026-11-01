@@ -57,6 +57,13 @@ export function useLaborDocument(id: number | undefined) {
   });
 }
 
+export function useRegistrarAperturaDocumento() {
+  return useMutation({
+    ...SENSITIVE_MUTATION,
+    mutationFn: (id: number) => documentosLaboralesApi.registrarApertura(id),
+  });
+}
+
 export function useFirmarDocumentoLaboral() {
   const queryClient = useQueryClient();
   return useMutation({

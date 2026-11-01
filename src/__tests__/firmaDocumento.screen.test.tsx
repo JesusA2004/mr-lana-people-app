@@ -34,10 +34,13 @@ const mockDocumento = {
   titulo: 'Contrato',
   estado: 'pendiente_firma_colaborador',
   requiere_firma_digital: true,
+  puede_descargar: true,
 };
+const mockRegistrarApertura = jest.fn();
 jest.mock('@/hooks/queries/useLaborDocuments', () => ({
   useLaborDocument: () => ({ data: mockDocumento, isLoading: false, error: null, refetch: jest.fn(), isRefetching: false }),
   useFirmarDocumentoLaboral: () => ({ mutate: jest.fn(), isPending: false }),
+  useRegistrarAperturaDocumento: () => ({ mutate: mockRegistrarApertura }),
 }));
 
 const boton = (arbol: ReactTestRenderer, titulo: string) => arbol.root.findAllByType(Button).find((b) => b.props.title === titulo)!;
@@ -59,6 +62,11 @@ function montar(): ReactTestRenderer {
 }
 
 beforeEach(() => {
+  mockRegistrarApertura.mockReset();
+  mockRegistrarApertura.mockImplementation((_id: number, opciones: { onSuccess?: () => void; onSettled?: () => void }) => {
+    opciones.onSuccess?.();
+    opciones.onSettled?.();
+  });
   discoFalso.clear();
   FakeFile.descargaFalsa = async (_url, destino) => {
     discoFalso.set(destino.uri, PDF_BYTES);
@@ -85,6 +93,20 @@ describe('regla de firma en la pantalla', () => {
     act(() => arbol.root.findByType(PdfViewer).props.onError('No se pudo mostrar este documento en este teléfono.'));
     expect(casilla(arbol).props.disabled).toBe(true);
     expect(boton(arbol, 'Reintentar')).toBeDefined();
+    expect(mockRegistrarApertura).not.toHaveBeenCalled();
+    expect(JSON.stringify(arbol.toJSON())).toContain('acude a Recursos Humanos');
+  });
+
+  it('si el servidor no registra la apertura, sigue bloqueada', async () => {
+    mockRegistrarApertura.mockImplementation((_id: number, opciones: { onError?: (e: unknown) => void; onSettled?: () => void }) => {
+      opciones.onError?.(new Error('sin red'));
+      opciones.onSettled?.();
+    });
+    const arbol = montar();
+    await tocar(arbol, 'Abrir documento para revisarlo');
+    act(() => arbol.root.findByType(PdfViewer).props.onRendered());
+    expect(mockRegistrarApertura).toHaveBeenCalledWith(5, expect.anything());
+    expect(casilla(arbol).props.disabled).toBe(true);
   });
 
   it('abrirlo con otra app no habilita nada', async () => {

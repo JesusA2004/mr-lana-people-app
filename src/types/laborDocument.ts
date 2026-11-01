@@ -79,6 +79,9 @@ export interface LaborDocument {
   related_id: number | null;
   colaborador: ColaboradorRef | null;
   original_fisico: OriginalFisico | null;
+  /** Autorización por documento; ausente = no. */
+  puede_descargar: boolean;
+  puede_descargar_word: boolean;
   /** Solo en detalle RH (`GET /rh/documentos-laborales/{id}`). */
   eventos?: DocumentoEvento[];
 }
