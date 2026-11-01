@@ -3,14 +3,16 @@ import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/AppHeader';
 import { BarraAccionInferior } from '@/components/BarraAccionInferior';
+import { Button } from '@/components/Button';
 import { FormularioScroll } from '@/components/FormularioScroll';
+import { TransicionEstado } from '@/components/TransicionEstado';
 import { ErrorState } from '@/components/ErrorState';
 import { EmptyState } from '@/components/EmptyState';
 import { ResponsiveContent } from '@/components/ResponsiveContent';
 import { SkeletonBlock, SkeletonCardList } from '@/components/SkeletonBlock';
 import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
-import { getDevErrorDetail, getErrorMessage, isNotFoundError } from '@/utils/errors';
+import { getDevErrorDetail, getErrorMessage, isNotFoundError, isTransientError } from '@/utils/errors';
 
 export interface ScreenProps {
   title: string;
@@ -20,6 +22,12 @@ export interface ScreenProps {
   showBack?: boolean;
   isLoading?: boolean;
   error?: unknown;
+  /**
+   * Ya hay datos cargados. Con un error PASAJERO (red, 5xx, 429) se conservan en
+   * pantalla con un aviso: React Query mantiene `data` y también informa `error`
+   * tras un refresco fallido. Un 403/404 sí reemplaza el contenido: ya no aplica.
+   */
+  hayDatos?: boolean;
   /** Texto cuando el backend responde 404 (ej. cuenta sin colaborador vinculado). */
   notFoundMessage?: string;
   onRetry?: () => void;
@@ -55,6 +63,7 @@ export function Screen({
   showBack = true,
   isLoading = false,
   error,
+  hayDatos = false,
   notFoundMessage,
   onRetry,
   refreshing = false,
@@ -68,7 +77,9 @@ export function Screen({
 }: ScreenProps) {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
-  const hasError = error !== null && error !== undefined;
+  const conError = error !== null && error !== undefined;
+  const refrescoFallido = conError && hayDatos && !isLoading && isTransientError(error);
+  const hasError = conError && !refrescoFallido;
   const [alturaBarra, setAlturaBarra] = useState(0);
   const mostrarFooter = Boolean(footer) && !isLoading && !hasError;
 
@@ -81,18 +92,28 @@ export function Screen({
         contentContainerStyle={styles.content}
         refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} /> : undefined}>
         <ResponsiveContent form={form} style={styles.inner}>
-          {isLoading ? (
-            <View style={styles.skeleton}>
-              <SkeletonBlock height={120} radius={Radius.lg} />
-              <SkeletonCardList count={3} />
-            </View>
-          ) : hasError && isNotFoundError(error) && notFoundMessage ? (
-            <EmptyState icon="information-circle-outline" message={notFoundMessage} />
-          ) : hasError ? (
-            <ErrorState message={getErrorMessage(error)} devDetail={getDevErrorDetail(error)} onRetry={onRetry} />
-          ) : (
-            children
-          )}
+          <TransicionEstado estado={isLoading ? 'cargando' : hasError ? 'error' : 'contenido'} style={styles.inner}>
+            {isLoading ? (
+              <View style={styles.skeleton}>
+                <SkeletonBlock height={120} radius={Radius.lg} />
+                <SkeletonCardList count={3} />
+              </View>
+            ) : hasError && isNotFoundError(error) && notFoundMessage ? (
+              <EmptyState icon="information-circle-outline" message={notFoundMessage} />
+            ) : hasError ? (
+              <ErrorState message={getErrorMessage(error)} devDetail={getDevErrorDetail(error)} onRetry={onRetry} />
+            ) : (
+              <>
+                {refrescoFallido ? (
+                  <View style={styles.refrescoFallido} accessibilityLiveRegion="polite">
+                    <Text style={styles.refrescoTexto}>No pudimos actualizar. Esto es lo último que se cargó.</Text>
+                    {onRetry ? <Button title="Reintentar" variant="ghost" fullWidth={false} leftIcon="refresh" onPress={onRetry} /> : null}
+                  </View>
+                ) : null}
+                {children}
+              </>
+            )}
+          </TransicionEstado>
         </ResponsiveContent>
       </FormularioScroll>
       {mostrarFooter ? (
@@ -141,6 +162,22 @@ const crearEstilos = (Colors: ColorPalette) =>
     },
     skeleton: {
       gap: Spacing.lg,
+    },
+    refrescoFallido: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: Spacing.sm,
+      padding: Spacing.sm,
+      borderRadius: Radius.md,
+      backgroundColor: Colors.warningSoft,
+    },
+    refrescoTexto: {
+      flex: 1,
+      minWidth: 160,
+      fontSize: FontSize.sm,
+      fontWeight: '600',
+      color: Colors.text,
     },
     sectionTitle: {
       fontSize: FontSize.md,
