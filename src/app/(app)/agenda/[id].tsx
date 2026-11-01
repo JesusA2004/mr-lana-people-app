@@ -187,7 +187,17 @@ export default function AgendaEventoScreen() {
               {esEntrevista && resultado === 'no_viable' ? (
                 <>
                   <Text style={styles.etiqueta}>Motivo</Text>
-                  <FilterChips options={motivos.map((m) => ({ value: m.value, label: m.etiqueta }))} value={motivo ?? ''} onChange={setMotivo} />
+                  {motivos.length > 0 ? (
+                    <FilterChips options={motivos.map((m) => ({ value: m.value, label: m.etiqueta }))} value={motivo ?? ''} onChange={setMotivo} />
+                  ) : lista.isLoading ? (
+                    <Text style={styles.muted}>Cargando motivos…</Text>
+                  ) : (
+                    // Los motivos vienen de otra consulta: sin ellos no se puede guardar, y debe decirse.
+                    <>
+                      <Notice tone="warning">{lista.isError ? 'No pudimos cargar los motivos.' : 'No hay motivos disponibles. Avisa a Recursos Humanos.'}</Notice>
+                      <Button title="Reintentar" variant="outline" leftIcon="refresh" loading={lista.isFetching} onPress={() => void lista.refetch()} />
+                    </>
+                  )}
                 </>
               ) : null}
 
@@ -213,7 +223,7 @@ export default function AgendaEventoScreen() {
                 <Field label="Comentario" value={comentario} onChangeText={setComentario} placeholder="Comentario breve…" multiline maxLength={2000} />
               ) : null}
 
-              <Button title="Guardar resultado" leftIcon="save-outline" disabled={isOffline} onPress={guardarResultado} />
+              <Button title="Guardar resultado" leftIcon="save-outline" disabled={isOffline || (esEntrevista && resultado === 'no_viable' && motivos.length === 0)} onPress={guardarResultado} />
             </Card>
           ) : evento.puede.capturar && !evento.puede.registrar_resultado ? (
             <Notice tone="info">Tu cuenta solo consulta esta cita; el resultado lo registra la gerencia.</Notice>
