@@ -2,6 +2,7 @@ import { File } from 'expo-file-system';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
+import type { SuppressMenuItem } from 'react-native-webview/lib/WebViewTypes';
 
 import { SkeletonBlock } from './SkeletonBlock';
 
@@ -39,10 +40,18 @@ export function PdfViewer({ fileUri, style, onError, onRendered }: PdfViewerProp
     return (
       <WebView
         source={{ uri: fileUri }}
-        originWhitelist={['file://*']}
+        // Lista abierta a propósito: lo que no pasa por ella, WebView lo entrega a
+        // `Linking.openURL`. Quien decide es `onShouldStartLoadWithRequest`.
+        originWhitelist={['*']}
+        onShouldStartLoadWithRequest={(request) => request.url.startsWith('file://')}
         allowFileAccess
         allowingReadAccessToURL={fileUri}
         javaScriptEnabled={false}
+        cacheEnabled={false}
+        // Documentos que no salen de la app: sin selección ni menú de copiar o compartir.
+        textInteractionEnabled={false}
+        suppressMenuItems={MENU_SUPRIMIDO}
+        allowsLinkPreview={false}
         // `onLoad` solo corre si cargó bien (`onLoadEnd` también corre con error).
         onLoad={() => onRendered?.()}
         onError={() => onError?.(MENSAJE_ERROR)}
@@ -54,6 +63,8 @@ export function PdfViewer({ fileUri, style, onError, onRendered }: PdfViewerProp
 
   return <AndroidPdfViewer fileUri={fileUri} style={style} onError={onError} onRendered={onRendered} />;
 }
+
+const MENU_SUPRIMIDO: SuppressMenuItem[] = ['copy', 'cut', 'share', 'select', 'selectAll', 'lookup', 'translate'];
 
 const MENSAJE_ERROR = 'No se pudo mostrar este documento en este teléfono.';
 

@@ -246,7 +246,8 @@ export function SecureDocumentViewer({ path, title, watermarkLabel, onClose, arc
           // dibuja PDFs). Si falla, se avisa: el visor nunca saca el archivo de la app.
           <PdfViewer fileUri={fileUri} style={styles.webview} onError={avisarFallo} onRendered={onDibujado} />
         ) : fileUri ? (
-          <Image source={{ uri: fileUri }} style={styles.image} contentFit="contain" accessibilityLabel={title} onLoad={() => onDibujado?.()} onError={() => avisarFallo('No se pudo mostrar este documento en este teléfono.')} />
+          // Sin caché: por defecto expo-image guarda una copia en disco que sobreviviría al cerrar.
+          <Image source={{ uri: fileUri }} cachePolicy="none" style={styles.image} contentFit="contain" accessibilityLabel={title} onLoad={() => onDibujado?.()} onError={() => avisarFallo('No se pudo mostrar este documento en este teléfono.')} />
         ) : null}
 
         {status === 'ready' && !vistaPreviaFallo && watermarkLabel ? <SecurityWatermark label={watermarkLabel} /> : null}
