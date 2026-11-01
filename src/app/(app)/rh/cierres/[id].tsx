@@ -124,7 +124,7 @@ export default function RhCierreDetailScreen() {
       title="Cierre laboral"
       subtitle={cierre?.colaborador?.nombre}
       isLoading={query.isLoading}
-      error={query.error}
+      error={query.error} hayDatos={query.data !== undefined}
       notFoundMessage="Este cierre ya no está disponible."
       onRetry={() => void query.refetch()}
       refreshing={query.isRefetching}
@@ -214,14 +214,8 @@ export default function RhCierreDetailScreen() {
               {has('calcular') ? (
                 <Button title={cierre.finiquito ? 'Recalcular finiquito' : 'Calcular finiquito'} variant="outline" leftIcon="calculator-outline" disabled={isOffline} onPress={() => setSheet('calcular')} />
               ) : null}
-              {has('revisar') ? (
-                <Button
-                  title="Marcar finiquito como revisado"
-                  variant="outline"
-                  disabled={isOffline || operar.isPending}
-                  onPress={() => confirmar('Revisar finiquito', 'Confirmas que revisaste montos y conceptos.', { tipo: 'revisar' }, 'Finiquito revisado.')}
-                />
-              ) : null}
+              {/* RONDA 2: `POST /rh/cierres/{id}/finiquito/revisar` no existe en la API (daba 404). La operación `revisar` sigue en `utils/cierre.ts` y `rhCicloLaboralApi`: al agregar la ruta se restaura aquí el botón «Marcar finiquito como revisado». */}
+              {has('revisar') ? <Notice tone="info">La revisión del finiquito se hace por ahora en el portal web de PEOPLE.</Notice> : null}
               {has('generar_finiquito') ? (
                 <Button
                   title="Generar documento de finiquito"
