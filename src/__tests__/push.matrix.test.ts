@@ -53,6 +53,17 @@ const CASOS: Caso[] = [
   { type: 'pago_por_programar', related_type: 'CierreLaboral', destinatario: 'rh' },
   { type: 'cita_finiquito', related_type: 'CierreLaboral', destinatario: 'rh' },
   { type: 'reingreso_solicitado', related_type: 'Reingreso', destinatario: 'rh' },
+  // Notificaciones que no abrían nada, o abrían una pantalla ajena.
+  { type: 'prestamo_disponible', destinatario: 'colaborador' },
+  { type: 'documento_rechazado', related_type: 'EmployeeDocument', destinatario: 'colaborador' },
+  { type: 'documento_por_revisar', related_type: 'EmployeeDocument', destinatario: 'rh' },
+  { type: 'baja_alerta_juridico', related_type: 'Baja', destinatario: 'rh' },
+  { type: 'baja_alerta_contraloria', related_type: 'Baja', destinatario: 'rh' },
+  { type: 'baja_rotacion_temprana', related_type: 'Baja', destinatario: 'rh' },
+  { type: 'baja', related_type: 'Baja', destinatario: 'rh' },
+  { type: 'intervencion_solicitada', related_type: 'IntervencionCandidato', destinatario: 'rh' },
+  { type: 'acta_registrada', related_type: 'ActaAdministrativa', destinatario: 'rh' },
+  { type: 'responsiva_registrada', related_type: 'Responsiva', destinatario: 'compartido' },
   // Descriptivo de puesto tras la inducción (AcuseDescriptivoPuestoService).
   { type: 'descriptivo_puesto_enviado', related_type: 'AcuseDescriptivoPuesto', destinatario: 'colaborador' },
   { type: 'descriptivo_puesto_acusado', related_type: 'AcuseDescriptivoPuesto', destinatario: 'rh' },

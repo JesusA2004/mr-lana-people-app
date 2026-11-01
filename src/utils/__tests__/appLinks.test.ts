@@ -28,6 +28,11 @@ const CASOS: [type: string, resourceId: number | null, route: string, experience
   // Recibos impresos: un aviso viejo nunca abre /recibos/{id}.
   ['recibo_nomina', 88, '/notificaciones', 'colaborador'],
   ['prestamo_autorizado', 15, '/prestamos/15', 'colaborador'],
+  // Aviso del colaborador: nunca la ficha de RH de la persona.
+  ['prestamo_disponible', null, '/(app)/(tabs)/solicitudes', 'colaborador'],
+  ['documento_por_revisar', 44, '/(app)/rh/documentos/44', 'rh'],
+  ['documento_rechazado', 44, '/expediente/44?ref=documento', 'colaborador'],
+  ['responsiva_registrada', 9, '/notificaciones', null],
   ['expediente_incompleto', 7, '/(app)/(tabs)/expediente', 'colaborador'],
   ['datos_faltantes', 7, '/completar-datos', 'colaborador'],
   ['alta_activada', 7, '/(app)/(tabs)', 'colaborador'],
@@ -190,5 +195,22 @@ describe('aviso de RH: el push abre el aviso concreto', () => {
   it('con id va al detalle; sin id, a la bandeja', () => {
     expect(resolveResourceRoute({ type: 'aviso_rh', resource_id: 5 })).toBe('/avisos/5');
     expect(resolveResourceRoute({ type: 'aviso_rh', resource_id: null })).toBe('/avisos');
+  });
+});
+
+describe('avisos por modelo relacionado', () => {
+  it.each([
+    ['Baja', 7, '/(app)/rh/bajas/7'],
+    ['Baja', null, '/notificaciones'],
+    ['ActaAdministrativa', 3, '/(app)/rh/actas/3'],
+    ['ActaAdministrativa', null, '/notificaciones'],
+    ['IntervencionCandidato', 5, '/(app)/rh/candidatos'],
+    ['Responsiva', 9, '/notificaciones'],
+  ])('%s con id %s abre %s', (related_type, resource_id, ruta) => {
+    expect(resolveResourceRoute({ type: 'evento_variable', related_type, resource_id })).toBe(ruta);
+  });
+
+  it('prestamo_disponible gana aunque el aviso guardado traiga al colaborador', () => {
+    expect(resolveResourceRoute({ type: 'prestamo_disponible', related_type: 'Colaborador', resource_id: 4 })).toBe('/(app)/(tabs)/solicitudes');
   });
 });

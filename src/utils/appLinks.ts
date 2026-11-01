@@ -81,6 +81,18 @@ export function resolveResourceRoute(data: PushNotificationData): string | null 
       return '/notificaciones';
     case 'prestamo_autorizado':
       return id ? `/prestamos/${id}` : '/prestamos';
+    // Ya cumplió la antigüedad: se solicita en Mis solicitudes (aviso sin recurso).
+    case 'prestamo_disponible':
+      return '/(app)/(tabs)/solicitudes';
+    // RH: documento por revisar (`resource_id` = EmployeeDocument).
+    case 'documento_por_revisar':
+      return id ? `/(app)/rh/documentos/${id}` : '/(app)/rh/(tabs)/pendientes';
+    // Colaborador: su documento rechazado, para volver a subirlo.
+    case 'documento_rechazado':
+      return id ? `/expediente/${id}?ref=documento` : '/(app)/(tabs)/expediente';
+    // El colaborador no consulta sus responsivas en la app: se queda en el centro.
+    case 'responsiva_registrada':
+      return '/notificaciones';
     case 'expediente_incompleto':
       return '/(app)/(tabs)/expediente';
     // RH avisó que faltan datos personales («Avisar al colaborador»).
@@ -190,6 +202,12 @@ export function resolveResourceRoute(data: PushNotificationData): string | null 
       // como respaldo en vez de enumerar cada evento uno por uno.
       if (data.related_type === 'Candidato') return id ? `/(app)/rh/candidatos/${id}` : '/(app)/rh/candidatos';
       if (data.related_type === 'Reingreso') return '/(app)/rh/reingresos';
+      if (data.related_type === 'Baja') return id ? `/(app)/rh/bajas/${id}` : '/notificaciones';
+      if (data.related_type === 'ActaAdministrativa') return id ? `/(app)/rh/actas/${id}` : '/notificaciones';
+      // `resource_id` es la intervención, no el candidato; el aviso no trae al candidato.
+      if (data.related_type === 'IntervencionCandidato') return '/(app)/rh/candidatos';
+      // Sin pantalla en la app: el centro de notificaciones, nunca un error.
+      if (data.related_type === 'Responsiva') return '/notificaciones';
       if (data.related_type === 'CierreLaboral') return id ? `/(app)/rh/cierres/${id}${cierreQuery(data)}` : '/(app)/rh/(tabs)/pendientes';
       if (data.related_type === 'SolicitudInterna') return id ? `/(app)/rh/solicitudes/${id}` : '/(app)/rh/(tabs)/pendientes';
       if (data.related_type === 'EvaluacionPeriodoPrueba') return id ? `/evaluaciones/${id}` : '/evaluaciones';
@@ -315,6 +333,7 @@ const RH_PUSH_TYPES = new Set<PushResourceType>([
   'rh_incorporacion',
   'rh_cumpleanos',
   'contrato_por_vencer',
+  'documento_por_revisar',
   // Eventos de `config/configuracion_sistema.php` → `eventos` dirigidos a
   // reclutamiento/RH (`WorkflowRoutingService`/`NotificadorRhService`).
   'candidato_preautorizado',
@@ -356,6 +375,8 @@ const KNOWN_COLLABORATOR_TYPES = new Set<PushResourceType>([
   'documento_firma_pendiente',
   'recibo_nomina',
   'prestamo_autorizado',
+  'prestamo_disponible',
+  'documento_rechazado',
   'expediente_incompleto',
   'datos_faltantes',
   'alta_activada',
