@@ -16,13 +16,13 @@ export default function PresentacionInduccionScreen() {
   const pdf = usePresentacionInduccion();
 
   if (!pdf.data) {
-    return <Screen title="Inducción Mr. Lana" isLoading={pdf.isLoading} error={pdf.error} onRetry={() => void pdf.refetch()} />;
+    return <Screen title="Inducción Mr. Lana" isLoading={pdf.isLoading} error={pdf.error} hayDatos={pdf.data !== undefined} onRetry={() => void pdf.refetch()} />;
   }
 
   return (
     <View style={[styles.container, { backgroundColor: Colors.background }]}>
       <AppHeader title="Inducción Mr. Lana" subtitle="Modo presentación" showBack />
-      <VisorPdfPaginado path={pdf.data.path} cacheName={`induccion-${pdf.data.totalPaginas}.pdf`} titulo={pdf.data.titulo} />
+      <VisorPdfPaginado path={pdf.data.path} titulo={pdf.data.titulo} />
     </View>
   );
 }

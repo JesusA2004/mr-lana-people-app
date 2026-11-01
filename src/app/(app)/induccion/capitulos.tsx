@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { AppHeader } from '@/components/AppHeader';
@@ -29,18 +29,23 @@ export default function InduccionLecturaScreen() {
   const pdf = usePresentacionInduccion();
   const registrar = useRegistrarPaginaInduccion(avanceId);
   const terminar = useTerminarInduccion(avanceId);
-  const [vistas, setVistas] = useState<Set<number>>(() => new Set(resumen?.paginasVistas ?? []));
+  // El servidor manda: su lista siempre se suma (`proceso` puede llegar después
+  // del primer render, en arranque en frío o desde un push). Lo local solo
+  // cubre la página recién mostrada mientras su POST sigue en vuelo.
+  const [vistasLocales, setVistasLocales] = useState<Set<number>>(() => new Set());
+  const paginasServidor = resumen?.paginasVistas;
+  const vistas = useMemo(() => new Set([...(paginasServidor ?? []), ...vistasLocales]), [paginasServidor, vistasLocales]);
   const total = pdf.data?.totalPaginas ?? resumen?.totalPaginas ?? 0;
   const faltan = paginasFaltantes(resumen ? { ...resumen, paginasVistas: [...vistas] } : null, total);
 
   const alMostrar = (numero: number) => {
     if (avanceId === null || vistas.has(numero)) return;
-    setVistas((previas) => new Set(previas).add(numero));
+    setVistasLocales((previas) => new Set(previas).add(numero));
     registrar.mutate(numero, {
       onError: (error) => {
         // Sin bloquear la lectura: se vuelve a reportar al mostrarla otra vez.
         logError('induccion.pagina', error);
-        setVistas((previas) => {
+        setVistasLocales((previas) => {
           const copia = new Set(previas);
           copia.delete(numero);
           return copia;
@@ -61,8 +66,13 @@ export default function InduccionLecturaScreen() {
   };
 
   if (proceso.isLoading || pdf.isLoading || avanceId === null || !pdf.data) {
+    // Reintenta lo que haya fallado: si solo se recargara el PDF, un fallo de `proceso` no se recuperaría.
+    const reintentar = () => {
+      if (proceso.isError) void proceso.refetch();
+      if (pdf.isError) void pdf.refetch();
+    };
     return (
-      <Screen title="Inducción Mr. Lana" isLoading={proceso.isLoading || pdf.isLoading} error={proceso.error ?? pdf.error} onRetry={() => void pdf.refetch()}>
+      <Screen title="Inducción Mr. Lana" isLoading={proceso.isLoading || pdf.isLoading} error={proceso.error ?? pdf.error} onRetry={reintentar}>
         {avanceId === null ? <EmptyMessage message="Tu proceso no incluye la inducción en este momento." /> : null}
       </Screen>
     );
@@ -73,7 +83,6 @@ export default function InduccionLecturaScreen() {
       <AppHeader title="Inducción Mr. Lana" showBack />
       <VisorPdfPaginado
         path={pdf.data.path}
-        cacheName={`induccion-${pdf.data.totalPaginas}.pdf`}
         titulo={pdf.data.titulo}
         paginaInicial={resumen?.ultimaPagina ?? 1}
         onPagina={alMostrar}

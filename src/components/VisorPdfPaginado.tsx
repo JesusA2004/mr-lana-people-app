@@ -1,4 +1,4 @@
-import { File, Paths } from 'expo-file-system';
+import { File } from 'expo-file-system';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
@@ -17,6 +17,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { AUTORIZADO_POR_POLICY_ACTUAL } from '@/utils/autorizacionDocumento';
 import { getErrorMessage, logError } from '@/utils/errors';
+import { descartarPdfInduccion, obtenerPdfInduccion } from '@/utils/induccionCache';
 import { construirHtmlVisorPdfPaginado, partirEnTrozos } from '@/utils/pdfViewerHtml';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -25,8 +26,6 @@ const ZOOMS = [1, 1.5, 2] as const;
 export interface VisorPdfPaginadoProps {
   /** Ruta relativa a la API (con Bearer); nunca una URL pública. */
   path: string;
-  /** Nombre del archivo en caché (mismo documento = no se vuelve a descargar). */
-  cacheName: string;
   titulo: string;
   paginaInicial?: number;
   /** Se llama cuando una página QUEDÓ DIBUJADA en pantalla (no al pedirla). */
@@ -43,7 +42,7 @@ export interface VisorPdfPaginadoProps {
  * inducción (mismo PDF oficial que la web) — nunca se reconstruye el
  * documento en componentes nativos.
  */
-export function VisorPdfPaginado({ path, cacheName, titulo, paginaInicial = 1, onPagina, accionFinal, nota }: VisorPdfPaginadoProps) {
+export function VisorPdfPaginado({ path, titulo, paginaInicial = 1, onPagina, accionFinal, nota }: VisorPdfPaginadoProps) {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   const token = useAuthStore((state) => state.token);
@@ -58,7 +57,7 @@ export function VisorPdfPaginado({ path, cacheName, titulo, paginaInicial = 1, o
   const [dibujando, setDibujando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [intento, setIntento] = useState(0);
-  /** pdf.js no pudo DIBUJAR el archivo (ya descargado): se ofrece descargarlo / abrirlo con otra app. */
+  /** pdf.js no pudo DIBUJAR el archivo: se puede reintentar (baja una copia nueva) o descargarlo. */
   const [errorDibujo, setErrorDibujo] = useState(false);
 
   const onPaginaRef = useRef(onPagina);
@@ -76,7 +75,7 @@ export function VisorPdfPaginado({ path, cacheName, titulo, paginaInicial = 1, o
     webview.postMessage(JSON.stringify({ type: 'end', total: trozos.length }));
   };
 
-  // Descarga autenticada (una sola vez por documento: queda en caché).
+  // Descarga autenticada: la caché se revalida con el servidor y se escribe de forma atómica.
   useEffect(() => {
     let cancelado = false;
     const controller = new AbortController();
@@ -85,29 +84,28 @@ export function VisorPdfPaginado({ path, cacheName, titulo, paginaInicial = 1, o
 
     (async () => {
       try {
-        const destino = new File(Paths.cache, cacheName);
-        if (!destino.exists || destino.size === 0) {
-          // Mismo pipeline de errores que el resto de la app (401/403/409…).
-          await apiClient.head(path, { signal: controller.signal });
-          const tarea = File.createDownloadTask(`${API_URL}${path}`, destino, {
-            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-            signal: controller.signal,
-          });
-          await tarea.downloadAsync();
-        }
+        const archivo = await obtenerPdfInduccion({
+          path,
+          consultarVersion: async () => {
+            // Mismo pipeline de errores que el resto de la app (401/403/409…).
+            const { headers } = await apiClient.head(path, { signal: controller.signal });
+            const tamano = Number(headers['content-length']);
+            return { ultimaModificacion: headers['last-modified'] as string | undefined, tamano: Number.isFinite(tamano) && tamano > 0 ? tamano : null };
+          },
+          descargar: (destino: File) =>
+            File.createDownloadTask(`${API_URL}${path}`, destino, {
+              headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+              signal: controller.signal,
+            }).downloadAsync(),
+        });
         if (cancelado) return;
-        const base64 = await destino.base64();
+        const base64 = await archivo.base64();
         if (!base64) throw new Error('PDF vacío');
         base64Ref.current = base64;
         enviarSiListo();
       } catch (err) {
         if (cancelado) return;
         logError('VisorPdfPaginado', err);
-        try {
-          new File(Paths.cache, cacheName).delete();
-        } catch {
-          // Sin archivo parcial que borrar.
-        }
         setError(getErrorMessage(err));
       }
     })();
@@ -117,7 +115,7 @@ export function VisorPdfPaginado({ path, cacheName, titulo, paginaInicial = 1, o
       controller.abort();
       base64Ref.current = null;
     };
-  }, [path, cacheName, token, intento]);
+  }, [path, token, intento]);
 
   const pedirPagina = (numero: number, escala: number) => {
     setDibujando(true);
@@ -145,6 +143,8 @@ export function VisorPdfPaginado({ path, cacheName, titulo, paginaInicial = 1, o
       onPaginaRef.current?.(data.numero, total);
     } else if (data.type === 'error') {
       logError('VisorPdfPaginado', new Error(data.message ?? 'pdf.js'));
+      // Si la copia en caché estaba dañada, «Reintentar» no debe volver a usarla.
+      descartarPdfInduccion();
       setError('No se pudo mostrar el documento en este teléfono.');
       setErrorDibujo(true);
     }
@@ -164,21 +164,22 @@ export function VisorPdfPaginado({ path, cacheName, titulo, paginaInicial = 1, o
     pedirPagina(actual, siguiente);
   };
 
+  const reintentar = () => {
+    listoRef.current = false;
+    setError(null);
+    setErrorDibujo(false);
+    setTotal(0);
+    setIntento((n) => n + 1);
+  };
+
   if (error) {
     return (
       <View style={styles.errorBox}>
+        <ErrorState message={error} onRetry={reintentar} />
         {errorDibujo ? (
+          // RONDA 2 (decisión pendiente): ¿se conserva este respaldo? Hoy la ruta solo exige `puede_ver_contenido`.
           <DocumentoProtegido titulo={titulo} modo="descarga" path={path} puedeDescargar={AUTORIZADO_POR_POLICY_ACTUAL} />
-        ) : (
-          <ErrorState
-            message={error}
-            onRetry={() => {
-              listoRef.current = false;
-              setError(null);
-              setIntento((n) => n + 1);
-            }}
-          />
-        )}
+        ) : null}
       </View>
     );
   }
