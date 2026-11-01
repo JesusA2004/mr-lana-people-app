@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/AppHeader';
+import { normalizeReaperturas } from '@/api/normalizers/siguientePaso';
+import { BotonesReapertura } from '@/components/ciclo/BotonesReapertura';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
@@ -150,6 +152,8 @@ export default function RhVacacionDetailScreen() {
                 ))}
               </Card>
             ) : null}
+
+            <BotonesReapertura reaperturas={normalizeReaperturas(vacacion.reaperturas)} onHecho={() => void refetch()} />
 
             {canApprove(vacacion.acciones_permitidas) || canReject(vacacion.acciones_permitidas) ? (
               <View style={styles.actions}>

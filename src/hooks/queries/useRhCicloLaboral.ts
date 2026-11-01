@@ -1,3 +1,5 @@
+import { apiClient, extractData } from '@/api/client';
+import { normalizeSiguientePaso } from '@/api/normalizers/siguientePaso';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { queryKeys } from '@/api/queryKeys';
@@ -15,7 +17,7 @@ import {
 } from '@/api/rh/cicloLaboral';
 import type { LocalUploadFile } from '@/api/upload';
 import type { FiniquitoConceptoPayload } from '@/types/rhCiclo';
-import { nextPageOf } from '@/utils/normalize';
+import { asRecord, nextPageOf } from '@/utils/normalize';
 import { invalidateCiclo } from './cicloInvalidate';
 import { retryUnlessClientError, SENSITIVE_MUTATION } from './queryOptions';
 
@@ -269,3 +271,15 @@ export function useRhActa(id: string | number | undefined) {
 
 // ------------------------------------------------------------ Estructura
 
+/** `GET /rh/colaboradores/{id}/ciclo`: solo el panel «qué sigue»; un 403 deja la ficha sin panel. */
+export function useRhColaboradorSiguientePaso(id: string | number | undefined) {
+  return useQuery({
+    queryKey: ['rh', 'ciclo', 'siguiente-paso', String(id ?? '')],
+    queryFn: async () => {
+      const response = await apiClient.get(`/rh/colaboradores/${id}/ciclo`);
+      return normalizeSiguientePaso(asRecord(extractData<unknown>(response.data)).siguiente_paso);
+    },
+    enabled: id !== undefined && id !== '',
+    retry: retryUnlessClientError,
+  });
+}

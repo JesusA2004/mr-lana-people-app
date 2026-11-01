@@ -5,6 +5,7 @@ import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react
 import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { SiguientePasoCard } from '@/components/ciclo/SiguientePasoCard';
 import { ContratoCard } from '@/components/ciclo/ContratoCard';
 import { ItemCard } from '@/components/ciclo/ItemCard';
 import { InfoRow } from '@/components/ciclo/InfoRow';
@@ -26,6 +27,7 @@ import {
   useRhAlta,
   useRhColaboradorContratos,
   useRhColaboradorJerarquia,
+  useRhColaboradorSiguientePaso,
   useRhDocumentosLaborales,
 } from '@/hooks/queries/useRhCicloLaboral';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -53,6 +55,7 @@ export default function RhColaboradorDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: colaborador, isLoading, isError, error, refetch, isRefetching } = useRhColaborador(id);
   const permisos = usePermisos();
+  const siguientePaso = useRhColaboradorSiguientePaso(id);
   const bootstrap = useMobileBootstrap(true);
   const permissions = bootstrap.data?.user.permissions;
   // Onboarding (refuerzo, activos, cierre): solo quien lo ve, gestiona o entrega activos.
@@ -88,6 +91,8 @@ export default function RhColaboradorDetailScreen() {
               {colaborador.numero_empleado ? <Text style={styles.meta}>N.º {colaborador.numero_empleado}</Text> : null}
               {colaborador.estatus ? <StatusBadge status={colaborador.estatus} /> : null}
             </Card>
+
+            <SiguientePasoCard paso={siguientePaso.data} />
 
             <View style={styles.countRow}>
               <CountTile icon="document-text-outline" label="Solicitudes" value={colaborador.solicitudes_pendientes} />

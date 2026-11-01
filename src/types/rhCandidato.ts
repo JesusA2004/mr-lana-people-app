@@ -1,3 +1,5 @@
+import type { ReaperturaDisponible, SiguientePaso } from '@/types/siguientePaso';
+
 /**
  * Reclutamiento para la app (gerente / RH) — espejo de
  * `App\Services\Reclutamiento\CandidatoPresenter` y
@@ -111,6 +113,7 @@ export interface CandidatoEvidencia {
   mime: string | null;
   tamano: number | null;
   subida_en: string | null;
+  puede_descargar: boolean;
 }
 
 export interface CandidatoPsicometrica {
@@ -187,6 +190,7 @@ export interface CandidatoDetalle {
   estado_etiqueta: string | null;
   motivo_salida: string | null;
   tiene_cv: boolean;
+  puede_descargar_cv: boolean;
   colaborador_id: number | null;
   creado_en: string | null;
   contratado_en: string | null;
@@ -201,6 +205,9 @@ export interface CandidatoDetalle {
 export interface CandidatoFicha {
   candidato: CandidatoDetalle;
   ciclo: EstadoCiclo;
+  siguiente_paso: SiguientePaso | null;
+  /** Lo que esta cuenta puede reabrir; vacío = sin botón. */
+  reaperturas: ReaperturaDisponible[];
 }
 
 // ------------------------------------------------------------ Payloads de acciones

@@ -1,3 +1,5 @@
+import { accionEjecutableEnApp, normalizeReaperturas, normalizeSiguientePaso } from './siguientePaso';
+
 import type {
   CandidatoAccion,
   CandidatoDetalle,
@@ -50,6 +52,7 @@ function normalizeEvidencia(value: unknown): CandidatoEvidencia {
     mime: asString(raw.mime),
     tamano: asNumber(raw.tamano),
     subida_en: asString(raw.subida_en),
+    puede_descargar: raw.puede_descargar === true,
   };
 }
 
@@ -154,6 +157,7 @@ export function normalizeCandidatoDetalle(value: unknown): CandidatoDetalle {
     estado_etiqueta: asString(raw.estado_etiqueta),
     motivo_salida: asString(raw.motivo_salida),
     tiene_cv: asBoolean(raw.tiene_cv),
+    puede_descargar_cv: raw.puede_descargar_cv === true,
     colaborador_id: asId(raw.colaborador_id),
     creado_en: asString(raw.creado_en),
     contratado_en: asString(raw.contratado_en),
@@ -215,7 +219,7 @@ export function normalizeEstadoCiclo(value: unknown): EstadoCiclo {
     pasos: asArray(raw.pasos).map(normalizePaso),
     aprobaciones: asArray(raw.aprobaciones).map(normalizeAprobacion),
     timeline: asArray(raw.timeline).map(normalizeTimelineEvento),
-    acciones_permitidas: asArray(raw.acciones_permitidas).map(normalizeAccion),
+    acciones_permitidas: asArray(raw.acciones_permitidas).filter(accionEjecutableEnApp).map(normalizeAccion),
   };
 }
 
@@ -224,6 +228,8 @@ export function normalizeCandidatoFicha(value: unknown): CandidatoFicha {
   return {
     candidato: normalizeCandidatoDetalle(raw.candidato),
     ciclo: normalizeEstadoCiclo(raw.ciclo),
+    siguiente_paso: normalizeSiguientePaso(raw.siguiente_paso),
+    reaperturas: normalizeReaperturas(raw.reaperturas),
   };
 }
 

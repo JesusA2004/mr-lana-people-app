@@ -7,6 +7,8 @@ import { Image, Linking, Share, StyleSheet, Text, View } from 'react-native';
 import { rhCandidatosApi } from '@/api/rh/candidatos';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { BotonesReapertura } from '@/components/ciclo/BotonesReapertura';
+import { SiguientePasoCard } from '@/components/ciclo/SiguientePasoCard';
 import { DocumentoProtegido } from '@/components/DocumentoProtegido';
 import { FilterChips } from '@/components/ciclo/FilterChips';
 import { Field, FormSheet } from '@/components/ciclo/FormSheet';
@@ -21,7 +23,6 @@ import { Stepper } from '@/components/Stepper';
 import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useRhCandidato, useRhIniciarContratacion, useRhOperarCandidato, type RhCandidatoOperacion } from '@/hooks/queries/useRhCandidatos';
-import { AUTORIZADO_POR_POLICY_ACTUAL } from '@/utils/autorizacionDocumento';
 import { tipoEsperadoPorMime } from '@/utils/descargaDocumento';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { toast } from '@/store/toastStore';
@@ -228,7 +229,7 @@ export default function RhCandidatoDetailScreen() {
                 )}
               />
             ) : null}
-            {ciclo.siguiente_accion ? <Notice tone="info">{ciclo.siguiente_accion.etiqueta}</Notice> : null}
+            {ciclo.siguiente_accion && !ficha?.siguiente_paso ? <Notice tone="info">{ciclo.siguiente_accion.etiqueta}</Notice> : null}
             {ciclo.bloqueos.map((bloqueo, index) => (
               <Notice key={index} tone="warning">
                 {bloqueo}
@@ -244,8 +245,10 @@ export default function RhCandidatoDetailScreen() {
             {candidato.motivo_salida ? <InfoRow label="Motivo" value={candidato.motivo_salida} /> : null}
           </Card>
 
-          {/* RONDA 2: `candidato.puede_descargar_cv`. Hoy `CandidatoPolicy::view` no separa ver de descargar (la web tampoco). */}
-          {candidato.tiene_cv ? <DocumentoProtegido titulo={`CV de ${candidato.nombre_completo}`} modo="descarga" path={rhCandidatosApi.cvPath(Number(id))} puedeDescargar={AUTORIZADO_POR_POLICY_ACTUAL} /> : null}
+          <SiguientePasoCard paso={ficha?.siguiente_paso} />
+          <BotonesReapertura reaperturas={ficha?.reaperturas ?? []} onHecho={() => void query.refetch()} />
+
+          {candidato.tiene_cv ? <DocumentoProtegido titulo={`CV de ${candidato.nombre_completo}`} modo="descarga" path={rhCandidatosApi.cvPath(Number(id))} puedeDescargar={candidato.puede_descargar_cv} /> : null}
 
           {candidato.entrevistas.length > 0 ? (
             <Card style={styles.gap}>
@@ -620,13 +623,12 @@ function EvidenciasCandidato({ candidatoId, evidencias }: { candidatoId: number;
   return (
     <>
       {evidencias.map((evidencia) => (
-        // RONDA 2: `evidencia.puede_descargar`. Hoy `CandidatoPolicy::view`, igual que el CV.
         <DocumentoProtegido
           key={evidencia.id}
           titulo={evidencia.nombre ?? evidencia.tipo_etiqueta ?? 'Evidencia'}
           modo="descarga"
           path={rhCandidatosApi.evidenciaPath(candidatoId, evidencia.id)}
-          puedeDescargar={AUTORIZADO_POR_POLICY_ACTUAL}
+          puedeDescargar={evidencia.puede_descargar}
           tipoEsperado={tipoEsperadoPorMime(evidencia.mime)}
           tamanoConocido={evidencia.tamano}
         />

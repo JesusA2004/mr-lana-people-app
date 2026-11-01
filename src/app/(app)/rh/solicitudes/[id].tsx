@@ -7,6 +7,8 @@ import { ApprovalTimeline } from '@/components/ApprovalTimeline';
 import { AppHeader } from '@/components/AppHeader';
 import { DocumentosProcesoCard } from '@/components/ciclo/DocumentosProcesoCard';
 import { PrestamoDecision } from '@/components/ciclo/PrestamoDecision';
+import { normalizeReaperturas } from '@/api/normalizers/siguientePaso';
+import { BotonesReapertura } from '@/components/ciclo/BotonesReapertura';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
@@ -387,6 +389,8 @@ export default function RhSolicitudDetailScreen() {
                 ) : null}
               </View>
             ) : null}
+
+            <BotonesReapertura reaperturas={normalizeReaperturas(solicitud.reaperturas)} onHecho={() => void refetch()} />
 
             {(() => {
               // Préstamo: autorizar/rechazar van por PrestamoDecision, nunca
