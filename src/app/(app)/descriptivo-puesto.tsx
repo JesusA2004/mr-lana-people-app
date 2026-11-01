@@ -101,7 +101,7 @@ export default function DescriptivoPuestoScreen() {
     <Screen
       title="Mi descriptivo de puesto"
       isLoading={query.isLoading}
-      error={query.error}
+      error={query.error} hayDatos={query.data !== undefined}
       onRetry={refrescar}
       refreshing={query.isRefetching}
       onRefresh={refrescar}>

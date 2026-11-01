@@ -88,7 +88,7 @@ export default function TareasScreen() {
       title="Tareas"
       subtitle={conteos ? `${conteos.abiertas} abiertas · ${conteos.vencidas} vencidas` : 'Pendientes por atender'}
       isLoading={query.isLoading}
-      error={query.error}
+      error={query.error} hayDatos={query.data !== undefined}
       onRetry={() => void query.refetch()}
       refreshing={query.isRefetching}
       onRefresh={() => void query.refetch()}

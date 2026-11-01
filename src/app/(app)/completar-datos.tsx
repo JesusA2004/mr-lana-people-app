@@ -129,7 +129,7 @@ export default function CompletarDatosScreen() {
       subtitle="Datos que pide tu contrato"
       form
       isLoading={query.isLoading}
-      error={query.error}
+      error={query.error} hayDatos={query.data !== undefined}
       notFoundMessage="Tu cuenta todavía no tiene un expediente vinculado."
       onRetry={() => void query.refetch()}
       refreshing={query.isRefetching}

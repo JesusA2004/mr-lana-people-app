@@ -51,7 +51,7 @@ export default function MisPrestamosScreen() {
     <Screen
       title="Préstamos"
       isLoading={prestamosQuery.isLoading || solicitudesQuery.isLoading}
-      error={prestamosQuery.error}
+      error={prestamosQuery.error} hayDatos={prestamosQuery.data !== undefined}
       notFoundMessage="Tu cuenta todavía no está vinculada a un expediente de colaborador."
       onRetry={refetch}
       refreshing={prestamosQuery.isRefetching || solicitudesQuery.isRefetching}

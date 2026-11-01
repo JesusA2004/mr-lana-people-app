@@ -42,7 +42,7 @@ export default function InduccionScreen() {
     <Screen
       title="Inducción Mr. Lana"
       isLoading={proceso.isLoading}
-      error={proceso.error}
+      error={proceso.error} hayDatos={proceso.data !== undefined}
       onRetry={refrescar}
       refreshing={proceso.isRefetching}
       onRefresh={refrescar}>

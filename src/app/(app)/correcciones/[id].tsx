@@ -87,6 +87,7 @@ export default function CorreccionDetalleScreen() {
       form
       isLoading={isLoading}
       error={error}
+      hayDatos={data !== undefined}
       onRetry={() => void refetch()}
       refreshing={isRefetching}
       onRefresh={() => void refetch()}

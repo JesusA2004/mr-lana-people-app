@@ -98,7 +98,7 @@ export default function RhOnboardingScreen() {
       title="Onboarding"
       subtitle={query.data?.nombre}
       isLoading={query.isLoading}
-      error={query.error}
+      error={query.error} hayDatos={query.data !== undefined}
       notFoundMessage="No encontramos a esta persona."
       onRetry={() => void query.refetch()}
       refreshing={query.isRefetching}

@@ -58,7 +58,7 @@ export default function MisCorreccionesScreen() {
   };
 
   return (
-    <Screen title="Mis correcciones" isLoading={isLoading} error={error} onRetry={() => void refetch()} refreshing={isRefetching} onRefresh={() => void refetch()}>
+    <Screen title="Mis correcciones" isLoading={isLoading} error={error} hayDatos={data !== undefined} onRetry={() => void refetch()} refreshing={isRefetching} onRefresh={() => void refetch()}>
       <View style={styles.contenido}>
         {requieren.length > 0 ? (
           <TarjetaAviso

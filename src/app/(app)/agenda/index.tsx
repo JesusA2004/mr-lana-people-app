@@ -38,7 +38,7 @@ export default function AgendaScreen() {
       title="Mi agenda"
       subtitle="Entrevistas y estudios socioeconómicos"
       isLoading={query.isLoading}
-      error={query.error}
+      error={query.error} hayDatos={query.data !== undefined}
       onRetry={() => void query.refetch()}
       refreshing={query.isRefetching}
       onRefresh={() => {

@@ -85,6 +85,7 @@ export default function AprobacionDetalleScreen() {
       subtitle={item?.folio ? `Folio ${item.folio}` : undefined}
       isLoading={isLoading}
       error={error}
+      hayDatos={Boolean(item)}
       onRetry={refetch}
       refreshing={isRefetching}
       onRefresh={refetch}

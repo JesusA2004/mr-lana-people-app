@@ -50,6 +50,7 @@ export default function BandejaAprobacionesScreen() {
       title="Aprobaciones"
       isLoading={isLoading}
       error={error}
+      hayDatos={bandeja.meToca.length + bandeja.enEspera.length > 0}
       onRetry={refetch}
       refreshing={isRefetching}
       onRefresh={refetch}

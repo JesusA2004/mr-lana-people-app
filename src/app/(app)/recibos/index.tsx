@@ -24,7 +24,7 @@ export default function MisRecibosScreen() {
       title="Mis recibos"
       subtitle="Tus recibos de nómina"
       isLoading={query.isLoading}
-      error={query.error}
+      error={query.error} hayDatos={query.data !== undefined}
       notFoundMessage="Tu cuenta todavía no está vinculada a un expediente de colaborador."
       onRetry={() => void query.refetch()}
       refreshing={query.isRefetching}

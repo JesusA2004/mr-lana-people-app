@@ -103,7 +103,7 @@ export default function AgendarScreen() {
       subtitle="Entrevista o estudio socioeconómico"
       form
       isLoading={opciones.isLoading}
-      error={opciones.error}
+      error={opciones.error} hayDatos={opciones.data !== undefined}
       onRetry={() => void opciones.refetch()}
       footer={<Button title="Agendar y notificar" leftIcon="calendar-outline" disabled={!listo} loading={agendar.isPending} onPress={guardar} />}>
       <Card style={styles.gap}>

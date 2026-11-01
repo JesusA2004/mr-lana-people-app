@@ -14,7 +14,7 @@ export default function MiPrestamoScreen() {
     <Screen
       title="Préstamo"
       isLoading={query.isLoading}
-      error={query.error}
+      error={query.error} hayDatos={query.data !== undefined}
       notFoundMessage="Este préstamo ya no está disponible."
       onRetry={() => void query.refetch()}
       refreshing={query.isRefetching}

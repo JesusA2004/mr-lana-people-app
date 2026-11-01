@@ -49,6 +49,7 @@ export default function MiEquipoScreen() {
       title="Mi equipo"
       isLoading={loading}
       error={error}
+      hayDatos={equipo.data !== undefined && pendientes.data !== undefined}
       notFoundMessage="Tu cuenta no está vinculada a un colaborador, así que no hay equipo que mostrar."
       onRetry={refrescar}
       refreshing={equipo.isRefetching || pendientes.isRefetching}
