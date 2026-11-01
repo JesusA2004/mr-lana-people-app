@@ -69,7 +69,12 @@ export default function EvaluacionInduccionScreen() {
       form
       isLoading={proceso.isLoading || (puedePresentar && contenido.isLoading)}
       error={proceso.error ?? contenido.error}
-      onRetry={() => void contenido.refetch()}>
+      // Sin esto, un refresco fallido borraba las respuestas ya escritas de la pantalla.
+      hayDatos={proceso.data !== undefined && (!puedePresentar || contenido.data !== undefined)}
+      onRetry={() => {
+        if (proceso.isError) void proceso.refetch();
+        if (contenido.isError) void contenido.refetch();
+      }}>
       {!puedePresentar ? (
         <EmptyMessage message="Tu evaluación todavía no está disponible. Termina la inducción o espera a que Recursos Humanos la habilite." />
       ) : !contenido.data ? null : (

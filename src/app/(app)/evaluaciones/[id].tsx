@@ -47,6 +47,8 @@ export default function EvaluacionDetailScreen() {
   const evaluacion = query.data;
 
   const esDeMiEquipo = useMemo(() => (equipo.data?.evaluaciones ?? []).some((e) => e.id === numericId), [equipo.data, numericId]);
+  // Sin la lista del equipo no se sabe si le toca capturar: «la captura el jefe» sería falso.
+  const esperandoEquipo = Boolean(evaluacion) && !esDeMiEquipo && equipo.isError && equipo.data === undefined;
   const actions = evaluacion ? evaluationActions(evaluacion, bootstrap.data?.user.permissions, esDeMiEquipo) : null;
 
   return (
@@ -54,7 +56,7 @@ export default function EvaluacionDetailScreen() {
       title="Evaluación"
       subtitle="Periodo de prueba"
       isLoading={query.isLoading}
-      error={query.error}
+      error={query.error} hayDatos={query.data !== undefined}
       notFoundMessage="Esta evaluación ya no está disponible."
       onRetry={() => void query.refetch()}
       refreshing={query.isRefetching}
@@ -65,7 +67,11 @@ export default function EvaluacionDetailScreen() {
           {actions.capturar ? <CapturaForm key={`${evaluacion.id}-${evaluacion.estado}`} evaluacion={evaluacion} /> : <Resultado evaluacion={evaluacion} />}
           {actions.autorizar || actions.devolver ? <Autorizacion evaluacion={evaluacion} /> : null}
           {evaluacion.estado === 'autorizada' ? <DocumentosProcesoCard origen={{ tipo: 'evaluacion', id: evaluacion.id }} /> : null}
-          {!actions.capturar && !actions.autorizar && evaluacion.estado !== 'autorizada' ? (
+          {esperandoEquipo ? (
+            <Notice tone="warning">No pudimos confirmar si esta evaluación es de tu equipo. Reintenta para capturarla.</Notice>
+          ) : null}
+          {esperandoEquipo && equipo.isError ? <Button title="Reintentar" variant="outline" leftIcon="refresh" onPress={() => void equipo.refetch()} /> : null}
+          {!esperandoEquipo && !actions.capturar && !actions.autorizar && evaluacion.estado !== 'autorizada' ? (
             <Notice tone="info">
               {evaluacion.estado === 'capturada'
                 ? 'La evaluación ya fue capturada y espera autorización de RH/Dirección.'

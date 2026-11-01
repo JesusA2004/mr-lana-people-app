@@ -205,6 +205,7 @@ export default function NuevaSolicitudScreen() {
   const hasUnsavedChanges = Boolean(selectedTipo) || Object.values(values).some((value) => value !== undefined && value !== '');
 
   const goBack = () => {
+    if (submitting) return;
     if (step === 0) {
       if (hasUnsavedChanges) {
         setExitConfirmVisible(true);
@@ -218,7 +219,8 @@ export default function NuevaSolicitudScreen() {
 
   useEffect(() => {
     // Botón físico "atrás" de Android: mismo criterio que el back del header.
-    if (Platform.OS !== 'android' || sentSolicitud) return undefined;
+    // En «no pudimos confirmar» el wizard ya no se ve: retroceder pasos ocultos atraparía el botón.
+    if (Platform.OS !== 'android' || sentSolicitud || unconfirmed) return undefined;
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
       goBack();
       return true;
@@ -233,6 +235,14 @@ export default function NuevaSolicitudScreen() {
       return false;
     }
     return true;
+  };
+
+  /** Una falla del selector nativo no debe quedar en silencio. */
+  const conAvisoDeFalla = (accion: () => Promise<void>) => () => {
+    accion().catch((error: unknown) => {
+      logError('solicitudes.adjuntar', error);
+      toast.error('No pudimos abrir el selector de archivos. Intenta de nuevo.');
+    });
   };
 
   const launchCamera = async () => {
@@ -394,7 +404,7 @@ export default function NuevaSolicitudScreen() {
                 <SkeletonBlock height={72} radius={Radius.lg} />
                 <SkeletonBlock height={72} radius={Radius.lg} />
               </View>
-            ) : configuracion.isError ? (
+            ) : configuracion.isError && !configuracion.data ? (
               <ErrorState message={getErrorMessage(configuracion.error)} onRetry={() => void configuracion.refetch()} />
             ) : tipos.length === 0 ? (
               <Text style={styles.stepHelper}>Tu empresa todavía no tiene tipos de solicitud habilitados.</Text>
@@ -412,6 +422,20 @@ export default function NuevaSolicitudScreen() {
               </View>
             )}
           </Animated.View>
+        ) : null}
+
+        {/* Entrar con `?tipo=` salta al paso 1 antes de tener la configuración: sin esto quedaba en blanco. */}
+        {currentStepKey !== 'tipo' && !config ? (
+          configuracion.isLoading ? (
+            <View style={{ gap: Spacing.md }}>
+              <SkeletonBlock height={72} radius={Radius.lg} />
+              <SkeletonBlock height={160} radius={Radius.lg} />
+            </View>
+          ) : configuracion.isError && !configuracion.data ? (
+            <ErrorState message={getErrorMessage(configuracion.error)} onRetry={() => void configuracion.refetch()} />
+          ) : (
+            <Text style={styles.stepHelper}>Este tipo de solicitud no está disponible para tu cuenta. Regresa y elige otro.</Text>
+          )
         ) : null}
 
         {currentStepKey === 'informacion' && config ? (
@@ -473,6 +497,9 @@ export default function NuevaSolicitudScreen() {
                 Te quedarían {diasDisponibles - diasElegidos} {diasDisponibles - diasElegidos === 1 ? 'día disponible' : 'días disponibles'}.
               </Text>
             ) : null}
+
+            {/* Un 422 regresa a este paso: si la clave no es de un campo visible, este es su único lugar. */}
+            {formError ? <Text style={styles.formError}>{formError}</Text> : null}
           </Animated.View>
         ) : null}
 
@@ -486,15 +513,15 @@ export default function NuevaSolicitudScreen() {
             </Text>
 
             <View style={styles.attachmentPickRow}>
-              <PressableScale onPress={() => void pickFromCamera()} style={styles.attachmentPickButton}>
+              <PressableScale onPress={conAvisoDeFalla(pickFromCamera)} style={styles.attachmentPickButton}>
                 <Ionicons name="camera-outline" size={20} color={Colors.primaryDark} />
                 <Text style={styles.attachmentPickLabel}>Cámara</Text>
               </PressableScale>
-              <PressableScale onPress={() => void pickFromGallery()} style={styles.attachmentPickButton}>
+              <PressableScale onPress={conAvisoDeFalla(pickFromGallery)} style={styles.attachmentPickButton}>
                 <Ionicons name="image-outline" size={20} color={Colors.primaryDark} />
                 <Text style={styles.attachmentPickLabel}>Galería</Text>
               </PressableScale>
-              <PressableScale onPress={() => void pickDocument()} style={styles.attachmentPickButton}>
+              <PressableScale onPress={conAvisoDeFalla(pickDocument)} style={styles.attachmentPickButton}>
                 <Ionicons name="document-attach-outline" size={20} color={Colors.primaryDark} />
                 <Text style={styles.attachmentPickLabel}>Archivo</Text>
               </PressableScale>
@@ -556,7 +583,7 @@ export default function NuevaSolicitudScreen() {
           loading={submitting}
           // Mientras el POST está en vuelo el botón queda inerte: doble toque
           // = doble solicitud (sección 43).
-          disabled={submitting || (currentStepKey === 'tipo' && !config)}
+          disabled={submitting || !config}
         />
       </BarraAccionInferior>
 
@@ -565,7 +592,7 @@ export default function NuevaSolicitudScreen() {
         kind={permissionPrimer?.kind ?? 'camera'}
         blocked={permissionPrimer?.blocked ?? false}
         onClose={() => setPermissionPrimer(null)}
-        onConfirm={() => void handlePermissionConfirm()}
+        onConfirm={conAvisoDeFalla(handlePermissionConfirm)}
       />
 
       <ExitConfirmSheet

@@ -11,6 +11,7 @@ import { DocumentTypeIcon } from '@/components/DocumentTypeIcon';
 import { DocumentUploadSheet, type PickedDocumentFile } from '@/components/DocumentUploadSheet';
 import { ErrorState } from '@/components/ErrorState';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
+import { TransicionEstado } from '@/components/TransicionEstado';
 import { TarjetaAviso } from '@/components/ui';
 import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useEstilos } from '@/theme/ThemeProvider';
@@ -82,12 +83,13 @@ export default function DocumentoDetalleScreen() {
       <AppHeader title={documento?.nombre ?? 'Documento'} showBack onBackPress={() => router.back()} titleNumberOfLines={0} />
 
       <ScrollView contentContainerStyle={styles.content}>
+        <TransicionEstado estado={isLoading ? 'cargando' : isError && !documento ? 'error' : 'contenido'} style={{ gap: Spacing.lg }}>
         {isLoading ? (
           <View style={{ gap: Spacing.lg }}>
             <SkeletonBlock height={120} radius={Radius.lg} />
             <SkeletonBlock height={160} radius={Radius.lg} />
           </View>
-        ) : isError ? (
+        ) : isError && !documento ? (
           <ErrorState message={getErrorMessage(error)} onRetry={() => void refetch()} />
         ) : !documento ? (
           <ErrorState
@@ -118,10 +120,12 @@ export default function DocumentoDetalleScreen() {
             ) : null}
 
             {hasUploadedFile ? (
+              documento.fecha_subida || documento.fecha_revision ? (
               <Card>
                 {documento.fecha_subida ? <DetailRow label="Fecha de carga" value={formatDateLong(documento.fecha_subida)} /> : null}
                 {documento.fecha_revision ? <DetailRow label="Última revisión" value={formatDateTime(documento.fecha_revision)} last /> : null}
               </Card>
+              ) : null
             ) : (
               <Card>
                 <Text style={styles.emptyText}>Todavía no has cargado este documento.</Text>
@@ -154,10 +158,11 @@ export default function DocumentoDetalleScreen() {
 
           </>
         )}
+        </TransicionEstado>
       </ScrollView>
 
       {/* Acción principal fija abajo: respeta la barra de navegación del teléfono (safe area). */}
-      {documento && !isLoading && !isError && (canUploadDirectly || canRequestChange) ? (
+      {documento && !isLoading && (canUploadDirectly || canRequestChange) ? (
         <BarraAccionInferior sobreTeclado={false}>
           {canUploadDirectly ? (
             <Button
