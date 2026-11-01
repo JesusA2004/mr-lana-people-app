@@ -15,6 +15,7 @@ import { SkeletonBlock, SkeletonCardList } from '@/components/SkeletonBlock';
 import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
+import { useRhBajas } from '@/hooks/queries/useRhBajas';
 import { useRhContratosPorVencer } from '@/hooks/queries/useRhCicloLaboral';
 import { useRhCumpleanosInfinite } from '@/hooks/queries/useRhCumpleanos';
 import { useRhDashboard } from '@/hooks/queries/useRhDashboard';
@@ -78,6 +79,11 @@ export default function RhDashboardScreen() {
   const aprobacionesPendientes = aprobacionesConteo.data?.total ?? 0;
   const muestraAprobaciones = (equipoEnabled && esJefe) || esAutorizadorRh || aprobacionesPendientes > 0;
 
+  // Jurídico y Contraloría: su trabajo en la app es consultar bajas (GET /rh/bajas).
+  const consultaBajas = permisos.puedeAlguno(['bajas.revisar_juridico', 'bajas.consulta_contraloria']);
+  const bajas = useRhBajas('abiertas', consultaBajas);
+  const bajasAbiertas = bajas.data?.pages[0]?.meta.total;
+
   type Modulo = { route: string; icon: keyof typeof Ionicons.glyphMap; label: string; badge?: number };
   const only = (items: (Modulo | false)[]) => items.filter((m): m is Modulo => m !== false);
 
@@ -92,6 +98,9 @@ export default function RhDashboardScreen() {
     // Mismo permiso que GET /rh/colaboradores; un gerente sin él ve a su gente en «Mi equipo».
     permisos.puede('rh.colaboradores.ver') && { route: '/(app)/rh/(tabs)/colaboradores', icon: 'search-outline', label: 'Buscar persona' },
     moduloOn('candidatos') && { route: '/(app)/rh/candidatos', icon: 'people-circle-outline', label: 'Candidatos' },
+    consultaBajas && { route: '/(app)/rh/bajas', icon: 'exit-outline', label: 'Bajas', badge: bajasAbiertas },
+    // Jurídico: las actas que consulta (actas.ver); RH las abre desde cada persona.
+    consultaBajas && moduloOn('actas') && { route: '/(app)/rh/actas', icon: 'reader-outline', label: 'Actas' },
     permisos.puede('agenda.ver') && { route: '/agenda', icon: 'calendar-outline', label: 'Mi agenda' },
     moduloOn('evaluaciones') && { route: '/evaluaciones', icon: 'clipboard-outline', label: 'Evaluaciones' },
     // Reingresos: solo quien los decide (gestionar + autorizar RH, bandera del backend).
@@ -156,6 +165,7 @@ export default function RhDashboardScreen() {
               if (equipoEnabled) void equipoPendientes.refetch();
               void aprobacionesConteo.refetch();
               void tareas.refetch();
+              if (consultaBajas) void bajas.refetch();
             }}
             tintColor={Colors.primary}
           />
@@ -205,6 +215,17 @@ export default function RhDashboardScreen() {
                     <Text style={styles.rowSubtitle}>
                       {extractionsPending} {extractionsPending === 1 ? 'documento requiere' : 'documentos requieren'} tu revisión
                     </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+                </Card>
+              ) : null}
+
+              {consultaBajas && !bajas.isLoading && !bajas.isError ? (
+                <Card onPress={() => open('/(app)/rh/bajas')} style={styles.accentCard}>
+                  <Ionicons name="exit-outline" size={20} color={Colors.primaryDark} />
+                  <View style={styles.rowText}>
+                    <Text style={styles.rowTitle}>{bajasAbiertas === 1 ? '1 baja en trámite' : `${bajasAbiertas ?? 0} bajas en trámite`}</Text>
+                    <Text style={styles.rowSubtitle}>Consulta las que te corresponden por su causal.</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
                 </Card>

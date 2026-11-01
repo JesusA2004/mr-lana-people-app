@@ -37,6 +37,8 @@ export default function RhLayout() {
           `solicitudes/[id]`. */}
       <Stack.Screen name="vacaciones/[id]" />
       <Stack.Screen name="documentos/[id]" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
+      <Stack.Screen name="bajas/index" />
+      <Stack.Screen name="bajas/[id]" />
       <Stack.Screen name="incorporaciones/[colaborador]" />
       <Stack.Screen name="colaboradores/[id]" />
       <Stack.Screen name="onboarding/[colaborador]" />

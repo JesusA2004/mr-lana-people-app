@@ -113,6 +113,8 @@ export const queryKeys = {
   rhActas: ['rh', 'actas'] as const,
   rhActasList: (params: Record<string, unknown> = {}) => ['rh', 'actas', 'list', params] as const,
   rhActa: (id: string | number) => ['rh', 'actas', 'detail', String(id)] as const,
+  rhBajasList: (params: Record<string, unknown> = {}) => ['rh', 'bajas', 'list', params] as const,
+  rhBaja: (id: string | number) => ['rh', 'bajas', 'detail', String(id)] as const,
   agenda: ['agenda'] as const,
   agendaOpciones: ['agenda', 'opciones'] as const,
   agendaEvento: (id: string | number) => ['agenda', 'evento', String(id)] as const,
