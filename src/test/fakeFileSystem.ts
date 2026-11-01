@@ -45,10 +45,10 @@ export class FakeFile {
   async base64() {
     return 'UERG';
   }
-  static descargaFalsa: (url: string, destino: FakeFile, opciones: { headers?: Record<string, string> }) => Promise<void> = async (_url, destino) => {
+  static descargaFalsa: (url: string, destino: FakeFile, opciones: { headers?: Record<string, string>; signal?: AbortSignal }) => Promise<void> = async (_url, destino) => {
     discoFalso.set(destino.uri, PDF_BYTES);
   };
-  static createDownloadTask(url: string, destino: FakeFile, opciones: { headers?: Record<string, string> }) {
+  static createDownloadTask(url: string, destino: FakeFile, opciones: { headers?: Record<string, string>; signal?: AbortSignal }) {
     return {
       downloadAsync: async () => {
         await FakeFile.descargaFalsa(url, destino, opciones);

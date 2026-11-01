@@ -243,12 +243,97 @@ describe('modo firma', () => {
     expect(verificada).not.toHaveBeenCalled();
   });
 
-  it('abrir con otra app no verifica; el visor reutiliza ese archivo', async () => {
+  it('abrir con otra app no verifica, y el visor pide su propia copia al servidor', async () => {
     const verificada = jest.fn();
     const arbol = montar(firma(verificada));
     await tocar(arbol, 'Abrir con…');
     expect(verificada).not.toHaveBeenCalled();
     await tocar(arbol, 'Abrir documento para revisarlo');
-    expect(descargas).toHaveLength(1);
+    expect(descargas).toHaveLength(2);
+  });
+
+  it('reabrir vuelve a pedir el documento: el servidor anota cada consulta y puede haber otra versión', async () => {
+    const arbol = montar(<DocumentoProtegido titulo="Contrato" modo="firma" path="/doc/1/descargar" pathConsulta="/doc/1/ver" puedeDescargar />);
+    await tocar(arbol, 'Abrir documento para revisarlo');
+    await tocar(arbol, 'Cerrar');
+    await tocar(arbol, 'Abrir documento para revisarlo');
+    expect(descargas.filter((url) => url.endsWith('/doc/1/ver'))).toHaveLength(2);
+  });
+
+  it('al cerrar no deja el archivo en disco', async () => {
+    const arbol = montar(<DocumentoProtegido titulo="Contrato" modo="firma" path="/doc/1/descargar" pathConsulta="/doc/1/ver" puedeDescargar />);
+    await tocar(arbol, 'Abrir documento para revisarlo');
+    expect(discoFalso.size).toBe(1);
+    await tocar(arbol, 'Cerrar');
+    expect(discoFalso.size).toBe(0);
+  });
+});
+
+describe('cambio de ruta en la misma pantalla', () => {
+  const pendiente = <DocumentoProtegido titulo="Contrato" modo="firma" path="/doc/1/descargar" pathConsulta="/doc/1/ver" puedeDescargar />;
+  const firmado = <DocumentoProtegido titulo="Contrato" modo="descarga" path="/doc/1/descargar" pathConsulta="/doc/1/ver" puedeDescargar />;
+
+  const actualizar = async (arbol: ReactTestRenderer, elemento: React.ReactElement) => {
+    act(() => arbol.update(elemento));
+    await flush();
+  };
+
+  it('el documento pasa a firma: el visor hace GET /ver aunque ya hubiera una copia de /descargar', async () => {
+    const arbol = montar(firmado);
+    await tocar(arbol, 'Descargar PDF');
+    expect(descargas).toEqual([expect.stringContaining('/doc/1/descargar')]);
+    await actualizar(arbol, pendiente);
+    await tocar(arbol, 'Abrir documento para revisarlo');
+    expect(descargas).toEqual([expect.stringContaining('/doc/1/descargar'), expect.stringContaining('/doc/1/ver')]);
+  });
+
+  it('tras firmar: «Descargar PDF» hace GET /descargar, no reutiliza la copia de /ver', async () => {
+    const arbol = montar(pendiente);
+    await tocar(arbol, 'Abrir documento para revisarlo');
+    await actualizar(arbol, firmado);
+    await tocar(arbol, 'Descargar PDF');
+    expect(descargas).toEqual([expect.stringContaining('/doc/1/ver'), expect.stringContaining('/doc/1/descargar')]);
+  });
+
+  it('borra la copia de la ruta anterior y cierra el visor que la mostraba', async () => {
+    const arbol = montar(pendiente);
+    await tocar(arbol, 'Abrir documento para revisarlo');
+    expect(arbol.root.findAllByType(PdfViewer)).toHaveLength(1);
+    await actualizar(arbol, firmado);
+    expect(discoFalso.size).toBe(0);
+    expect(arbol.root.findAllByType(PdfViewer)).toHaveLength(0);
+  });
+
+  it('una descarga en curso de la ruta anterior no se entrega a la nueva ni deja archivo', async () => {
+    const abortos: AbortSignal[] = [];
+    let terminarVieja!: () => void;
+    FakeFile.descargaFalsa = async (url, destino, opciones) => {
+      descargas.push(url);
+      if (url.endsWith('/doc/1/descargar')) {
+        abortos.push(opciones.signal!);
+        await new Promise<void>((resolve) => {
+          terminarVieja = resolve;
+        });
+      }
+      discoFalso.set(destino.uri, PDF_BYTES);
+    };
+    const arbol = montar(firmado);
+    let enCurso!: Promise<void>;
+    act(() => {
+      enCurso = boton(arbol, 'Descargar PDF').props.onPress();
+    });
+    await flush();
+    await actualizar(arbol, pendiente);
+    expect(abortos[0]?.aborted).toBe(true);
+    await tocar(arbol, 'Abrir documento para revisarlo');
+    expect(descargas).toEqual([expect.stringContaining('/doc/1/descargar'), expect.stringContaining('/doc/1/ver')]);
+    expect(arbol.root.findAllByType(PdfViewer)).toHaveLength(1);
+    await act(async () => {
+      terminarVieja();
+      await enCurso;
+    });
+    await flush();
+    expect(mockCompartir).not.toHaveBeenCalled();
+    expect(discoFalso.size).toBe(1);
   });
 });

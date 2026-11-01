@@ -62,6 +62,7 @@ export interface DocumentoProtegidoProps {
  *   Nunca hay guardar, compartir ni entrega a otra app.
  * - `firma`: visor para revisar el documento; solo un dibujo correcto llama
  *   `onAperturaVerificada`. Abrirlo con otra app no cuenta: no es verificable.
+ *   Cada apertura vuelve a pedir el archivo al servidor.
  */
 export function DocumentoProtegido({
   titulo,
@@ -82,10 +83,10 @@ export function DocumentoProtegido({
   const styles = useEstilos(crearEstilos);
   const permiteSalida = puedeDescargar === true && modo !== 'consulta' && Boolean(path);
   const usaVisor = modo !== 'descarga';
-  // En `firma` la misma copia sirve al visor y a «Descargar PDF» si la ruta es la misma.
   const rutaVisor = pathConsulta ?? (modo === 'firma' ? path : null);
+  const rutaPrincipal = usaVisor ? rutaVisor : path;
   const descarga = useDescargaDocumento({
-    path: usaVisor ? rutaVisor : path,
+    path: rutaPrincipal,
     titulo,
     intencion: modo === 'consulta' ? 'consultar' : 'descargar',
   });
@@ -104,11 +105,22 @@ export function DocumentoProtegido({
     [],
   );
 
+  // Al cambiar de ruta el hook borra la copia: un visor abierto se quedaría sin archivo.
+  const [rutaDelVisor, setRutaDelVisor] = useState(rutaPrincipal);
+  if (rutaDelVisor !== rutaPrincipal) {
+    setRutaDelVisor(rutaPrincipal);
+    setVisor(null);
+  }
+  const visorAbierto = visor !== null;
+  useEffect(() => {
+    if (!visorAbierto) void ScreenCapture.allowScreenCaptureAsync(CLAVE_CAPTURA).catch(() => {});
+  }, [visorAbierto]);
+
   const cerrarVisor = () => {
     setVisor(null);
     void ScreenCapture.allowScreenCaptureAsync(CLAVE_CAPTURA).catch(() => {});
-    // Lo que solo se puede consultar no se queda en disco al cerrar.
-    if (modo === 'consulta') descarga.descartar();
+    // Lo que se revisó en el visor no se queda en disco al cerrar.
+    descarga.descartar();
   };
 
   const alFallarVisor = (mensaje: string) => {
@@ -125,6 +137,9 @@ export function DocumentoProtegido({
     abriendoRef.current = true;
     setAbriendo(true);
     setErrorApertura(null);
+    // Para firmar, cada apertura es un GET nuevo: el servidor anota esa consulta
+    // sobre la versión vigente, y sin ella rechaza la apertura y la firma.
+    if (modo === 'firma') descarga.descartar();
     try {
       const archivo = await descarga.obtener();
       if (!archivo) return;

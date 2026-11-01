@@ -306,8 +306,11 @@ export interface UseDescargaDocumentoResultado {
 /**
  * Hook de la descarga de un documento: la primera vez que la persona pide
  * algo lo baja (autenticado, con progreso) y lo reutiliza después: nunca hay
- * dos descargas del mismo documento en la misma pantalla, ni por doble toque.
- * Borra sus copias temporales al desmontarse. Ver `DocumentoProtegido`.
+ * dos descargas de la misma ruta en la misma pantalla, ni por doble toque.
+ * Una copia solo vale para la ruta que la bajó: `/ver` y `/descargar` dejan
+ * registros distintos en el servidor, así que al cambiar `path` se cancela lo
+ * que iba en curso y se borra lo bajado. Borra sus copias temporales al
+ * desmontarse. Ver `DocumentoProtegido`.
  */
 export function useDescargaDocumento({ path, titulo, intencion = 'descargar' }: UseDescargaDocumentoOpciones): UseDescargaDocumentoResultado {
   const token = useAuthStore((state) => state.token);
@@ -327,6 +330,8 @@ export function useDescargaDocumento({ path, titulo, intencion = 'descargar' }: 
   const accionEnCursoRef = useRef(false);
   const ultimaAccionRef = useRef<'guardar' | 'abrir'>('guardar');
   const localRef = useRef<ArchivoLocal | null>(null);
+  /** Ruta de la copia local o de la descarga en curso; null si no hay ninguna. */
+  const rutaCopiaRef = useRef<string | null>(null);
 
   useEffect(
     () => () => {
@@ -347,12 +352,31 @@ export function useDescargaDocumento({ path, titulo, intencion = 'descargar' }: 
     setEstado('inactivo');
   }, []);
 
+  const soltarRutaAnterior = useCallback(() => {
+    controllerRef.current?.abort();
+    controllerRef.current = null;
+    enVueloRef.current = null;
+    rutaCopiaRef.current = null;
+    descartar();
+    setProgreso(null);
+    setError(null);
+    setStatusError(undefined);
+    setAviso(null);
+  }, [descartar]);
+
+  useEffect(() => {
+    if (rutaCopiaRef.current !== null && rutaCopiaRef.current !== path) soltarRutaAnterior();
+  }, [path, soltarRutaAnterior]);
+
   const obtener = useCallback((): Promise<ArchivoLocal | null> => {
+    // También aquí: un toque puede llegar antes de que corra el efecto de arriba.
+    if (rutaCopiaRef.current !== null && rutaCopiaRef.current !== path) soltarRutaAnterior();
     if (localRef.current) return Promise.resolve(localRef.current);
     if (enVueloRef.current) return enVueloRef.current;
     if (!path) return Promise.resolve(null);
     const controller = new AbortController();
     controllerRef.current = controller;
+    rutaCopiaRef.current = path;
     setEstado('descargando');
     setProgreso(null);
     setError(null);
@@ -380,13 +404,16 @@ export function useDescargaDocumento({ path, titulo, intencion = 'descargar' }: 
         if (status === 401) void expirarSesion();
         return null;
       } finally {
-        enVueloRef.current = null;
-        setProgreso(null);
+        // Una descarga cancelada no pisa el estado de la que la sustituyó.
+        if (controllerRef.current === controller) {
+          enVueloRef.current = null;
+          setProgreso(null);
+        }
       }
     })();
     enVueloRef.current = promesa;
     return promesa;
-  }, [path, token, expirarSesion, intencion]);
+  }, [path, token, expirarSesion, intencion, soltarRutaAnterior]);
 
   const ejecutar = async (accion: 'guardar' | 'abrir') => {
     if (accionEnCursoRef.current) return;
