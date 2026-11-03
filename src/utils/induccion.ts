@@ -81,23 +81,39 @@ export function puedeTerminarInduccion(opciones: {
 }
 
 /**
- * Anti-adelanto del reproductor (refuerzo del cliente; el servidor trunca
- * el HLS y rechaza heartbeats fuera de rango). Con `timeUpdate` cada
- * ~0.5 s, un avance > `SALTO_MAXIMO_SEGUNDOS` entre dos lecturas es un
- * salto manual: si cae más allá de lo ya visto, se regresa ahí.
+ * Anti-adelanto del reproductor. El servidor entrega el HLS COMPLETO (el
+ * video precarga y no se traba) y solo acredita como visto lo que avanza al
+ * ritmo del tiempo real (heartbeat); el seek manual lo bloquea el cliente.
+ *
+ * Se valida la POSICIÓN, nunca la carga: con `timeUpdate` cada ~0.5 s, un
+ * avance mayor a lo que pudo reproducirse en el tiempo real transcurrido
+ * (`segundosReales`, mínimo `SALTO_MAXIMO_SEGUNDOS`) es un salto manual; si
+ * cae más allá de lo ya visto (+ `TOLERANCIA_SALTO_SEGUNDOS`, para los
+ * micro-saltos del reproductor al salir de un buffering) se regresa ahí. Un
+ * buffering deja el tiempo quieto y luego sigue: nunca cuenta como adelanto.
+ * El máximo visto solo sube lo que de verdad avanzó la reproducción (encadenar
+ * saltos pequeños no lo «estira»). Mismo criterio que el portal
+ * (resources/js/lib/induccion/antiAdelantoVideo.ts).
  */
 export const SALTO_MAXIMO_SEGUNDOS = 2.5;
+export const TOLERANCIA_SALTO_SEGUNDOS = 3;
 
 export function evaluarSaltoVideo(
   anterior: number,
   actual: number,
   maximoVisto: number,
   maximoServidor: number,
+  segundosReales = 0,
 ): { regresarA: number | null; maximoVisto: number } {
+  const delta = actual - anterior;
+  const continuo = delta >= 0 && delta <= Math.max(SALTO_MAXIMO_SEGUNDOS, segundosReales + 1);
+  if (continuo) {
+    return { regresarA: null, maximoVisto: Math.max(maximoVisto, Math.min(actual, maximoVisto + delta)) };
+  }
+  // Salto (seek): retroceder o moverse dentro de lo visto se permite.
   const limite = Math.max(maximoVisto, maximoServidor);
-  const continuo = actual - anterior <= SALTO_MAXIMO_SEGUNDOS;
-  if (!continuo && actual > limite + 1) return { regresarA: limite, maximoVisto };
-  return { regresarA: null, maximoVisto: continuo ? Math.max(maximoVisto, actual) : maximoVisto };
+  if (actual > limite + TOLERANCIA_SALTO_SEGUNDOS) return { regresarA: limite, maximoVisto };
+  return { regresarA: null, maximoVisto };
 }
 
 /** Páginas que aún no se han mostrado (para «Te faltan N»). */

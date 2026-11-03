@@ -29,9 +29,10 @@ const AVISO_ADELANTO = 'No puedes adelantar el video sin haberlo visto antes.';
  * Video obligatorio de la Inducción Mr. Lana (HLS firmado). Mismo contrato
  * que el portal web (ReproductorVideoInduccion.vue): retoma en
  * `posicion_inicial`, reporta la posición cada `heartbeat_segundos` y el
- * «completado» lo decide el servidor. El anti-adelanto lo respalda el
- * servidor (HLS truncado + heartbeat rechazado); aquí se refuerza
- * regresando al último punto visto.
+ * «completado» lo decide el servidor. El servidor entrega el HLS COMPLETO
+ * (precarga, no se traba) y solo acredita lo que avanza al ritmo del tiempo
+ * real; aquí se bloquea el seek manual más allá de lo visto
+ * (evaluarSaltoVideo). La carga o un buffering nunca cuentan como adelanto.
  */
 export function ReproductorVideoInduccion({ avanceId, sesion, onCompletada, onReintentar }: ReproductorVideoInduccionProps) {
   const styles = useEstilos(crearEstilos);
@@ -61,6 +62,8 @@ export function ReproductorVideoInduccion({ avanceId, sesion, onCompletada, onRe
   const completadaRef = useRef(sesion.completada);
   const posicionadoRef = useRef(false);
   const ultimoAvisoRef = useRef(0);
+  /** Reloj real de la última lectura de timeUpdate (0 = reiniciar). */
+  const ultimaLecturaRef = useRef(0);
   const onCompletadaRef = useRef(onCompletada);
   useEffect(() => {
     onCompletadaRef.current = onCompletada;
@@ -86,6 +89,9 @@ export function ReproductorVideoInduccion({ avanceId, sesion, onCompletada, onRe
         maximoServidorRef.current = respuesta.segundoMaximoPermitido;
         setPorcentaje(respuesta.porcentajeVisto);
         if (!respuesta.permitido) {
+          // Solo se rechaza un avance más rápido que el tiempo real (nunca
+          // por buffering): es un adelanto de verdad.
+          maximoVistoRef.current = Math.min(maximoVistoRef.current, respuesta.posicionPermitida);
           try {
             player.currentTime = respuesta.posicionPermitida;
           } catch {
@@ -119,7 +125,16 @@ export function ReproductorVideoInduccion({ avanceId, sesion, onCompletada, onRe
       }
     });
     const tiempo = player.addListener('timeUpdate', ({ currentTime }) => {
-      const { regresarA, maximoVisto } = evaluarSaltoVideo(posicionRef.current, currentTime, maximoVistoRef.current, maximoServidorRef.current);
+      const ahora = Date.now();
+      const segundosReales = ultimaLecturaRef.current > 0 ? (ahora - ultimaLecturaRef.current) / 1000 : 0;
+      ultimaLecturaRef.current = ahora;
+      const { regresarA, maximoVisto } = evaluarSaltoVideo(
+        posicionRef.current,
+        currentTime,
+        maximoVistoRef.current,
+        maximoServidorRef.current,
+        segundosReales,
+      );
       maximoVistoRef.current = maximoVisto;
       if (regresarA !== null) {
         player.currentTime = regresarA;
@@ -135,6 +150,8 @@ export function ReproductorVideoInduccion({ avanceId, sesion, onCompletada, onRe
       void enviarHeartbeat.current();
     });
     const pausa = player.addListener('playingChange', ({ isPlaying }) => {
+      // Tras una pausa o un buffering el reloj real vuelve a contar desde aquí.
+      ultimaLecturaRef.current = isPlaying ? Date.now() : 0;
       if (!isPlaying) void enviarHeartbeat.current();
     });
     return () => {

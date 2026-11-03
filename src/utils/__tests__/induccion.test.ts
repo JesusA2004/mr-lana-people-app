@@ -258,6 +258,31 @@ describe('video de la inducción', () => {
     expect(evaluarSaltoVideo(20, 90, 100, 105).regresarA).toBeNull();
   });
 
+  it('anti-adelanto: un buffering (tiempo quieto y luego sigue) nunca regresa', () => {
+    let anterior = 30;
+    let maximo = 30;
+    for (const t of [30, 30, 30, 30, 30.5, 31, 31.5]) {
+      const r = evaluarSaltoVideo(anterior, t, maximo, 35);
+      expect(r.regresarA).toBeNull();
+      maximo = r.maximoVisto;
+      anterior = t;
+    }
+    expect(maximo).toBe(31.5);
+    // Micro-salto del reproductor al salir del stall.
+    expect(evaluarSaltoVideo(31.5, 33, 31.5, 31.5).regresarA).toBeNull();
+  });
+
+  it('anti-adelanto: timeUpdate espaciado (app en segundo plano) no es adelanto; un salto real sí', () => {
+    expect(evaluarSaltoVideo(30, 36, 30, 30, 6)).toEqual({ regresarA: null, maximoVisto: 36 });
+    expect(evaluarSaltoVideo(30, 90, 30, 30, 6).regresarA).toBe(30);
+  });
+
+  it('anti-adelanto: encadenar saltos pequeños no estira el máximo visto', () => {
+    // Salta 3 s (dentro de la tolerancia) y reproduce 0.5 s: el máximo solo sube 0.5.
+    expect(evaluarSaltoVideo(30, 33, 30, 30)).toEqual({ regresarA: null, maximoVisto: 30 });
+    expect(evaluarSaltoVideo(33, 33.5, 30, 30).maximoVisto).toBe(30.5);
+  });
+
   it('reconoce el cierre %%EOF de un PDF completo', () => {
     const bytes = (texto: string) => Uint8Array.from(texto, (c) => c.charCodeAt(0));
     expect(tieneCierrePdf(bytes('trailer\n<<>>\nstartxref\n123\n%%EOF\n'))).toBe(true);
