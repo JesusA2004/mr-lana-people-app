@@ -1,4 +1,4 @@
-import type { EvaluacionInduccion, InduccionResumen } from './induccion';
+import type { EvaluacionInduccion, InduccionResumen, MiInduccionAsignada } from './induccion';
 
 /**
  * "Lo que necesitas hacer" del colaborador — `GET /colaborador/mi-proceso`
@@ -56,6 +56,8 @@ export interface MiProceso {
   induccion: InduccionResumen | null;
   /** Evaluación oficial de inducción (null hasta que el backend la habilita). */
   evaluacionInduccion: EvaluacionInduccion | null;
+  /** Qué se le asignó (PDF y/o video) y su avance; null en servidores sin `miInduccion`. */
+  miInduccion: MiInduccionAsignada | null;
 }
 
 export interface ResultadoLeccion {

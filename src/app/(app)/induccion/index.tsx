@@ -11,7 +11,8 @@ import { useMiProceso } from '@/hooks/queries/useCicloLaboral';
 import { useMiDescriptivoPuesto } from '@/hooks/queries/useDescriptivoPuesto';
 import { descriptivoPendiente } from '@/utils/descriptivoPuesto';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
-import { faseInduccion, fechaLegible, resultadoInduccion, textoProgreso, ultimoIntentoCalificado } from '@/utils/induccion';
+import { useMaterialInduccion } from '@/hooks/queries/useInduccion';
+import { faseInduccion, fechaLegible, mensajeVideoPreparando, resultadoInduccion, textoProgreso, ultimoIntentoCalificado, videoRequerido } from '@/utils/induccion';
 
 /**
  * Inducción Mr. Lana: avance por páginas del PDF oficial (guardado en el servidor),
@@ -30,12 +31,20 @@ export default function InduccionScreen() {
   const calificado = ultimoIntentoCalificado(evaluacion);
   const resultado = calificado ? resultadoInduccion(calificado) : null;
   const vistos = resumen?.paginasVistas.length ?? 0;
+  // Paso «Video» independiente del PDF: si su consulta falla, el documento sigue igual.
+  const asignada = proceso.data?.miInduccion ?? null;
+  const material = useMaterialInduccion(resumen?.avanceId ?? null);
+  const conVideo = material.data?.tipo === 'video' || videoRequerido(asignada, null);
+  const videoCompleto = asignada?.material?.completado === true;
+  const videoPorcentaje = asignada?.material?.porcentaje ?? 0;
+  const presentacionIncluida = asignada?.presentacionIncluida ?? true;
   // Al aprobar, RH te envía tu descriptivo de puesto (lees + «OK, enterado»).
   const descriptivo = useMiDescriptivoPuesto();
   const descriptivoPorLeer = descriptivoPendiente(descriptivo.data);
 
   const refrescar = () => {
     void proceso.refetch();
+    if (resumen) void material.refetch();
   };
 
   return (
@@ -65,6 +74,7 @@ export default function InduccionScreen() {
               <Text style={styles.porcentaje}>{resumen.porcentaje} %</Text>
             </View>
             <AnimatedProgressBar percent={resumen.porcentaje} />
+            {presentacionIncluida ? null : <Text style={styles.heroTexto}>Esta vez el documento es opcional: puedes repasarlo cuando quieras.</Text>}
             <Text style={styles.estado}>{resumen.completado ? 'Contenido completado' : vistos === 0 ? 'Sin iniciar' : 'En curso'}</Text>
             <Button
               title={resumen.completado ? 'Repasar la inducción' : vistos === 0 ? 'Comenzar' : 'Continuar'}
@@ -73,6 +83,34 @@ export default function InduccionScreen() {
               onPress={() => router.push('/induccion/capitulos')}
             />
           </Card>
+
+          {conVideo ? (
+            <Card style={styles.bloque}>
+              <View style={styles.heroHeader}>
+                <View style={styles.heroIcon}>
+                  <Ionicons name="videocam-outline" size={22} color={Colors.primaryDark} />
+                </View>
+                <View style={styles.flex}>
+                  <Text style={styles.bloqueTitulo}>Video de la inducción</Text>
+                  <Text style={styles.heroTexto}>
+                    {videoCompleto ? 'Video completo' : videoPorcentaje > 0 ? `${videoPorcentaje} % visto` : 'Obligatorio: velo completo para terminar tu inducción'}
+                  </Text>
+                </View>
+              </View>
+              {material.isError ? (
+                <Notice tone="warning">No pudimos consultar el video. Desliza hacia abajo para intentar de nuevo.</Notice>
+              ) : material.data?.tipo === 'video' && !material.data.videoDisponible ? (
+                <Notice tone="warning">{mensajeVideoPreparando(material.data)}</Notice>
+              ) : material.data?.videoDisponible ? (
+                <Button
+                  title={videoCompleto ? 'Volver a ver el video' : videoPorcentaje > 0 ? 'Continuar el video' : 'Ver el video'}
+                  variant={videoCompleto ? 'outline' : 'primary'}
+                  leftIcon="play-circle-outline"
+                  onPress={() => router.push('/induccion/video')}
+                />
+              ) : null}
+            </Card>
+          ) : null}
 
           {fase === 'evaluacion_disponible' || fase === 'reevaluacion_disponible' ? (
             <Card style={styles.bloque}>

@@ -69,6 +69,8 @@ export const queryKeys = {
   // Inducción Mr. Lana (PDF oficial, evaluación) y directorio.
   induccionPresentacion: ['induccion', 'presentacion'] as const,
   induccionEvaluacionContenido: ['colaborador', 'induccion', 'evaluacion'] as const,
+  induccionMaterial: (avanceId: number) => ['colaborador', 'induccion', 'material', avanceId] as const,
+  induccionVideoSesion: (avanceId: number) => ['colaborador', 'induccion', 'video', avanceId] as const,
   // Descriptivo de puesto que RH envía tras aprobar la inducción.
   miDescriptivoPuesto: ['colaborador', 'descriptivo-puesto'] as const,
   directorio: (filtros: Record<string, unknown> = {}) => ['directorio', filtros] as const,

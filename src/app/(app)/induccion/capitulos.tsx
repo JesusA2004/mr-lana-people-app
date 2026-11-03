@@ -7,11 +7,11 @@ import { Button } from '@/components/Button';
 import { EmptyMessage, Screen } from '@/components/ciclo/Screen';
 import { VisorPdfPaginado } from '@/components/VisorPdfPaginado';
 import { useMiProceso } from '@/hooks/queries/useCicloLaboral';
-import { usePresentacionInduccion, useRegistrarPaginaInduccion, useTerminarInduccion } from '@/hooks/queries/useInduccion';
+import { useMaterialInduccion, usePresentacionInduccion, useRegistrarPaginaInduccion, useTerminarInduccion } from '@/hooks/queries/useInduccion';
 import { useColores } from '@/theme/ThemeProvider';
 import { toast } from '@/store/toastStore';
 import { getActionErrorMessage, logError } from '@/utils/errors';
-import { paginasFaltantes } from '@/utils/induccion';
+import { paginasFaltantes, puedeTerminarInduccion, videoRequerido } from '@/utils/induccion';
 
 /**
  * La inducción del colaborador = el PDF OFICIAL (mismo que la web), página
@@ -37,6 +37,21 @@ export default function InduccionLecturaScreen() {
   const vistas = useMemo(() => new Set([...(paginasServidor ?? []), ...vistasLocales]), [paginasServidor, vistasLocales]);
   const total = pdf.data?.totalPaginas ?? resumen?.totalPaginas ?? 0;
   const faltan = paginasFaltantes(resumen ? { ...resumen, paginasVistas: [...vistas] } : null, total);
+  // El video (si lo hay) se consulta aparte: nunca bloquea ni tumba el PDF.
+  const material = useMaterialInduccion(avanceId);
+  const asignada = proceso.data?.miInduccion ?? null;
+  const conVideo = videoRequerido(asignada, material.data);
+  const videoCompleto = asignada?.material?.completado === true;
+  const habilitarTerminar = puedeTerminarInduccion({
+    completado: resumen?.completado ?? false,
+    paginasFaltantes: faltan,
+    presentacionIncluida: asignada?.presentacionIncluida ?? true,
+    videoRequerido: conVideo,
+    videoCompletado: videoCompleto,
+  });
+  // Hojas listas pero falta el video: la acción final lleva al paso «Video».
+  const irAlVideo = conVideo && !videoCompleto && faltan === 0;
+  const notaVideo = irAlVideo ? (material.data?.videoDisponible === false ? 'El video se está procesando' : 'Falta ver el video completo') : null;
 
   const alMostrar = (numero: number) => {
     if (avanceId === null || vistas.has(numero)) return;
@@ -87,10 +102,19 @@ export default function InduccionLecturaScreen() {
         puedeDescargar={pdf.data.puedeDescargar}
         paginaInicial={resumen?.ultimaPagina ?? 1}
         onPagina={alMostrar}
-        nota={resumen?.completado ? null : faltan > 0 ? `Te faltan ${faltan} página(s)` : null}
+        nota={resumen?.completado ? null : faltan > 0 ? `Te faltan ${faltan} página(s)` : notaVideo}
         accionFinal={
-          resumen?.completado ? undefined : (
-            <Button title="Terminé la inducción" fullWidth={false} leftIcon="checkmark-circle-outline" disabled={faltan > 0} loading={terminar.isPending} onPress={alTerminar} />
+          resumen?.completado ? undefined : irAlVideo ? (
+            <Button title="Ir al video" fullWidth={false} leftIcon="play-circle-outline" onPress={() => router.push('/induccion/video')} />
+          ) : (
+            <Button
+              title="Terminé la inducción"
+              fullWidth={false}
+              leftIcon="checkmark-circle-outline"
+              disabled={!habilitarTerminar}
+              loading={terminar.isPending}
+              onPress={alTerminar}
+            />
           )
         }
       />

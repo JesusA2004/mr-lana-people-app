@@ -160,6 +160,7 @@ export default function AppLayout() {
           {/* Inducción Mr. Lana: progreso y evaluación del propio colaborador (estado en mi-proceso). */}
           <Stack.Screen name="induccion/index" />
           <Stack.Screen name="induccion/capitulos" />
+          <Stack.Screen name="induccion/video" />
           <Stack.Screen name="induccion/evaluacion" />
           {/* Descriptivo de puesto que RH envía tras aprobar la inducción: leer + «OK, enterado». */}
           <Stack.Screen name="descriptivo-puesto" />

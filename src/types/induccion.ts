@@ -30,6 +30,63 @@ export interface PdfInduccion {
   puedeDescargar: boolean;
 }
 
+/**
+ * Material de explicación activo de la inducción
+ * (`GET colaborador/induccion/material/{avance}` →
+ * `MaterialInduccionService::datosParaColaborador`). El video es
+ * obligatorio antes de terminar; mientras el servidor lo procesa
+ * `videoDisponible` es false.
+ */
+export interface MaterialInduccion {
+  tipo: 'audio' | 'video' | null;
+  videoDisponible: boolean;
+  /** 'listo' | 'preparando' (aditivo del backend; null si no aplica). */
+  videoEstado: string | null;
+  /** Por qué el video aún no se puede ver (texto del backend, ya en español). */
+  videoMensaje: string | null;
+}
+
+/** `POST colaborador/induccion/video/{avance}/iniciar` (ReproduccionVideoInduccionService::iniciarSesion). */
+export interface SesionVideoInduccion {
+  urlManifiesto: string;
+  /** Lo máximo ya visto: se retoma ahí. */
+  posicionInicial: number;
+  duracionSegundos: number | null;
+  porcentajeVisto: number;
+  /** Límite de avance que acepta el servidor (lo visto + tolerancia). */
+  segundoMaximoPermitido: number;
+  heartbeatSegundos: number;
+  completada: boolean;
+}
+
+/** `POST colaborador/induccion/video/{avance}/heartbeat`. */
+export interface HeartbeatVideoInduccion {
+  /** false = intentó adelantar: hay que regresar a `posicionPermitida`. */
+  permitido: boolean;
+  posicionPermitida: number;
+  segundoMaximoPermitido: number;
+  porcentajeVisto: number;
+  completada: boolean;
+}
+
+/**
+ * Lo que se le ASIGNÓ y su avance (`miInduccion` de mi-proceso,
+ * ProgresoInduccionService). En una reinducción de solo video la
+ * presentación (PDF) puede no estar incluida.
+ */
+export interface MiInduccionAsignada {
+  presentacionIncluida: boolean;
+  presentacionCompleta: boolean;
+  material: {
+    incluido: boolean;
+    tipo: 'audio' | 'video' | null;
+    completado: boolean;
+    disponible: boolean;
+    porcentaje: number;
+    iniciado: boolean;
+  } | null;
+}
+
 export type EstadoEvaluacionInduccion =
   | 'disponible'
   | 'pendiente_calificacion_rh'

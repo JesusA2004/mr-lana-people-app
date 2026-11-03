@@ -23,7 +23,7 @@
     },
     "android": {
       "package": "com.mrlana.people",
-      "versionCode": 20,
+      "versionCode": 21,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#0D3E43",
@@ -99,7 +99,8 @@
         }
       ],
       "expo-sharing",
-      "expo-image"
+      "expo-image",
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true,

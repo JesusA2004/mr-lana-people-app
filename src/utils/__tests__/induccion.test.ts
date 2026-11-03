@@ -1,7 +1,20 @@
-import { normalizeContenidoEvaluacion, normalizeEvaluacionInduccion, normalizeInduccionResumen, normalizePdfInduccion } from '@/api/normalizers/induccion';
+import {
+  normalizeContenidoEvaluacion,
+  normalizeEvaluacionInduccion,
+  normalizeHeartbeatVideoInduccion,
+  normalizeInduccionResumen,
+  normalizeMaterialInduccion,
+  normalizeMiInduccionAsignada,
+  normalizePdfInduccion,
+  normalizeSesionVideoInduccion,
+} from '@/api/normalizers/induccion';
 import { normalizeMiProceso } from '@/api/normalizers/miProceso';
 import type { ContenidoEvaluacionInduccion, EvaluacionInduccion, IntentoInduccion } from '@/types/induccion';
 import {
+  evaluarSaltoVideo,
+  mensajeVideoPreparando,
+  puedeTerminarInduccion,
+  videoRequerido,
   evaluacionCompleta,
   faseInduccion,
   fechaLegible,
@@ -11,6 +24,7 @@ import {
   textoProgreso,
   ultimoIntentoCalificado,
 } from '@/utils/induccion';
+import { tieneCierrePdf } from '@/utils/induccionCache';
 
 const resumen = normalizeInduccionResumen({
   avance_id: 12,
@@ -166,5 +180,87 @@ describe('inducción: la clave de respuestas nunca existe en la app', () => {
     const llena = { a: { 0: 1 }, b: { 0: true }, c: { 0: 'C' }, d: { caso_26: 'Lo reporto a RH.' } };
     expect(evaluacionCompleta(contenido, llena)).toBe(true);
     expect(evaluacionCompleta(contenido, { ...llena, d: { caso_26: '   ' } })).toBe(false);
+  });
+});
+
+describe('video de la inducción', () => {
+  it('normaliza el material (con y sin los campos aditivos del backend)', () => {
+    expect(normalizeMaterialInduccion({ tipo: 'video', audio_url: null, video_disponible: false, video_estado: 'preparando', video_mensaje: 'Se está preparando.' })).toEqual({
+      tipo: 'video',
+      videoDisponible: false,
+      videoEstado: 'preparando',
+      videoMensaje: 'Se está preparando.',
+    });
+    expect(normalizeMaterialInduccion({ tipo: 'video', video_disponible: true })).toEqual({ tipo: 'video', videoDisponible: true, videoEstado: 'listo', videoMensaje: null });
+    expect(normalizeMaterialInduccion({ tipo: 'audio', audio_url: 'https://x', video_disponible: false })).toEqual({ tipo: 'audio', videoDisponible: false, videoEstado: null, videoMensaje: null });
+    expect(normalizeMaterialInduccion({ tipo: 'otro' }).tipo).toBeNull();
+    expect(normalizeMaterialInduccion(null).tipo).toBeNull();
+  });
+
+  it('mensaje de «se está procesando»: el del backend o uno por defecto', () => {
+    expect(mensajeVideoPreparando({ tipo: 'video', videoDisponible: false, videoEstado: 'preparando', videoMensaje: null })).toBe('El video se está procesando, intenta más tarde.');
+    expect(mensajeVideoPreparando({ tipo: 'video', videoDisponible: false, videoEstado: 'preparando', videoMensaje: 'Del servidor.' })).toBe('Del servidor.');
+  });
+
+  it('normaliza la sesión (envuelta en data por la API) y rechaza una URL inválida', () => {
+    const sesion = normalizeSesionVideoInduccion({
+      sesion_id: 5,
+      posicion_inicial: 42,
+      duracion_total_segundos: 600,
+      porcentaje_visto: 7.5,
+      segundo_maximo_permitido: 47,
+      heartbeat_segundos: 8,
+      completada: false,
+      url_manifiesto: 'https://people.mr-lana.com/mi-proceso/induccion/video/5/manifiesto/master.m3u8?signature=x',
+    });
+    expect(sesion).toMatchObject({ posicionInicial: 42, segundoMaximoPermitido: 47, heartbeatSegundos: 8, completada: false });
+    expect(normalizeSesionVideoInduccion({ url_manifiesto: 'https://x/m.m3u8', heartbeat_segundos: 0 }).heartbeatSegundos).toBe(3);
+    expect(() => normalizeSesionVideoInduccion({ url_manifiesto: null })).toThrow();
+  });
+
+  it('heartbeat rechazado regresa a la posición permitida', () => {
+    expect(normalizeHeartbeatVideoInduccion({ permitido: false, posicion_permitida: 30, segundo_maximo_permitido: 30, porcentaje_visto: 5, completada: false })).toEqual({
+      permitido: false,
+      posicionPermitida: 30,
+      segundoMaximoPermitido: 30,
+      porcentajeVisto: 5,
+      completada: false,
+    });
+  });
+
+  it('miInduccion: lo asignado (solo video = PDF omitido)', () => {
+    const asignada = normalizeMiInduccionAsignada({
+      presentacion: { incluida: false, completada: false },
+      material: { incluido: true, tipo: 'video', completado: false, disponible: true, porcentaje: 40, iniciado: true },
+    });
+    expect(asignada?.presentacionIncluida).toBe(false);
+    expect(asignada?.material).toMatchObject({ incluido: true, tipo: 'video', porcentaje: 40 });
+    expect(normalizeMiInduccionAsignada(undefined)).toBeNull();
+    expect(videoRequerido(asignada, null)).toBe(true);
+    expect(videoRequerido(null, null)).toBe(false);
+  });
+
+  it('«Terminé la inducción» solo con hojas (si cuentan) y video completo (si se asignó)', () => {
+    const base = { completado: false, paginasFaltantes: 0, presentacionIncluida: true, videoRequerido: true, videoCompletado: true };
+    expect(puedeTerminarInduccion(base)).toBe(true);
+    expect(puedeTerminarInduccion({ ...base, videoCompletado: false })).toBe(false);
+    expect(puedeTerminarInduccion({ ...base, paginasFaltantes: 3 })).toBe(false);
+    expect(puedeTerminarInduccion({ ...base, paginasFaltantes: 3, presentacionIncluida: false })).toBe(true);
+    expect(puedeTerminarInduccion({ ...base, videoRequerido: false, videoCompletado: false })).toBe(true);
+    expect(puedeTerminarInduccion({ ...base, completado: true })).toBe(false);
+  });
+
+  it('anti-adelanto: un salto más allá de lo visto regresa; la reproducción normal avanza', () => {
+    expect(evaluarSaltoVideo(10, 10.5, 10, 15)).toEqual({ regresarA: null, maximoVisto: 10.5 });
+    expect(evaluarSaltoVideo(10, 120, 10, 15)).toEqual({ regresarA: 15, maximoVisto: 10 });
+    // Regresar o adelantar dentro de lo ya visto está permitido.
+    expect(evaluarSaltoVideo(100, 20, 100, 105).regresarA).toBeNull();
+    expect(evaluarSaltoVideo(20, 90, 100, 105).regresarA).toBeNull();
+  });
+
+  it('reconoce el cierre %%EOF de un PDF completo', () => {
+    const bytes = (texto: string) => Uint8Array.from(texto, (c) => c.charCodeAt(0));
+    expect(tieneCierrePdf(bytes('trailer\n<<>>\nstartxref\n123\n%%EOF\n'))).toBe(true);
+    expect(tieneCierrePdf(bytes('stream cortado a la mit'))).toBe(false);
   });
 });

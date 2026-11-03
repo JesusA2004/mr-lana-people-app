@@ -22,6 +22,39 @@ export function usePresentacionInduccion(enabled = true) {
 }
 
 /**
+ * Material de explicación (video/audio) de la inducción. Es solo un aviso:
+ * si falla (servidor sin el endpoint, 403…) la pantalla sigue funcionando
+ * con el PDF — nunca tumba la inducción.
+ */
+export function useMaterialInduccion(avanceId: number | null) {
+  return useQuery({
+    queryKey: queryKeys.induccionMaterial(avanceId ?? 0),
+    queryFn: () => induccionApi.material(avanceId as number),
+    enabled: avanceId !== null,
+    staleTime: 60 * 1000,
+    retry: false,
+  });
+}
+
+/**
+ * Sesión de reproducción del video (URL HLS firmada + posición para
+ * retomar). Nunca se cachea: la URL firmada caduca y cada entrada debe
+ * pedir una nueva al servidor.
+ */
+export function useSesionVideoInduccion(avanceId: number | null, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.induccionVideoSesion(avanceId ?? 0),
+    queryFn: () => induccionApi.iniciarVideo(avanceId as number),
+    enabled: enabled && avanceId !== null,
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
+}
+
+/**
  * Registra una página MOSTRADA en el servidor y actualiza el resumen de
  * mi-proceso con lo que responde el backend (nunca un cálculo local).
  */

@@ -35,12 +35,27 @@ function borrar(archivo: File) {
   }
 }
 
-/** Solo un PDF completo llega a la caché: firma `%PDF` y, si el servidor lo informó, el tamaño exacto. */
+/**
+ * Solo un PDF completo llega a la caché: firma `%PDF` y, si el servidor lo
+ * informó, el tamaño exacto. Si el tamaño del HEAD no cuadra (un proxy que
+ * comprime o cambia la cabecera) se acepta igual cuando el archivo trae su
+ * cierre `%%EOF`: un PDF cortado a la mitad nunca lo trae.
+ */
 async function esPdfCompleto(archivo: File, tamanoEsperado: number | null | undefined): Promise<boolean> {
   if (!archivo.exists || archivo.size === 0) return false;
-  if (tamanoEsperado && archivo.size !== tamanoEsperado) return false;
   const cabecera = new Uint8Array(await archivo.slice(0, 4).arrayBuffer());
-  return String.fromCharCode(...cabecera) === '%PDF';
+  if (String.fromCharCode(...cabecera) !== '%PDF') return false;
+  if (!tamanoEsperado || archivo.size === tamanoEsperado) return true;
+  const inicioCola = Math.max(0, archivo.size - 1024);
+  const cola = new Uint8Array(await archivo.slice(inicioCola, archivo.size).arrayBuffer());
+  return tieneCierrePdf(cola);
+}
+
+/** ¿Los últimos bytes del archivo contienen el marcador de fin `%%EOF`? */
+export function tieneCierrePdf(cola: Uint8Array): boolean {
+  let texto = '';
+  for (const byte of cola) texto += String.fromCharCode(byte);
+  return texto.includes('%%EOF');
 }
 
 export interface ObtenerPdfInduccionOpciones {

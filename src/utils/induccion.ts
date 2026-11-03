@@ -3,6 +3,8 @@ import type {
   EvaluacionInduccion,
   InduccionResumen,
   IntentoInduccion,
+  MaterialInduccion,
+  MiInduccionAsignada,
   RespuestasInduccion,
 } from '@/types/induccion';
 
@@ -45,6 +47,57 @@ export function faseInduccion(resumen: InduccionResumen | null, evaluacion: Eval
 export function textoProgreso(resumen: InduccionResumen): string {
   const total = resumen.totalPaginas;
   return `${Math.min(resumen.paginasVistas.length, total)} de ${total} ${total === 1 ? 'página' : 'páginas'}`;
+}
+
+export const VIDEO_PREPARANDO_MENSAJE = 'El video se está procesando, intenta más tarde.';
+
+/** Texto cuando el video aún no se puede reproducir (el del backend si lo mandó). */
+export function mensajeVideoPreparando(material: MaterialInduccion | null | undefined): string {
+  return material?.videoMensaje ?? VIDEO_PREPARANDO_MENSAJE;
+}
+
+/** ¿La persona tiene un VIDEO obligatorio asignado? (`miInduccion.material`, o el material activo si el servidor no lo manda). */
+export function videoRequerido(asignada: MiInduccionAsignada | null | undefined, material: MaterialInduccion | null | undefined): boolean {
+  if (asignada?.material) return asignada.material.incluido && asignada.material.tipo === 'video';
+  return material?.tipo === 'video';
+}
+
+/**
+ * ¿Se habilita «Terminé la inducción»? Espejo de
+ * InduccionPdfService::terminar(): las hojas solo si la presentación está
+ * asignada y el video solo si está asignado y el servidor lo reporta
+ * completo. El backend vuelve a validar; esto solo evita un botón inútil.
+ */
+export function puedeTerminarInduccion(opciones: {
+  completado: boolean;
+  paginasFaltantes: number;
+  presentacionIncluida: boolean;
+  videoRequerido: boolean;
+  videoCompletado: boolean;
+}): boolean {
+  if (opciones.completado) return false;
+  if (opciones.presentacionIncluida && opciones.paginasFaltantes > 0) return false;
+  return !opciones.videoRequerido || opciones.videoCompletado;
+}
+
+/**
+ * Anti-adelanto del reproductor (refuerzo del cliente; el servidor trunca
+ * el HLS y rechaza heartbeats fuera de rango). Con `timeUpdate` cada
+ * ~0.5 s, un avance > `SALTO_MAXIMO_SEGUNDOS` entre dos lecturas es un
+ * salto manual: si cae más allá de lo ya visto, se regresa ahí.
+ */
+export const SALTO_MAXIMO_SEGUNDOS = 2.5;
+
+export function evaluarSaltoVideo(
+  anterior: number,
+  actual: number,
+  maximoVisto: number,
+  maximoServidor: number,
+): { regresarA: number | null; maximoVisto: number } {
+  const limite = Math.max(maximoVisto, maximoServidor);
+  const continuo = actual - anterior <= SALTO_MAXIMO_SEGUNDOS;
+  if (!continuo && actual > limite + 1) return { regresarA: limite, maximoVisto };
+  return { regresarA: null, maximoVisto: continuo ? Math.max(maximoVisto, actual) : maximoVisto };
 }
 
 /** Páginas que aún no se han mostrado (para «Te faltan N»). */

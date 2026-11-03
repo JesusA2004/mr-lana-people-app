@@ -1,3 +1,4 @@
+import { isAxiosError } from 'axios';
 import { File } from 'expo-file-system';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -15,6 +16,7 @@ import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors
 import { API_URL } from '@/constants/config';
 import { useAuthStore } from '@/store/authStore';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
+import { mensajeParaErrorDescarga } from '@/utils/descargaDocumento';
 import { getErrorMessage, logError } from '@/utils/errors';
 import { descartarPdfInduccion, obtenerPdfInduccion } from '@/utils/induccionCache';
 import { construirHtmlVisorPdfPaginado, partirEnTrozos } from '@/utils/pdfViewerHtml';
@@ -107,7 +109,12 @@ export function VisorPdfPaginado({ path, titulo, puedeDescargar = false, paginaI
       } catch (err) {
         if (cancelado) return;
         logError('VisorPdfPaginado', err);
-        setError(getErrorMessage(err));
+        // El HEAD va por Axios; la descarga es NATIVA (expo-file-system) y su
+        // error no es de Axios: sin esto caía en «Ocurrió un error inesperado».
+        const deAxios = isAxiosError(err);
+        setError(deAxios ? getErrorMessage(err) : mensajeParaErrorDescarga(err));
+        // Falló la descarga del visor: ofrecer abrirlo/descargarlo como respaldo.
+        setErrorDibujo(!deAxios);
       }
     })();
 

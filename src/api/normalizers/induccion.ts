@@ -2,9 +2,14 @@ import type {
   ContenidoEvaluacionInduccion,
   EvaluacionInduccion,
   InduccionResumen,
+  HeartbeatVideoInduccion,
   IntentoInduccion,
+  MaterialInduccion,
+  MiInduccionAsignada,
   PdfInduccion,
+  SesionVideoInduccion,
 } from '@/types/induccion';
+import { AppError } from '@/utils/errors';
 import { asArray, asBoolean, asId, asNullableBoolean, asNumber, asRecord, asRecordOrNull, asString, asStringArray } from '@/utils/normalize';
 
 export function normalizeInduccionResumen(raw: unknown): InduccionResumen | null {
@@ -34,6 +39,79 @@ export function normalizePdfInduccion(raw: unknown): PdfInduccion {
     titulo: asString(r.titulo) ?? 'Inducción Mr. Lana',
     totalPaginas: asNumber(r.total_paginas) ?? 0,
     puedeDescargar: r.puede_descargar === true,
+  };
+}
+
+function tipoMaterial(valor: unknown): 'audio' | 'video' | null {
+  return valor === 'audio' || valor === 'video' ? valor : null;
+}
+
+/**
+ * `data` de `colaborador/induccion/material/{avance}`:
+ * {tipo, audio_url, video_disponible, video_estado?, video_mensaje?}. Tipo
+ * desconocido = sin material. `video_estado`/`video_mensaje` son aditivos:
+ * un servidor que no los mande sigue funcionando.
+ */
+export function normalizeMaterialInduccion(raw: unknown): MaterialInduccion {
+  const r = asRecord(raw);
+  const tipo = tipoMaterial(r.tipo);
+  const videoDisponible = tipo === 'video' && asBoolean(r.video_disponible);
+  return {
+    tipo,
+    videoDisponible,
+    videoEstado: tipo === 'video' ? (asString(r.video_estado) ?? (videoDisponible ? 'listo' : 'preparando')) : null,
+    videoMensaje: tipo === 'video' && !videoDisponible ? (asString(r.video_mensaje) ?? null) : null,
+  };
+}
+
+/** Respuesta de «iniciar» (la API v1 la envuelve en `data`; el portal no). */
+export function normalizeSesionVideoInduccion(raw: unknown): SesionVideoInduccion {
+  const r = asRecord(raw);
+  const url = asString(r.url_manifiesto) ?? '';
+  if (!/^https?:\/\//i.test(url)) throw new AppError('El video de la inducción no está disponible por ahora. Intenta más tarde.');
+  return {
+    urlManifiesto: url,
+    posicionInicial: Math.max(0, asNumber(r.posicion_inicial) ?? 0),
+    duracionSegundos: asNumber(r.duracion_total_segundos),
+    porcentajeVisto: Math.max(0, Math.min(100, asNumber(r.porcentaje_visto) ?? 0)),
+    segundoMaximoPermitido: Math.max(0, asNumber(r.segundo_maximo_permitido) ?? 0),
+    // Nunca 0 (un setInterval de 0 ms saturaría al servidor).
+    heartbeatSegundos: Math.max(3, asNumber(r.heartbeat_segundos) ?? 8),
+    completada: asBoolean(r.completada),
+  };
+}
+
+export function normalizeHeartbeatVideoInduccion(raw: unknown): HeartbeatVideoInduccion {
+  const r = asRecord(raw);
+  return {
+    permitido: r.permitido !== false,
+    posicionPermitida: Math.max(0, asNumber(r.posicion_permitida) ?? 0),
+    segundoMaximoPermitido: Math.max(0, asNumber(r.segundo_maximo_permitido) ?? 0),
+    porcentajeVisto: Math.max(0, Math.min(100, asNumber(r.porcentaje_visto) ?? 0)),
+    completada: asBoolean(r.completada),
+  };
+}
+
+/** `miInduccion` de mi-proceso (ProgresoInduccionService::resumen); null si el servidor no lo manda. */
+export function normalizeMiInduccionAsignada(raw: unknown): MiInduccionAsignada | null {
+  const r = asRecordOrNull(raw);
+  if (!r) return null;
+  const presentacion = asRecordOrNull(r.presentacion);
+  const material = asRecordOrNull(r.material);
+  return {
+    // Sin el dato, se asume el comportamiento de siempre: el PDF cuenta.
+    presentacionIncluida: presentacion ? presentacion.incluida !== false : true,
+    presentacionCompleta: presentacion ? asBoolean(presentacion.completada) : false,
+    material: material
+      ? {
+          incluido: asBoolean(material.incluido),
+          tipo: tipoMaterial(material.tipo),
+          completado: asBoolean(material.completado),
+          disponible: asBoolean(material.disponible),
+          porcentaje: Math.max(0, Math.min(100, asNumber(material.porcentaje) ?? 0)),
+          iniciado: asBoolean(material.iniciado),
+        }
+      : null,
   };
 }
 
