@@ -8,6 +8,7 @@ import type { AprobacionItem } from '@/types/aprobaciones';
 import {
   asArray,
   asBoolean,
+  asFotoUrl,
   asId,
   asNullableBoolean,
   asNumber,
@@ -51,6 +52,7 @@ export function normalizeEquipoPendientes(value: unknown, meta?: unknown): Equip
         tipo_etiqueta: asString(s.tipo_etiqueta),
         estado: asString(s.estado) ?? '',
         colaborador: asString(s.colaborador),
+        colaborador_foto_url: asFotoUrl(s.colaborador_foto_url),
         fecha_inicio: asString(s.fecha_inicio),
         fecha_fin: asString(s.fecha_fin),
         monto_solicitado: asNumber(s.monto_solicitado),
@@ -65,6 +67,7 @@ export function normalizeEquipoPendientes(value: unknown, meta?: unknown): Equip
       return {
         id: asId(e.id) ?? 0,
         colaborador: asString(e.colaborador) ?? '',
+        colaborador_foto_url: asFotoUrl(e.colaborador_foto_url),
         estado: asString(e.estado) ?? '',
         fecha_limite: asString(e.fecha_limite),
       };

@@ -22,6 +22,7 @@ import { haptics } from '@/utils/haptics';
 import { isSelfServiceModuleEnabled } from '@/utils/modules';
 import { buildLoanRequestPayload, LOAN_REASON_MAX, validateLoanRequest, type LoanRequestErrors } from '@/utils/loanRequest';
 import { vistaElegibilidad } from '@/utils/prestamoElegibilidad';
+import { ExpedienteGate } from '@/components/guia/ExpedienteGate';
 
 /**
  * Solicitar préstamo: el colaborador solo dice cuánto y para qué. Plazo,
@@ -29,7 +30,7 @@ import { vistaElegibilidad } from '@/utils/prestamoElegibilidad';
  * preguntan aquí. Entra como solicitud `prestamo`; el seguimiento (visto
  * bueno → RH → firma) se ve en Préstamos.
  */
-export default function SolicitarPrestamoScreen() {
+function SolicitarPrestamoScreen() {
   const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const crear = useCreateSolicitud();
@@ -147,3 +148,12 @@ const crearEstilos = (Colors: ColorPalette) =>
     lineHeight: LineHeight.sm,
   },
 });
+
+/** Modo completar expediente: con datos/documentos pendientes se muestra el bloqueo (423 en backend). */
+export default function SolicitarPrestamoScreenConCandado() {
+  return (
+    <ExpedienteGate modulo="Solicitar préstamo">
+      <SolicitarPrestamoScreen />
+    </ExpedienteGate>
+  );
+}

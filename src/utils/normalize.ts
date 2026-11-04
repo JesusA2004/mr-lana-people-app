@@ -39,6 +39,15 @@ export function asString(value: unknown): string | null {
   return null;
 }
 
+/**
+ * URL de foto (`foto_url`, `colaborador_foto_url`): solo una cadena no vacía
+ * cuenta como foto; `null`, `''`, espacios o cualquier otro tipo ⇒ `null`
+ * (la pantalla cae a iniciales).
+ */
+export function asFotoUrl(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : null;
+}
+
 export function asBoolean(value: unknown): boolean {
   return value === true || value === 1 || value === '1' || value === 'true';
 }

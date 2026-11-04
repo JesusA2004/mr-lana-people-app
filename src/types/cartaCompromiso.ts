@@ -6,6 +6,8 @@
  * documentos (`bloqueo.activo`).
  */
 
+import type { CapturaGeneradoPorSistema, EstadoGeneradoPorSistema } from './document';
+
 /**
  * - sin_carta: personal que ya laboraba con documentos faltantes (nunca recibe carta).
  * - carta_vencida: la carta compromiso venció sin entregar lo comprometido.
@@ -61,8 +63,26 @@ export interface DocumentoPendienteCarta {
   estado_etiqueta: string;
 }
 
+/**
+ * Formato que PEOPLE genera con los datos de la persona (Solicitud de
+ * empleo, Estudio socioeconómico): solo informativo, nunca se sube, no
+ * bloquea ni cuenta para la carta compromiso.
+ */
+export interface DocumentoGeneradoCarta {
+  document_type_id: number;
+  clave: string;
+  nombre: string;
+  estado: EstadoGeneradoPorSistema;
+  cumplido: boolean;
+  titulo: string;
+  mensaje: string;
+  captura: CapturaGeneradoPorSistema;
+}
+
 export interface EstadoCartaCompromisoResponse {
   carta: CartaCompromiso | null;
   documentos_pendientes: DocumentoPendienteCarta[];
+  /** Backend 2026-11-04; ausente en versiones anteriores. */
+  documentos_generados?: DocumentoGeneradoCarta[];
   bloqueo: BloqueoDocumentos;
 }

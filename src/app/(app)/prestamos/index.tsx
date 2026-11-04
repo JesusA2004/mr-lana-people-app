@@ -19,6 +19,7 @@ import { formatCurrencyMXN } from '@/utils/formatters';
 import { prestamoEstadoBadge, prestamoEstadoLabel } from '@/utils/loan';
 import { loanRequestsInProgress, loanStagesToTimeline } from '@/utils/loanRequest';
 import { vistaElegibilidad } from '@/utils/prestamoElegibilidad';
+import { ExpedienteGate } from '@/components/guia/ExpedienteGate';
 
 /**
  * Préstamos del colaborador:
@@ -29,7 +30,7 @@ import { vistaElegibilidad } from '@/utils/prestamoElegibilidad';
  * fecha en que podrá solicitarlo. Sin respuesta de elegibilidad (backend
  * anterior o red) el botón sigue y el backend valida con 422.
  */
-export default function MisPrestamosScreen() {
+function MisPrestamosScreen() {
   const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const prestamosQuery = useMisPrestamos();
@@ -145,3 +146,12 @@ const crearEstilos = (Colors: ColorPalette) =>
     color: Colors.danger,
   },
 });
+
+/** Modo completar expediente: con datos/documentos pendientes se muestra el bloqueo (423 en backend). */
+export default function MisPrestamosScreenConCandado() {
+  return (
+    <ExpedienteGate modulo="Préstamos">
+      <MisPrestamosScreen />
+    </ExpedienteGate>
+  );
+}

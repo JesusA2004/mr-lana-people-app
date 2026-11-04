@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/AppHeader';
@@ -41,6 +41,8 @@ export default function PerfilScreen() {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   const router = useRouter();
+  // `?foto=1`: viene de «Tu siguiente paso» → abre directo la hoja de foto.
+  const { foto } = useLocalSearchParams<{ foto?: string }>();
   const { data: perfil, isLoading, isError, error, refetch, isRefetching } = usePerfil();
   const incorporacion = useIncorporacion();
   const miProceso = useMiProceso();
@@ -172,6 +174,7 @@ export default function PerfilScreen() {
                   size={104}
                   ringColor={Colors.primary}
                   mostrarEstado
+                  abrirAlMontar={foto === '1'}
                 />
                 <Text style={styles.name} accessibilityRole="header">
                   {nombre ?? 'Colaborador'}

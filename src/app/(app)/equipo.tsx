@@ -95,7 +95,7 @@ export default function MiEquipoScreen() {
               evaluaciones.map((evaluacion) => (
                 <ItemCard
                   key={evaluacion.id}
-                  icon="clipboard-outline"
+                  avatar={{ nombre: evaluacion.colaborador, fotoUrl: evaluacion.colaborador_foto_url }}
                   title={evaluacion.colaborador}
                   subtitle={evaluacion.fecha_limite ? `Fecha límite: ${formatDateShort(evaluacion.fecha_limite)}` : null}
                   status={evaluacion.estado === 'devuelta' ? 'requiere_correccion' : 'pendiente'}

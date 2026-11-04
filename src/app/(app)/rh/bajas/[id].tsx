@@ -6,6 +6,7 @@ import { Card } from '@/components/Card';
 import { InfoRow } from '@/components/ciclo/InfoRow';
 import { Screen, SectionTitle } from '@/components/ciclo/Screen';
 import { SiguientePasoCard } from '@/components/ciclo/SiguientePasoCard';
+import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { StatusBadge } from '@/components/StatusBadge';
 import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
 import { useRhBaja } from '@/hooks/queries/useRhBajas';
@@ -38,7 +39,8 @@ export default function RhBajaScreen() {
         <>
           <Card style={styles.gap}>
             <View style={styles.encabezado}>
-              <Text style={styles.titulo} accessibilityRole="header">
+              <ProfileAvatar name={baja.colaborador} fotoUrlApi={baja.foto_url} size={48} />
+              <Text style={[styles.titulo, styles.tituloConFoto]} accessibilityRole="header">
                 {baja.colaborador}
               </Text>
               <StatusBadge status={baja.estatus} label={baja.estatus_etiqueta ?? undefined} />
@@ -94,6 +96,7 @@ const crearEstilos = (Colors: ColorPalette) =>
   StyleSheet.create({
     gap: { gap: Spacing.sm },
     encabezado: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.sm },
+    tituloConFoto: { flex: 1 },
     titulo: { flexShrink: 1, fontSize: FontSize.lg, fontWeight: '800', color: Colors.text },
     fila: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
     entrada: { gap: 2, paddingVertical: Spacing.xs },

@@ -17,13 +17,14 @@ import type {
   ContratacionQr,
   EstadoCiclo,
 } from '@/types/rhCandidato';
-import { asArray, asBoolean, asId, asNumber, asRecord, asRecordOrNull, asString } from '@/utils/normalize';
+import { asArray, asBoolean, asFotoUrl, asId, asNumber, asRecord, asRecordOrNull, asString } from '@/utils/normalize';
 
 export function normalizeCandidatoFila(value: unknown): CandidatoFila {
   const raw = asRecord(value);
   return {
     id: asId(raw.id) ?? 0,
     nombre_completo: asString(raw.nombre_completo) ?? '',
+    foto_url: asFotoUrl(raw.foto_url),
     puesto_objetivo: asString(raw.puesto_objetivo),
     sucursal: asString(raw.sucursal),
     estado: asString(raw.estado) ?? '',
@@ -135,6 +136,7 @@ export function normalizeCandidatoDetalle(value: unknown): CandidatoDetalle {
     nombre: asString(raw.nombre) ?? '',
     apellidos: asString(raw.apellidos),
     nombre_completo: asString(raw.nombre_completo) ?? '',
+    foto_url: asFotoUrl(raw.foto_url),
     telefono: asString(raw.telefono),
     correo: asString(raw.correo),
     fuente: asString(raw.fuente),

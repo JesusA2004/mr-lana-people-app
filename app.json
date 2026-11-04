@@ -23,7 +23,7 @@
     },
     "android": {
       "package": "com.mrlana.people",
-      "versionCode": 22,
+      "versionCode": 23,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#0D3E43",
@@ -76,8 +76,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Mr. Lana People necesita acceso a tus fotos para adjuntar documentos a tu expediente o solicitudes.",
-          "cameraPermission": "Mr. Lana People necesita acceso a tu cámara para fotografiar documentos de tu expediente o solicitudes.",
+          "photosPermission": "Mr. Lana People necesita acceso a tus fotos para elegir la fotografía para tu expediente (tu foto de perfil) y adjuntar documentos a tu expediente o solicitudes.",
+          "cameraPermission": "Mr. Lana People necesita acceso a tu cámara para tomar la fotografía para tu expediente (tu foto de perfil) y fotografiar documentos de tu expediente o solicitudes.",
           "microphonePermission": false
         }
       ],

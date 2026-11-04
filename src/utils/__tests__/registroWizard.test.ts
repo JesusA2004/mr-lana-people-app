@@ -7,6 +7,9 @@ import {
   documentosSinResolver,
   documentosSinTener,
   edadCumplida,
+  fotoPendiente,
+  pendientesLegibles,
+  siguienteDeshabilitado,
   excedeMaximoCarta,
   maxCartaRegistro,
   pasoParaReanudar,
@@ -63,9 +66,9 @@ function estado(parcial: Partial<EstadoRegistro> = {}): EstadoRegistro {
 }
 
 describe('registroWizard: pasos', () => {
-  test('seis pasos en orden y texto de progreso', () => {
-    expect(PASOS_REGISTRO.map((p) => p.clave)).toEqual(['personales', 'domicilio', 'emergencia', 'medicos', 'documentos', 'revision']);
-    expect(textoProgreso(1)).toBe('Paso 2 de 6');
+  test('ocho pasos en orden (foto y solicitud de empleo antes de documentos) y texto de progreso', () => {
+    expect(PASOS_REGISTRO.map((p) => p.clave)).toEqual(['personales', 'domicilio', 'emergencia', 'medicos', 'foto', 'solicitud', 'documentos', 'revision']);
+    expect(textoProgreso(1)).toBe('Paso 2 de 8');
   });
 
   test('cada paso toma sus campos; lo desconocido cae en personales y lo médico en ninguno', () => {
@@ -141,8 +144,8 @@ describe('registroWizard: envío y reanudación', () => {
 
   test('reanuda en el primer paso con faltantes, luego documentos, luego revisión', () => {
     expect(pasoParaReanudar(estado({ datos: { completo: false, faltan: [{ campo: 'domicilio_cp', etiqueta: 'C.P.' }], campos: CAMPOS } }))).toBe(1);
-    expect(pasoParaReanudar(estado({ datos: { completo: true, faltan: [], campos: CAMPOS } }))).toBe(4);
-    expect(pasoParaReanudar(estado({ datos: { completo: true, faltan: [], campos: CAMPOS }, documentos: { ...estado().documentos, completo: true } }))).toBe(5);
+    expect(pasoParaReanudar(estado({ datos: { completo: true, faltan: [], campos: CAMPOS } }))).toBe(6);
+    expect(pasoParaReanudar(estado({ datos: { completo: true, faltan: [], campos: CAMPOS }, documentos: { ...estado().documentos, completo: true } }))).toBe(7);
     // Un paso local anterior gana (la persona regresó a revisar).
     expect(pasoParaReanudar(estado({ datos: { completo: true, faltan: [], campos: CAMPOS } }), 'medicos')).toBe(3);
   });
@@ -209,8 +212,8 @@ describe('registroWizard: «No tengo este documento» y carta compromiso', () =>
   });
 
   test('con todo marcado reanuda en revisión, no en documentos', () => {
-    expect(pasoParaReanudar(conDocs(), null, [1])).toBe(4);
-    expect(pasoParaReanudar(conDocs(), null, [1, 3])).toBe(5);
+    expect(pasoParaReanudar(conDocs(), null, [1])).toBe(6);
+    expect(pasoParaReanudar(conDocs(), null, [1, 3])).toBe(7);
   });
 
   test('texto de documentos en singular y plural', () => {
@@ -242,5 +245,52 @@ describe('borrador local y compresión', () => {
     expect(medidaDestino(1200, 900)).toBeNull();
     expect(nombreJpg('IMG_001.HEIC')).toBe('IMG_001.jpg');
     expect(nombreJpg('.png')).toBe('foto.jpg');
+  });
+});
+
+describe('registroWizard: fotografía para expediente', () => {
+  const foto = (extra: Partial<NonNullable<EstadoRegistro['foto']>> = {}): NonNullable<EstadoRegistro['foto']> => ({
+    obligatoria: true,
+    completo: false,
+    url: null,
+    pendiente_revision: false,
+    puede_reemplazar: true,
+    cubre_documento: { id: 12, nombre: '2 fotografías tamaño infantil' },
+    ...extra,
+  });
+  const datosCompletos = { completo: true, faltan: [], campos: CAMPOS };
+
+  test('sin foto bloquea «Siguiente» en el paso foto y también «Entrar a la app»', () => {
+    const sinFoto = estado({ datos: datosCompletos, foto: foto(), puede_finalizar: false });
+    expect(fotoPendiente(sinFoto)).toBe(true);
+    expect(siguienteDeshabilitado('foto', sinFoto, [])).toBe(true);
+    // Aunque el backend dijera que puede finalizar, sin foto no se entra.
+    expect(puedeFinalizarRegistro({ ...sinFoto, puede_finalizar: true }, [])).toBe(false);
+    expect(siguienteDeshabilitado('revision', { ...sinFoto, puede_finalizar: true }, [])).toBe(true);
+  });
+
+  test('con foto completa «Siguiente» se habilita', () => {
+    const conFoto = estado({ datos: datosCompletos, foto: foto({ completo: true, url: 'https://x/api/v1/colaborador/foto?v=3' }) });
+    expect(fotoPendiente(conFoto)).toBe(false);
+    expect(siguienteDeshabilitado('foto', conFoto, [])).toBe(false);
+    expect(siguienteDeshabilitado('foto', conFoto, [], true)).toBe(true);
+  });
+
+  test('backend anterior sin bloque foto u opcional: no bloquea', () => {
+    expect(siguienteDeshabilitado('foto', estado({ datos: datosCompletos }), [])).toBe(false);
+    expect(fotoPendiente(estado({ foto: foto({ obligatoria: false }) }))).toBe(false);
+  });
+
+  test('reanuda en el paso foto cuando los datos están completos y falta la foto', () => {
+    const indiceFoto = PASOS_REGISTRO.findIndex((p) => p.clave === 'foto');
+    expect(pasoParaReanudar(estado({ datos: datosCompletos, foto: foto() }))).toBe(indiceFoto);
+    expect(PASOS_REGISTRO[indiceFoto].opcional).toBeUndefined();
+    expect(PASOS_REGISTRO[indiceFoto].titulo).toBe('Fotografía para expediente');
+  });
+
+  test('pendientes legibles incluyen la foto aunque el backend no la liste', () => {
+    expect(pendientesLegibles(estado({ foto: foto(), pendientes: ['documentos: INE'] }))).toEqual(['documentos: INE', 'fotografía para expediente']);
+    expect(pendientesLegibles(estado({ foto: foto(), pendientes: ['fotografía para expediente'] }))).toEqual(['fotografía para expediente']);
+    expect(pendientesLegibles(estado({ foto: foto({ completo: true }), pendientes: [] }))).toEqual([]);
   });
 });

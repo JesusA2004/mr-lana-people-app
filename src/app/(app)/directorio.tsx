@@ -11,6 +11,7 @@ import { FilterChips } from '@/components/ciclo/FilterChips';
 import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
 import { PressableScale } from '@/components/PressableScale';
+import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
 import { CampoBusqueda } from '@/components/ui/CampoBusqueda';
 import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
@@ -84,6 +85,8 @@ export default function DirectorioScreen() {
           if (query.hasNextPage && !query.isFetchingNextPage) void query.fetchNextPage();
         }}
         renderItem={({ item }) => <FilaDirectorio colaborador={item} />}
+        initialNumToRender={10}
+        windowSize={7}
         ListFooterComponent={query.isFetchingNextPage ? <ActivityIndicator color={Colors.primary} style={styles.footer} /> : null}
         ListEmptyComponent={
           query.isLoading ? (
@@ -118,8 +121,13 @@ function FilaDirectorio({ colaborador }: { colaborador: ColaboradorDirectorio })
 
   return (
     <Card style={styles.fila}>
-      <Text style={styles.nombre}>{colaborador.nombre}</Text>
-      {detalle ? <Text style={styles.detalle}>{detalle}</Text> : null}
+      <View style={styles.encabezado}>
+        <ProfileAvatar name={colaborador.nombre} fotoUrlApi={colaborador.fotoUrl} size={44} />
+        <View style={styles.encabezadoTexto}>
+          <Text style={styles.nombre}>{colaborador.nombre}</Text>
+          {detalle ? <Text style={styles.detalle}>{detalle}</Text> : null}
+        </View>
+      </View>
       <View style={styles.acciones}>
         {colaborador.correoCorporativo ? (
           <PressableScale
@@ -157,6 +165,8 @@ const crearEstilos = (Colors: ColorPalette) =>
     chips: { paddingHorizontal: Spacing.lg, marginBottom: Spacing.sm },
     lista: { width: '100%', maxWidth: Layout.maxContentWidth, alignSelf: 'center', padding: Spacing.lg, paddingTop: 0, flexGrow: 1 },
     fila: { gap: Spacing.xs },
+    encabezado: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+    encabezadoTexto: { flex: 1, gap: 2 },
     nombre: { fontSize: FontSize.md, fontWeight: '800', color: Colors.text },
     detalle: { fontSize: FontSize.sm, color: Colors.textMuted },
     acciones: { gap: Spacing.xs, marginTop: Spacing.xs },

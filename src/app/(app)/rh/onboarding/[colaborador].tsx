@@ -7,6 +7,7 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Field, FormSheet } from '@/components/ciclo/FormSheet';
 import { EmptyMessage, Notice, Screen, SectionTitle } from '@/components/ciclo/Screen';
+import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { StatusBadge } from '@/components/StatusBadge';
 import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
@@ -103,6 +104,15 @@ export default function RhOnboardingScreen() {
       onRetry={() => void query.refetch()}
       refreshing={query.isRefetching}
       onRefresh={() => void query.refetch()}>
+      {query.data ? (
+        <Card style={styles.row}>
+          <ProfileAvatar name={query.data.nombre} fotoUrlApi={query.data.fotoUrl} size={48} />
+          <View style={styles.flex}>
+            <Text style={styles.titulo}>{query.data.nombre}</Text>
+            {query.data.puesto ? <Text style={styles.muted}>{query.data.puesto}</Text> : null}
+          </View>
+        </Card>
+      ) : null}
       {!onboarding ? (
         <EmptyMessage message="Esta persona todavía no tiene onboarding. Inicia cuando su expediente y contratos estén listos." />
       ) : (

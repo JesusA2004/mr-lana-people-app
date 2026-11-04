@@ -2,7 +2,17 @@ import { File, Paths } from 'expo-file-system';
 import { useEffect, useRef, useState } from 'react';
 
 import { useAuthStore } from '@/store/authStore';
+import { crearLimitador } from '@/utils/limitadorConcurrencia';
 import { privateAssetCacheFileName } from '@/utils/privateAssetCache';
+
+/**
+ * Máximo de descargas privadas simultáneas en toda la app: una lista con
+ * decenas de fotos (directorio, colaboradores) baja de 4 en 4, en orden de
+ * aparición. Un avatar que se desmonta antes de su turno sale de la cola
+ * (abort) y uno que se desmonta descargando libera su cupo.
+ */
+const MAX_DESCARGAS_SIMULTANEAS = 4;
+const limitadorDescargas = crearLimitador(MAX_DESCARGAS_SIMULTANEAS);
 
 export type PrivateAssetStatus = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -58,7 +68,16 @@ export function usePrivateAsset(remoteUrl: string | null | undefined): PrivateAs
       }
 
       setStatus('loading');
+      let liberar: (() => void) | null = null;
       try {
+        liberar = await limitadorDescargas.adquirir(controller.signal);
+        if (cancelledRef.current) return;
+        // Otra instancia con la misma URL pudo bajarla mientras esperábamos turno.
+        if (destino.exists && destino.size !== 0) {
+          setStatus('ready');
+          setUri(destino.uri);
+          return;
+        }
         const task = File.createDownloadTask(remoteUrl, destino, {
           headers: { Authorization: `Bearer ${token}` },
           signal: controller.signal,
@@ -77,6 +96,9 @@ export function usePrivateAsset(remoteUrl: string | null | undefined): PrivateAs
         }
         setStatus('error');
         setUri(null);
+      } finally {
+        // Siempre se devuelve el cupo: éxito, error (403/404 ⇒ iniciales) o desmontaje.
+        liberar?.();
       }
     })();
 

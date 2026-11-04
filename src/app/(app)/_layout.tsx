@@ -147,6 +147,8 @@ export default function AppLayout() {
             options={{ presentation: 'modal', animation: 'slide_from_bottom', gestureEnabled: false }}
           />
           <Stack.Screen name="solicitud/[id]" />
+          {/* «Tu siguiente paso»: guía ordenada de pendientes (GET colaborador/guia). */}
+          <Stack.Screen name="siguiente-paso" />
           {/* «Completa tu información»: propone datos faltantes; RH los autoriza. */}
           <Stack.Screen name="completar-datos" />
           {/* «Cambiar mi domicilio»: propone el domicilio campo por campo; RH lo autoriza. */}

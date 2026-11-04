@@ -16,10 +16,12 @@ import { TarjetaAviso } from '@/components/ui';
 import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useEstilos } from '@/theme/ThemeProvider';
 import { useIncorporacion, useSolicitarCambioDocumento, useUploadDocumento } from '@/hooks/queries/useIncorporacion';
+import { useSiguientePaso } from '@/hooks/useSiguientePaso';
 import { toast } from '@/store/toastStore';
 import { formatDateLong, formatDateTime } from '@/utils/dates';
 import { getErrorMessage, logError } from '@/utils/errors';
 import { confirmAction } from '@/utils/confirm';
+import { presentacionGenerado } from '@/utils/documentosGenerados';
 
 export default function DocumentoDetalleScreen() {
   const styles = useEstilos(crearEstilos);
@@ -29,6 +31,8 @@ export default function DocumentoDetalleScreen() {
   const { tipoId, ref } = useLocalSearchParams<{ tipoId: string; ref?: string }>();
   const { data, isLoading, isError, error, refetch } = useIncorporacion();
   const uploadMutation = useUploadDocumento();
+  // Tras subirlo: «Listo. Siguiente: …» con botón al paso que sigue (guía del backend).
+  const ofrecerSiguiente = useSiguientePaso();
   const solicitarCambioMutation = useSolicitarCambioDocumento();
   const [sheetVisible, setSheetVisible] = useState(false);
   // «Este archivo trae también la otra carta» (solo tipos con par).
@@ -53,6 +57,7 @@ export default function DocumentoDetalleScreen() {
       toast.success(`Se registró también en «${documento.par.nombre}». Recursos Humanos revisa cada una por separado.`);
     }
     setIncluyePar(false);
+    void ofrecerSiguiente(`documento_${documento.id}`);
   };
 
   const handleSolicitarCambio = async () => {
@@ -77,6 +82,7 @@ export default function DocumentoDetalleScreen() {
   const canRequestChange = Boolean(documento?.puede_solicitar_cambio);
   const hasUploadedFile = Boolean(documento && documento.estado !== 'pendiente');
   const ofrecePar = Boolean(canUploadDirectly && documento?.par?.puede_subir);
+  const generado = documento?.generado_por_sistema ? presentacionGenerado(documento.generado_por_sistema) : null;
 
   return (
     <View style={styles.container}>
@@ -106,10 +112,12 @@ export default function DocumentoDetalleScreen() {
                   <Text style={styles.requiredNote}>{documento.obligatorio ? 'Documento requerido' : 'Opcional: no es necesario para completar tu expediente'}</Text>
                 </View>
               </View>
-              <View style={styles.headerRow}>
-                <Text style={styles.headerLabel}>Estado</Text>
-                <DocumentStatusBadge status={documento.estado} />
-              </View>
+              {generado ? null : (
+                <View style={styles.headerRow}>
+                  <Text style={styles.headerLabel}>Estado</Text>
+                  <DocumentStatusBadge status={documento.estado} />
+                </View>
+              )}
               {documento.mensaje ? <Text style={styles.requiredNote}>{documento.mensaje}</Text> : null}
             </Card>
 
@@ -119,7 +127,10 @@ export default function DocumentoDetalleScreen() {
               </TarjetaAviso>
             ) : null}
 
-            {hasUploadedFile ? (
+            {generado ? (
+              // Solicitud de empleo / Estudio socioeconómico: los genera PEOPLE; nunca se suben.
+              <TarjetaAviso icono={generado.icono} tono={generado.tono} titulo={generado.etiqueta} mensaje={generado.mensaje} />
+            ) : hasUploadedFile ? (
               documento.fecha_subida || documento.fecha_revision ? (
               <Card>
                 {documento.fecha_subida ? <DetailRow label="Fecha de carga" value={formatDateLong(documento.fecha_subida)} /> : null}

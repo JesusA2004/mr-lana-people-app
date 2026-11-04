@@ -88,6 +88,8 @@ export interface EstadoCiclo {
 export interface CandidatoFila {
   id: number;
   nombre_completo: string;
+  /** Foto del colaborador enlazado (URL con Bearer); `null` ⇒ iniciales. */
+  foto_url: string | null;
   puesto_objetivo: string | null;
   sucursal: string | null;
   estado: EstadoCandidato | string;
@@ -168,6 +170,8 @@ export interface CandidatoDetalle {
   nombre: string;
   apellidos: string | null;
   nombre_completo: string;
+  /** `data.candidato.foto_url`: foto del colaborador enlazado; `null` ⇒ iniciales. */
+  foto_url: string | null;
   telefono: string | null;
   correo: string | null;
   fuente: string | null;

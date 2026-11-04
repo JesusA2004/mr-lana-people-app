@@ -45,7 +45,7 @@ export default function RhBajasScreen() {
           {bajas.map((baja) => (
             <ItemCard
               key={baja.id}
-              icon="exit-outline"
+              avatar={{ nombre: baja.colaborador, fotoUrl: baja.foto_url }}
               kicker={baja.forma_etiqueta}
               title={baja.colaborador}
               subtitle={[baja.folio, baja.fecha_baja ? formatDateShort(baja.fecha_baja) : null].filter(Boolean).join(' · ')}

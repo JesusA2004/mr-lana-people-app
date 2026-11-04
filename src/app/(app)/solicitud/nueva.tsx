@@ -36,6 +36,7 @@ import { getErrorMessage, getValidationErrors, logError } from '@/utils/errors';
 import { haptics } from '@/utils/haptics';
 import { formatCurrencyMXN } from '@/utils/formatters';
 import { buildCreatePayload, campoVisible, creatableRequestTypes, findTipoConfig, type DynamicFormValues } from '@/utils/solicitudesConfig';
+import { ExpedienteGate } from '@/components/guia/ExpedienteGate';
 
 interface PickedFile {
   uri: string;
@@ -57,7 +58,7 @@ const MAX_ATTACHMENT_MB = 20;
  * `?tipo=vacaciones` lo usa la pantalla "Mis vacaciones" para entrar directo
  * al paso de información sin duplicar un segundo formulario (sección 3).
  */
-export default function NuevaSolicitudScreen() {
+function NuevaSolicitudScreen() {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   const router = useRouter();
@@ -838,3 +839,12 @@ const crearEstilos = (Colors: ColorPalette) =>
     justifyContent: 'center',
   },
 });
+
+/** Modo completar expediente: con datos/documentos pendientes se muestra el bloqueo (423 en backend). */
+export default function NuevaSolicitudScreenConCandado() {
+  return (
+    <ExpedienteGate modulo="Nueva solicitud">
+      <NuevaSolicitudScreen />
+    </ExpedienteGate>
+  );
+}

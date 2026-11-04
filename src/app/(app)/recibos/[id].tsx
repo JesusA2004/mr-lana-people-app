@@ -5,13 +5,14 @@ import { DocumentoProtegido } from '@/components/DocumentoProtegido';
 import { ReciboDetail } from '@/components/ciclo/ReciboDetail';
 import { Notice, Screen } from '@/components/ciclo/Screen';
 import { useMiRecibo } from '@/hooks/queries/useCicloLaboral';
+import { ExpedienteGate } from '@/components/guia/ExpedienteGate';
 
 /**
  * Detalle del recibo de nómina — `GET /colaborador/recibos/{id}` (Policy
  * `ReciboNominaPolicy::ver`, solo el propio). PDF por streaming autenticado
  * SOLO si `tiene_pdf === true`: nunca un botón que termine en 404.
  */
-export default function MiReciboScreen() {
+function MiReciboScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const query = useMiRecibo(id);
   const recibo = query.data;
@@ -41,5 +42,14 @@ export default function MiReciboScreen() {
         </>
       ) : null}
     </Screen>
+  );
+}
+
+/** Modo completar expediente: con datos/documentos pendientes se muestra el bloqueo (423 en backend). */
+export default function MiReciboScreenConCandado() {
+  return (
+    <ExpedienteGate modulo="Recibo de nómina">
+      <MiReciboScreen />
+    </ExpedienteGate>
   );
 }

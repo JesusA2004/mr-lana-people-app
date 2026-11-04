@@ -26,9 +26,11 @@ import { useNotificationResponseRouting } from '@/hooks/useNotificationResponseR
 import { usePushRegistration } from '@/hooks/usePushRegistration';
 import { useAppThemeStore } from '@/store/appThemeStore';
 import { useAuthStore } from '@/store/authStore';
+import { useExperienceStore } from '@/store/experienceStore';
 import { useMaintenanceStore } from '@/store/maintenanceStore';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { ThemeProvider, useColores } from '@/theme/ThemeProvider';
+import { debeMostrarBloqueoDocumentos } from '@/utils/documentosGenerados';
 import { logError } from '@/utils/errors';
 import { barrerTemporalesDocumentos } from '@/utils/privateAssetCache';
 import { isSplashReady, resolveStartupView } from '@/utils/startup';
@@ -161,8 +163,18 @@ function RootNavigator() {
   const registroPendiente = useAuthStore((state) => state.user?.registro_completo === false);
   // Documentos pendientes sin carta compromiso vigente (o carta vencida):
   // solo existe `/documentos-pendientes` hasta subirlos (el backend responde
-  // 403 «documentos_pendientes» a lo demás).
-  const bloqueoDocumentos = useAuthStore((state) => state.user?.bloqueo_documentos?.activo === true);
+  // 403 «documentos_pendientes» a lo demás). El bloqueo es del AUTOSERVICIO:
+  // con Gestión RH elegida la operación sigue (el backend tampoco bloquea sus
+  // rutas operativas); Mi espacio sigue bloqueado.
+  const bloqueoDocumentosActivo = useAuthStore((state) => state.user?.bloqueo_documentos?.activo === true);
+  const userId = useAuthStore((state) => state.user?.id ?? null);
+  const experiencia = useExperienceStore((state) => state.experience);
+  const experienciaUserId = useExperienceStore((state) => state.userId);
+  const cargarExperiencia = useExperienceStore((state) => state.load);
+  useEffect(() => {
+    if (bloqueoDocumentosActivo && userId !== null && experienciaUserId !== userId) void cargarExperiencia(userId);
+  }, [bloqueoDocumentosActivo, userId, experienciaUserId, cargarExperiencia]);
+  const bloqueoDocumentos = debeMostrarBloqueoDocumentos(bloqueoDocumentosActivo, experienciaUserId === userId ? experiencia : null);
   const onboardingCompleted = useOnboardingStore((state) => state.completed);
   const isOnboardingLoading = useOnboardingStore((state) => state.isLoading);
 

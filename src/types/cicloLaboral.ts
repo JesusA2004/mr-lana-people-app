@@ -151,6 +151,8 @@ export interface PersonaResumen {
   departamento: string | null;
   sucursal: string | null;
   empresa: string | null;
+  /** URL autenticada (Bearer) de la foto; `null` ⇒ iniciales. */
+  foto_url: string | null;
 }
 
 /** `GET /colaborador/jerarquia` y `GET /rh/colaboradores/{id}/jerarquia`. */

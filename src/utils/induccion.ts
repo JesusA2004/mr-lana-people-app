@@ -122,6 +122,76 @@ export function paginasFaltantes(resumen: InduccionResumen | null, total: number
   return Math.max(0, total - new Set(resumen.paginasVistas.filter((p) => p >= 1 && p <= total)).size);
 }
 
+/** CUÁLES páginas faltan (en orden), para decir «te falta la página 30» y llevar ahí. */
+export function listaPaginasFaltantes(paginasVistas: readonly number[], total: number): number[] {
+  if (total <= 0) return [];
+  const vistas = new Set(paginasVistas);
+  const faltan: number[] = [];
+  for (let pagina = 1; pagina <= total; pagina += 1) if (!vistas.has(pagina)) faltan.push(pagina);
+  return faltan;
+}
+
+/** «Te falta la página 30» / «Te faltan las páginas 12, 13 y 30» / «Te faltan 12 páginas (empieza en la 5)». */
+export function textoPaginasFaltantes(faltan: readonly number[]): string {
+  if (faltan.length === 0) return 'Ya viste todas las páginas.';
+  if (faltan.length === 1) return `Te falta la página ${faltan[0]}`;
+  if (faltan.length <= 5) return `Te faltan las páginas ${faltan.slice(0, -1).join(', ')} y ${faltan[faltan.length - 1]}`;
+  return `Te faltan ${faltan.length} páginas (empieza en la ${faltan[0]})`;
+}
+
+/**
+ * Orden obligatorio presentación → video: páginas que todavía bloquean el
+ * video. Las manda el backend (`material.paginasFaltantes`); se descuentan
+ * las que la persona ya vio en esta sesión. Vacío = el video se puede abrir.
+ */
+export function paginasQueBloqueanVideo(material: MaterialInduccion | null | undefined, paginasVistas: readonly number[]): number[] {
+  if (!material?.videoBloqueado) return [];
+  const vistas = new Set(paginasVistas);
+  return material.paginasFaltantes.filter((p) => !vistas.has(p));
+}
+
+/** «12:05» / «1:02:09» para el reproductor. */
+export function formatoTiempo(segundos: number): string {
+  const total = Math.max(0, Math.floor(Number.isFinite(segundos) ? segundos : 0));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  const ss = String(s).padStart(2, '0');
+  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`;
+}
+
+/**
+ * Barra de progreso propia del video: convierte el toque/arrastre (fracción
+ * 0–1 del ancho) en segundos, SIN pasar de lo ya visto. Adelantar más allá
+ * de lo visto no es posible desde la barra (el anti-adelanto de
+ * `evaluarSaltoVideo` sigue cuidando cualquier otro caso).
+ */
+export function posicionDesdeBarra(fraccion: number, duracion: number, maximoVisto: number): number {
+  if (!Number.isFinite(duracion) || duracion <= 0) return 0;
+  const f = Math.min(1, Math.max(0, Number.isFinite(fraccion) ? fraccion : 0));
+  const limite = Math.min(duracion, Math.max(0, maximoVisto));
+  return Math.min(f * duracion, limite);
+}
+
+/** Retroceder N segundos (nunca antes de 0). */
+export function posicionRetroceder(actual: number, segundos = 10): number {
+  return Math.max(0, actual - segundos);
+}
+
+export type ErrorVideo = 'caducada' | 'sin_conexion' | 'presentacion_incompleta' | 'otro';
+
+/**
+ * Qué falló al reproducir/arrancar el video, para un mensaje específico.
+ * `sinConexion` viene de NetInfo; `status` del 4xx del backend.
+ */
+export function clasificarErrorVideo(opciones: { sinConexion: boolean; status?: number; codigo?: string | null; mensaje?: string | null }): ErrorVideo {
+  if (opciones.sinConexion) return 'sin_conexion';
+  if (opciones.codigo === 'presentacion_incompleta') return 'presentacion_incompleta';
+  if (opciones.status === 401 || opciones.status === 403 || opciones.status === 410) return 'caducada';
+  if (opciones.mensaje && /403|forbidden|expired|signature|caduc/i.test(opciones.mensaje)) return 'caducada';
+  return 'otro';
+}
+
 /** Último intento ya calificado por completo (A+B+C+D). */
 export function ultimoIntentoCalificado(evaluacion: EvaluacionInduccion | null): IntentoInduccion | null {
   if (!evaluacion) return null;

@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TabIcon } from '@/components/TabIcon';
 import { useColores } from '@/theme/ThemeProvider';
+import { useBloqueoExpediente } from '@/hooks/queries/useGuia';
 import { useIncorporacion } from '@/hooks/queries/useIncorporacion';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useSolicitudes } from '@/hooks/queries/useSolicitudes';
@@ -22,7 +23,9 @@ export default function TabsLayout() {
   // (Dashboard las dispara primero); este layout solo las lee, no fuerza
   // requests nuevos si ya hay datos frescos.
   const incorporacion = useIncorporacion();
-  const solicitudes = useSolicitudes();
+  // Modo completar expediente: Solicitudes está en pausa (423), no se consulta.
+  const bloqueoExpediente = useBloqueoExpediente();
+  const solicitudes = useSolicitudes(!bloqueoExpediente.bloqueado);
   // Mismo queryKey/staleTime que `(app)/_layout.tsx` — lectura de caché, no
   // dispara un fetch nuevo. AGENTS.md sección 16: el tab de Vacaciones (y su
   // ruta profunda, ver `Tabs.Protected`) se apaga si el backend desactiva

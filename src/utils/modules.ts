@@ -38,7 +38,8 @@ export type RhModule =
   | 'organigrama_personas'
   | 'plantillas_documentales'
   | 'candidatos'
-  | 'reingresos';
+  | 'reingresos'
+  | 'recepcion_documental';
 
 /**
  * Permiso(s) que protegen el endpoint de LISTADO de cada módulo en el
@@ -60,6 +61,8 @@ export const RH_MODULE_PERMISSIONS: Record<RhModule, string[]> = {
   plantillas_documentales: ['plantillas_documentales.ver'],
   candidatos: ['candidatos.ver'],
   reingresos: ['reingresos.gestionar', 'reingresos.solicitar'],
+  // RecepcionDocumentalCortePolicy::viewAny (originales físicos por mes).
+  recepcion_documental: ['recepcion_documental.ver'],
 };
 
 /** Clave del feature explícito en `mobile/bootstrap` (si el backend la agrega algún día). */

@@ -6,6 +6,7 @@ import { Pill } from './Pill';
 import { coloresTono, textoBadge, type Tono } from './tonos';
 
 import { PressableScale } from '@/components/PressableScale';
+import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 
@@ -16,6 +17,8 @@ export interface FilaListaProps {
   /** Etiqueta pequeña ARRIBA del título (modo dato: «Puesto» → «Gerente»). */
   etiqueta?: string;
   icono?: NombreIcono;
+  /** Foto de la persona en lugar del ícono: `fotoUrl` null ⇒ iniciales de `nombre`. */
+  avatar?: { nombre: string; fotoUrl: string | null };
   tono?: Tono;
   /** Color del subtítulo según el tono (estado del documento). */
   subtituloConTono?: boolean;
@@ -44,6 +47,7 @@ export function FilaLista({
   subtitulo,
   etiqueta,
   icono,
+  avatar,
   tono = 'primario',
   subtituloConTono = false,
   pill,
@@ -61,7 +65,11 @@ export function FilaLista({
 
   const contenido = (
     <>
-      {icono ? <IconoTono icono={icono} tono={tono} tamano={etiqueta ? 36 : 40} /> : null}
+      {avatar ? (
+        <ProfileAvatar name={avatar.nombre} fotoUrlApi={avatar.fotoUrl} size={etiqueta ? 36 : 40} />
+      ) : icono ? (
+        <IconoTono icono={icono} tono={tono} tamano={etiqueta ? 36 : 40} />
+      ) : null}
       <View style={styles.textos}>
         {etiqueta ? <Text style={styles.etiqueta}>{etiqueta}</Text> : null}
         <Text style={[styles.titulo, etiqueta ? styles.tituloDato : null]}>{titulo}</Text>

@@ -82,7 +82,7 @@ export default function RhColaboradorDetailScreen() {
         ) : !colaborador ? null : (
           <>
             <Card style={styles.headerCard}>
-              <ProfileAvatar name={colaborador.nombre} size={80} />
+              <ProfileAvatar name={colaborador.nombre} fotoUrlApi={colaborador.foto_url} size={80} />
               <Text style={styles.name}>{colaborador.nombre}</Text>
               {colaborador.puesto ? <Text style={styles.role}>{colaborador.puesto}</Text> : null}
               {colaborador.sucursal || colaborador.departamento ? (

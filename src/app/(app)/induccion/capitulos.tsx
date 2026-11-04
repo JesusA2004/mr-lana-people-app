@@ -1,4 +1,5 @@
-import { useRouter } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -11,7 +12,8 @@ import { useMaterialInduccion, usePresentacionInduccion, useRegistrarPaginaInduc
 import { useColores } from '@/theme/ThemeProvider';
 import { toast } from '@/store/toastStore';
 import { getActionErrorMessage, logError } from '@/utils/errors';
-import { paginasFaltantes, puedeTerminarInduccion, videoRequerido } from '@/utils/induccion';
+import { queryKeys } from '@/api/queryKeys';
+import { listaPaginasFaltantes, paginasFaltantes, puedeTerminarInduccion, textoPaginasFaltantes, videoRequerido } from '@/utils/induccion';
 
 /**
  * La inducción del colaborador = el PDF OFICIAL (mismo que la web), página
@@ -23,6 +25,10 @@ import { paginasFaltantes, puedeTerminarInduccion, videoRequerido } from '@/util
 export default function InduccionLecturaScreen() {
   const Colors = useColores();
   const router = useRouter();
+  const queryClient = useQueryClient();
+  // `?pagina=30`: viene de «Te falta la página 30» (guía, video) → abre ahí.
+  const { pagina } = useLocalSearchParams<{ pagina?: string }>();
+  const paginaPedida = Number(pagina);
   const proceso = useMiProceso();
   const resumen = proceso.data?.induccion ?? null;
   const avanceId = resumen?.avanceId ?? null;
@@ -37,6 +43,7 @@ export default function InduccionLecturaScreen() {
   const vistas = useMemo(() => new Set([...(paginasServidor ?? []), ...vistasLocales]), [paginasServidor, vistasLocales]);
   const total = pdf.data?.totalPaginas ?? resumen?.totalPaginas ?? 0;
   const faltan = paginasFaltantes(resumen ? { ...resumen, paginasVistas: [...vistas] } : null, total);
+  const cualesFaltan = listaPaginasFaltantes([...vistas], total);
   // El video (si lo hay) se consulta aparte: nunca bloquea ni tumba el PDF.
   const material = useMaterialInduccion(avanceId);
   const asignada = proceso.data?.miInduccion ?? null;
@@ -56,7 +63,15 @@ export default function InduccionLecturaScreen() {
   const alMostrar = (numero: number) => {
     if (avanceId === null || vistas.has(numero)) return;
     setVistasLocales((previas) => new Set(previas).add(numero));
+    const eraLaUltima = cualesFaltan.length === 1 && cualesFaltan[0] === numero;
     registrar.mutate(numero, {
+      onSuccess: () => {
+        if (!eraLaUltima) return;
+        // Presentación completa: se desbloquea el video (orden obligatorio).
+        if (avanceId !== null) void queryClient.invalidateQueries({ queryKey: queryKeys.induccionMaterial(avanceId) });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.guia });
+        toast.success(conVideo && !videoCompleto ? 'Listo. Siguiente: el video de la inducción' : 'Listo. Viste todas las páginas');
+      },
       onError: (error) => {
         // Sin bloquear la lectura: se vuelve a reportar al mostrarla otra vez.
         logError('induccion.pagina', error);
@@ -72,7 +87,8 @@ export default function InduccionLecturaScreen() {
   const alTerminar = async () => {
     try {
       const resultado = await terminar.mutateAsync();
-      toast.success('¡Terminaste la inducción!');
+      void queryClient.invalidateQueries({ queryKey: queryKeys.guia });
+      toast.success(resultado.evaluacion?.puedePresentar ? 'Listo. Siguiente: tu evaluación de inducción' : '¡Terminaste la inducción!');
       router.replace(resultado.evaluacion?.puedePresentar ? '/induccion/evaluacion' : '/induccion');
     } catch (error) {
       logError('induccion.terminar', error);
@@ -100,9 +116,9 @@ export default function InduccionLecturaScreen() {
         path={pdf.data.path}
         titulo={pdf.data.titulo}
         puedeDescargar={pdf.data.puedeDescargar}
-        paginaInicial={resumen?.ultimaPagina ?? 1}
+        paginaInicial={Number.isInteger(paginaPedida) && paginaPedida >= 1 ? paginaPedida : (resumen?.ultimaPagina ?? 1)}
         onPagina={alMostrar}
-        nota={resumen?.completado ? null : faltan > 0 ? `Te faltan ${faltan} página(s)` : notaVideo}
+        nota={resumen?.completado ? null : faltan > 0 ? textoPaginasFaltantes(cualesFaltan) : notaVideo}
         accionFinal={
           resumen?.completado ? undefined : irAlVideo ? (
             <Button title="Ir al video" fullWidth={false} leftIcon="play-circle-outline" onPress={() => router.push('/induccion/video')} />

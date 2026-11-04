@@ -22,6 +22,9 @@ import { OpcionesField } from '@/components/forms/OpcionesField';
 import { SelectField } from '@/components/forms/SelectField';
 import { Input } from '@/components/Input';
 import { PressableScale } from '@/components/PressableScale';
+import { AsistenteSolicitudEmpleo } from '@/components/registro/AsistenteSolicitudEmpleo';
+import { PasoFotoExpediente } from '@/components/registro/PasoFotoExpediente';
+import { PasoSolicitudEmpleo } from '@/components/registro/PasoSolicitudEmpleo';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { TarjetaAviso } from '@/components/ui';
 import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
@@ -34,6 +37,7 @@ import type { CampoRegistro, EstadoRegistro } from '@/types/registro';
 import { textoExcedeMaximoCarta } from '@/utils/cartaCompromiso';
 import { confirmAction } from '@/utils/confirm';
 import { formatDateLong, fromApiDateString, toApiDateString } from '@/utils/dates';
+import { esGeneradoPorSistema, presentacionGenerado } from '@/utils/documentosGenerados';
 import { esCampoDomicilio, type CampoDomicilio } from '@/utils/domicilio';
 import { getErrorMessage, getValidationErrors, logError } from '@/utils/errors';
 import { haptics } from '@/utils/haptics';
@@ -46,11 +50,15 @@ import {
   documentosSinResolver,
   documentosSinTener,
   excedeMaximoCarta,
+  fotoPendiente,
   maxCartaRegistro,
+  pendientesLegibles,
+  siguienteDeshabilitado,
   normalizarValor,
   pasoParaReanudar,
   puedeFinalizarRegistro,
   sinTenerVigentes,
+  solicitudPendiente,
   textoDocumentos,
   textoProgreso,
   validarFormato,
@@ -58,6 +66,7 @@ import {
   valoresIniciales,
   type ClavePaso,
 } from '@/utils/registroWizard';
+import { seccionDesdeMensaje } from '@/utils/solicitudEmpleoWizard';
 
 type PasoDatos = 'personales' | 'domicilio' | 'emergencia';
 
@@ -66,8 +75,9 @@ const esPasoDatos = (clave: ClavePaso): clave is PasoDatos => clave === 'persona
 /**
  * REGISTRO COMPLETO antes de entrar a la app (cuenta creada con el QR de
  * incorporación). Asistente por pasos: datos personales → domicilio →
- * contacto de emergencia → datos médicos (opcional) → documentos requeridos
- * → revisión. Cada «Siguiente» guarda en el servidor
+ * contacto de emergencia → datos médicos (opcional) → foto → solicitud de
+ * empleo y estudio socioeconómico (sub-asistente por secciones,
+ * `AsistenteSolicitudEmpleo`) → documentos requeridos → revisión. Cada «Siguiente» guarda en el servidor
  * (`POST /colaborador/registro/datos`), lo no enviado se guarda como
  * borrador local cifrado, y al reabrir la app se reanuda donde se quedó.
  * «Entrar a la app» (`POST registro/finalizar`) solo procede cuando el
@@ -103,6 +113,8 @@ export default function RegistroScreen() {
   const [visor, setVisor] = useState<VisorCartaCompromiso | null>(null);
   /** Carta compromiso generada al terminar: se muestra antes de entrar a la app. */
   const [cartaGenerada, setCartaGenerada] = useState<CartaCompromiso | null>(null);
+  /** Sub-asistente de la solicitud de empleo abierto (sección pedida o null = primera incompleta). */
+  const [solicitudAbierta, setSolicitudAbierta] = useState<{ seccion: string | null; mensaje?: string | null } | null>(null);
   const iniciado = useRef(false);
 
   // Arranque: estado del servidor + borrador local → paso donde reanudar.
@@ -148,7 +160,7 @@ export default function RegistroScreen() {
   // Documentos y revisión: siempre con el estado fresco del servidor (RH
   // pudo rechazar algo, o se subió desde otra pantalla).
   useEffect(() => {
-    if (clavePaso === 'documentos' || clavePaso === 'revision') void query.refetch();
+    if (clavePaso === 'foto' || clavePaso === 'solicitud' || clavePaso === 'documentos' || clavePaso === 'revision') void query.refetch();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al cambiar de paso.
   }, [clavePaso]);
 
@@ -171,7 +183,23 @@ export default function RegistroScreen() {
     haptics.selection();
     setErrores({});
     setErrorGeneral(null);
+    setSolicitudAbierta(null);
     setIndice(Math.max(0, Math.min(PASOS_REGISTRO.length - 1, nuevo)));
+  };
+
+  const indiceSolicitud = PASOS_REGISTRO.findIndex((p) => p.clave === 'solicitud');
+
+  /** Lleva al paso «Solicitud de empleo» y abre la sección pedida (null = primera incompleta). */
+  const abrirSolicitud = (seccion: string | null, mensaje?: string | null) => {
+    if (indice !== indiceSolicitud) irA(indiceSolicitud);
+    setErrorGeneral(null);
+    setSolicitudAbierta({ seccion, mensaje: mensaje ?? null });
+  };
+
+  const cerrarSolicitud = (terminada: boolean) => {
+    setSolicitudAbierta(null);
+    void query.refetch();
+    if (terminada && indice !== null) irA(indice + 1);
   };
 
   const aplicarEstado = (nuevo: EstadoRegistro) => {
@@ -189,7 +217,7 @@ export default function RegistroScreen() {
         const mensaje = mensajes?.[0];
         if (!mensaje) continue;
         const campo = clave.replace(/^datos(_medicos)?\./, '');
-        if (campo === 'datos' || campo === 'registro' || campo === 'datos_medicos') general = mensaje;
+        if (campo === 'datos' || campo === 'registro' || campo === 'datos_medicos' || campo === 'foto') general = mensaje;
         else mapa[campo] = mensaje;
       }
       setErrores(mapa);
@@ -244,6 +272,23 @@ export default function RegistroScreen() {
       return;
     }
 
+    if (paso.clave === 'foto') {
+      if (fotoPendiente(estado)) {
+        haptics.warning();
+        setErrorGeneral('Agrega tu fotografía para expediente para continuar.');
+        return;
+      }
+      irA(indice + 1);
+      return;
+    }
+
+    if (paso.clave === 'solicitud') {
+      // Puede avanzar a sus documentos y volver después: «Entrar a la app»
+      // sí exige la solicitud completa (revisión + backend).
+      irA(indice + 1);
+      return;
+    }
+
     if (paso.clave === 'documentos') {
       if (documentosSinResolver(estado, sinTener).length > 0) {
         haptics.warning();
@@ -274,7 +319,20 @@ export default function RegistroScreen() {
       marcarRegistroCompleto(true);
       void refrescarUsuario();
     } catch (error) {
-      manejarError(error);
+      // 422 `errors.foto` (regla del backend): de regreso al paso de la foto.
+      const errorFoto = getValidationErrors(error)?.foto?.[0];
+      // 422 `errors.solicitud_empleo`: a la sección exacta que nombra el mensaje.
+      const errorSolicitud = getValidationErrors(error)?.solicitud_empleo?.[0];
+      if (errorFoto) {
+        haptics.error();
+        irA(PASOS_REGISTRO.findIndex((p) => p.clave === 'foto'));
+        setErrorGeneral(errorFoto);
+      } else if (errorSolicitud) {
+        haptics.error();
+        abrirSolicitud(seccionDesdeMensaje(errorSolicitud, estado.solicitud_empleo?.secciones ?? []), errorSolicitud);
+      } else {
+        manejarError(error);
+      }
       void query.refetch();
     } finally {
       setGuardando(false);
@@ -309,7 +367,24 @@ export default function RegistroScreen() {
   const cargando = query.isLoading || (estado !== undefined && indice === null);
   const pendientesDocs = estado ? documentosSinResolver(estado, sinTener) : [];
   const puedeFinalizar = estado ? puedeFinalizarRegistro(estado, sinTener) : false;
-  const deshabilitarSiguiente = guardando || (paso?.clave === 'revision' && !puedeFinalizar);
+  const deshabilitarSiguiente = siguienteDeshabilitado(paso?.clave, estado, sinTener, guardando);
+
+  // Foto subida: estado fresco del servidor (`foto.completo`) y se ofrece el siguiente paso del asistente.
+  const fotoSubida = async () => {
+    try {
+      aplicarEstado(await registroApi.estado());
+    } catch (error) {
+      logError('registro.fotoSubida', error);
+      void query.refetch();
+    }
+    setErrorGeneral(null);
+    if (indice === null) return;
+    const siguientePaso = PASOS_REGISTRO[indice + 1];
+    toast.success(
+      siguientePaso ? `Listo. Siguiente: ${siguientePaso.titulo}` : 'Listo. Tu fotografía quedó guardada.',
+      siguientePaso ? { actionLabel: 'Ir', onAction: () => irA(indice + 1) } : undefined,
+    );
+  };
 
   const continuarALaApp = () => {
     haptics.success();
@@ -342,7 +417,7 @@ export default function RegistroScreen() {
             <Text style={styles.salirTexto}>Salir</Text>
           </PressableScale>
         </View>
-        {paso && indice !== null ? (
+        {paso && indice !== null && !(paso.clave === 'solicitud' && solicitudAbierta) ? (
           <View style={styles.progreso}>
             <View style={styles.progresoFila}>
               <Text style={styles.progresoTexto}>{textoProgreso(indice)}</Text>
@@ -362,6 +437,13 @@ export default function RegistroScreen() {
           <SkeletonBlock height={64} radius={Radius.lg} />
           <SkeletonBlock height={320} radius={Radius.lg} />
         </View>
+      ) : paso.clave === 'solicitud' && solicitudAbierta ? (
+        <AsistenteSolicitudEmpleo
+          seccionInicial={solicitudAbierta.seccion}
+          mensajeInicial={solicitudAbierta.mensaje}
+          onCerrar={cerrarSolicitud}
+          onIrADatosPersonales={() => irA(0)}
+        />
       ) : (
         <>
           <FormularioScroll alturaBarra={alturaBarra} contentContainerStyle={styles.scroll}>
@@ -426,14 +508,25 @@ export default function RegistroScreen() {
                     <Text style={styles.ayuda}>Se guarda cifrado y solo lo ve personal autorizado de RH, para atenderte en una emergencia.</Text>
                   </View>
                 </View>
+              ) : paso.clave === 'foto' ? (
+                <PasoFotoExpediente foto={estado.foto} nombre={nombre} onSubida={fotoSubida} />
+              ) : paso.clave === 'solicitud' ? (
+                <PasoSolicitudEmpleo resumen={estado.solicitud_empleo} onAbrir={(seccion) => abrirSolicitud(seccion)} />
               ) : paso.clave === 'documentos' ? (
-                <PasoDocumentos estado={estado} sinTener={sinTener} onElegir={setDocumentoActivo} onAlternarSinTener={alternarSinTener} />
+                <PasoDocumentos
+                  estado={estado}
+                  sinTener={sinTener}
+                  onElegir={setDocumentoActivo}
+                  onAlternarSinTener={alternarSinTener}
+                  onIrSolicitud={() => abrirSolicitud(null)}
+                />
               ) : (
                 <PasoRevision
                   estado={estado}
                   sinTener={sinTener}
                   puedeFinalizar={puedeFinalizar}
                   onIr={irA}
+                  onAbrirSolicitud={() => abrirSolicitud(null)}
                   onVistaPrevia={(documentos) => setVisor({ tipo: 'vista-previa', documentos })}
                 />
               )}
@@ -451,7 +544,11 @@ export default function RegistroScreen() {
             fila
             onAltura={setAlturaBarra}
             nota={
-              paso.clave === 'documentos' && pendientesDocs.length > 0
+              paso.clave === 'foto' && fotoPendiente(estado)
+                ? 'Agrega tu fotografía para continuar.'
+                : paso.clave === 'solicitud' && solicitudPendiente(estado)
+                ? 'Puedes seguir con tus documentos y volver después: la necesitas para entrar.'
+                : paso.clave === 'documentos' && pendientesDocs.length > 0
                 ? `Te ${pendientesDocs.length === 1 ? 'falta 1 documento' : `faltan ${pendientesDocs.length} documentos`}.`
                 : paso.clave === 'revision' && !puedeFinalizar
                   ? 'Completa lo pendiente para entrar.'
@@ -637,23 +734,54 @@ function PasoDocumentos({
   sinTener,
   onElegir,
   onAlternarSinTener,
+  onIrSolicitud,
 }: {
   estado: EstadoRegistro;
   sinTener: number[];
   onElegir: (documento: DocumentoIncorporacion) => void;
   onAlternarSinTener: (documento: DocumentoIncorporacion) => void;
+  onIrSolicitud: () => void;
 }) {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
-  const lista = estado.documentos.lista;
+  // Solicitud de empleo / Estudio socioeconómico: los genera PEOPLE con el
+  // paso «Solicitud de empleo»; se muestran aparte, sin «Subir» ni «No tengo».
+  const generados = estado.documentos.lista.filter(esGeneradoPorSistema);
+  const lista = estado.documentos.lista.filter((d) => !esGeneradoPorSistema(d));
   const pendientes = documentosPorSubir(estado);
   const listos = lista.length - pendientes.length;
   const marcados = documentosSinTener(estado, sinTener).length;
   const maximo = maxCartaRegistro(estado);
   const excede = marcados > maximo;
 
+  const filasGeneradas = generados.map((documento) => {
+    const vista = presentacionGenerado(documento.generado_por_sistema ?? { estado: 'por_generar', cumplido: false, captura: 'registro' });
+    return (
+      <View key={documento.id} style={[styles.docTarjeta, styles.docFilaListo]} accessible accessibilityLabel={`${documento.nombre}: ${vista.etiqueta}`}>
+        <View style={styles.docFilaInterna}>
+          <View style={[styles.docIcono, vista.tono === 'exito' ? styles.docIconoListo : styles.docIconoPendiente]}>
+            <Ionicons name={vista.icono} size={20} color={vista.tono === 'exito' ? Colors.success : Colors.primaryDark} />
+          </View>
+          <View style={styles.docTextos}>
+            <Text style={styles.docNombre}>{documento.nombre}</Text>
+            <Text style={styles.ayuda}>{vista.mensaje}</Text>
+            <View style={styles.pillDespues}>
+              <Text style={styles.pillDespuesTexto}>{vista.etiqueta}</Text>
+            </View>
+          </View>
+        </View>
+        {vista.irASolicitud ? <Button title="Ir a Solicitud de empleo" variant="outline" leftIcon="clipboard-outline" onPress={onIrSolicitud} /> : null}
+      </View>
+    );
+  });
+
   if (lista.length === 0) {
-    return <Text style={styles.ayuda}>Recursos Humanos no te pide documentos en este momento. Continúa.</Text>;
+    return (
+      <View style={styles.campos}>
+        <Text style={styles.ayuda}>Recursos Humanos no te pide documentos por subir en este momento. Continúa.</Text>
+        {filasGeneradas}
+      </View>
+    );
   }
 
   return (
@@ -744,6 +872,7 @@ function PasoDocumentos({
           </View>
         );
       })}
+      {filasGeneradas}
     </View>
   );
 }
@@ -753,12 +882,14 @@ function PasoRevision({
   sinTener,
   puedeFinalizar,
   onIr,
+  onAbrirSolicitud,
   onVistaPrevia,
 }: {
   estado: EstadoRegistro;
   sinTener: number[];
   puedeFinalizar: boolean;
   onIr: (indice: number) => void;
+  onAbrirSolicitud: () => void;
   onVistaPrevia: (documentos: number[]) => void;
 }) {
   const Colors = useColores();
@@ -773,6 +904,7 @@ function PasoRevision({
     { clave: 'domicilio', titulo: 'Domicilio', completo: !camposDelPaso('domicilio', estado.datos.campos).some((c) => faltan.has(c.campo)) },
     { clave: 'emergencia', titulo: 'Contacto de emergencia y beneficiario', completo: !camposDelPaso('emergencia', estado.datos.campos).some((c) => faltan.has(c.campo)) },
     { clave: 'medicos', titulo: 'Datos médicos (opcional)', completo: true },
+    ...(estado.foto ? [{ clave: 'foto' as const, titulo: 'Fotografía para expediente', completo: !fotoPendiente(estado) }] : []),
     { clave: 'documentos', titulo: paraCarta.length > 0 ? `Documentos (${paraCarta.length} para después)` : 'Documentos', completo: docsResueltos },
   ];
 
@@ -788,6 +920,8 @@ function PasoRevision({
           </PressableScale>
         );
       })}
+
+      {estado.solicitud_empleo ? <FilaRevisionSolicitud resumen={estado.solicitud_empleo} onAbrir={onAbrirSolicitud} /> : null}
 
       {excede ? (
         <View style={[styles.carta, styles.cartaExcede]}>
@@ -856,10 +990,41 @@ function PasoRevision({
       ) : (
         <View style={styles.errorGeneral}>
           <Ionicons name="information-circle-outline" size={18} color={Colors.warning} />
-          <Text style={styles.pendienteTexto}>{`Todavía falta — ${estado.pendientes.join(' · ')}`}</Text>
+          <Text style={styles.pendienteTexto}>{`Todavía falta — ${pendientesLegibles(estado).join(' · ')}`}</Text>
         </View>
       )}
     </View>
+  );
+}
+
+/** Revisión: «Solicitud de empleo y estudio socioeconómico» con su avance y lo que falta (texto del backend). */
+function FilaRevisionSolicitud({ resumen, onAbrir }: { resumen: NonNullable<EstadoRegistro['solicitud_empleo']>; onAbrir: () => void }) {
+  const Colors = useColores();
+  const styles = useEstilos(crearEstilos);
+  const pendiente = resumen.exigida && !resumen.completo;
+  const titulo = 'Solicitud de empleo y estudio socioeconómico';
+
+  return (
+    <PressableScale
+      accessibilityLabel={`${titulo}: ${resumen.completo ? 'completa' : `${resumen.porcentaje}%`}. ${resumen.completo ? 'Revisar' : 'Completar'}`}
+      onPress={onAbrir}
+      style={[styles.revisionFila, styles.revisionFilaColumna]}>
+      <View style={styles.revisionFilaInterna}>
+        <Ionicons name={resumen.completo ? 'checkmark-circle' : 'alert-circle'} size={24} color={resumen.completo ? Colors.success : Colors.warning} />
+        <Text style={styles.revisionTexto}>{titulo}</Text>
+        <Text style={styles.revisionAccion}>{resumen.completo ? 'Revisar' : `${resumen.porcentaje}% · Completar`}</Text>
+      </View>
+      {!resumen.completo && resumen.pendientes.length > 0 ? (
+        <View style={styles.revisionPendientes}>
+          {resumen.pendientes.map((p) => (
+            <View key={p} style={styles.cartaItem}>
+              <Ionicons name="ellipse" size={6} color={pendiente ? Colors.warning : Colors.textMuted} />
+              <Text style={styles.revisionPendienteTexto}>{p}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+    </PressableScale>
   );
 }
 
@@ -1042,6 +1207,10 @@ const crearEstilos = (Colors: ColorPalette) =>
       minHeight: 56,
     },
     revisionTexto: { flex: 1, fontSize: FontSize.md, fontWeight: '600', color: Colors.text },
+    revisionFilaColumna: { flexDirection: 'column', alignItems: 'stretch', gap: Spacing.sm },
+    revisionFilaInterna: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+    revisionPendientes: { gap: Spacing.xs, backgroundColor: Colors.surfaceMuted, borderRadius: Radius.md, padding: Spacing.md },
+    revisionPendienteTexto: { flex: 1, fontSize: FontSize.sm, color: Colors.text, lineHeight: 19 },
     revisionAccion: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.primaryDark },
     listo: {
       flexDirection: 'row',

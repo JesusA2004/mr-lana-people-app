@@ -24,6 +24,7 @@ import type { RequestStatus, Solicitud } from '@/types/request';
 import { getErrorMessage } from '@/utils/errors';
 import { debeCargarMasParaFiltro } from '@/utils/filtroPaginado';
 import { humanizeRequestStatus } from '@/utils/formatters';
+import { ExpedienteGate } from '@/components/guia/ExpedienteGate';
 
 /**
  * Filtros por FAMILIA de tipo (sección 48). Vacaciones aparece aquí como una
@@ -55,7 +56,7 @@ function matchesSearch(solicitud: Solicitud, query: string): boolean {
   return haystack.includes(query.toLowerCase());
 }
 
-export default function SolicitudesScreen() {
+function SolicitudesScreen() {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   const router = useRouter();
@@ -213,3 +214,12 @@ const crearEstilos = (Colors: ColorPalette) =>
     fontWeight: '600',
   },
 });
+
+/** Modo completar expediente: con datos/documentos pendientes se muestra el bloqueo (423 en backend). */
+export default function SolicitudesScreenConCandado() {
+  return (
+    <ExpedienteGate modulo="Solicitudes" enTab>
+      <SolicitudesScreen />
+    </ExpedienteGate>
+  );
+}

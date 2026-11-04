@@ -111,6 +111,12 @@ export interface MobileBootstrap {
   features: MobileBootstrapFeatures;
   counts: MobileBootstrapCounts;
   ciclo_laboral?: MobileBootstrapCicloLaboral;
+  /**
+   * Modo completar expediente (`ExpedienteIncompletoService`, backend
+   * 2026-11). Crudo del backend: leer SIEMPRE con `estadoExpedienteDe()`
+   * (`utils/guia.ts`). Ausente (backend anterior) = sin bloqueo.
+   */
+  expediente_incompleto?: unknown;
   server: {
     time: string;
     timezone: string;

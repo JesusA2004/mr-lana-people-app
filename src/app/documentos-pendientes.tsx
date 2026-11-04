@@ -17,13 +17,16 @@ import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { IconoTono, Pill, TarjetaAviso, type Tono } from '@/components/ui';
 import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useUploadDocumento } from '@/hooks/queries/useIncorporacion';
+import { usePermisos } from '@/hooks/usePermisos';
 import { useAuthStore } from '@/store/authStore';
+import { useExperienceStore } from '@/store/experienceStore';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { toast } from '@/store/toastStore';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import type { CartaCompromiso, DocumentoPendienteCarta } from '@/types/cartaCompromiso';
 import { cartaRecienGenerada, encabezadoPendientes, puedeSubirPendiente, textoDiasRestantes } from '@/utils/cartaCompromiso';
 import { confirmAction } from '@/utils/confirm';
+import { presentacionGenerado } from '@/utils/documentosGenerados';
 import { formatDateLong } from '@/utils/dates';
 import { getErrorMessage } from '@/utils/errors';
 import { haptics } from '@/utils/haptics';
@@ -157,6 +160,18 @@ export default function DocumentosPendientesScreen() {
   };
 
   const porSubir = pendientes.filter((d) => puedeSubirPendiente(d.estado)).length;
+  // Solicitud de empleo / Estudio socioeconómico: los genera PEOPLE (solo informativos).
+  const generados = data?.documentos_generados ?? [];
+
+  // El bloqueo es del autoservicio: quien tiene Gestión RH sigue operando
+  // (la puerta de `_layout.tsx` deja pasar con la experiencia «rh»).
+  const permisos = usePermisos();
+  const tieneGestionRh = permisos.experiencias.rh;
+  const setExperience = useExperienceStore((state) => state.setExperience);
+  const irAGestionRh = () => {
+    haptics.tap();
+    void setExperience('rh');
+  };
 
   if (cartaNueva) {
     return (
@@ -309,8 +324,46 @@ export default function DocumentosPendientesScreen() {
                 </View>
               )}
 
+              {generados.length > 0 ? (
+                <View style={styles.lista}>
+                  <Text style={styles.seccion} accessibilityRole="header">
+                    Los prepara Recursos Humanos
+                  </Text>
+                  {generados.map((documento) => {
+                    const vista = presentacionGenerado(documento);
+                    return (
+                      <View key={documento.document_type_id} style={styles.tarjeta} accessible accessibilityLabel={`${documento.nombre}: ${vista.etiqueta}`}>
+                        <View style={styles.fila}>
+                          <IconoTono icono={vista.icono} tono={vista.tono} tamano={44} />
+                          <View style={styles.textos}>
+                            <Text style={styles.titulo}>{documento.nombre}</Text>
+                            <Text style={styles.ayuda}>{vista.mensaje}</Text>
+                            <Pill texto={vista.etiqueta} tono={vista.tono} />
+                          </View>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              ) : null}
+
+              {bloqueado && tieneGestionRh ? (
+                <TarjetaAviso
+                  icono="briefcase-outline"
+                  tono="info"
+                  titulo="Tu operación sigue disponible"
+                  mensaje="Puedes atender a tu equipo y tus aprobaciones en Gestión RH. Mi espacio se libera cuando subas tus documentos."
+                  accion="Ir a Gestión RH"
+                  onPress={irAGestionRh}
+                />
+              ) : null}
+
               {bloqueado ? (
-                <Text style={styles.nota}>Si crees que es un error o ya entregaste tus documentos en persona, comunícate con Recursos Humanos.</Text>
+                <>
+                  <Text style={styles.nota}>Si crees que es un error o ya entregaste tus documentos en persona, comunícate con Recursos Humanos.</Text>
+                  {/* También abajo: el «Salir» del encabezado puede quedar tapado por botones flotantes del sistema. */}
+                  <Button title="Cerrar sesión" variant="ghost" leftIcon="log-out-outline" onPress={() => void salir()} />
+                </>
               ) : null}
             </>
           )}

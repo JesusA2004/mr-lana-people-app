@@ -3,9 +3,10 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { PrestamoDetail } from '@/components/ciclo/PrestamoDetail';
 import { Screen } from '@/components/ciclo/Screen';
 import { useMiPrestamo } from '@/hooks/queries/useCicloLaboral';
+import { ExpedienteGate } from '@/components/guia/ExpedienteGate';
 
 /** Detalle de un préstamo propio — `GET /colaborador/prestamos/{id}` (`PrestamoPolicy::ver`). */
-export default function MiPrestamoScreen() {
+function MiPrestamoScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const query = useMiPrestamo(id);
@@ -26,5 +27,14 @@ export default function MiPrestamoScreen() {
         />
       ) : null}
     </Screen>
+  );
+}
+
+/** Modo completar expediente: con datos/documentos pendientes se muestra el bloqueo (423 en backend). */
+export default function MiPrestamoScreenConCandado() {
+  return (
+    <ExpedienteGate modulo="Préstamo">
+      <MiPrestamoScreen />
+    </ExpedienteGate>
   );
 }

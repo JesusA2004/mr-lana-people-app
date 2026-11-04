@@ -2,7 +2,7 @@ import { apiClient, extractData } from '../client';
 import { normalizeSiguientePaso } from '../normalizers/siguientePaso';
 
 import type { BajaDetalle, BajaFila } from '@/types/rhBaja';
-import { asArray, asBoolean, asId, asNumber, asRecord, asString, normalizePaginated, type Paginated } from '@/utils/normalize';
+import { asArray, asBoolean, asFotoUrl, asId, asNumber, asRecord, asString, normalizePaginated, type Paginated } from '@/utils/normalize';
 
 export function normalizeBajaFila(value: unknown): BajaFila {
   const raw = asRecord(value);
@@ -10,6 +10,7 @@ export function normalizeBajaFila(value: unknown): BajaFila {
     id: asId(raw.id) ?? 0,
     folio: asString(raw.folio),
     colaborador: asString(raw.colaborador) ?? 'Colaborador',
+    foto_url: asFotoUrl(raw.foto_url),
     numero_empleado: asString(raw.numero_empleado),
     sucursal: asString(raw.sucursal),
     puesto: asString(raw.puesto),

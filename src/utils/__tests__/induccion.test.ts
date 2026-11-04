@@ -26,6 +26,9 @@ import {
 } from '@/utils/induccion';
 import { tieneCierrePdf } from '@/utils/induccionCache';
 
+/** Material sin el candado presentación → video (backend anterior o presentación completa). */
+const SIN_BLOQUEO_VIDEO = { videoBloqueado: false, paginasFaltantes: [] as number[], videoBloqueadoMensaje: null };
+
 const resumen = normalizeInduccionResumen({
   avance_id: 12,
   titulo: 'Inducción Mr. Lana',
@@ -190,16 +193,17 @@ describe('video de la inducción', () => {
       videoDisponible: false,
       videoEstado: 'preparando',
       videoMensaje: 'Se está preparando.',
+      ...SIN_BLOQUEO_VIDEO,
     });
-    expect(normalizeMaterialInduccion({ tipo: 'video', video_disponible: true })).toEqual({ tipo: 'video', videoDisponible: true, videoEstado: 'listo', videoMensaje: null });
-    expect(normalizeMaterialInduccion({ tipo: 'audio', audio_url: 'https://x', video_disponible: false })).toEqual({ tipo: 'audio', videoDisponible: false, videoEstado: null, videoMensaje: null });
+    expect(normalizeMaterialInduccion({ tipo: 'video', video_disponible: true })).toEqual({ tipo: 'video', videoDisponible: true, videoEstado: 'listo', videoMensaje: null, ...SIN_BLOQUEO_VIDEO });
+    expect(normalizeMaterialInduccion({ tipo: 'audio', audio_url: 'https://x', video_disponible: false })).toEqual({ tipo: 'audio', videoDisponible: false, videoEstado: null, videoMensaje: null, ...SIN_BLOQUEO_VIDEO });
     expect(normalizeMaterialInduccion({ tipo: 'otro' }).tipo).toBeNull();
     expect(normalizeMaterialInduccion(null).tipo).toBeNull();
   });
 
   it('mensaje de «se está procesando»: el del backend o uno por defecto', () => {
-    expect(mensajeVideoPreparando({ tipo: 'video', videoDisponible: false, videoEstado: 'preparando', videoMensaje: null })).toBe('El video se está procesando, intenta más tarde.');
-    expect(mensajeVideoPreparando({ tipo: 'video', videoDisponible: false, videoEstado: 'preparando', videoMensaje: 'Del servidor.' })).toBe('Del servidor.');
+    expect(mensajeVideoPreparando({ tipo: 'video', videoDisponible: false, videoEstado: 'preparando', videoMensaje: null, ...SIN_BLOQUEO_VIDEO })).toBe('El video se está procesando, intenta más tarde.');
+    expect(mensajeVideoPreparando({ tipo: 'video', videoDisponible: false, videoEstado: 'preparando', videoMensaje: 'Del servidor.', ...SIN_BLOQUEO_VIDEO })).toBe('Del servidor.');
   });
 
   it('normaliza la sesión (envuelta en data por la API) y rechaza una URL inválida', () => {

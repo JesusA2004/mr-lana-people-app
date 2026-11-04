@@ -25,6 +25,14 @@ export const apiClient = axios.create({
     // Esta app tiene la pantalla de documentos pendientes: el backend
     // (middleware documentos.pendientes) solo bloquea a quien la manda.
     'X-People-Documentos': '1',
+    // Esta app tiene el «modo completar expediente» (guía + pantalla de
+    // bloqueo): el backend (middleware expediente.completo) solo responde
+    // 423 «expediente_incompleto» en el autoservicio a quien la manda.
+    'X-People-Expediente': '1',
+    // Esta app captura la Solicitud de empleo + Estudio socioeconómico en el
+    // registro: con la cabecera el backend la incluye en `puede_finalizar` y
+    // `registro/finalizar` responde 422 `errors.solicitud_empleo` si falta.
+    'X-People-Solicitud-Empleo': '1',
   },
 });
 
@@ -114,6 +122,15 @@ apiClient.interceptors.response.use(
       void queryClient.invalidateQueries({ queryKey: queryKeys.bootstrap });
     }
 
+    if (esExpedienteIncompleto(error)) {
+      // Modo completar expediente: el bootstrap y la guía traen el estado
+      // nuevo y la pantalla afectada (ExpedienteGate) muestra el bloqueo con
+      // lo que falta. Nunca navega solo: una consulta de fondo no debe
+      // sacar a la persona de donde está.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.bootstrap });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.guia });
+    }
+
     if (error.response?.status === 503) {
       useMaintenanceStore.getState().setActive(true);
     }
@@ -121,6 +138,14 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   },
 );
+
+/** 423 «expediente_incompleto» del middleware expediente.completo. */
+export function esExpedienteIncompleto(error: unknown): boolean {
+  const respuesta = (error as AxiosError | null)?.response;
+  if (respuesta?.status !== 423) return false;
+  const cuerpo = respuesta.data as { code?: string; codigo?: string } | undefined;
+  return Boolean(cuerpo && typeof cuerpo === 'object' && (cuerpo.code === 'expediente_incompleto' || cuerpo.codigo === 'expediente_incompleto'));
+}
 
 /**
  * Desenvuelve la forma más común de respuesta de Laravel API Resources:

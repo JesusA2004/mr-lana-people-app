@@ -18,6 +18,7 @@ import { DocumentUploadSheet, type PickedDocumentFile } from '@/components/Docum
 import { DateField } from '@/components/forms/DateField';
 import { MotivoModal } from '@/components/MotivoModal';
 import { PressableScale } from '@/components/PressableScale';
+import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Stepper } from '@/components/Stepper';
 import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
@@ -216,7 +217,8 @@ export default function RhCandidatoDetailScreen() {
         <>
           <Card style={styles.gap}>
             <View style={styles.header}>
-              <Text style={styles.title}>{candidato.nombre_completo}</Text>
+              <ProfileAvatar name={candidato.nombre_completo} fotoUrlApi={candidato.foto_url} size={48} />
+              <Text style={[styles.title, styles.tituloConFoto]}>{candidato.nombre_completo}</Text>
               <StatusBadge status={candidatoBadge(candidato.estado)} label={candidato.estado_etiqueta ?? undefined} />
             </View>
             {ciclo.pasos.length > 0 ? (
@@ -676,6 +678,9 @@ const crearEstilos = (Colors: ColorPalette) =>
     fontWeight: '800',
     color: Colors.text,
     flexShrink: 1,
+  },
+  tituloConFoto: {
+    flex: 1,
   },
   muted: {
     fontSize: FontSize.xs,

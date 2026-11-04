@@ -19,6 +19,8 @@ export interface EditableProfileAvatarProps {
   ringColor?: string;
   /** Muestra la etiqueta de estado debajo (Perfil / Configuración). */
   mostrarEstado?: boolean;
+  /** Abre la hoja de foto al montar (llegó desde «Tu siguiente paso»). */
+  abrirAlMontar?: boolean;
 }
 
 /**
@@ -26,10 +28,10 @@ export interface EditableProfileAvatarProps {
  * con foto → «Solicitar cambio de foto» (aprobación de RH). Iniciales si
  * no hay foto o falla la carga.
  */
-export function EditableProfileAvatar({ name, fotoUrlApi, fotoUrl, estado, size = 96, ringColor, mostrarEstado = false }: EditableProfileAvatarProps) {
+export function EditableProfileAvatar({ name, fotoUrlApi, fotoUrl, estado, size = 96, ringColor, mostrarEstado = false, abrirAlMontar = false }: EditableProfileAvatarProps) {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
-  const [abierto, setAbierto] = useState(false);
+  const [abierto, setAbierto] = useState(abrirAlMontar);
   const sinFoto = !estado || estado.estado === 'sin_foto';
   const etiquetaAccion = sinFoto ? 'Agregar foto de perfil' : estado?.estado === 'cambio_pendiente' ? 'Cambio de foto pendiente' : 'Solicitar cambio de foto';
 

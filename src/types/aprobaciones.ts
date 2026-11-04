@@ -77,6 +77,8 @@ export interface AprobacionItem {
   tipo_etiqueta: string;
   estado: string;
   solicitante: string;
+  /** Foto del solicitante (URL con Bearer); `null` ⇒ iniciales. */
+  solicitante_foto_url: string | null;
   fecha_inicio: string | null;
   fecha_fin: string | null;
   monto_solicitado: number | null;

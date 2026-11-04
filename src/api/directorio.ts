@@ -1,7 +1,7 @@
 import { apiClient, extractData } from './client';
 
 import type { ColaboradorDirectorio, FiltrosDirectorio, OpcionDirectorio, OpcionesDirectorio } from '@/types/directorio';
-import { asArray, asId, asRecord, asString, normalizePaginated, type Paginated } from '@/utils/normalize';
+import { asArray, asFotoUrl, asId, asRecord, asString, normalizePaginated, type Paginated } from '@/utils/normalize';
 
 export function normalizeColaboradorDirectorio(raw: unknown): ColaboradorDirectorio {
   const r = asRecord(raw);
@@ -16,6 +16,7 @@ export function normalizeColaboradorDirectorio(raw: unknown): ColaboradorDirecto
     departamento: asString(r.departamento),
     correoCorporativo: asString(r.correo_corporativo) || null,
     telefonoCorporativo: asString(r.telefono_corporativo) || null,
+    fotoUrl: asFotoUrl(r.foto_url),
   };
 }
 

@@ -21,7 +21,7 @@ describe('directorio: solo contacto corporativo', () => {
     });
 
     expect(Object.keys(fila).sort()).toEqual(
-      ['correoCorporativo', 'departamento', 'id', 'nombre', 'numeroEmpleado', 'puesto', 'sucursal', 'telefonoCorporativo'].sort(),
+      ['correoCorporativo', 'departamento', 'fotoUrl', 'id', 'nombre', 'numeroEmpleado', 'puesto', 'sucursal', 'telefonoCorporativo'].sort(),
     );
     const json = JSON.stringify(fila);
     for (const sensible of ['gmail', '5559998877', 'HEPS', '12345678901', '456.78', 'Secreta']) {

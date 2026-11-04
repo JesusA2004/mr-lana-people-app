@@ -15,6 +15,8 @@ export interface EquipoSolicitudPendiente {
   tipo_etiqueta: string | null;
   estado: string;
   colaborador: string | null;
+  /** Foto del colaborador (URL con Bearer); `null` ⇒ iniciales. */
+  colaborador_foto_url: string | null;
   fecha_inicio: string | null;
   fecha_fin: string | null;
   monto_solicitado: number | null;
@@ -29,6 +31,7 @@ export interface EquipoSolicitudPendiente {
 export interface EquipoEvaluacionPendiente {
   id: number;
   colaborador: string;
+  colaborador_foto_url: string | null;
   estado: string;
   fecha_limite: string | null;
 }

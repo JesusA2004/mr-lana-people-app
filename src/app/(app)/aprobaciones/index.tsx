@@ -95,6 +95,7 @@ export default function BandejaAprobacionesScreen() {
               return (
                 <FilaLista
                   key={`${item.origen}-${item.id}`}
+                  avatar={{ nombre: item.solicitante, fotoUrl: item.solicitante_foto_url }}
                   icono={ICONO_TIPO[item.tipo] ?? 'document-text-outline'}
                   tono={item.flujo.puede_actuar_usuario_actual ? 'aviso' : 'info'}
                   titulo={item.tipo_etiqueta}

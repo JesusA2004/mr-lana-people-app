@@ -1,4 +1,5 @@
 import { apiClient, extractData } from '../client';
+import { normalizeRhPagina, normalizeRhSolicitud } from '../normalizers/rhFotos';
 
 import type { PaginatedResponse } from '@/types/api';
 import type { RhSolicitud } from '@/types/rh';
@@ -17,12 +18,12 @@ export interface RhSolicitudesParams {
 export const rhSolicitudesApi = {
   async list(params: RhSolicitudesParams = {}): Promise<PaginatedResponse<RhSolicitud>> {
     const response = await apiClient.get('/rh/solicitudes', { params });
-    return response.data as PaginatedResponse<RhSolicitud>;
+    return normalizeRhPagina(response.data, normalizeRhSolicitud);
   },
 
   async getById(id: number | string): Promise<RhSolicitud> {
     const response = await apiClient.get(`/rh/solicitudes/${id}`);
-    return extractData<RhSolicitud>(response.data);
+    return normalizeRhSolicitud(extractData<unknown>(response.data));
   },
 
   /**

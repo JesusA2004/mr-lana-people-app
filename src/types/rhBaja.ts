@@ -5,6 +5,8 @@ export interface BajaFila {
   id: number;
   folio: string | null;
   colaborador: string;
+  /** Foto del colaborador (URL con Bearer); `null` ⇒ iniciales. */
+  foto_url: string | null;
   numero_empleado: string | null;
   sucursal: string | null;
   puesto: string | null;

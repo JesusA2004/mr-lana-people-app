@@ -16,6 +16,7 @@ import { MascotMessages } from '@/constants/mascotMessages';
 import { useVacacionesSaldo, useVacacionesUnificadas } from '@/hooks/queries/useVacaciones';
 import { formatDateLong } from '@/utils/dates';
 import { getErrorMessage } from '@/utils/errors';
+import { ExpedienteGate } from '@/components/guia/ExpedienteGate';
 
 /**
  * "Mis vacaciones" — experiencia dedicada sobre SOLICITUDES UNIFICADAS.
@@ -28,7 +29,7 @@ import { getErrorMessage } from '@/utils/errors';
  *   - "Solicitar vacaciones" abre el MISMO wizard unificado con
  *     `?tipo=vacaciones` — no hay un segundo formulario (secciones 2/3/49).
  */
-export default function VacacionesScreen() {
+function VacacionesScreen() {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   const router = useRouter();
@@ -275,3 +276,12 @@ const crearEstilos = (Colors: ColorPalette) =>
     textAlign: 'center',
   },
 });
+
+/** Modo completar expediente: con datos/documentos pendientes se muestra el bloqueo (423 en backend). */
+export default function VacacionesScreenConCandado() {
+  return (
+    <ExpedienteGate modulo="Vacaciones" enTab>
+      <VacacionesScreen />
+    </ExpedienteGate>
+  );
+}

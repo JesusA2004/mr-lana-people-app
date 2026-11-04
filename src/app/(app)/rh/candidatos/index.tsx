@@ -73,7 +73,7 @@ export default function RhCandidatosScreen() {
           {candidatos.map((candidato) => (
             <ItemCard
               key={candidato.id}
-              icon="person-outline"
+              avatar={{ nombre: candidato.nombre_completo, fotoUrl: candidato.foto_url }}
               kicker={candidato.puesto_objetivo}
               title={candidato.nombre_completo}
               subtitle={candidato.sucursal}

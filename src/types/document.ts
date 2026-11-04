@@ -41,4 +41,30 @@ export interface DocumentoIncorporacion {
    * «Este archivo trae también…» (`incluyePar`). Null/ausente = sin par.
    */
   par?: { id: number; nombre: string; puede_subir: boolean } | null;
+  /**
+   * Formato que PEOPLE GENERA con los datos de la persona (Solicitud de
+   * empleo, Estudio socioeconómico — backend 2026-11-04): nunca se sube
+   * (`puede_subir` = false), no bloquea ni va en la carta compromiso.
+   * Null/ausente = documento normal que la persona sube.
+   */
+  generado_por_sistema?: GeneradoPorSistema | null;
+}
+
+/**
+ * - escaneo: ya había subido un escaneo (historial, sigue cumpliendo).
+ * - generado: ya se generó con sus datos (RH lo entrega impreso para firma).
+ * - por_generar: aún no; lo prepara RH, o sale del paso «Solicitud de empleo» del registro.
+ */
+export type EstadoGeneradoPorSistema = 'escaneo' | 'generado' | 'por_generar';
+
+/** Quién lo resuelve: la persona en su registro (`registro`) o Recursos Humanos (`rh`). */
+export type CapturaGeneradoPorSistema = 'registro' | 'rh';
+
+export interface GeneradoPorSistema {
+  estado: EstadoGeneradoPorSistema;
+  cumplido: boolean;
+  titulo: string;
+  mensaje: string;
+  captura: CapturaGeneradoPorSistema;
+  documento_generado_id?: number | null;
 }

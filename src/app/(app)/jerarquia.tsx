@@ -1,9 +1,10 @@
 import { JerarquiaCard } from '@/components/ciclo/JerarquiaCard';
 import { Screen } from '@/components/ciclo/Screen';
 import { useMiJerarquia } from '@/hooks/queries/useCicloLaboral';
+import { ExpedienteGate } from '@/components/guia/ExpedienteGate';
 
 /** Mi jerarquía — `GET /colaborador/jerarquia` (`JerarquiaColaboradorService::jerarquia()`). */
-export default function MiJerarquiaScreen() {
+function MiJerarquiaScreen() {
   const query = useMiJerarquia();
 
   return (
@@ -17,5 +18,14 @@ export default function MiJerarquiaScreen() {
       onRefresh={() => void query.refetch()}>
       {query.data ? <JerarquiaCard jerarquia={query.data} /> : null}
     </Screen>
+  );
+}
+
+/** Modo completar expediente: con datos/documentos pendientes se muestra el bloqueo (423 en backend). */
+export default function MiJerarquiaScreenConCandado() {
+  return (
+    <ExpedienteGate modulo="Mi jerarquía">
+      <MiJerarquiaScreen />
+    </ExpedienteGate>
   );
 }

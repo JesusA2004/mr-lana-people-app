@@ -14,6 +14,7 @@ import { ESTADOS_ALTA } from '@/types/cicloLaboral';
 import {
   asArray,
   asBoolean,
+  asFotoUrl,
   asId,
   asNumber,
   asRecord,
@@ -149,6 +150,7 @@ export function normalizePersona(value: unknown): PersonaResumen | null {
     departamento: asString(raw.departamento),
     sucursal: asString(raw.sucursal),
     empresa: asString(raw.empresa),
+    foto_url: asFotoUrl(raw.foto_url),
   };
 }
 

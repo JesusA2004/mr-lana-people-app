@@ -21,6 +21,8 @@ export type RhPendienteFiltro = RhPendienteTipo | 'todos';
 export interface RhColaboradorResumen {
   id: number;
   nombre: string;
+  /** Foto (URL con Bearer); `null`/ausente ⇒ iniciales. */
+  foto_url?: string | null;
   numero_empleado?: string | null;
   puesto?: string | null;
   sucursal?: string | null;
@@ -260,6 +262,8 @@ export interface RhIncorporacion {
 export interface RhColaborador {
   id: number;
   nombre: string;
+  /** Foto (URL con Bearer); `null` ⇒ iniciales. */
+  foto_url?: string | null;
   numero_empleado?: string | null;
   puesto?: string | null;
   sucursal?: string | null;

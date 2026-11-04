@@ -61,6 +61,11 @@ export function normalizeMaterialInduccion(raw: unknown): MaterialInduccion {
     videoDisponible,
     videoEstado: tipo === 'video' ? (asString(r.video_estado) ?? (videoDisponible ? 'listo' : 'preparando')) : null,
     videoMensaje: tipo === 'video' && !videoDisponible ? (asString(r.video_mensaje) ?? null) : null,
+    videoBloqueado: tipo === 'video' && asBoolean(r.video_bloqueado),
+    paginasFaltantes: asArray(r.paginas_faltantes)
+      .map((p) => asNumber(p))
+      .filter((p): p is number => p !== null && p >= 1),
+    videoBloqueadoMensaje: asString(r.video_bloqueado_mensaje),
   };
 }
 

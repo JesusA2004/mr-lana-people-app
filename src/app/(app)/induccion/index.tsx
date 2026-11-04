@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -11,8 +12,23 @@ import { useMiProceso } from '@/hooks/queries/useCicloLaboral';
 import { useMiDescriptivoPuesto } from '@/hooks/queries/useDescriptivoPuesto';
 import { descriptivoPendiente } from '@/utils/descriptivoPuesto';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
-import { useMaterialInduccion } from '@/hooks/queries/useInduccion';
-import { faseInduccion, fechaLegible, mensajeVideoPreparando, resultadoInduccion, textoProgreso, ultimoIntentoCalificado, videoRequerido } from '@/utils/induccion';
+import { useMaterialInduccion, useTerminarInduccion } from '@/hooks/queries/useInduccion';
+import { queryKeys } from '@/api/queryKeys';
+import { toast } from '@/store/toastStore';
+import { getActionErrorMessage, logError } from '@/utils/errors';
+import {
+  faseInduccion,
+  fechaLegible,
+  listaPaginasFaltantes,
+  mensajeVideoPreparando,
+  paginasQueBloqueanVideo,
+  puedeTerminarInduccion,
+  resultadoInduccion,
+  textoPaginasFaltantes,
+  textoProgreso,
+  ultimoIntentoCalificado,
+  videoRequerido,
+} from '@/utils/induccion';
 
 /**
  * Inducción Mr. Lana: avance por páginas del PDF oficial (guardado en el servidor),
@@ -41,6 +57,34 @@ export default function InduccionScreen() {
   // Al aprobar, RH te envía tu descriptivo de puesto (lees + «OK, enterado»).
   const descriptivo = useMiDescriptivoPuesto();
   const descriptivoPorLeer = descriptivoPendiente(descriptivo.data);
+  const queryClient = useQueryClient();
+  const terminar = useTerminarInduccion(resumen?.avanceId ?? null);
+  // Qué páginas faltan (para decir CUÁL y llevar ahí) y si el video sigue
+  // bloqueado por el orden obligatorio presentación → video (backend).
+  const faltantes = resumen && presentacionIncluida && !resumen.completado ? listaPaginasFaltantes(resumen.paginasVistas, resumen.totalPaginas) : [];
+  const bloqueoVideo = videoCompleto ? [] : paginasQueBloqueanVideo(material.data, resumen?.paginasVistas ?? []);
+  const habilitarTerminar = resumen
+    ? puedeTerminarInduccion({
+        completado: resumen.completado,
+        paginasFaltantes: faltantes.length,
+        presentacionIncluida,
+        videoRequerido: conVideo,
+        videoCompletado: videoCompleto,
+      })
+    : false;
+  const irAPagina = (pagina: number) => router.push({ pathname: '/induccion/capitulos', params: { pagina: String(pagina) } });
+
+  const alTerminar = async () => {
+    try {
+      const resultado = await terminar.mutateAsync();
+      void queryClient.invalidateQueries({ queryKey: queryKeys.guia });
+      toast.success(resultado.evaluacion?.puedePresentar ? 'Listo. Siguiente: tu evaluación de inducción' : '¡Terminaste la inducción!');
+      if (resultado.evaluacion?.puedePresentar) router.push('/induccion/evaluacion');
+    } catch (error) {
+      logError('induccion.terminar', error);
+      toast.error(getActionErrorMessage(error));
+    }
+  };
 
   const refrescar = () => {
     void proceso.refetch();
@@ -76,11 +120,12 @@ export default function InduccionScreen() {
             <AnimatedProgressBar percent={resumen.porcentaje} />
             {presentacionIncluida ? null : <Text style={styles.heroTexto}>Esta vez el documento es opcional: puedes repasarlo cuando quieras.</Text>}
             <Text style={styles.estado}>{resumen.completado ? 'Contenido completado' : vistos === 0 ? 'Sin iniciar' : 'En curso'}</Text>
+            {faltantes.length > 0 && vistos > 0 ? <Text style={styles.heroTexto}>{textoPaginasFaltantes(faltantes)}.</Text> : null}
             <Button
               title={resumen.completado ? 'Repasar la inducción' : vistos === 0 ? 'Comenzar' : 'Continuar'}
               variant={resumen.completado ? 'outline' : 'primary'}
               rightIcon="arrow-forward"
-              onPress={() => router.push('/induccion/capitulos')}
+              onPress={() => (faltantes.length > 0 && vistos > 0 ? irAPagina(faltantes[0]) : router.push('/induccion/capitulos'))}
             />
           </Card>
 
@@ -97,7 +142,15 @@ export default function InduccionScreen() {
                   </Text>
                 </View>
               </View>
-              {material.isError ? (
+              {bloqueoVideo.length > 0 ? (
+                <>
+                  <View style={styles.candado}>
+                    <Ionicons name="lock-closed-outline" size={18} color={Colors.warning} />
+                    <Text style={styles.candadoTexto}>Disponible al terminar la presentación ({textoPaginasFaltantes(bloqueoVideo).toLowerCase()}).</Text>
+                  </View>
+                  <Button title={`Ir a la página ${bloqueoVideo[0]}`} variant="outline" rightIcon="arrow-forward" onPress={() => irAPagina(bloqueoVideo[0])} />
+                </>
+              ) : material.isError ? (
                 <Notice tone="warning">No pudimos consultar el video. Desliza hacia abajo para intentar de nuevo.</Notice>
               ) : material.data?.tipo === 'video' && !material.data.videoDisponible ? (
                 <Notice tone="warning">{mensajeVideoPreparando(material.data)}</Notice>
@@ -127,9 +180,18 @@ export default function InduccionScreen() {
             <Notice tone="info">Terminaste la inducción. Tu evaluación se habilita en cuanto el sistema la active.</Notice>
           ) : null}
           {fase === 'contenido' && !resumen.completado ? (
-            <Notice tone="info">
-              Recursos Humanos te presentará la inducción y al terminar te enviará tu evaluación. También puedes recorrer las {resumen.totalPaginas} páginas y tocar «Terminé la inducción».
-            </Notice>
+            habilitarTerminar ? (
+              <Card style={styles.bloque}>
+                <Text style={styles.bloqueTitulo}>¡Ya viste todo!</Text>
+                <Text style={styles.heroTexto}>Siguiente: confirma que terminaste para desbloquear tu evaluación.</Text>
+                <Button title="Terminé la inducción" leftIcon="checkmark-circle-outline" loading={terminar.isPending} onPress={alTerminar} />
+              </Card>
+            ) : (
+              <Notice tone="info">
+                {presentacionIncluida ? `Orden: 1) las ${resumen.totalPaginas} páginas del documento` : 'Orden: 1) el documento es opcional'}
+                {conVideo ? ', 2) el video completo' : ''}, después «Terminé la inducción» y tu evaluación.
+              </Notice>
+            )
           ) : null}
           {resumen.presentadaPorRhEn ? (
             <Notice tone="info">Recursos Humanos te presentó la inducción el {fechaLegible(resumen.presentadaPorRhEn)}.</Notice>
@@ -207,6 +269,8 @@ const crearEstilos = (Colors: ColorPalette) =>
     heroTexto: { fontSize: FontSize.sm, color: Colors.textMuted, lineHeight: 19 },
     porcentaje: { fontSize: FontSize.xxl, fontWeight: '800', color: Colors.primary },
     estado: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.primaryDark },
+    candado: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm, backgroundColor: Colors.warningSoft, borderRadius: Radius.md, padding: Spacing.md },
+    candadoTexto: { flex: 1, fontSize: FontSize.sm, color: Colors.text, lineHeight: 19 },
     bloque: { gap: Spacing.sm },
     bloqueTitulo: { fontSize: FontSize.md, fontWeight: '800', color: Colors.text },
     resultadoFila: { flexDirection: 'row', alignItems: 'baseline', gap: Spacing.md },

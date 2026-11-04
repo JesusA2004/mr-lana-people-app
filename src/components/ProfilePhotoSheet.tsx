@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
-import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
 import { Image, Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,21 +7,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatedProgressBar } from './AnimatedProgressBar';
 import { paddingInferiorBarra } from './BarraAccionInferior';
 import { Button } from './Button';
-import { PermissionPrimerSheet, type PermissionPrimerKind } from './PermissionPrimerSheet';
+import { PermissionPrimerSheet } from './PermissionPrimerSheet';
 import { PressableScale } from './PressableScale';
 
-import type { LocalUploadFile } from '@/api/upload';
 import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useSubirFotoPerfil } from '@/hooks/queries/useFotoPerfil';
 import { usePrivateAsset } from '@/hooks/usePrivateAsset';
+import { MENSAJE_PERMISO_FOTO, TEXTO_PERMISO_DENEGADO, useSeleccionFoto } from '@/hooks/useSeleccionFoto';
+import { useSiguientePaso } from '@/hooks/useSiguientePaso';
 import { toast } from '@/store/toastStore';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import type { FotoPerfilEstado } from '@/types/collaborator';
-import { getErrorMessage, logError } from '@/utils/errors';
+import { logError } from '@/utils/errors';
+import { mensajeErrorSubidaFoto } from '@/utils/fotoExpediente';
 import { haptics } from '@/utils/haptics';
-
-/** Límite del backend (SubirFotoRequest: 8 MB). La app recorta y comprime antes. */
-const MAX_MB = 8;
 
 export interface ProfilePhotoSheetProps {
   visible: boolean;
@@ -30,36 +28,37 @@ export interface ProfilePhotoSheetProps {
   estado: FotoPerfilEstado | null | undefined;
 }
 
-type Paso = 'elegir' | 'vista_previa';
-
 /**
  * Foto de perfil desde la app:
  *  - Sin foto oficial → «Agregar foto de perfil»: queda oficial al instante.
  *  - Con foto oficial → «Solicitar cambio de foto»: la nueva queda pendiente
  *    de RH y la actual se sigue viendo hasta que la aprueben.
  *  - Con un cambio pendiente no se puede mandar otro.
- * Cámara o galería, con recorte cuadrado (editor nativo), compresión y
- * vista previa antes de subir. El backend vuelve a validar el MIME real.
+ * Elegir/tomar, permisos, recorte 1:1 y redimensión a 1024 px viven en
+ * `useSeleccionFoto` (lo comparte el paso «foto» del registro); la subida
+ * reintenta sola ante fallas de red (`useSubirFotoPerfil`). El backend
+ * vuelve a validar el MIME real.
  */
 export function ProfilePhotoSheet({ visible, onClose, estado }: ProfilePhotoSheetProps) {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   const insets = useSafeAreaInsets();
   const subir = useSubirFotoPerfil();
-  const [paso, setPaso] = useState<Paso>('elegir');
-  const [archivo, setArchivo] = useState<LocalUploadFile | null>(null);
+  const seleccion = useSeleccionFoto();
+  const ofrecerSiguiente = useSiguientePaso();
+  const { archivo, primer, denegado } = seleccion;
   const [progreso, setProgreso] = useState(0);
+  const [reintento, setReintento] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [primer, setPrimer] = useState<{ kind: PermissionPrimerKind; blocked: boolean } | null>(null);
 
   const requiereRevision = estado ? !estado.puede_subir_directo : false;
   const pendiente = estado?.estado === 'cambio_pendiente';
   const titulo = requiereRevision ? 'Solicitar cambio de foto' : 'Agregar foto de perfil';
 
   const reiniciar = () => {
-    setPaso('elegir');
-    setArchivo(null);
+    seleccion.descartar();
     setProgreso(0);
+    setReintento(0);
     setError(null);
   };
 
@@ -69,71 +68,23 @@ export function ProfilePhotoSheet({ visible, onClose, estado }: ProfilePhotoShee
     onClose();
   };
 
-  const opciones: ImagePicker.ImagePickerOptions = {
-    mediaTypes: ['images'],
-    // Recorte cuadrado para avatar con el editor nativo; JPEG comprimido.
-    allowsEditing: true,
-    aspect: [1, 1],
-    quality: 0.7,
-  };
-
-  const usarResultado = (resultado: ImagePicker.ImagePickerResult) => {
-    if (resultado.canceled || !resultado.assets[0]) return;
-    const asset = resultado.assets[0];
-
-    if (asset.fileSize && asset.fileSize > MAX_MB * 1024 * 1024) {
-      toast.error(`La foto supera ${MAX_MB} MB. Elige otra.`);
-      return;
-    }
-
-    const mime = asset.mimeType ?? 'image/jpeg';
-
-    if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(mime)) {
-      toast.error('La foto debe ser JPG, PNG o WEBP.');
-      return;
-    }
-
-    setArchivo({ uri: asset.uri, name: asset.fileName ?? `foto-perfil.${mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpg'}`, mimeType: mime });
-    setError(null);
-    setPaso('vista_previa');
-  };
-
-  const lanzar = async (kind: 'camera' | 'gallery') => {
-    usarResultado(kind === 'camera' ? await ImagePicker.launchCameraAsync({ ...opciones, cameraType: ImagePicker.CameraType.front }) : await ImagePicker.launchImageLibraryAsync(opciones));
-  };
-
-  const pedir = async (kind: 'camera' | 'gallery') => {
-    const actual = kind === 'camera' ? await ImagePicker.getCameraPermissionsAsync() : await ImagePicker.getMediaLibraryPermissionsAsync();
-    if (actual.granted) {
-      await lanzar(kind);
-      return;
-    }
-    setPrimer({ kind, blocked: actual.status === 'denied' && !actual.canAskAgain });
-  };
-
-  const confirmarPermiso = async () => {
-    if (!primer) return;
-    const kind = primer.kind === 'camera' ? 'camera' : 'gallery';
-    setPrimer(null);
-    const resultado = kind === 'camera' ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (resultado.granted) await lanzar(kind);
-    else if (!resultado.canAskAgain) setPrimer({ kind, blocked: true });
-  };
-
   const enviar = async () => {
     if (!archivo) return;
     setError(null);
     setProgreso(0);
+    setReintento(0);
     try {
-      const respuesta = await subir.mutateAsync({ file: archivo, onProgress: setProgreso });
+      const respuesta = await subir.mutateAsync({ file: archivo, onProgress: setProgreso, onReintento: setReintento });
       haptics.success();
       toast.success(respuesta.message);
       reiniciar();
       onClose();
+      // Quedó oficial: la guía ofrece el siguiente paso pendiente.
+      if (respuesta.resultado === 'oficial') void ofrecerSiguiente('foto');
     } catch (e) {
       logError('ProfilePhotoSheet.enviar', e);
       haptics.error();
-      setError(getErrorMessage(e));
+      setError(mensajeErrorSubidaFoto(e));
       setProgreso(0);
     }
   };
@@ -155,7 +106,7 @@ export function ProfilePhotoSheet({ visible, onClose, estado }: ProfilePhotoShee
               <Text style={styles.avisoTexto}>Ya enviaste una foto nueva y está esperando la aprobación de RH. Tu foto actual se conserva mientras tanto.</Text>
               <Button title="Entendido" onPress={cerrar} />
             </View>
-          ) : paso === 'elegir' ? (
+          ) : !archivo ? (
             <>
               <Text style={styles.helper}>
                 {requiereRevision
@@ -170,11 +121,19 @@ export function ProfilePhotoSheet({ visible, onClose, estado }: ProfilePhotoShee
                   </Text>
                 </View>
               ) : null}
-              <Opcion icon="camera-outline" label="Tomar foto" onPress={() => void pedir('camera')} />
-              <Opcion icon="image-outline" label="Elegir de galería" onPress={() => void pedir('gallery')} />
+              <Opcion icon="camera-outline" label="Tomar foto" onPress={() => void seleccion.elegir('camera')} />
+              <Opcion icon="image-outline" label="Elegir de galería" onPress={() => void seleccion.elegir('gallery')} />
+              {denegado ? (
+                <View style={styles.rechazo}>
+                  <Ionicons name="lock-closed-outline" size={16} color={Colors.warning} />
+                  <Text style={styles.rechazoTexto}>{TEXTO_PERMISO_DENEGADO[denegado]}</Text>
+                </View>
+              ) : null}
+              {denegado ? <Button title="Abrir Ajustes" variant="outline" leftIcon="settings-outline" onPress={seleccion.abrirAjustes} /> : null}
+              {seleccion.preparando ? <Text style={styles.helper}>Preparando tu foto…</Text> : null}
               <Button title="Cancelar" variant="ghost" onPress={cerrar} />
             </>
-          ) : archivo ? (
+          ) : (
             <>
               <Text style={styles.helper}>Así se verá tu foto. Si no te convence, elige otra.</Text>
               <View style={styles.previewWrap}>
@@ -182,7 +141,7 @@ export function ProfilePhotoSheet({ visible, onClose, estado }: ProfilePhotoShee
               </View>
               {subir.isPending ? (
                 <View style={{ gap: Spacing.xs }}>
-                  <Text style={styles.helper}>Subiendo foto… {progreso}%</Text>
+                  <Text style={styles.helper}>{reintento > 0 ? `Reintentando (${reintento} de 2)… ${progreso}%` : `Subiendo foto… ${progreso}%`}</Text>
                   <AnimatedProgressBar percent={progreso} height={8} />
                 </View>
               ) : null}
@@ -203,7 +162,7 @@ export function ProfilePhotoSheet({ visible, onClose, estado }: ProfilePhotoShee
                 />
               </View>
             </>
-          ) : null}
+          )}
         </ScrollView>
       </View>
 
@@ -211,8 +170,9 @@ export function ProfilePhotoSheet({ visible, onClose, estado }: ProfilePhotoShee
         visible={Boolean(primer)}
         kind={primer?.kind ?? 'camera'}
         blocked={primer?.blocked ?? false}
-        onClose={() => setPrimer(null)}
-        onConfirm={() => void confirmarPermiso()}
+        message={MENSAJE_PERMISO_FOTO[primer?.kind ?? 'camera']}
+        onClose={seleccion.cerrarPrimer}
+        onConfirm={() => void seleccion.confirmarPermiso()}
       />
     </Modal>
   );

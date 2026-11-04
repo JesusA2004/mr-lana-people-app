@@ -22,10 +22,11 @@ function invalidateSolicitudes(queryClient: QueryClient, id?: string | number): 
 }
 
 /** Solo primera página — usada donde basta una lectura rápida (badge del tab Solicitudes). */
-export function useSolicitudes() {
+export function useSolicitudes(enabled = true) {
   return useQuery({
     queryKey: queryKeys.solicitudes,
     queryFn: solicitudesApi.getAll,
+    enabled,
   });
 }
 

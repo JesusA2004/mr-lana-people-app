@@ -53,6 +53,8 @@ export const queryKeys = {
   laborDocuments: (params: Record<string, unknown> = {}) => ['colaborador', 'documentos-laborales', params] as const,
   miAlta: ['colaborador', 'alta'] as const,
   miProceso: ['colaborador', 'mi-proceso'] as const,
+  /** «Tu siguiente paso» + modo completar expediente (GET colaborador/guia). */
+  guia: ['colaborador', 'guia'] as const,
   miExpediente: ['colaborador', 'expediente'] as const,
   documentosPendientes: ['colaborador', 'documentos-pendientes'] as const,
   misContratos: ['colaborador', 'contratos'] as const,
@@ -61,6 +63,8 @@ export const queryKeys = {
   datosFaltantes: ['colaborador', 'datos-faltantes'] as const,
   /** Registro completo antes de entrar (cuenta creada por QR). */
   registro: ['colaborador', 'registro'] as const,
+  /** Solicitud de empleo + Estudio socioeconómico del registro (por secciones). */
+  registroSolicitud: ['colaborador', 'registro', 'solicitud'] as const,
   /** Carta compromiso de documentos pendientes + bloqueo por documentos. */
   cartaCompromiso: ['colaborador', 'carta-compromiso'] as const,
   misPrestamos: ['colaborador', 'prestamos'] as const,
@@ -127,6 +131,12 @@ export const queryKeys = {
   rhReingresosList: (params: Record<string, unknown> = {}) => ['rh', 'reingresos', 'list', params] as const,
   rhReingresosBuscar: (q: string) => ['rh', 'reingresos', 'buscar', q] as const,
   rhReingresoHistorial: (colaboradorId: string | number) => ['rh', 'reingresos', 'historial', String(colaboradorId)] as const,
+  /** Recepción documental RH (originales físicos por mes). */
+  rhRecepcion: ['rh', 'recepcion-documental'] as const,
+  rhRecepcionCortes: ['rh', 'recepcion-documental', 'cortes'] as const,
+  rhRecepcionCorte: (corteId: string | number) => ['rh', 'recepcion-documental', 'detalle', String(corteId)] as const,
+  rhRecepcionRenglones: (corteId: string | number, params: Record<string, unknown> = {}) =>
+    ['rh', 'recepcion-documental', 'renglones', String(corteId), params] as const,
   rhCobertura: (params: Record<string, unknown> = {}) => ['rh', 'plantilla', 'cobertura', params] as const,
   rhIndicadores: (params: Record<string, unknown> = {}) => ['rh', 'indicadores', params] as const,
   rhOrganigramaPersonas: (params: Record<string, unknown> = {}) => ['rh', 'organigrama', params] as const,

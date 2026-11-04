@@ -14,6 +14,8 @@ export interface ColaboradorDirectorio {
   departamento: string | null;
   correoCorporativo: string | null;
   telefonoCorporativo: string | null;
+  /** `foto_url`: URL autenticada (Bearer) de la foto; `null` ⇒ iniciales. */
+  fotoUrl: string | null;
 }
 
 export interface OpcionDirectorio {

@@ -1,11 +1,11 @@
-import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '@/components/Card';
 import { InfoRow } from '@/components/ciclo/InfoRow';
 import { SectionTitle } from '@/components/ciclo/Screen';
-import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
-import { useColores, useEstilos } from '@/theme/ThemeProvider';
+import { ProfileAvatar } from '@/components/ProfileAvatar';
+import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
+import { useEstilos } from '@/theme/ThemeProvider';
 import type { Jerarquia, PersonaResumen } from '@/types/cicloLaboral';
 
 /**
@@ -52,13 +52,10 @@ function PersonaCard({ titulo, persona }: { titulo: string; persona: PersonaResu
 }
 
 export function PersonaRow({ persona }: { persona: PersonaResumen }) {
-  const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   return (
     <View style={styles.personaRow} accessible accessibilityLabel={`${persona.nombre}${persona.puesto ? `, ${persona.puesto}` : ''}`}>
-      <View style={styles.avatar}>
-        <Ionicons name="person" size={18} color={Colors.primaryDark} />
-      </View>
+      <ProfileAvatar name={persona.nombre} fotoUrlApi={persona.foto_url} size={40} />
       <View style={styles.personaText}>
         <Text style={styles.nombre}>{persona.nombre}</Text>
         {persona.puesto || persona.sucursal ? (
@@ -89,14 +86,6 @@ const crearEstilos = (Colors: ColorPalette) =>
     alignItems: 'center',
     gap: Spacing.md,
     paddingVertical: Spacing.xs,
-  },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   personaText: {
     flex: 1,

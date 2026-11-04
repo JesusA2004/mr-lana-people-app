@@ -4,6 +4,7 @@ import { RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BirthdayWallBanner } from '@/components/BirthdayWallBanner';
+import { AvisoMiExpedienteRh } from '@/components/guia/AvisoMiExpedienteRh';
 import { Card } from '@/components/Card';
 import { ModuleGrid, ModuleTile } from '@/components/ciclo/ModuleTile';
 import { ErrorState } from '@/components/ErrorState';
@@ -107,6 +108,8 @@ export default function RhDashboardScreen() {
     moduloOn('reingresos') && permisos.accion('decidir_reingreso') && { route: '/(app)/rh/reingresos', icon: 'refresh-circle-outline', label: 'Reingresos' },
     // Mismo permiso que GET /rh/cambios-foto (CambioFotoPerfilPolicy).
     permisos.puede('expedientes.revisar') && { route: '/(app)/rh/cambios-foto', icon: 'image-outline', label: 'Cambios de foto' },
+    // Originales físicos del mes (RecepcionDocumentalCortePolicy: recepcion_documental.ver).
+    moduloOn('recepcion_documental') && { route: '/(app)/rh/recepcion-documental', icon: 'file-tray-full-outline', label: 'Recepción documental' },
   ]);
 
   const cumpleanosHoy = useRhCumpleanosInfinite({ periodo: 'hoy' }, cumpleanosEnabled);
@@ -171,6 +174,8 @@ export default function RhDashboardScreen() {
           />
         }>
         <View style={styles.inner}>
+          {/* Su propio expediente incompleto: recordatorio, nunca bloqueo de la operación. */}
+          <AvisoMiExpedienteRh />
           {puedeTablero && isLoading ? (
             <View style={styles.skeletonWrapper}>
               <SkeletonBlock height={110} radius={Radius.lg} />

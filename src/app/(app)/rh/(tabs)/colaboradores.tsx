@@ -10,6 +10,7 @@ import { ErrorState } from '@/components/ErrorState';
 import { CampoBusqueda } from '@/components/ui/CampoBusqueda';
 import { FadeInView } from '@/components/FadeInView';
 import { PressableScale } from '@/components/PressableScale';
+import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { SkeletonCardList } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
 import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
@@ -70,6 +71,8 @@ export default function RhColaboradoresScreen() {
         keyboardDismissMode="on-drag"
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={Colors.primary} />}
         ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
+        initialNumToRender={10}
+        windowSize={7}
         renderItem={({ item, index }) => (
           <FadeInView index={index % 10}>
             <ColaboradorRow colaborador={item} onPress={() => router.push(`/(app)/rh/colaboradores/${item.id}` as never)} />
@@ -100,6 +103,7 @@ function ColaboradorRow({ colaborador, onPress }: { colaborador: RhColaborador; 
 
   return (
     <Card onPress={onPress} style={styles.row}>
+      <ProfileAvatar name={colaborador.nombre} fotoUrlApi={colaborador.foto_url} size={44} />
       <View style={styles.rowText}>
         <Text style={styles.rowName} numberOfLines={1}>
           {colaborador.nombre}

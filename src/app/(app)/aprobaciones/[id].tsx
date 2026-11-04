@@ -8,6 +8,7 @@ import { Screen } from '@/components/ciclo/Screen';
 import { EmptyState } from '@/components/EmptyState';
 import { FlujoAprobacionTimeline } from '@/components/FlujoAprobacionTimeline';
 import { MotivoModal } from '@/components/MotivoModal';
+import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { FilaLista, GrupoLista, Pill, SeccionTitulo, TarjetaAviso } from '@/components/ui';
 import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
 import { useAprobacionItem, useDecidirAprobacion } from '@/hooks/queries/useAprobaciones';
@@ -115,8 +116,13 @@ export default function AprobacionDetalleScreen() {
       ) : (
         <View style={styles.contenido}>
           <Card style={styles.encabezado}>
-            <Text style={styles.kicker}>{item.tipo_etiqueta}</Text>
-            <Text style={styles.titulo}>{item.solicitante}</Text>
+            <View style={styles.persona}>
+              <ProfileAvatar name={item.solicitante} fotoUrlApi={item.solicitante_foto_url} size={48} />
+              <View style={styles.personaTexto}>
+                <Text style={styles.kicker}>{item.tipo_etiqueta}</Text>
+                <Text style={styles.titulo}>{item.solicitante}</Text>
+              </View>
+            </View>
             {pill ? <Pill texto={pill.texto} tono={pill.tono} icono={pill.icono} /> : null}
           </Card>
 
@@ -183,6 +189,15 @@ const crearEstilos = (Colors: ColorPalette) =>
     },
     encabezado: {
       gap: Spacing.xs,
+    },
+    persona: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.md,
+    },
+    personaTexto: {
+      flex: 1,
+      gap: 2,
     },
     kicker: {
       fontSize: FontSize.xs,

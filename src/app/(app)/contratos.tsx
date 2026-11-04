@@ -3,13 +3,14 @@ import { useRouter } from 'expo-router';
 import { ContratoCard } from '@/components/ciclo/ContratoCard';
 import { EmptyMessage, Screen } from '@/components/ciclo/Screen';
 import { useMisContratos } from '@/hooks/queries/useCicloLaboral';
+import { ExpedienteGate } from '@/components/guia/ExpedienteGate';
 
 /**
  * Mis contratos — `GET /colaborador/contratos` (`ContratoLaboralService::aArray()`).
  * `dias_para_vencer` y las fechas las calcula el backend; la app NUNCA
  * calcula renovaciones ni vencimientos.
  */
-export default function MisContratosScreen() {
+function MisContratosScreen() {
   const router = useRouter();
   const query = useMisContratos();
   const contratos = query.data ?? [];
@@ -39,5 +40,14 @@ export default function MisContratosScreen() {
         ))
       )}
     </Screen>
+  );
+}
+
+/** Modo completar expediente: con datos/documentos pendientes se muestra el bloqueo (423 en backend). */
+export default function MisContratosScreenConCandado() {
+  return (
+    <ExpedienteGate modulo="Mis contratos">
+      <MisContratosScreen />
+    </ExpedienteGate>
   );
 }

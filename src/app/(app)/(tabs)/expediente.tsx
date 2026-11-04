@@ -12,6 +12,7 @@ import { useMiExpediente } from '@/hooks/queries/useCicloLaboral';
 import { useIncorporacion } from '@/hooks/queries/useIncorporacion';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import type { DocumentoIncorporacion } from '@/types/document';
+import { presentacionGenerado } from '@/utils/documentosGenerados';
 import { getDevErrorDetail, getErrorMessage } from '@/utils/errors';
 import { documentStatusGlyph, progressBreakdown, progressHeadline, toExpedienteProgress, type DocumentGlyphTone } from '@/utils/expedienteProgress';
 
@@ -133,6 +134,22 @@ function DocumentList({ title, documentos, onOpen }: { title: string; documentos
   return (
     <GrupoLista titulo={title} descripcion="Toca un documento para subirlo, reemplazarlo o ver su observación.">
       {documentos.map((documento) => {
+        // Solicitud de empleo / Estudio socioeconómico: los genera PEOPLE (nunca «subir»).
+        if (documento.generado_por_sistema) {
+          const vista = presentacionGenerado(documento.generado_por_sistema);
+          return (
+            <FilaLista
+              key={documento.id}
+              icono={vista.icono}
+              tono={vista.tono}
+              titulo={documento.nombre}
+              subtitulo={vista.etiqueta}
+              subtituloConTono
+              accessibilityLabel={`${documento.nombre}: ${vista.etiqueta}`}
+              onPress={() => onOpen(documento)}
+            />
+          );
+        }
         const glyph = documentStatusGlyph(documento.estado);
         return (
           <FilaLista

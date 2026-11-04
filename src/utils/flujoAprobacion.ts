@@ -11,7 +11,7 @@ import type {
   PendienteDe,
   PersonaFlujo,
 } from '@/types/aprobaciones';
-import { asArray, asBoolean, asId, asNumber, asRecord, asRecordOrNull, asString } from '@/utils/normalize';
+import { asArray, asBoolean, asFotoUrl, asId, asNumber, asRecord, asRecordOrNull, asString } from '@/utils/normalize';
 
 /**
  * Motor de aprobaciones (backend) → lo que la app pinta. Funciones puras:
@@ -342,6 +342,8 @@ function itemDesdeRaw(value: unknown, origen: OrigenAprobacion): AprobacionItem 
     tipo_etiqueta: asString(raw.tipo_etiqueta) ?? asString(raw.titulo) ?? 'Solicitud',
     estado: asString(raw.estado) ?? '',
     solicitante: (colaborador ? asString(colaborador.nombre) : asString(raw.colaborador)) ?? 'Colaborador',
+    // Equipo manda `colaborador_foto_url` plano; RH, `colaborador.foto_url`.
+    solicitante_foto_url: asFotoUrl(raw.colaborador_foto_url) ?? (colaborador ? asFotoUrl(colaborador.foto_url) : null),
     fecha_inicio: asString(raw.fecha_inicio),
     fecha_fin: asString(raw.fecha_fin),
     monto_solicitado: asNumber(raw.monto_solicitado),

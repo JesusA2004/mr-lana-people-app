@@ -8,6 +8,7 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
 import { MotivoModal } from '@/components/MotivoModal';
+import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
 import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constants/colors';
@@ -99,7 +100,8 @@ export default function RhIncorporacionDetailScreen() {
           <>
             <Card style={styles.headerCard}>
               <View style={styles.headerRow}>
-                <Text style={styles.collaboratorName}>{incorporacion.colaborador.nombre}</Text>
+                <ProfileAvatar name={incorporacion.colaborador.nombre} fotoUrlApi={incorporacion.colaborador.foto_url} size={44} />
+                <Text style={[styles.collaboratorName, styles.collaboratorNameFlex]}>{incorporacion.colaborador.nombre}</Text>
                 <StatusBadge status={incorporacion.estado} />
               </View>
               <Text style={styles.collaboratorMeta}>
@@ -192,6 +194,10 @@ const crearEstilos = (Colors: ColorPalette) =>
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: Spacing.md,
+  },
+  collaboratorNameFlex: {
+    flex: 1,
   },
   collaboratorName: {
     fontSize: FontSize.lg,

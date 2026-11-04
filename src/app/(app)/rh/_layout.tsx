@@ -76,6 +76,12 @@ export default function RhLayout() {
       <Stack.Protected guard={moduloOn('reingresos')}>
         <Stack.Screen name="reingresos/index" />
       </Stack.Protected>
+      {/* Recepción documental (originales físicos por mes): mismo permiso que GET /rh/recepcion-documental. */}
+      <Stack.Protected guard={moduloOn('recepcion_documental')}>
+        <Stack.Screen name="recepcion-documental/index" />
+        <Stack.Screen name="recepcion-documental/[corte]/index" />
+        <Stack.Screen name="recepcion-documental/[corte]/[sucursal]" />
+      </Stack.Protected>
     </Stack>
   );
 }

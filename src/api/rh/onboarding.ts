@@ -1,6 +1,6 @@
 import { apiClient, extractData } from '../client';
 
-import { asArray, asBoolean, asId, asNumber, asRecord, asRecordOrNull, asString } from '@/utils/normalize';
+import { asArray, asBoolean, asFotoUrl, asId, asNumber, asRecord, asRecordOrNull, asString } from '@/utils/normalize';
 
 /**
  * Onboarding de una persona para RH/jefe (`GET /rh/colaboradores/{id}/ciclo`
@@ -56,6 +56,8 @@ export interface EventoTimeline {
 export interface FichaOnboardingRh {
   nombre: string;
   puesto: string | null;
+  /** `data.foto_url` de la ficha de ciclo (URL con Bearer); `null` ⇒ iniciales. */
+  fotoUrl: string | null;
   onboarding: OnboardingRh | null;
   /** Historial único de la persona (TimelineService), más reciente primero. */
   timeline: EventoTimeline[];
@@ -142,6 +144,7 @@ export const rhOnboardingApi = {
     return {
       nombre: asString(persona.nombre) ?? asString(persona.nombre_completo) ?? 'Colaborador',
       puesto: asString(persona.puesto),
+      fotoUrl: asFotoUrl(data.foto_url),
       onboarding: normalizeOnboardingRh(data.onboarding),
       timeline: normalizeTimeline(asRecord(data.ciclo).timeline),
     };

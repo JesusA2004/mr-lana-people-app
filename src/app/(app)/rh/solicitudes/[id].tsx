@@ -15,6 +15,7 @@ import { ErrorState } from '@/components/ErrorState';
 import { FlujoAprobacionTimeline } from '@/components/FlujoAprobacionTimeline';
 import { TarjetaAviso } from '@/components/ui';
 import { MotivoModal } from '@/components/MotivoModal';
+import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { StatusBadge } from '@/components/StatusBadge';
 import { WorkflowTimeline } from '@/components/WorkflowTimeline';
@@ -206,16 +207,21 @@ export default function RhSolicitudDetailScreen() {
                 <Text style={styles.tipo}>{humanizeRequestType(solicitud.tipo)}</Text>
                 <StatusBadge status={solicitud.estado} />
               </View>
-              <Text style={styles.collaboratorName}>{solicitud.colaborador.nombre}</Text>
-              <Text style={styles.collaboratorMeta}>
-                {[
-                  solicitud.colaborador.numero_empleado ? `N.º ${solicitud.colaborador.numero_empleado}` : null,
-                  solicitud.colaborador.puesto,
-                  solicitud.colaborador.sucursal,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </Text>
+              <View style={styles.collaboratorRow}>
+                <ProfileAvatar name={solicitud.colaborador.nombre} fotoUrlApi={solicitud.colaborador.foto_url} size={44} />
+                <View style={styles.collaboratorText}>
+                  <Text style={styles.collaboratorName}>{solicitud.colaborador.nombre}</Text>
+                  <Text style={styles.collaboratorMeta}>
+                    {[
+                      solicitud.colaborador.numero_empleado ? `N.º ${solicitud.colaborador.numero_empleado}` : null,
+                      solicitud.colaborador.puesto,
+                      solicitud.colaborador.sucursal,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </Text>
+                </View>
+              </View>
             </Card>
 
             {blocked ? (
@@ -512,11 +518,21 @@ const crearEstilos = (Colors: ColorPalette) =>
     fontWeight: '800',
     color: Colors.text,
   },
+  collaboratorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    marginTop: Spacing.sm,
+  },
+  collaboratorText: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
   collaboratorName: {
     fontSize: FontSize.md,
     fontWeight: '700',
     color: Colors.text,
-    marginTop: Spacing.sm,
   },
   collaboratorMeta: {
     fontSize: FontSize.xs,

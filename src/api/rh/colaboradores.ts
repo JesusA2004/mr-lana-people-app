@@ -1,4 +1,5 @@
 import { apiClient, extractData } from '../client';
+import { normalizeRhColaborador, normalizeRhPagina } from '../normalizers/rhFotos';
 
 import type { PaginatedResponse } from '@/types/api';
 import type { RhColaborador } from '@/types/rh';
@@ -16,11 +17,11 @@ export interface RhColaboradoresParams {
 export const rhColaboradoresApi = {
   async list(params: RhColaboradoresParams = {}): Promise<PaginatedResponse<RhColaborador>> {
     const response = await apiClient.get('/rh/colaboradores', { params });
-    return response.data as PaginatedResponse<RhColaborador>;
+    return normalizeRhPagina(response.data, normalizeRhColaborador);
   },
 
   async getById(id: number | string): Promise<RhColaborador> {
     const response = await apiClient.get(`/rh/colaboradores/${id}`);
-    return extractData<RhColaborador>(response.data);
+    return normalizeRhColaborador(extractData<unknown>(response.data));
   },
 };

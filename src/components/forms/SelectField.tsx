@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { paddingInferiorBarra } from '../BarraAccionInferior';
 import { PressableScale } from '../PressableScale';
+import { CampoBusqueda } from '../ui/CampoBusqueda';
 
 import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
@@ -22,13 +23,32 @@ export interface SelectFieldProps {
   error?: string;
   helper?: string;
   placeholder?: string;
+  /** Buscador dentro de la hoja (catálogos largos): filtra al escribir, sin mínimo de letras. */
+  buscable?: boolean;
+}
+
+/** Quita acentos y mayúsculas para buscar «basica» y encontrar «Básica». */
+export function textoBuscable(texto: string): string {
+  return texto.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
+}
+
+/** Opciones que coinciden con lo escrito (vacío = todas). */
+export function filtrarOpciones(options: readonly SelectOption[], busqueda: string): SelectOption[] {
+  const q = textoBuscable(busqueda);
+  return q === '' ? [...options] : options.filter((o) => textoBuscable(o.label).includes(q));
 }
 
 /** Selector de opción única en hoja inferior — sin dependencias nativas extra, idéntico en Android/iOS. */
-export function SelectField({ label, value, options, onChange, error, helper, placeholder = 'Selecciona una opción' }: SelectFieldProps) {
+export function SelectField({ label, value, options, onChange, error, helper, placeholder = 'Selecciona una opción', buscable = false }: SelectFieldProps) {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   const [open, setOpen] = useState(false);
+  const [busqueda, setBusqueda] = useState('');
+  const visibles = buscable ? filtrarOpciones(options, busqueda) : options;
+  const cerrar = () => {
+    setOpen(false);
+    setBusqueda('');
+  };
   const insets = useSafeAreaInsets();
   const selected = options.find((option) => option.value === value);
 
@@ -45,13 +65,15 @@ export function SelectField({ label, value, options, onChange, error, helper, pl
       </PressableScale>
       {error ? <Text style={styles.error}>{error}</Text> : helper ? <Text style={styles.helper}>{helper}</Text> : null}
 
-      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+      <Modal visible={open} transparent animationType="fade" onRequestClose={cerrar}>
         <View style={styles.backdrop}>
-          <Pressable style={StyleSheet.absoluteFill} accessibilityRole="button" accessibilityLabel="Cerrar" onPress={() => setOpen(false)} />
+          <Pressable style={StyleSheet.absoluteFill} accessibilityRole="button" accessibilityLabel="Cerrar" onPress={cerrar} />
           <View style={[styles.sheet, { paddingBottom: paddingInferiorBarra(insets.bottom) }]}>
             <Text style={styles.sheetTitle}>{label}</Text>
-            <ScrollView style={styles.sheetScroll}>
-              {options.map((option) => {
+            {buscable ? <CampoBusqueda value={busqueda} onChangeText={setBusqueda} placeholder={'Buscar en ' + label.toLowerCase()} /> : null}
+            <ScrollView style={styles.sheetScroll} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+              {buscable && visibles.length === 0 ? <Text style={styles.helper}>Sin coincidencias. Prueba con otra palabra.</Text> : null}
+              {visibles.map((option) => {
                 const active = option.value === value;
                 return (
                   <PressableScale
@@ -59,7 +81,7 @@ export function SelectField({ label, value, options, onChange, error, helper, pl
                     haptic={false}
                     onPress={() => {
                       onChange(option.value);
-                      setOpen(false);
+                      cerrar();
                     }}
                     style={[styles.option, active && styles.optionActive] as object}>
                     <Text style={[styles.optionLabel, active && styles.optionLabelActive]}>{option.label}</Text>

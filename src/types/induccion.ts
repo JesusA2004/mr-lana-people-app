@@ -44,6 +44,14 @@ export interface MaterialInduccion {
   videoEstado: string | null;
   /** Por qué el video aún no se puede ver (texto del backend, ya en español). */
   videoMensaje: string | null;
+  /**
+   * Orden obligatorio (backend 2026-11, InduccionPdfService::bloqueoVideo):
+   * el video se abre al terminar la presentación. Ausente = no bloqueado.
+   */
+  videoBloqueado: boolean;
+  /** Páginas de la presentación que faltan para abrir el video. */
+  paginasFaltantes: number[];
+  videoBloqueadoMensaje: string | null;
 }
 
 /** `POST colaborador/induccion/video/{avance}/iniciar` (ReproduccionVideoInduccionService::iniciarSesion). */

@@ -9,12 +9,13 @@ import { useMisRecibos } from '@/hooks/queries/useCicloLaboral';
 import { formatPeriodo, reciboPeriodoLabel } from '@/utils/payroll';
 import { formatDateShort } from '@/utils/dates';
 import { formatCurrencyMXN } from '@/utils/formatters';
+import { ExpedienteGate } from '@/components/guia/ExpedienteGate';
 
 /**
  * Mis recibos — recibos de nómina. Solo lectura:
  * `GET /colaborador/recibos` (paginado).
  */
-export default function MisRecibosScreen() {
+function MisRecibosScreen() {
   const router = useRouter();
   const query = useMisRecibos();
   const recibos = query.data?.pages.flatMap((page) => page.data) ?? [];
@@ -62,3 +63,12 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
 });
+
+/** Modo completar expediente: con datos/documentos pendientes se muestra el bloqueo (423 en backend). */
+export default function MisRecibosScreenConCandado() {
+  return (
+    <ExpedienteGate modulo="Mis recibos">
+      <MisRecibosScreen />
+    </ExpedienteGate>
+  );
+}

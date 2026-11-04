@@ -22,6 +22,8 @@ export interface PermissionPrimerSheetProps {
   confirmLabel?: string;
   /** Etiqueta del botón de descartar. Default: "Ahora no". */
   declineLabel?: string;
+  /** Explicación propia del contexto (p. ej. fotografía para expediente) en vez de la genérica de `kind`. */
+  message?: string;
 }
 
 const COPY: Record<PermissionPrimerKind, { icon: keyof typeof Ionicons.glyphMap; title: string; message: string }> = {
@@ -70,6 +72,7 @@ export function PermissionPrimerSheet({
   onConfirm,
   confirmLabel = 'Permitir acceso',
   declineLabel = 'Ahora no',
+  message,
 }: PermissionPrimerSheetProps) {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
@@ -86,7 +89,7 @@ export function PermissionPrimerSheet({
           <Text style={styles.message}>
             {blocked
               ? 'Desactivaste este permiso antes. Actívalo desde los ajustes de tu teléfono para poder continuar.'
-              : copy.message}
+              : (message ?? copy.message)}
           </Text>
 
           <View style={styles.actions}>

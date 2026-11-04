@@ -1,4 +1,5 @@
 import { maxDocumentosCarta } from './cartaCompromiso';
+import { esGeneradoPorSistema } from './documentosGenerados';
 import { CAMPOS_DOMICILIO, validarDomicilio, type ValoresDomicilio } from './domicilio';
 
 import type { CampoRegistro, EstadoRegistro } from '@/types/registro';
@@ -11,13 +12,13 @@ import type { CampoRegistro, EstadoRegistro } from '@/types/registro';
  * se organiza y se valida antes de enviar (el backend vuelve a validar).
  */
 
-export type ClavePaso = 'personales' | 'domicilio' | 'emergencia' | 'medicos' | 'documentos' | 'revision';
+export type ClavePaso = 'personales' | 'domicilio' | 'emergencia' | 'medicos' | 'foto' | 'solicitud' | 'documentos' | 'revision';
 
 export interface PasoRegistro {
   clave: ClavePaso;
   titulo: string;
   descripcion: string;
-  icono: 'person-outline' | 'home-outline' | 'call-outline' | 'medkit-outline' | 'documents-outline' | 'checkmark-done-outline';
+  icono: 'person-outline' | 'home-outline' | 'call-outline' | 'medkit-outline' | 'camera-outline' | 'clipboard-outline' | 'documents-outline' | 'checkmark-done-outline';
   opcional?: boolean;
 }
 
@@ -26,6 +27,13 @@ export const PASOS_REGISTRO: readonly PasoRegistro[] = [
   { clave: 'domicilio', titulo: 'Tu domicilio', descripcion: 'Como aparece en tu comprobante de domicilio.', icono: 'home-outline' },
   { clave: 'emergencia', titulo: 'Contacto de emergencia', descripcion: 'A quién avisamos si te pasa algo, y tu beneficiario.', icono: 'call-outline' },
   { clave: 'medicos', titulo: 'Datos médicos', descripcion: 'Opcional y confidencial: solo lo ve personal autorizado.', icono: 'medkit-outline', opcional: true },
+  { clave: 'foto', titulo: 'Fotografía para expediente', descripcion: 'Será tu foto de perfil y la de tu expediente.', icono: 'camera-outline' },
+  {
+    clave: 'solicitud',
+    titulo: 'Solicitud de empleo',
+    descripcion: 'Tu solicitud de empleo y estudio socioeconómico, por secciones cortas.',
+    icono: 'clipboard-outline',
+  },
   { clave: 'documentos', titulo: 'Tus documentos', descripcion: 'Toma una foto clara o elige el archivo.', icono: 'documents-outline' },
   { clave: 'revision', titulo: 'Revisa y termina', descripcion: 'Confirma que todo está listo para entrar.', icono: 'checkmark-done-outline' },
 ];
@@ -241,9 +249,35 @@ export function pasoIncompleto(paso: 'personales' | 'domicilio' | 'emergencia', 
   return camposDelPaso(paso, estado.datos.campos).some((c) => faltan.has(c.campo));
 }
 
+/** ¿Falta la fotografía para expediente y el backend la exige? (backend anterior sin bloque `foto` → no). */
+export function fotoPendiente(estado: EstadoRegistro): boolean {
+  return Boolean(estado.foto?.obligatoria && !estado.foto.completo);
+}
+
+/**
+ * ¿Falta completar la Solicitud de empleo + Estudio socioeconómico y el
+ * backend la exige? (backend anterior sin el bloque → no).
+ */
+export function solicitudPendiente(estado: EstadoRegistro): boolean {
+  return Boolean(estado.solicitud_empleo?.exigida && !estado.solicitud_empleo.completo);
+}
+
+/**
+ * Lo que falta, en texto para la persona. Lo manda el backend
+ * (`pendientes`); si exige la foto y no la listó (versión intermedia), se
+ * agrega para que nunca falte en «Todavía falta».
+ */
+export function pendientesLegibles(estado: EstadoRegistro): string[] {
+  const lista = estado.pendientes.filter((p) => p.trim() !== '');
+  if (fotoPendiente(estado) && !lista.some((p) => /fotograf/i.test(p))) lista.push('fotografía para expediente');
+  // El backend no la lista en `pendientes` del registro: se agrega aquí (el detalle va en su fila).
+  if (solicitudPendiente(estado) && !lista.some((p) => /solicitud de empleo/i.test(p))) lista.push('solicitud de empleo y estudio socioeconómico');
+  return lista;
+}
+
 /**
  * Paso donde reanudar al volver a abrir la app: el primer paso de datos con
- * faltantes; si los datos están completos, documentos; si todo está, revisión.
+ * faltantes; luego la foto si falta; luego la solicitud de empleo; si no, documentos; si todo está, revisión.
  * Un `guardado` local (último paso que la persona alcanzó) gana si es anterior.
  */
 export function pasoParaReanudar(estado: EstadoRegistro, guardado?: ClavePaso | null, sinTener: readonly number[] = []): number {
@@ -257,6 +291,9 @@ export function pasoParaReanudar(estado: EstadoRegistro, guardado?: ClavePaso | 
     }
   }
 
+  if (sugerido === 'revision' && fotoPendiente(estado)) sugerido = 'foto';
+  if (sugerido === 'revision' && solicitudPendiente(estado)) sugerido = 'solicitud';
+
   // Documentos incompletos → paso de documentos, salvo que todo lo que falta
   // ya esté marcado «No tengo» (va a la carta compromiso).
   const todoMarcado = documentosSinTener(estado, sinTener).length > 0 && documentosSinResolver(estado, sinTener).length === 0;
@@ -265,9 +302,15 @@ export function pasoParaReanudar(estado: EstadoRegistro, guardado?: ClavePaso | 
   return indice(sugerido);
 }
 
-/** Documentos que todavía falta subir (o corregir) para terminar. */
+/**
+ * Documentos que todavía falta subir (o corregir) para terminar. Nunca los
+ * que genera PEOPLE (Solicitud de empleo, Estudio socioeconómico): salen del
+ * paso «Solicitud de empleo», no se suben ni se marcan «No tengo».
+ */
 export function documentosPorSubir(estado: EstadoRegistro) {
-  return estado.documentos.lista.filter((d) => d.obligatorio && ['pendiente', 'rechazado', 'requiere_correccion', 'vencido', 'cambio_autorizado'].includes(d.estado));
+  return estado.documentos.lista.filter(
+    (d) => d.obligatorio && !esGeneradoPorSistema(d) && ['pendiente', 'rechazado', 'requiere_correccion', 'vencido', 'cambio_autorizado'].includes(d.estado),
+  );
 }
 
 /**
@@ -316,8 +359,23 @@ export function excedeMaximoCarta(estado: EstadoRegistro, sinTener: readonly num
  * `registro/finalizar` con `documentos_sin_tener`).
  */
 export function puedeFinalizarRegistro(estado: EstadoRegistro, sinTener: readonly number[]): boolean {
+  if (fotoPendiente(estado)) return false;
+  if (solicitudPendiente(estado)) return false;
   if (estado.puede_finalizar) return true;
   return estado.aplica && estado.datos.completo && documentosSinTener(estado, sinTener).length > 0 && documentosSinResolver(estado, sinTener).length === 0;
+}
+
+/**
+ * ¿«Siguiente»/«Entrar a la app» va deshabilitado? En el paso «foto»,
+ * mientras el backend no confirme `foto.completo` (si la exige); en
+ * revisión, mientras no se pueda finalizar.
+ */
+export function siguienteDeshabilitado(clave: ClavePaso | undefined, estado: EstadoRegistro | undefined, sinTener: readonly number[], guardando = false): boolean {
+  if (guardando) return true;
+  if (!estado || !clave) return false;
+  if (clave === 'foto') return fotoPendiente(estado);
+  if (clave === 'revision') return !puedeFinalizarRegistro(estado, sinTener);
+  return false;
 }
 
 /** «1 documento» / «3 documentos». */

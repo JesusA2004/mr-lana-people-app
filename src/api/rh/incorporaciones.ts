@@ -1,4 +1,5 @@
 import { apiClient, extractData } from '../client';
+import { normalizeRhIncorporacion, normalizeRhPagina } from '../normalizers/rhFotos';
 
 import type { PaginatedResponse } from '@/types/api';
 import type { RhIncorporacion } from '@/types/rh';
@@ -14,12 +15,12 @@ export interface RhIncorporacionesParams {
 export const rhIncorporacionesApi = {
   async list(params: RhIncorporacionesParams = {}): Promise<PaginatedResponse<RhIncorporacion>> {
     const response = await apiClient.get('/rh/incorporaciones', { params });
-    return response.data as PaginatedResponse<RhIncorporacion>;
+    return normalizeRhPagina(response.data, normalizeRhIncorporacion);
   },
 
   async getById(colaboradorId: number | string): Promise<RhIncorporacion> {
     const response = await apiClient.get(`/rh/incorporaciones/${colaboradorId}`);
-    return extractData<RhIncorporacion>(response.data);
+    return normalizeRhIncorporacion(extractData<unknown>(response.data));
   },
 
   /** 422 si falta algún documento obligatorio por aprobar (misma regla que `rh/expedientes/{colaborador}/aprobar-incorporacion`). */

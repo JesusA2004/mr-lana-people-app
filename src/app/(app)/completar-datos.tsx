@@ -16,6 +16,7 @@ import { TarjetaAviso } from '@/components/ui';
 import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
 import { useDatosFaltantes } from '@/hooks/queries/useCicloLaboral';
 import { useCreateSolicitud } from '@/hooks/queries/useSolicitudes';
+import { useSiguientePaso } from '@/hooks/useSiguientePaso';
 import { toast } from '@/store/toastStore';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { fromApiDateString, toApiDateString } from '@/utils/dates';
@@ -35,6 +36,7 @@ export default function CompletarDatosScreen() {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   const router = useRouter();
+  const ofrecerSiguiente = useSiguientePaso();
   const query = useDatosFaltantes();
   const crear = useCreateSolicitud();
   const [valores, setValores] = useState<Record<string, string>>({});
@@ -81,6 +83,7 @@ export default function CompletarDatosScreen() {
     try {
       await crear.mutateAsync({ tipo: 'actualizacion_datos', motivo: '', datos: Object.fromEntries(capturados) });
       setEnviada(true);
+      void ofrecerSiguiente('datos');
     } catch (error) {
       logError('datosFaltantes.enviar', error);
       const validacion = getValidationErrors(error);

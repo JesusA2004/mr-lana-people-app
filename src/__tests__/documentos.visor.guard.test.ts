@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync, statSync } from 'fs';
-import { join, relative } from 'path';
+import { join, relative, sep } from 'path';
 
 const SRC = join(__dirname, '..');
 
@@ -36,7 +36,8 @@ describe('regla de documentos', () => {
   it('ninguna pantalla normal importa un visor PDF', () => {
     const infractores = fuentes
       .filter((ruta) => VISORES.test(readFileSync(ruta, 'utf8')))
-      .map((ruta) => relative(SRC, ruta))
+      // Separadores POSIX: en Windows `relative` devuelve «\» y la lista usa «/».
+      .map((ruta) => relative(SRC, ruta).split(sep).join('/'))
       .filter((ruta) => !PERMITIDOS.has(ruta));
     expect(infractores).toEqual([]);
   });

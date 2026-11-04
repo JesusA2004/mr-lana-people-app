@@ -7,6 +7,7 @@ import { BirthdayHeroCard } from '@/components/BirthdayHeroCard';
 import { BirthdayWallBanner } from '@/components/BirthdayWallBanner';
 import { CartaCompromisoBanner } from '@/components/CartaCompromisoBanner';
 import { LoQueNecesitasHacer } from '@/components/ciclo/LoQueNecesitasHacer';
+import { TarjetaSiguientePaso } from '@/components/guia/TarjetaSiguientePaso';
 import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
 import { FadeInView } from '@/components/FadeInView';
@@ -29,6 +30,7 @@ import { useBirthdayGreeting } from '@/hooks/queries/useBirthday';
 import { useCelebracionesActivas } from '@/hooks/queries/useCelebraciones';
 import { useDatosFaltantes, useMiProceso, useMisPrestamos, useMisRecibos } from '@/hooks/queries/useCicloLaboral';
 import { useDashboard } from '@/hooks/queries/useDashboard';
+import { useGuia } from '@/hooks/queries/useGuia';
 import { useMiDescriptivoPuesto } from '@/hooks/queries/useDescriptivoPuesto';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useAprobacionesConteo, useEsAutorizadorRh } from '@/hooks/queries/useAprobaciones';
@@ -42,11 +44,15 @@ import { descriptivoPendiente } from '@/utils/descriptivoPuesto';
 import { getErrorMessage } from '@/utils/errors';
 import { isFeatureEnabled } from '@/utils/featureFlags';
 import { formatCurrencyMXN, joinName, pluralize } from '@/utils/formatters';
+import { guiaProtagonista } from '@/utils/guia';
 import { textoProgreso } from '@/utils/induccion';
 import { prestamoEstadoLabel, prestamoVigente } from '@/utils/loan';
 import { isSelfServiceModuleEnabled } from '@/utils/modules';
 import { openCrossExperienceRoute } from '@/utils/crossNavigation';
 import { reciboPeriodoLabel } from '@/utils/payroll';
+
+/** Pendientes de mi-proceso que la guía ya muestra paso por paso (no se duplican). */
+const CLAVES_EN_GUIA = ['subir_documentos', 'documentos_en_revision', 'firmar_documentos'];
 
 /**
  * Inicio de Mi espacio. Jerarquía (de arriba abajo):
@@ -97,6 +103,15 @@ export default function DashboardScreen() {
   const descriptivoPorLeer = descriptivoPendiente(descriptivo.data);
   // «Completa tu información»: datos personales que faltan (RH los autoriza).
   const datosFaltantes = useDatosFaltantes();
+  // «Tu siguiente paso» (GET colaborador/guia): pendientes ORDENADOS por el
+  // backend. Con la guía cargada, sus pasos sustituyen a los avisos sueltos
+  // de datos, documentos, firmas e inducción (no se repiten abajo).
+  const guia = useGuia();
+  const conGuia = guia.data !== undefined;
+  const pendientesProceso = useMemo(
+    () => (miProceso.data && conGuia ? { ...miProceso.data, pendientes: miProceso.data.pendientes.filter((p) => !CLAVES_EN_GUIA.includes(p.clave)) } : miProceso.data),
+    [miProceso.data, conGuia],
+  );
   const recibos = useMisRecibos(recibosEnabled);
   const prestamos = useMisPrestamos(prestamosEnabled);
   const tareasConteos = useTareasConteos(tareasEnabled);
@@ -146,7 +161,7 @@ export default function DashboardScreen() {
   const porCorregir = solicitudesRecientes.find((item) => item.estado === 'requiere_correccion');
 
   const datos = datosFaltantes.data;
-  const muestraDatos = Boolean(datos && !datos.completo);
+  const muestraDatos = Boolean(datos && !datos.completo) && !conGuia;
   const tienePendientesParaTi =
     (tareasEnabled && tareasAbiertas > 0) || (equipoEnabled && esJefe) || muestraAprobaciones || (recibosEnabled && reciboReciente) || (prestamosEnabled && prestamoActivo);
 
@@ -171,6 +186,7 @@ export default function DashboardScreen() {
               void refetch();
               void miProceso.refetch();
               void datosFaltantes.refetch();
+              void guia.refetch();
               if (tareasEnabled) void tareasConteos.refetch();
               if (equipoEnabled && operacionAqui) void equipoPendientes.refetch();
               if (aprobacionesConteo.isEnabled) void aprobacionesConteo.refetch();
@@ -212,6 +228,12 @@ export default function DashboardScreen() {
             <BirthdayWallBanner enabled={cumpleanosEnabled} />
 
             {/* ── Lo que requiere tu acción ─────────────────────────────── */}
+            {/* Tu siguiente paso: arriba, con la Inducción a la vista mientras esté en curso. */}
+            {guia.isLoading || guia.isError || guiaProtagonista(guia.data) ? (
+              <FadeInView index={0}>
+                <TarjetaSiguientePaso guia={guia.data} isLoading={guia.isLoading} error={guia.error} onRetry={() => void guia.refetch()} />
+              </FadeInView>
+            ) : null}
             {/* Carta compromiso vigente: documentos por subir antes de la fecha límite. */}
             <CartaCompromisoBanner />
             {muestraDatos && datos ? (
@@ -270,10 +292,10 @@ export default function DashboardScreen() {
               </FadeInView>
             ) : null}
 
-            {miProceso.isLoading || miProceso.isError || (miProceso.data?.pendientes.length ?? 0) > 0 ? (
+            {miProceso.isLoading || miProceso.isError || (pendientesProceso?.pendientes.length ?? 0) > 0 ? (
               <FadeInView index={0}>
                 <LoQueNecesitasHacer
-                  data={miProceso.data}
+                  data={pendientesProceso}
                   isLoading={miProceso.isLoading}
                   isError={miProceso.isError}
                   onRetry={() => void miProceso.refetch()}
@@ -281,7 +303,7 @@ export default function DashboardScreen() {
               </FadeInView>
             ) : null}
 
-            {descriptivoPorLeer && descriptivo.data ? (
+            {descriptivoPorLeer && descriptivo.data && !conGuia ? (
               <FadeInView index={1}>
                 <TarjetaAviso
                   icono="briefcase-outline"
@@ -295,7 +317,7 @@ export default function DashboardScreen() {
             ) : null}
 
             {/* Inducción Mr. Lana: progreso guardado en el servidor (mi-proceso). */}
-            {induccion ? (
+            {induccion && !guia.data?.induccion.activa ? (
               <FadeInView index={1}>
                 <GrupoLista>
                   <FilaLista

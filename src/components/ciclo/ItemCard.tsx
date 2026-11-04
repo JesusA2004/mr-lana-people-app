@@ -3,12 +3,15 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { StatusBadge } from '@/components/StatusBadge';
 import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 
 export interface ItemCardProps {
   icon?: keyof typeof Ionicons.glyphMap;
+  /** Foto de la persona (sustituye al ícono): `fotoUrl` null ⇒ iniciales de `nombre`. */
+  avatar?: { nombre: string; fotoUrl: string | null };
   /** Etiqueta pequeña superior (tipo/categoría). */
   kicker?: string | null;
   title: string;
@@ -24,14 +27,16 @@ export interface ItemCardProps {
 }
 
 /** Card de lista genérica del ciclo laboral (documentos, recibos, préstamos, cierres, actas, tareas...). */
-export function ItemCard({ icon, kicker, title, subtitle, lines = [], status, statusLabel, amount, onPress }: ItemCardProps) {
+export function ItemCard({ icon, avatar, kicker, title, subtitle, lines = [], status, statusLabel, amount, onPress }: ItemCardProps) {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   const visibleLines = lines.filter((line): line is string => typeof line === 'string' && line.length > 0);
   return (
     <Card onPress={onPress} style={styles.card}>
       <View style={styles.headerRow}>
-        {icon ? (
+        {avatar ? (
+          <ProfileAvatar name={avatar.nombre} fotoUrlApi={avatar.fotoUrl} size={40} />
+        ) : icon ? (
           <View style={styles.icon}>
             <Ionicons name={icon} size={18} color={Colors.primaryDark} />
           </View>
