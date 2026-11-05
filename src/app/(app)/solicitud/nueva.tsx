@@ -840,8 +840,22 @@ const crearEstilos = (Colors: ColorPalette) =>
   },
 });
 
+/**
+ * Tipos que el backend deja crear aun en modo completar expediente
+ * (ExigirExpedienteCompleto::TIPOS_SOLICITUD_PERMITIDOS): completan el propio
+ * expediente o son la baja. Bloquearlos aquí dejaba sin salida a «Solicitar
+ * corrección» desde Perfil.
+ */
+const TIPOS_PERMITIDOS_CON_EXPEDIENTE_INCOMPLETO = ['actualizacion_datos', 'actualizacion_bancaria', 'reposicion_documental', 'baja_colaborador'];
+
 /** Modo completar expediente: con datos/documentos pendientes se muestra el bloqueo (423 en backend). */
 export default function NuevaSolicitudScreenConCandado() {
+  const { tipo } = useLocalSearchParams<{ tipo?: string }>();
+
+  if (tipo && TIPOS_PERMITIDOS_CON_EXPEDIENTE_INCOMPLETO.includes(tipo)) {
+    return <NuevaSolicitudScreen />;
+  }
+
   return (
     <ExpedienteGate modulo="Nueva solicitud">
       <NuevaSolicitudScreen />

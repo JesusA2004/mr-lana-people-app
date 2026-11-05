@@ -26,7 +26,15 @@ import { formatDateLong, toApiDateString } from '@/utils/dates';
 import { getActionErrorMessage, logError } from '@/utils/errors';
 import { haptics } from '@/utils/haptics';
 
-type Pendiente = { seccion: SeccionDocumentosProceso; clave: string | null; regenerar: boolean; motivoRevision?: string };
+/**
+ * `motivoRevision`: nueva revisión de un firmado (`revision: true`). `motivoRegenerar`: «Regenerar» un
+ * documento ya generado — el backend lo exige (GenerarDocumentoProcesoRequest: `motivo` required_if
+ * regenerar, mínimo DocumentoProcesoService::MINIMO_MOTIVO_REGENERAR = 5) y queda en la auditoría.
+ */
+type Pendiente = { seccion: SeccionDocumentosProceso; clave: string | null; regenerar: boolean; motivoRevision?: string; motivoRegenerar?: string };
+
+/** Mínimo de caracteres del motivo por modo (espejo de las reglas del backend). */
+const MINIMO_MOTIVO = { revision: 15, regenerar: 5 } as const;
 
 const ICONO_ACCION: Record<string, keyof typeof Ionicons.glyphMap> = {
   generar: 'document-text-outline',
@@ -74,7 +82,7 @@ export function DocumentosProcesoCard({ origen }: { origen: OrigenDocumentos }) 
   const [valores, setValores] = useState<Record<string, string>>({});
   const [avisoMotor, setAvisoMotor] = useState<ErrorMotorDocumental | null>(null);
   const [menu, setMenu] = useState<{ seccion: SeccionDocumentosProceso; item: ItemDocumentoProceso } | null>(null);
-  const [revision, setRevision] = useState<{ seccion: SeccionDocumentosProceso; item: ItemDocumentoProceso } | null>(null);
+  const [revision, setRevision] = useState<{ seccion: SeccionDocumentosProceso; item: ItemDocumentoProceso; modo: 'revision' | 'regenerar' } | null>(null);
   const [motivoRevision, setMotivoRevision] = useState('');
   const [baja, setBaja] = useState<{ seccion: SeccionDocumentosProceso; modo: 'negativa' | 'testigos' } | null>(null);
   const [testigos, setTestigos] = useState([
@@ -103,6 +111,7 @@ export function DocumentosProcesoCard({ origen }: { origen: OrigenDocumentos }) 
       completar: datos,
       manuales,
       ...(p.motivoRevision ? { revision: true, motivo: p.motivoRevision } : {}),
+      ...(p.motivoRegenerar ? { motivo: p.motivoRegenerar } : {}),
     };
 
     setEnCurso(p.clave === null ? 'paquete' : p.clave);
@@ -141,13 +150,14 @@ export function DocumentosProcesoCard({ origen }: { origen: OrigenDocumentos }) 
 
   const alAccionar = (seccion: SeccionDocumentosProceso, item: ItemDocumentoProceso, a: AccionDocumentoProceso) => {
     setMenu(null);
-    if (a.clave === 'generar' || a.clave === 'regenerar') {
-      generar({ seccion, clave: item.clave, regenerar: a.clave === 'regenerar' });
+    if (a.clave === 'generar') {
+      generar({ seccion, clave: item.clave, regenerar: false });
       return;
     }
-    if (a.clave === 'nueva_revision') {
+    // «Regenerar» y «Nueva revisión» piden motivo (el backend lo exige y queda en la auditoría).
+    if (a.clave === 'regenerar' || a.clave === 'nueva_revision') {
       setMotivoRevision('');
-      setRevision({ seccion, item });
+      setRevision({ seccion, item, modo: a.clave === 'regenerar' ? 'regenerar' : 'revision' });
       return;
     }
     const atajo = ATAJO_DOCUMENTO[a.clave];
@@ -434,18 +444,30 @@ export function DocumentosProcesoCard({ origen }: { origen: OrigenDocumentos }) 
           ))}
       </FormSheet>
 
-      {/* Nueva revisión de un documento firmado */}
+      {/* Nueva revisión de un documento firmado, o «Regenerar» uno ya generado: ambos piden motivo. */}
       <FormSheet
         visible={revision !== null}
-        title="Nueva revisión"
-        description={`${revision?.item.nombre ?? ''} ya está firmado. El firmado se conserva intacto; se emite una nueva instancia con motivo y auditoría.`}
-        confirmLabel="Emitir nueva revisión"
+        title={revision?.modo === 'regenerar' ? 'Regenerar documento' : 'Nueva revisión'}
+        description={
+          revision?.modo === 'regenerar'
+            ? `Se emite una nueva versión de ${revision.item.nombre}. Escribe el motivo: queda en la auditoría.`
+            : `${revision?.item.nombre ?? ''} ya está firmado. El firmado se conserva intacto; se emite una nueva instancia con motivo y auditoría.`
+        }
+        confirmLabel={revision?.modo === 'regenerar' ? 'Regenerar' : 'Emitir nueva revisión'}
         destructive
         submitting={accion.isPending}
-        confirmDisabled={motivoRevision.trim().length < 15}
+        confirmDisabled={motivoRevision.trim().length < MINIMO_MOTIVO[revision?.modo ?? 'revision']}
         onCancel={() => setRevision(null)}
-        onConfirm={() => revision && generar({ seccion: revision.seccion, clave: revision.item.clave, regenerar: false, motivoRevision: motivoRevision.trim() })}>
-        <Field label="Motivo (mínimo 15 caracteres)" value={motivoRevision} onChangeText={setMotivoRevision} multiline />
+        onConfirm={() => {
+          if (!revision) return;
+          const motivo = motivoRevision.trim();
+          generar(
+            revision.modo === 'regenerar'
+              ? { seccion: revision.seccion, clave: revision.item.clave, regenerar: true, motivoRegenerar: motivo }
+              : { seccion: revision.seccion, clave: revision.item.clave, regenerar: false, motivoRevision: motivo },
+          );
+        }}>
+        <Field label={`Motivo (mínimo ${MINIMO_MOTIVO[revision?.modo ?? 'revision']} caracteres)`} value={motivoRevision} onChangeText={setMotivoRevision} multiline />
       </FormSheet>
 
       <FormSheet
