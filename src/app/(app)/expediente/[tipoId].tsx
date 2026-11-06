@@ -43,7 +43,7 @@ export default function DocumentoDetalleScreen() {
       ? data?.documentos.find((item) => item.documento_id !== null && item.documento_id !== undefined && String(item.documento_id) === tipoId)
       : data?.documentos.find((item) => String(item.id) === tipoId);
 
-  const handleUpload = async (file: PickedDocumentFile, onProgress: (percent: number) => void) => {
+  const handleUpload = async (file: PickedDocumentFile, onProgress: (percent: number) => void, reverso?: PickedDocumentFile | null) => {
     if (!documento) return;
     await uploadMutation.mutateAsync({
       documentTypeId: documento.id,
@@ -51,6 +51,7 @@ export default function DocumentoDetalleScreen() {
       fileName: file.name,
       mimeType: file.mimeType,
       incluyePar: ofrecePar && incluyePar,
+      reverso,
       onProgress,
     });
     if (ofrecePar && incluyePar && documento.par) {
@@ -195,7 +196,13 @@ export default function DocumentoDetalleScreen() {
       ) : null}
 
       {documento ? (
-        <DocumentUploadSheet visible={sheetVisible} title={documento.nombre} onClose={() => setSheetVisible(false)} onConfirm={handleUpload} />
+        <DocumentUploadSheet
+          visible={sheetVisible}
+          title={documento.nombre}
+          admiteReverso={documento.admite_reverso === true}
+          onClose={() => setSheetVisible(false)}
+          onConfirm={handleUpload}
+        />
       ) : null}
     </View>
   );

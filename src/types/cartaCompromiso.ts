@@ -61,6 +61,8 @@ export interface DocumentoPendienteCarta {
   descripcion: string | null;
   estado: string;
   estado_etiqueta: string;
+  /** Identificación oficial: acepta reverso opcional (backend 2026-11-06). Ausente = no. */
+  admite_reverso?: boolean;
 }
 
 /**

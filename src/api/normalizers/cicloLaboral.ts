@@ -42,6 +42,7 @@ function normalizeExpedienteDocumento(value: unknown): ExpedienteDocumentoEstado
     validado_en: asString(raw.validado_en),
     motivo_rechazo: asString(raw.motivo_rechazo),
     observaciones: asString(raw.observaciones),
+    admite_reverso: raw.admite_reverso === true,
   };
 }
 

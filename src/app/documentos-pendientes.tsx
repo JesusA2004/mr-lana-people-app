@@ -122,13 +122,14 @@ export default function DocumentosPendientesScreen() {
     }
   };
 
-  const subir = async (file: PickedDocumentFile, onProgress: (percent: number) => void) => {
+  const subir = async (file: PickedDocumentFile, onProgress: (percent: number) => void, reverso?: PickedDocumentFile | null) => {
     if (!documentoActivo) return;
     await upload.mutateAsync({
       documentTypeId: documentoActivo.document_type_id,
       fileUri: file.uri,
       fileName: file.name,
       mimeType: file.mimeType,
+      reverso,
       onProgress,
     });
     toast.success(`Recibimos «${documentoActivo.nombre}». Recursos Humanos lo revisará.`);
@@ -373,6 +374,7 @@ export default function DocumentosPendientesScreen() {
       <DocumentUploadSheet
         visible={documentoActivo !== null}
         title={documentoActivo?.nombre ?? ''}
+        admiteReverso={documentoActivo?.admite_reverso === true}
         onClose={() => setDocumentoActivo(null)}
         onConfirm={subir}
       />

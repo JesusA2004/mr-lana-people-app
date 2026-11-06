@@ -348,8 +348,13 @@ export default function RegistroScreen() {
     if (ok) await logout();
   };
 
-  const subirDocumento = async (documento: DocumentoIncorporacion, archivo: { uri: string; name: string; mimeType: string }, onProgress: (p: number) => void) => {
-    await documentosApi.upload({ documentTypeId: documento.id, fileUri: archivo.uri, fileName: archivo.name, mimeType: archivo.mimeType, onProgress });
+  const subirDocumento = async (
+    documento: DocumentoIncorporacion,
+    archivo: { uri: string; name: string; mimeType: string },
+    onProgress: (p: number) => void,
+    reverso?: { uri: string; name: string; mimeType: string } | null,
+  ) => {
+    await documentosApi.upload({ documentTypeId: documento.id, fileUri: archivo.uri, fileName: archivo.name, mimeType: archivo.mimeType, reverso, onProgress });
     // Ya lo tiene: deja de ir en la carta compromiso.
     setSinTener((actual) => actual.filter((id) => id !== documento.id));
     const nuevo = await registroApi.estado();
@@ -572,10 +577,11 @@ export default function RegistroScreen() {
       <DocumentUploadSheet
         visible={documentoActivo !== null}
         title={documentoActivo?.nombre ?? ''}
+        admiteReverso={documentoActivo?.admite_reverso === true}
         onClose={() => setDocumentoActivo(null)}
-        onConfirm={async (archivo, onProgress) => {
+        onConfirm={async (archivo, onProgress, reverso) => {
           if (!documentoActivo) return;
-          await subirDocumento(documentoActivo, archivo, onProgress);
+          await subirDocumento(documentoActivo, archivo, onProgress, reverso);
         }}
       />
       <CartaCompromisoVisor visor={visor} onClose={() => setVisor(null)} />

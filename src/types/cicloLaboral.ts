@@ -58,6 +58,8 @@ export interface ExpedienteDocumentoEstado {
   validado_en: string | null;
   motivo_rechazo: string | null;
   observaciones: string | null;
+  /** Acepta reverso opcional como segundo archivo (INE, backend 2026-11-06). */
+  admite_reverso: boolean;
 }
 
 /**

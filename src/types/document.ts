@@ -42,6 +42,12 @@ export interface DocumentoIncorporacion {
    */
   par?: { id: number; nombre: string; puede_subir: boolean } | null;
   /**
+   * Identificación oficial (backend 2026-11-06): además del archivo
+   * principal acepta un reverso OPCIONAL (PDF o foto); el backend une las
+   * dos caras en un solo PDF. Ausente/false = un solo archivo.
+   */
+  admite_reverso?: boolean;
+  /**
    * Formato que PEOPLE GENERA con los datos de la persona (Solicitud de
    * empleo, Estudio socioeconómico — backend 2026-11-04): nunca se sube
    * (`puede_subir` = false), no bloquea ni va en la carta compromiso.

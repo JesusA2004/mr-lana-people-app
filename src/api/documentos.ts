@@ -12,6 +12,12 @@ export interface UploadDocumentoParams {
   mimeType: string;
   /** El archivo trae también el documento par (`documento.par`): el backend lo registra en ambos. */
   incluyePar?: boolean;
+  /**
+   * Reverso opcional de la identificación oficial (`documento.admite_reverso`,
+   * backend 2026-11-06): campo `archivo_reverso`, PDF o foto. El backend une
+   * frente y reverso en un solo PDF. Sin él, la subida es la de siempre.
+   */
+  reverso?: { uri: string; name: string; mimeType: string } | null;
   onProgress?: (percent: number) => void;
 }
 
@@ -30,12 +36,13 @@ export const documentosApi = {
    * cambio primero). La respuesta es el estado completo de la incorporación
    * (no solo el documento subido), igual que devuelve el propio controlador.
    */
-  async upload({ documentTypeId, fileUri, fileName, mimeType, incluyePar, onProgress }: UploadDocumentoParams): Promise<IncorporacionResponse> {
+  async upload({ documentTypeId, fileUri, fileName, mimeType, incluyePar, reverso, onProgress }: UploadDocumentoParams): Promise<IncorporacionResponse> {
     const formData = new FormData();
     // React Native FormData: el archivo se describe con { uri, name, type }, no con un Blob real.
     formData.append('archivo', { uri: fileUri, name: fileName, type: mimeType } as unknown as Blob);
     // Regla `boolean` de Laravel: acepta '1'/'0', no 'true'.
     if (incluyePar) formData.append('incluye_par', '1');
+    if (reverso) formData.append('archivo_reverso', { uri: reverso.uri, name: reverso.name, type: reverso.mimeType } as unknown as Blob);
 
     const response = await apiClient.post(`/colaborador/incorporacion/documentos/${documentTypeId}/subir`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },

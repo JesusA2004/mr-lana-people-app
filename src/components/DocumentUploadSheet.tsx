@@ -32,11 +32,17 @@ export interface DocumentUploadSheetProps {
   title: string;
   onClose: () => void;
   /** Ejecuta la subida real (API); recibe `onProgress` para pintar la barra real de subida. El sheet muestra progreso/errores alrededor de esta promesa. */
-  onConfirm: (file: PickedDocumentFile, onProgress: (percent: number) => void) => Promise<void>;
+  onConfirm: (file: PickedDocumentFile, onProgress: (percent: number) => void, reverso?: PickedDocumentFile | null) => Promise<void>;
   /** MB máximos permitidos por el backend (config('expedientes.max_upload_mb'), hoy 20). Solo valida en cliente para feedback rápido; el backend sigue siendo la fuente de verdad. */
   maxSizeMb?: number;
   /** Acepta también video MP4/MOV (cámara, galería y archivos). Solo donde el backend lo permite (p. ej. estudio socioeconómico). */
   allowVideo?: boolean;
+  /**
+   * Identificación oficial (`documento.admite_reverso`): tras elegir el
+   * archivo principal (frente, o un PDF con las dos caras) ofrece agregar el
+   * reverso, OPCIONAL, como segundo archivo. El backend une ambos en un PDF.
+   */
+  admiteReverso?: boolean;
 }
 
 type Step = 'choose' | 'preview';
@@ -48,11 +54,14 @@ type Step = 'choose' | 'preview';
  * simula una subida exitosa — si `onConfirm` falla, se muestra el error tal
  * cual.
  */
-export function DocumentUploadSheet({ visible, title, onClose, onConfirm, maxSizeMb = 20, allowVideo = false }: DocumentUploadSheetProps) {
+export function DocumentUploadSheet({ visible, title, onClose, onConfirm, maxSizeMb = 20, allowVideo = false, admiteReverso = false }: DocumentUploadSheetProps) {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   const [step, setStep] = useState<Step>('choose');
   const [file, setFile] = useState<PickedDocumentFile | null>(null);
+  // Reverso opcional (solo con `admiteReverso`) y a qué cara va el próximo archivo elegido.
+  const [reverso, setReverso] = useState<PickedDocumentFile | null>(null);
+  const [eligiendo, setEligiendo] = useState<'frente' | 'reverso'>('frente');
   const [submitting, setSubmitting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +72,8 @@ export function DocumentUploadSheet({ visible, title, onClose, onConfirm, maxSiz
   const reset = () => {
     setStep('choose');
     setFile(null);
+    setReverso(null);
+    setEligiendo('frente');
     setSubmitting(false);
     setProgress(0);
     setError(null);
@@ -84,6 +95,13 @@ export function DocumentUploadSheet({ visible, title, onClose, onConfirm, maxSiz
     return true;
   };
 
+  const elegido = (picked: PickedDocumentFile) => {
+    if (eligiendo === 'reverso') setReverso(picked);
+    else setFile(picked);
+    setEligiendo('frente');
+    setStep('preview');
+  };
+
   const launchCamera = async () => {
     const result = await ImagePicker.launchCameraAsync({
       quality: 0.8,
@@ -94,8 +112,7 @@ export function DocumentUploadSheet({ visible, title, onClose, onConfirm, maxSiz
     const asset = result.assets[0];
     if (!validateSize(asset.fileSize)) return;
     const mimeType = asset.mimeType ?? (asset.type === 'video' ? 'video/mp4' : 'image/jpeg');
-    setFile({ uri: asset.uri, name: asset.fileName ?? nombrePorDefecto(mimeType), mimeType, size: asset.fileSize });
-    setStep('preview');
+    elegido({ uri: asset.uri, name: asset.fileName ?? nombrePorDefecto(mimeType), mimeType, size: asset.fileSize });
   };
 
   const launchGallery = async () => {
@@ -108,8 +125,7 @@ export function DocumentUploadSheet({ visible, title, onClose, onConfirm, maxSiz
       toast.error('Ese tipo de archivo no se puede subir aquí.');
       return;
     }
-    setFile({ uri: asset.uri, name: asset.fileName ?? nombrePorDefecto(mimeType), mimeType, size: asset.fileSize });
-    setStep('preview');
+    elegido({ uri: asset.uri, name: asset.fileName ?? nombrePorDefecto(mimeType), mimeType, size: asset.fileSize });
   };
 
   /**
@@ -162,8 +178,7 @@ export function DocumentUploadSheet({ visible, title, onClose, onConfirm, maxSiz
       toast.error('Ese tipo de archivo no se puede subir aquí.');
       return;
     }
-    setFile({ uri: asset.uri, name: asset.name || nombrePorDefecto(mimeType), mimeType, size: asset.size ?? undefined });
-    setStep('preview');
+    elegido({ uri: asset.uri, name: asset.name || nombrePorDefecto(mimeType), mimeType, size: asset.size ?? undefined });
   };
 
   const handleConfirm = async () => {
@@ -173,10 +188,11 @@ export function DocumentUploadSheet({ visible, title, onClose, onConfirm, maxSiz
     setSubmitting(true);
     try {
       // Fotos: se reducen (≤ 2000 px, JPEG 0.7) antes de subir; PDFs intactos.
-      setOptimizando(file.mimeType.startsWith('image/'));
+      setOptimizando(file.mimeType.startsWith('image/') || Boolean(reverso?.mimeType.startsWith('image/')));
       const listo = await comprimirImagen(file);
+      const reversoListo = admiteReverso && reverso ? await comprimirImagen(reverso) : null;
       setOptimizando(false);
-      await onConfirm(listo, setProgress);
+      await onConfirm(listo, setProgress, reversoListo);
       haptics.success();
       toast.success('Documento cargado correctamente.');
       reset();
@@ -214,10 +230,24 @@ export function DocumentUploadSheet({ visible, title, onClose, onConfirm, maxSiz
         <ScrollView contentContainerStyle={[styles.content, { paddingBottom: paddingInferiorBarra(insets.bottom) + Spacing.lg }]} keyboardShouldPersistTaps="handled">
           {step === 'choose' ? (
             <>
-              <Text style={styles.helperText}>Elige cómo quieres cargar tu documento. Formatos: {allowVideo ? 'PDF, JPG, PNG, MP4 o MOV' : 'PDF, JPG o PNG'}.</Text>
+              <Text style={styles.helperText}>
+                {eligiendo === 'reverso'
+                  ? 'Elige el reverso de tu identificación. Formatos: PDF, JPG o PNG.'
+                  : `Elige cómo quieres cargar tu documento${admiteReverso ? ' (el frente, o un PDF con las dos caras)' : ''}. Formatos: ${allowVideo ? 'PDF, JPG, PNG, MP4 o MOV' : 'PDF, JPG o PNG'}.`}
+              </Text>
               <OptionRow icon="camera-outline" label="Tomar foto" onPress={() => void pickFromCamera()} />
               <OptionRow icon="image-outline" label="Elegir de galería" onPress={() => void pickFromGallery()} />
               <OptionRow icon="document-attach-outline" label="Elegir archivo PDF" onPress={() => void pickDocument()} />
+              {eligiendo === 'reverso' && file ? (
+                <Button
+                  title="Volver"
+                  variant="outline"
+                  onPress={() => {
+                    setEligiendo('frente');
+                    setStep('preview');
+                  }}
+                />
+              ) : null}
             </>
           ) : file ? (
             <>
@@ -237,6 +267,43 @@ export function DocumentUploadSheet({ visible, title, onClose, onConfirm, maxSiz
                   {file.size ? <Text style={styles.previewSize}>{(file.size / (1024 * 1024)).toFixed(1)} MB</Text> : null}
                 </View>
               </View>
+
+              {admiteReverso ? (
+                reverso ? (
+                  <View style={styles.previewCard}>
+                    {reverso.mimeType.startsWith('image/') ? (
+                      <Image source={{ uri: reverso.uri }} style={styles.previewImage} resizeMode="cover" />
+                    ) : (
+                      <View style={styles.previewFileIcon}>
+                        <Ionicons name="document-text" size={32} color={Colors.primaryDark} />
+                      </View>
+                    )}
+                    <View style={styles.previewInfo}>
+                      <Text style={styles.previewSize}>Reverso</Text>
+                      <Text style={styles.previewName} numberOfLines={2}>
+                        {reverso.name}
+                      </Text>
+                    </View>
+                    <PressableScale accessibilityLabel="Quitar reverso" onPress={() => setReverso(null)} haptic={false} disabled={submitting} style={styles.closeButton}>
+                      <Ionicons name="close" size={20} color={Colors.textMuted} />
+                    </PressableScale>
+                  </View>
+                ) : (
+                  <View style={{ gap: Spacing.xs }}>
+                    <Text style={styles.helperText}>¿Subiste solo el frente? Agrega el reverso (opcional). Si tu PDF ya trae las dos caras, no hace falta.</Text>
+                    <Button
+                      title="Agregar reverso (opcional)"
+                      variant="outline"
+                      leftIcon="add-outline"
+                      disabled={submitting}
+                      onPress={() => {
+                        setEligiendo('reverso');
+                        setStep('choose');
+                      }}
+                    />
+                  </View>
+                )
+              ) : null}
 
               {submitting ? (
                 <View style={styles.progressBlock}>
