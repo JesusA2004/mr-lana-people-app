@@ -38,10 +38,10 @@ export const REMEMBERED_USERNAME_KEY = 'mrlana-remembered-username';
 /**
  * Auto-lock (AGENTS.md V3 sección 46): minutos en background antes de exigir
  * contraseña de nuevo al volver a foreground. No cierra sesión — solo pide
- * reconfirmar. 5 minutos: protege sin castigar el uso normal (cambiar de
- * app un momento, contestar una llamada).
+ * reconfirmar. 30 minutos (antes 5): con 5 la app pedía la contraseña a
+ * cada rato y se sentía como «se cierra la sesión» (pedido 2026-11-13).
  */
-export const AUTO_LOCK_MINUTES = 5;
+export const AUTO_LOCK_MINUTES = 30;
 
 /**
  * Avatar ilustrado de desarrollo cuando no hay foto real disponible (ver

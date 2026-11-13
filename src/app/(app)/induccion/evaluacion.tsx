@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/Button';
@@ -15,6 +15,7 @@ import { toast } from '@/store/toastStore';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import type { OpinionInduccion, RespuestasInduccion } from '@/types/induccion';
 import { getActionErrorMessage, logError } from '@/utils/errors';
+import { borrarBorradorEvaluacion, guardarBorradorEvaluacion, leerBorradorEvaluacion } from '@/utils/evaluacionBorrador';
 import { evaluacionCompleta, preguntasFaltantes } from '@/utils/induccion';
 
 const LETRAS_OPCION = ['a', 'b', 'c', 'd', 'e', 'f'];
@@ -38,6 +39,35 @@ export default function EvaluacionInduccionScreen() {
   const [respuestas, setRespuestas] = useState<RespuestasInduccion>({ a: {}, b: {}, c: {}, d: {} });
   const [opinion, setOpinion] = useState<OpinionInduccion>({});
 
+  // Borrador local: lo contestado sobrevive a cerrar la app o al bloqueo por
+  // inactividad (utils/evaluacionBorrador). No se guarda nada hasta haber
+  // leído el borrador previo, para no pisarlo con el formulario en blanco.
+  const evaluacionId = puedePresentar && evaluacion ? evaluacion.id : null;
+  const [borradorListo, setBorradorListo] = useState<number | null>(null);
+  const [recuperado, setRecuperado] = useState(false);
+
+  useEffect(() => {
+    if (evaluacionId === null) return;
+    let vigente = true;
+    void leerBorradorEvaluacion(evaluacionId).then((borrador) => {
+      if (!vigente) return;
+      if (borrador) {
+        setRespuestas(borrador.respuestas);
+        setOpinion(borrador.opinion);
+        setRecuperado(true);
+      }
+      setBorradorListo(evaluacionId);
+    });
+    return () => {
+      vigente = false;
+    };
+  }, [evaluacionId]);
+
+  useEffect(() => {
+    if (evaluacionId === null || borradorListo !== evaluacionId) return;
+    guardarBorradorEvaluacion(evaluacionId, { respuestas, opinion });
+  }, [evaluacionId, borradorListo, respuestas, opinion]);
+
   const completa = contenido.data ? evaluacionCompleta(contenido.data, respuestas) : false;
   const faltan = contenido.data ? preguntasFaltantes(contenido.data, respuestas) : 0;
 
@@ -46,6 +76,9 @@ export default function EvaluacionInduccionScreen() {
     try {
       const opinionLimpia = Object.keys(opinion).length > 0 ? opinion : null;
       await presentar.mutateAsync({ evaluacionId: evaluacion.id, respuestas, opinion: opinionLimpia });
+      // Enviada: deja de guardarse y se borra el borrador.
+      setBorradorListo(null);
+      borrarBorradorEvaluacion(evaluacion.id);
       toast.success('Evaluación enviada. Recursos Humanos revisará tus casos prácticos.');
       router.replace('/induccion');
     } catch (error) {
@@ -82,6 +115,7 @@ export default function EvaluacionInduccionScreen() {
           <Notice tone="info">
             Son {contenido.data.totalPuntos} puntos; apruebas con {contenido.data.calificacionAprobatoria}. Contesta todo con calma: tus respuestas se envían una sola vez.
           </Notice>
+          {recuperado ? <Notice tone="success">Recuperamos las respuestas que ya habías contestado en este teléfono.</Notice> : null}
 
           <SectionTitle>A · Opción múltiple</SectionTitle>
           {contenido.data.seccionA.map((p, n) => (
