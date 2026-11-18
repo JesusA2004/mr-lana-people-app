@@ -35,8 +35,9 @@ export function useSolicitudes(enabled = true) {
  * solicitudes que el tamaño de página de Laravel debe poder verlas todas.
  * También es la fuente de "Mis vacaciones" (se filtra por `tipo`).
  */
-export function useSolicitudesInfinite() {
+export function useSolicitudesInfinite(enabled = true) {
   return useInfiniteQuery({
+    enabled,
     queryKey: [...queryKeys.solicitudes, 'infinite'],
     queryFn: ({ pageParam }) => solicitudesApi.getPage(pageParam),
     initialPageParam: 1,

@@ -5,6 +5,7 @@ import type { MobileBootstrap, MobileBootstrapCapabilities, MobileBootstrapFeatu
 import { hasPermission } from '@/utils/capabilities';
 import { experienceAvailability, type ExperienceAvailability } from '@/utils/experience';
 import { isFeatureEnabled } from '@/utils/featureFlags';
+import { puedeEnApp, type PermisoApp } from '@/utils/permisosApp';
 import { hasAnyPermission, isRhModuleEnabled, isSelfServiceModuleEnabled, type RhModule, type SelfServiceModule } from '@/utils/modules';
 
 export interface Permisos {
@@ -14,6 +15,11 @@ export interface Permisos {
   puede: (permiso: string) => boolean;
   /** Basta uno de los permisos. */
   puedeAlguno: (permisos: string[]) => boolean;
+  /**
+   * Permiso por botón de la app (`permisos_app` del bootstrap). Ausente
+   * (backend anterior, o bootstrap aún sin cargar) = se ofrece como hoy.
+   */
+  app: (permiso: PermisoApp) => boolean;
   /** Bandera de acción del bootstrap (`ciclo_laboral.acciones.<clave>`); ausente = no. */
   accion: (clave: string) => boolean;
   /** Módulo de Gestión RH (permiso del endpoint + feature explícito). */
@@ -44,6 +50,7 @@ export function construirPermisos(data: MobileBootstrap | undefined): Permisos {
     cargado: Boolean(data),
     puede: (permiso) => hasPermission(permisos, permiso),
     puedeAlguno: (lista) => hasAnyPermission(permisos, lista),
+    app: (permiso) => puedeEnApp(data?.permisos_app, permiso),
     accion: (clave) => acciones?.[clave] === true,
     moduloRh: (modulo) => isRhModuleEnabled(features, permisos, modulo),
     autoservicio: (modulo) => isSelfServiceModuleEnabled(features, modulo),

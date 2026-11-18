@@ -22,6 +22,7 @@ import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constant
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useBirthdayWall, useBirthdayWallMessages, useEliminarMensajeMuro, usePublicarEnMuro } from '@/hooks/queries/useBirthdayWall';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { usePermisos } from '@/hooks/usePermisos';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from '@/store/toastStore';
 import type { BirthdayWallMessage } from '@/types/birthdayWall';
@@ -59,6 +60,8 @@ export default function MuroCumpleanosScreen() {
   const nombre = data?.cumpleanero.nombre ?? 'tu compañero';
   const primerNombre = nombre.split(' ')[0];
   const puedePublicar = Boolean(data?.abierto) && !isOffline && (texto.trim().length > 0 || foto !== null) && !publicar.isPending;
+  // `app.celebraciones.felicitar` (`permisos_app`; ausente = como siempre).
+  const puedeFelicitar = usePermisos().app('app.celebraciones.felicitar');
 
   const elegirFoto = async (origen: 'camara' | 'galeria') => {
     try {
@@ -148,7 +151,7 @@ export default function MuroCumpleanosScreen() {
         </View>
       </View>
 
-      {data.abierto ? (
+      {data.abierto && !puedeFelicitar ? null : data.abierto ? (
         <Card style={styles.composer}>
           <Text style={styles.composerTitle}>{data.es_mi_muro ? 'Agradece a tus compañeros' : `Felicita a ${primerNombre}`}</Text>
           <TextInput
@@ -244,6 +247,9 @@ export default function MuroCumpleanosScreen() {
 }
 
 function MensajeCard({ mensaje, token, onDelete }: { mensaje: BirthdayWallMessage; token: string | null; onDelete: () => void }) {
+  // Borrar el PROPIO depende de `app.celebraciones.felicitar`; la moderación de RH, no.
+  const puedeFelicitar = usePermisos().app('app.celebraciones.felicitar');
+  const puedeEliminar = mensaje.puede_eliminar && (!mensaje.es_mio || puedeFelicitar);
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   return (
@@ -258,7 +264,7 @@ function MensajeCard({ mensaje, token, onDelete }: { mensaje: BirthdayWallMessag
             {[mensaje.autor.puesto, formatDateTime(mensaje.creado_en)].filter(Boolean).join(' · ')}
           </Text>
         </View>
-        {mensaje.puede_eliminar ? (
+        {puedeEliminar ? (
           <PressableScale accessibilityLabel="Eliminar mensaje" onPress={onDelete} hitSlop={10} style={styles.deleteButton}>
             <Ionicons name="trash-outline" size={18} color={Colors.textMuted} />
           </PressableScale>

@@ -49,6 +49,7 @@ import { textoProgreso } from '@/utils/induccion';
 import { prestamoEstadoLabel, prestamoVigente } from '@/utils/loan';
 import { isSelfServiceModuleEnabled } from '@/utils/modules';
 import { openCrossExperienceRoute } from '@/utils/crossNavigation';
+import { puedeCrearAlgunaSolicitud } from '@/utils/permisosApp';
 import { reciboPeriodoLabel } from '@/utils/payroll';
 
 /** Pendientes de mi-proceso que la guía ya muestra paso por paso (no se duplican). */
@@ -75,15 +76,19 @@ export default function DashboardScreen() {
   // AGENTS.md sección 16: la card de cumpleaños y el acceso rápido a
   // Vacaciones no deben mostrarse cuando el backend apaga esos features.
   const bootstrap = useMobileBootstrap(true);
+  // Permisos por botón de la app (`permisos_app`; ausente = como siempre).
+  const permisos = usePermisos();
   const cumpleanosEnabled = isFeatureEnabled(bootstrap.data?.features, 'cumpleanos');
-  const vacacionesEnabled = isFeatureEnabled(bootstrap.data?.features, 'vacaciones');
+  const vacacionesEnabled = isFeatureEnabled(bootstrap.data?.features, 'vacaciones') && permisos.app('app.vacaciones.ver');
   // Ciclo laboral (backend 2026-09-22) — API estable, ver `utils/modules.ts`.
   const features = bootstrap.data?.features;
-  const documentosLaboralesEnabled = isSelfServiceModuleEnabled(features, 'documentos_laborales');
-  const recibosEnabled = isSelfServiceModuleEnabled(features, 'recibos');
-  const prestamosEnabled = isSelfServiceModuleEnabled(features, 'prestamos');
+  const documentosLaboralesEnabled = isSelfServiceModuleEnabled(features, 'documentos_laborales') && permisos.app('app.documentos_laborales.ver');
+  const recibosEnabled = isSelfServiceModuleEnabled(features, 'recibos') && permisos.app('app.recibos.ver');
+  const prestamosEnabled = isSelfServiceModuleEnabled(features, 'prestamos') && permisos.app('app.prestamos.ver');
   const tareasEnabled = isSelfServiceModuleEnabled(features, 'tareas');
-  const equipoEnabled = isSelfServiceModuleEnabled(features, 'equipo');
+  const equipoEnabled = isSelfServiceModuleEnabled(features, 'equipo') && (permisos.app('app.equipo.ver') || permisos.app('app.equipo.visto_bueno'));
+  const verSolicitudes = permisos.app('app.solicitudes.ver');
+  const puedeCrearSolicitud = puedeCrearAlgunaSolicitud(permisos.app);
   const birthday = useBirthdayGreeting(cumpleanosEnabled);
   // Aniversario laboral: sistema aparte de cumpleaños (sin feature flag —
   // `GET /celebraciones/activas` ya filtra por policy). Se prioriza el
@@ -119,11 +124,10 @@ export default function DashboardScreen() {
   // si la cuenta tiene Gestión RH, aprobar, «Mi equipo» y evaluaciones viven
   // allá; aquí solo queda un aviso para cambiar cuando algo le espera. Sin
   // Gestión RH (p. ej. un supervisor), Mi espacio es su único lugar.
-  const permisos = usePermisos();
   const operacionAqui = !permisos.operacionEnGestionRh;
   // "Mi equipo" se decide con la jerarquía REAL que devuelve el backend
   // (subordinados o pendientes), no con el nombre del rol.
-  const equipo = useEquipo(equipoEnabled && operacionAqui);
+  const equipo = useEquipo(equipoEnabled && operacionAqui && permisos.app('app.equipo.ver'));
   const equipoPendientes = useEquipoPendientes(equipoEnabled && operacionAqui);
 
   const tareasAbiertas = tareasConteos.data?.abiertas ?? 0;
@@ -225,7 +229,7 @@ export default function DashboardScreen() {
               </FadeInView>
             ) : null}
 
-            <BirthdayWallBanner enabled={cumpleanosEnabled} />
+            <BirthdayWallBanner enabled={cumpleanosEnabled && permisos.app('app.celebraciones.ver')} />
 
             {/* ── Lo que requiere tu acción ─────────────────────────────── */}
             {/* Tu siguiente paso: arriba, con la Inducción a la vista mientras esté en curso. */}
@@ -253,7 +257,7 @@ export default function DashboardScreen() {
               </FadeInView>
             ) : null}
 
-            {correccionesPendientes > 0 ? (
+            {correccionesPendientes > 0 && verSolicitudes ? (
               <FadeInView index={0}>
                 <TarjetaAviso
                   icono="chatbubble-ellipses-outline"
@@ -279,7 +283,7 @@ export default function DashboardScreen() {
               </FadeInView>
             ) : null}
 
-            {porCorregir && correccionesPendientes === 0 ? (
+            {porCorregir && correccionesPendientes === 0 && verSolicitudes ? (
               <FadeInView index={0}>
                 <TarjetaAviso
                   icono="create-outline"
@@ -303,7 +307,7 @@ export default function DashboardScreen() {
               </FadeInView>
             ) : null}
 
-            {descriptivoPorLeer && descriptivo.data && !conGuia ? (
+            {descriptivoPorLeer && descriptivo.data && !conGuia && permisos.app('app.descriptivo_puesto.acusar') ? (
               <FadeInView index={1}>
                 <TarjetaAviso
                   icono="briefcase-outline"
@@ -317,7 +321,7 @@ export default function DashboardScreen() {
             ) : null}
 
             {/* Inducción Mr. Lana: progreso guardado en el servidor (mi-proceso). */}
-            {induccion && !guia.data?.induccion.activa ? (
+            {induccion && !guia.data?.induccion.activa && permisos.app('app.induccion.ver') ? (
               <FadeInView index={1}>
                 <GrupoLista>
                   <FilaLista
@@ -365,16 +369,18 @@ export default function DashboardScreen() {
                   />
                 </FadeInView>
               ) : null}
-              <FadeInView index={2} style={styles.statFlex}>
-                <TarjetaResumen
-                  icono="document-text-outline"
-                  etiqueta="Solicitudes en proceso"
-                  valor={enProceso}
-                  nota="Toca para verlas"
-                  tono="info"
-                  onPress={() => router.push('/(app)/(tabs)/solicitudes')}
-                />
-              </FadeInView>
+              {verSolicitudes ? (
+                <FadeInView index={2} style={styles.statFlex}>
+                  <TarjetaResumen
+                    icono="document-text-outline"
+                    etiqueta="Solicitudes en proceso"
+                    valor={enProceso}
+                    nota="Toca para verlas"
+                    tono="info"
+                    onPress={() => router.push('/(app)/(tabs)/solicitudes')}
+                  />
+                </FadeInView>
+              ) : null}
             </View>
 
             {/* ── Para ti: tareas (acciones), equipo, nómina, préstamo ─── */}
@@ -445,7 +451,7 @@ export default function DashboardScreen() {
             {/* ── Accesos rápidos ─────────────────────────────────────── */}
             <SeccionTitulo titulo="Accesos rápidos" />
             <RejillaAccesos>
-              <AccesoRapido icono="add-circle-outline" etiqueta="Nueva solicitud" onPress={() => router.push('/solicitud/nueva')} />
+              {puedeCrearSolicitud ? <AccesoRapido icono="add-circle-outline" etiqueta="Nueva solicitud" onPress={() => router.push('/solicitud/nueva')} /> : null}
               {documentosLaboralesEnabled ? (
                 <AccesoRapido icono="folder-outline" etiqueta="Documentos laborales" onPress={() => router.push('/documentos-laborales')} />
               ) : null}
@@ -454,23 +460,29 @@ export default function DashboardScreen() {
               {(miProceso.data?.lecciones.length ?? 0) > 0 ? (
                 <AccesoRapido icono="school-outline" etiqueta="Mis lecciones" onPress={() => router.push('/lecciones')} />
               ) : null}
-              <AccesoRapido icono="people-circle-outline" etiqueta="Directorio" onPress={() => router.push('/directorio')} />
-              <AccesoRapido icono="book-outline" etiqueta="Inducción" onPress={() => router.push(induccion ? '/induccion' : '/induccion/presentacion')} />
+              {permisos.app('directorio.ver') ? (
+                <AccesoRapido icono="people-circle-outline" etiqueta="Directorio" onPress={() => router.push('/directorio')} />
+              ) : null}
+              {permisos.app(induccion ? 'app.induccion.ver' : 'app.induccion.presentacion') ? (
+                <AccesoRapido icono="book-outline" etiqueta="Inducción" onPress={() => router.push(induccion ? '/induccion' : '/induccion/presentacion')} />
+              ) : null}
             </RejillaAccesos>
 
             {/* ── Solicitudes recientes ───────────────────────────────── */}
-            <SeccionTitulo
-              titulo="Solicitudes recientes"
-              accion={solicitudesRecientes.length > 0 ? { etiqueta: 'Ver todas', onPress: () => router.push('/(app)/(tabs)/solicitudes') } : undefined}
-            />
-            {solicitudesRecientes.length === 0 ? (
+            {verSolicitudes ? (
+              <SeccionTitulo
+                titulo="Solicitudes recientes"
+                accion={solicitudesRecientes.length > 0 ? { etiqueta: 'Ver todas', onPress: () => router.push('/(app)/(tabs)/solicitudes') } : undefined}
+              />
+            ) : null}
+            {!verSolicitudes ? null : solicitudesRecientes.length === 0 ? (
               <View>
                 <EmptyState
                   icon="document-text-outline"
                   title="Sin solicitudes por ahora"
                   message="Cuando pidas vacaciones, un permiso o un préstamo, aquí verás en qué va."
-                  actionLabel="Crear solicitud"
-                  onAction={() => router.push('/solicitud/nueva')}
+                  actionLabel={puedeCrearSolicitud ? 'Crear solicitud' : undefined}
+                  onAction={puedeCrearSolicitud ? () => router.push('/solicitud/nueva') : undefined}
                 />
               </View>
             ) : (

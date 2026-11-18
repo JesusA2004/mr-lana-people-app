@@ -29,6 +29,7 @@ import { campoCopy, requestTypePresentation, SPECIAL_LEAVE_COPY } from '@/consta
 import { useCreateSolicitud } from '@/hooks/queries/useSolicitudes';
 import { useSolicitudesConfiguracion } from '@/hooks/queries/useSolicitudesConfiguracion';
 import { useVacacionesSaldo } from '@/hooks/queries/useVacaciones';
+import { usePermisos } from '@/hooks/usePermisos';
 import { toast } from '@/store/toastStore';
 import type { KnownRequestType, Solicitud, SolicitudCampo, SolicitudTipoConfig } from '@/types/request';
 import { formatDateLong, fromApiDateString, toApiDateString } from '@/utils/dates';
@@ -101,13 +102,17 @@ function NuevaSolicitudScreen() {
   const diasDisponibles = saldoQuery.data?.dias_disponibles;
   const esVacaciones = selectedTipo === 'vacaciones';
 
+  // Adjuntar es un permiso propio de la app (`app.solicitudes.adjuntar`;
+  // ausente = como siempre): sin él no se ofrece el paso de adjuntos.
+  const permisos = usePermisos();
+  const permiteAdjuntos = Boolean(config?.permite_adjuntos) && permisos.app('app.solicitudes.adjuntar');
   const stepKeys = useMemo(
-    () => ['tipo', 'informacion', ...(config?.permite_adjuntos ? (['adjuntos'] as const) : []), 'revisar'] as const,
-    [config?.permite_adjuntos],
+    () => ['tipo', 'informacion', ...(permiteAdjuntos ? (['adjuntos'] as const) : []), 'revisar'] as const,
+    [permiteAdjuntos],
   );
   const stepLabels = useMemo(
-    () => ['Tipo', 'Información', ...(config?.permite_adjuntos ? ['Adjuntos'] : []), 'Revisar'],
-    [config?.permite_adjuntos],
+    () => ['Tipo', 'Información', ...(permiteAdjuntos ? ['Adjuntos'] : []), 'Revisar'],
+    [permiteAdjuntos],
   );
   const clampedStep = Math.min(step, stepKeys.length - 1);
   const currentStepKey = stepKeys[clampedStep];
@@ -561,7 +566,7 @@ function NuevaSolicitudScreen() {
                   value={summaryValue(campo, values[campo.name])}
                 />
               ))}
-              {config.permite_adjuntos ? (
+              {permiteAdjuntos ? (
                 <SummaryRow icon="attach-outline" label="Adjuntos" value={attachments.length > 0 ? `${attachments.length} archivo(s)` : 'Ninguno'} />
               ) : null}
             </Card>

@@ -13,6 +13,7 @@ import { useMiDescriptivoPuesto } from '@/hooks/queries/useDescriptivoPuesto';
 import { descriptivoPendiente } from '@/utils/descriptivoPuesto';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useMaterialInduccion, useTerminarInduccion } from '@/hooks/queries/useInduccion';
+import { usePermisos } from '@/hooks/usePermisos';
 import { queryKeys } from '@/api/queryKeys';
 import { toast } from '@/store/toastStore';
 import { getActionErrorMessage, logError } from '@/utils/errors';
@@ -41,6 +42,9 @@ export default function InduccionScreen() {
   const styles = useEstilos(crearEstilos);
   const router = useRouter();
   const proceso = useMiProceso();
+  // Permisos por botón de la app (`permisos_app`; ausente = como siempre).
+  const permisos = usePermisos();
+  const puedeContestar = permisos.app('app.induccion.contestar');
   const resumen = proceso.data?.induccion ?? null;
   const evaluacion = proceso.data?.evaluacionInduccion ?? null;
   const fase = faseInduccion(resumen, evaluacion);
@@ -79,7 +83,7 @@ export default function InduccionScreen() {
       const resultado = await terminar.mutateAsync();
       void queryClient.invalidateQueries({ queryKey: queryKeys.guia });
       toast.success(resultado.evaluacion?.puedePresentar ? 'Listo. Siguiente: tu evaluación de inducción' : '¡Terminaste la inducción!');
-      if (resultado.evaluacion?.puedePresentar) router.push('/induccion/evaluacion');
+      if (resultado.evaluacion?.puedePresentar && puedeContestar) router.push('/induccion/evaluacion');
     } catch (error) {
       logError('induccion.terminar', error);
       toast.error(getActionErrorMessage(error));
@@ -102,7 +106,9 @@ export default function InduccionScreen() {
       {fase === 'sin_induccion' || !resumen ? (
         <>
           <EmptyMessage message="Tu proceso de ingreso no incluye la inducción en este momento. Puedes repasarla cuando quieras." />
-          <Button title="Ver la inducción" variant="outline" leftIcon="book-outline" onPress={() => router.push('/induccion/presentacion')} />
+          {permisos.app('app.induccion.presentacion') ? (
+            <Button title="Ver la inducción" variant="outline" leftIcon="book-outline" onPress={() => router.push('/induccion/presentacion')} />
+          ) : null}
         </>
       ) : (
         <>
@@ -172,7 +178,7 @@ export default function InduccionScreen() {
               {fase === 'reevaluacion_disponible' && evaluacion?.fechaLimiteReevaluacion ? (
                 <Text style={styles.heroTexto}>Fecha límite: {fechaLegible(evaluacion.fechaLimiteReevaluacion)}</Text>
               ) : null}
-              <Button title="Realizar evaluación" leftIcon="create-outline" onPress={() => router.push('/induccion/evaluacion')} />
+              {puedeContestar ? <Button title="Realizar evaluación" leftIcon="create-outline" onPress={() => router.push('/induccion/evaluacion')} /> : null}
             </Card>
           ) : null}
 

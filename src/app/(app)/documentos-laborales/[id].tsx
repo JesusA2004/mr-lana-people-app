@@ -16,6 +16,7 @@ import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { useFirmarDocumentoLaboral, useLaborDocument, useRegistrarAperturaDocumento } from '@/hooks/queries/useLaborDocuments';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { usePermisos } from '@/hooks/usePermisos';
 import { toast } from '@/store/toastStore';
 import { formatDateLong, formatDateTime } from '@/utils/dates';
 import { getActionErrorMessage, logError } from '@/utils/errors';
@@ -55,7 +56,10 @@ export default function DocumentoLaboralDetailScreen() {
 
   const documento = query.data ?? null;
 
-  const puedeFirmar = !!documento && canColaboradorSign(documento);
+  // Permisos por botón de la app (`permisos_app`; ausente = como siempre).
+  const permisos = usePermisos();
+  const puedeFirmar = !!documento && canColaboradorSign(documento) && permisos.app('app.documentos_laborales.firmar');
+  const puedeDescargar = documento?.puede_descargar === true && permisos.app('app.documentos_laborales.descargar');
 
   const registrarApertura = () => {
     if (!documento || aperturaVerificada || aperturaEnCurso.current) return;
@@ -136,9 +140,9 @@ export default function DocumentoLaboralDetailScreen() {
 
           <DocumentoProtegido
             titulo={documento.titulo}
-            modo={puedeFirmar ? 'firma' : documento.puede_descargar ? 'descarga' : 'consulta'}
+            modo={puedeFirmar ? 'firma' : puedeDescargar ? 'descarga' : 'consulta'}
             path={documentosLaboralesApi.descargarPath(documento.id)}
-            puedeDescargar={documento.puede_descargar}
+            puedeDescargar={puedeDescargar}
             pathConsulta={documentosLaboralesApi.verPath(documento.id)}
             onAperturaVerificada={registrarApertura}
           />

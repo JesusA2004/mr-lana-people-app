@@ -11,6 +11,7 @@ import { Spacing } from '@/constants/colors';
 import { useCorrecciones, useResponderCorreccion } from '@/hooks/queries/useCorrecciones';
 import { useSolicitud } from '@/hooks/queries/useSolicitudes';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { usePermisos } from '@/hooks/usePermisos';
 import { toast } from '@/store/toastStore';
 import { construirRespuesta, destinoCorreccion, erroresRespuesta, normalizeDatosPropuestos, solicitudIdDeCorreccion, validarRespuesta } from '@/utils/correcciones';
 import { getErrorMessage, getValidationErrors, logError } from '@/utils/errors';
@@ -29,7 +30,9 @@ export default function CorreccionDetalleScreen() {
   const { data, isLoading, error, refetch, isRefetching } = useCorrecciones();
   const correccion = data?.data.find((c) => c.id === clave) ?? null;
   const solicitudId = correccion ? solicitudIdDeCorreccion(correccion) : null;
-  const puedeResponder = Boolean(correccion?.puede_responder && solicitudId);
+  // `app.solicitudes.responder_correccion` (`permisos_app`; ausente = como siempre).
+  const permisoResponder = usePermisos().app('app.solicitudes.responder_correccion');
+  const puedeResponder = Boolean(correccion?.puede_responder && solicitudId) && permisoResponder;
   // El detalle de la solicitud trae lo que se propuso (para corregirlo).
   const solicitud = useSolicitud(puedeResponder && solicitudId ? solicitudId : undefined);
   const datos = normalizeDatosPropuestos(solicitud.data?.datos_propuestos);

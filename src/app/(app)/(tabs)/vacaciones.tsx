@@ -14,6 +14,7 @@ import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constant
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { MascotMessages } from '@/constants/mascotMessages';
 import { useVacacionesSaldo, useVacacionesUnificadas } from '@/hooks/queries/useVacaciones';
+import { usePermisos } from '@/hooks/usePermisos';
 import { formatDateLong } from '@/utils/dates';
 import { getErrorMessage } from '@/utils/errors';
 import { ExpedienteGate } from '@/components/guia/ExpedienteGate';
@@ -33,8 +34,14 @@ function VacacionesScreen() {
   const Colors = useColores();
   const styles = useEstilos(crearEstilos);
   const router = useRouter();
+  // Permisos por botón de la app (`permisos_app`; ausente = como siempre).
+  // La lista sale de `GET /solicitudes`: sin «Ver sus solicitudes» solo se
+  // muestra el saldo.
+  const permisos = usePermisos();
+  const puedeSolicitar = permisos.app('app.vacaciones.solicitar');
+  const verLista = permisos.app('app.solicitudes.ver');
   const saldoQuery = useVacacionesSaldo();
-  const solicitudesQuery = useVacacionesUnificadas();
+  const solicitudesQuery = useVacacionesUnificadas(verLista);
 
   const isLoading = saldoQuery.isLoading || solicitudesQuery.isLoading;
   const isError = saldoQuery.isError || solicitudesQuery.isError;
@@ -102,9 +109,9 @@ function VacacionesScreen() {
                 <Ionicons name="time-outline" size={18} color={Colors.primaryDark} />
                 <Text style={styles.avisoPrimerAnioTexto}>{saldo.motivo_no_disponible}</Text>
               </View>
-            ) : (
+            ) : puedeSolicitar ? (
               <Button title="Solicitar vacaciones" leftIcon="add-circle-outline" onPress={solicitar} />
-            )}
+            ) : null}
 
             {proximas.length > 0 ? (
               <>
@@ -122,14 +129,14 @@ function VacacionesScreen() {
               </>
             ) : null}
 
-            <Text style={styles.sectionTitle}>Historial</Text>
-            {historial.length === 0 && proximas.length === 0 ? (
+            {verLista ? <Text style={styles.sectionTitle}>Historial</Text> : null}
+            {!verLista ? null : historial.length === 0 && proximas.length === 0 ? (
               <MascotAssistant
                 message={MascotMessages.vacaciones}
                 type="tip"
                 dismissible={false}
-                actionLabel={saldo?.puede_solicitar === false ? undefined : 'Solicitar vacaciones'}
-                onAction={saldo?.puede_solicitar === false ? undefined : solicitar}
+                actionLabel={saldo?.puede_solicitar === false || !puedeSolicitar ? undefined : 'Solicitar vacaciones'}
+                onAction={saldo?.puede_solicitar === false || !puedeSolicitar ? undefined : solicitar}
               />
             ) : historial.length === 0 ? (
               <Card style={styles.emptyCard}>

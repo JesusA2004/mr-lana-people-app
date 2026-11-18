@@ -129,6 +129,9 @@ function normalizeTipo(raw: unknown): SolicitudTipoConfig | null {
     // se asume que sí hay motivo, que es lo que valida el FormRequest.
     requiere_motivo: asBoolean(record.requiere_motivo, true),
     permite_adjuntos: asBoolean(record.permite_adjuntos, true),
+    // Permiso de la app para crear este tipo (backend 2026-11-18); un
+    // backend anterior no lo manda = permitido, como siempre.
+    permitido_app: asBoolean(record.permitido_app, true),
     campos,
   };
 }
@@ -164,7 +167,7 @@ export function normalizeSolicitudesConfiguracion(payload: unknown): SolicitudTi
  * filtro protege además contra un backend anterior.
  */
 export function creatableRequestTypes(tipos: SolicitudTipoConfig[] | undefined): SolicitudTipoConfig[] {
-  return (tipos ?? []).filter((tipo) => !TIPOS_NO_AUTOSERVICIO.has(tipo.clave) && !tipo.requiere_colaborador_objetivo);
+  return (tipos ?? []).filter((tipo) => !TIPOS_NO_AUTOSERVICIO.has(tipo.clave) && !tipo.requiere_colaborador_objetivo && tipo.permitido_app !== false);
 }
 
 export function findTipoConfig(tipos: SolicitudTipoConfig[] | undefined, clave: RequestType | undefined): SolicitudTipoConfig | undefined {

@@ -7,6 +7,7 @@ import { ProfileAvatar } from './ProfileAvatar';
 import { ProfilePhotoSheet } from './ProfilePhotoSheet';
 
 import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
+import { usePermisos } from '@/hooks/usePermisos';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import type { FotoPerfilEstado } from '@/types/collaborator';
 
@@ -34,15 +35,23 @@ export function EditableProfileAvatar({ name, fotoUrlApi, fotoUrl, estado, size 
   const [abierto, setAbierto] = useState(abrirAlMontar);
   const sinFoto = !estado || estado.estado === 'sin_foto';
   const etiquetaAccion = sinFoto ? 'Agregar foto de perfil' : estado?.estado === 'cambio_pendiente' ? 'Cambio de foto pendiente' : 'Solicitar cambio de foto';
+  // La primera foto es parte del expediente (siempre se puede subir); solo
+  // CAMBIARLA depende de `app.perfil.cambiar_foto` (ausente = como siempre).
+  const permisos = usePermisos();
+  const editable = sinFoto || permisos.app('app.perfil.cambiar_foto');
 
   return (
     <View style={styles.wrap}>
-      <PressableScale accessibilityRole="button" accessibilityLabel={etiquetaAccion} onPress={() => setAbierto(true)}>
+      {editable ? (
+        <PressableScale accessibilityRole="button" accessibilityLabel={etiquetaAccion} onPress={() => setAbierto(true)}>
+          <ProfileAvatar name={name} fotoUrlApi={fotoUrlApi} fotoUrl={fotoUrl} size={size} ringColor={ringColor} />
+          <View style={[styles.badge, { backgroundColor: estado?.estado === 'cambio_pendiente' ? Colors.warning : Colors.primary }]}>
+            <Ionicons name={estado?.estado === 'cambio_pendiente' ? 'time-outline' : sinFoto ? 'add' : 'camera-outline'} size={size > 60 ? 16 : 12} color={Colors.white} />
+          </View>
+        </PressableScale>
+      ) : (
         <ProfileAvatar name={name} fotoUrlApi={fotoUrlApi} fotoUrl={fotoUrl} size={size} ringColor={ringColor} />
-        <View style={[styles.badge, { backgroundColor: estado?.estado === 'cambio_pendiente' ? Colors.warning : Colors.primary }]}>
-          <Ionicons name={estado?.estado === 'cambio_pendiente' ? 'time-outline' : sinFoto ? 'add' : 'camera-outline'} size={size > 60 ? 16 : 12} color={Colors.white} />
-        </View>
-      </PressableScale>
+      )}
 
       {mostrarEstado ? (
         <View style={styles.estado}>
@@ -56,7 +65,7 @@ export function EditableProfileAvatar({ name, fotoUrlApi, fotoUrl, estado, size 
         </View>
       ) : null}
 
-      <ProfilePhotoSheet visible={abierto} onClose={() => setAbierto(false)} estado={estado} />
+      <ProfilePhotoSheet visible={abierto && editable} onClose={() => setAbierto(false)} estado={estado} />
     </View>
   );
 }

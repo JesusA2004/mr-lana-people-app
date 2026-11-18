@@ -11,6 +11,7 @@ import { PressableScale } from '@/components/PressableScale';
 import { FontSize, Radius, Spacing, type ColorPalette } from '@/constants/colors';
 import { useAcusarDescriptivoPuesto, useMarcarDescriptivoLeido, useMiDescriptivoPuesto } from '@/hooks/queries/useDescriptivoPuesto';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { usePermisos } from '@/hooks/usePermisos';
 import { toast } from '@/store/toastStore';
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import type { AcuseDescriptivoPuesto } from '@/types/descriptivoPuesto';
@@ -67,6 +68,8 @@ export default function DescriptivoPuestoScreen() {
 
   const acuse = query.data ?? null;
   const pendiente = descriptivoPendiente(acuse);
+  // `app.descriptivo_puesto.acusar` (`permisos_app`; ausente = como siempre).
+  const puedeAcusar = usePermisos().app('app.descriptivo_puesto.acusar');
 
   // Al abrirlo por primera vez, el servidor registra la lectura (una sola vez).
   useEffect(() => {
@@ -157,7 +160,7 @@ export default function DescriptivoPuestoScreen() {
             </Card>
           ))}
 
-          {pendiente ? (
+          {pendiente && !puedeAcusar ? null : pendiente ? (
             <Card style={styles.bloque}>
               <SectionTitle>Confirma que estás enterado</SectionTitle>
               <PressableScale

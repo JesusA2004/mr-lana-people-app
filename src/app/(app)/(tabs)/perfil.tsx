@@ -50,7 +50,9 @@ export default function PerfilScreen() {
   const permisos = usePermisos();
   // Con Gestión RH, lo operativo (aprobar, su equipo) vive allá: Mi espacio no lo mezcla.
   const operacionAqui = !permisos.operacionEnGestionRh;
-  const equipo = useEquipo(isSelfServiceModuleEnabled(bootstrap.data?.features, 'equipo') && operacionAqui);
+  const equipo = useEquipo(isSelfServiceModuleEnabled(bootstrap.data?.features, 'equipo') && operacionAqui && permisos.app('app.equipo.ver'));
+  // Permisos por botón de la app (`permisos_app`; ausente = como siempre).
+  const app = permisos.app;
 
   const nombre = joinName(perfil?.nombre, perfil?.apellidos) ?? perfil?.nombre_completo;
   const watermarkLabel = [nombre, perfil?.numero_empleado ? `EMP-${perfil.numero_empleado}` : null].filter(Boolean).join(' · ');
@@ -90,7 +92,7 @@ export default function PerfilScreen() {
   // Agrupados por intención (no una lista larga de 13 renglones).
   const linksDocumentos = soloLinks([
     { route: '/(app)/(tabs)/expediente', icon: 'folder-open-outline', title: 'Mi expediente', caption: 'Consulta y carga tus documentos' },
-    {
+    app('app.solicitudes.ver') && {
       route: '/correcciones',
       icon: 'create-outline',
       title: 'Mis correcciones',
@@ -99,28 +101,33 @@ export default function PerfilScreen() {
     },
     // Solo mientras el alta sigue en curso; aprobada, su expediente ya lo dice todo.
     Boolean(incorporacion.data) && incorporacion.data?.estado !== 'aprobado' && { route: '/incorporacion', icon: 'briefcase-outline', title: 'Mi incorporación', caption: 'Avance de tu proceso de alta' },
-    isSelfServiceModuleEnabled(features, 'documentos_laborales') && {
+    isSelfServiceModuleEnabled(features, 'documentos_laborales') && app('app.documentos_laborales.ver') && {
       route: '/documentos-laborales',
       icon: 'folder-outline',
       title: 'Documentos laborales',
       caption: 'Contratos, comprobantes y firmas',
     },
-    isSelfServiceModuleEnabled(features, 'contratos') && { route: '/contratos', icon: 'document-text-outline', title: 'Mis contratos', caption: 'Vigencia y tipo de contrato' },
-    isSelfServiceModuleEnabled(features, 'recibos') && { route: '/recibos', icon: 'receipt-outline', title: 'Mis recibos', caption: 'Tus recibos de nómina' },
-    isSelfServiceModuleEnabled(features, 'prestamos') && { route: '/prestamos', icon: 'cash-outline', title: 'Préstamos', caption: 'Solicita y sigue tus préstamos' },
+    isSelfServiceModuleEnabled(features, 'contratos') && app('app.documentos_laborales.ver') && { route: '/contratos', icon: 'document-text-outline', title: 'Mis contratos', caption: 'Vigencia y tipo de contrato' },
+    isSelfServiceModuleEnabled(features, 'recibos') && app('app.recibos.ver') && { route: '/recibos', icon: 'receipt-outline', title: 'Mis recibos', caption: 'Tus recibos de nómina' },
+    isSelfServiceModuleEnabled(features, 'prestamos') && app('app.prestamos.ver') && { route: '/prestamos', icon: 'cash-outline', title: 'Préstamos', caption: 'Solicita y sigue tus préstamos' },
   ]);
   const linksTrabajo = soloLinks([
-    isSelfServiceModuleEnabled(features, 'jerarquia') && { route: '/jerarquia', icon: 'git-network-outline', title: 'Mi jerarquía', caption: 'Jefe inmediato, gerente y estructura' },
+    isSelfServiceModuleEnabled(features, 'jerarquia') && app('app.jerarquia.ver') && { route: '/jerarquia', icon: 'git-network-outline', title: 'Mi jerarquía', caption: 'Jefe inmediato, gerente y estructura' },
     isSelfServiceModuleEnabled(features, 'tareas') && { route: '/tareas', icon: 'checkbox-outline', title: 'Tareas', caption: 'Pendientes por atender' },
-    operacionAqui && (esAutorizadorRh || (esJefe && isSelfServiceModuleEnabled(features, 'equipo'))) && {
+    operacionAqui && (esAutorizadorRh || (esJefe && isSelfServiceModuleEnabled(features, 'equipo') && app('app.equipo.visto_bueno'))) && {
       route: '/aprobaciones',
       icon: 'checkmark-done-outline',
       title: 'Aprobaciones',
       caption: 'Solicitudes que esperan tu decisión',
     },
     esJefe && isSelfServiceModuleEnabled(features, 'equipo') && { route: '/equipo', icon: 'people-outline', title: 'Mi equipo', caption: 'Vistos buenos y evaluaciones' },
-    { route: '/directorio', icon: 'people-circle-outline', title: 'Directorio', caption: 'Contacto corporativo de tus compañeros' },
-    { route: miProceso.data?.induccion ? '/induccion' : '/induccion/presentacion', icon: 'book-outline', title: 'Inducción Mr. Lana', caption: 'El documento oficial y tu evaluación' },
+    app('directorio.ver') && { route: '/directorio', icon: 'people-circle-outline', title: 'Directorio', caption: 'Contacto corporativo de tus compañeros' },
+    app(miProceso.data?.induccion ? 'app.induccion.ver' : 'app.induccion.presentacion') && {
+      route: miProceso.data?.induccion ? '/induccion' : '/induccion/presentacion',
+      icon: 'book-outline',
+      title: 'Inducción Mr. Lana',
+      caption: 'El documento oficial y tu evaluación',
+    },
   ]);
   const linksAyuda = soloLinks([
     { route: '/ayuda', icon: 'help-buoy-outline', title: 'Ayuda', caption: 'Preguntas frecuentes y contacto' },
@@ -238,18 +245,20 @@ export default function PerfilScreen() {
             ) : null}
 
             {/* Nadie edita su propio expediente: se PROPONE y RH lo autoriza. */}
-            <FadeInView index={4}>
-              <GrupoLista titulo="Mis datos" descripcion="Propón un cambio y Recursos Humanos lo revisa antes de aplicarlo.">
-                {/* Domicilio campo por campo (calle, número, colonia, C.P., municipio, estado). */}
-                <FilaLista icono="home-outline" titulo="Cambiar mi domicilio" subtitulo="Calle, número, colonia y C.P." onPress={() => router.push('/cambiar-domicilio' as never)} />
-                <FilaLista
-                  icono="create-outline"
-                  titulo="Solicitar actualización de datos"
-                  subtitulo="Corrige un dato personal de tu expediente"
-                  onPress={() => router.push({ pathname: '/solicitud/nueva', params: { tipo: 'actualizacion_datos' } })}
-                />
-              </GrupoLista>
-            </FadeInView>
+            {app('app.solicitudes.crear_actualizacion') ? (
+              <FadeInView index={4}>
+                <GrupoLista titulo="Mis datos" descripcion="Propón un cambio y Recursos Humanos lo revisa antes de aplicarlo.">
+                  {/* Domicilio campo por campo (calle, número, colonia, C.P., municipio, estado). */}
+                  <FilaLista icono="home-outline" titulo="Cambiar mi domicilio" subtitulo="Calle, número, colonia y C.P." onPress={() => router.push('/cambiar-domicilio' as never)} />
+                  <FilaLista
+                    icono="create-outline"
+                    titulo="Solicitar actualización de datos"
+                    subtitulo="Corrige un dato personal de tu expediente"
+                    onPress={() => router.push({ pathname: '/solicitud/nueva', params: { tipo: 'actualizacion_datos' } })}
+                  />
+                </GrupoLista>
+              </FadeInView>
+            ) : null}
 
             <FadeInView index={5}>{renderLinks('Documentos y nómina', linksDocumentos)}</FadeInView>
             <FadeInView index={6}>{renderLinks('Mi trabajo', linksTrabajo)}</FadeInView>

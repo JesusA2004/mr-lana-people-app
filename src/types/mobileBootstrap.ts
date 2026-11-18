@@ -117,6 +117,12 @@ export interface MobileBootstrap {
    * (`utils/guia.ts`). Ausente (backend anterior) = sin bloqueo.
    */
   expediente_incompleto?: unknown;
+  /**
+   * Permisos por botón de la app (`permiso → puede`, backend 2026-11-18).
+   * Leer SIEMPRE con `usePermisos().app()` / `puedeEnApp()`: ausente
+   * (backend anterior) = todo se ofrece como antes.
+   */
+  permisos_app?: Record<string, boolean | undefined>;
   server: {
     time: string;
     timezone: string;

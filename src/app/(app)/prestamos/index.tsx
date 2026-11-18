@@ -15,6 +15,7 @@ import { useMisPrestamos } from '@/hooks/queries/useCicloLaboral';
 import { usePrestamoElegibilidad } from '@/hooks/queries/useCorrecciones';
 import { useSolicitudes } from '@/hooks/queries/useSolicitudes';
 import { formatDateShort } from '@/utils/dates';
+import { usePermisos } from '@/hooks/usePermisos';
 import { formatCurrencyMXN } from '@/utils/formatters';
 import { prestamoEstadoBadge, prestamoEstadoLabel } from '@/utils/loan';
 import { loanRequestsInProgress, loanStagesToTimeline } from '@/utils/loanRequest';
@@ -39,7 +40,10 @@ function MisPrestamosScreen() {
   const enTramite = loanRequestsInProgress(solicitudesQuery.data);
   const vacio = prestamos.length === 0 && enTramite.length === 0;
   const elegibilidad = usePrestamoElegibilidad();
-  const puedeSolicitar = vistaElegibilidad(elegibilidad.data).botonHabilitado;
+  // `app.solicitudes.crear_prestamo` (`permisos_app`; ausente = como siempre).
+  const permisos = usePermisos();
+  const elegible = vistaElegibilidad(elegibilidad.data).botonHabilitado;
+  const puedeSolicitar = elegible && permisos.app('app.solicitudes.crear_prestamo');
   const irASolicitar = () => router.push('/prestamos/solicitar' as never);
 
   const refetch = () => {
@@ -57,7 +61,7 @@ function MisPrestamosScreen() {
       onRetry={refetch}
       refreshing={prestamosQuery.isRefetching || solicitudesQuery.isRefetching}
       onRefresh={refetch}>
-      {!puedeSolicitar ? <ElegibilidadPrestamoResumen elegibilidad={elegibilidad.data} /> : null}
+      {!elegible ? <ElegibilidadPrestamoResumen elegibilidad={elegibilidad.data} /> : null}
       {vacio ? (
         <Card>
           <EmptyState

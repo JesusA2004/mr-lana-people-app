@@ -23,6 +23,7 @@ import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { API_URL } from '@/constants/config';
 import { useCelebracion, useCelebracionMensajes, usePublicarMensajeCelebracion } from '@/hooks/queries/useCelebraciones';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { usePermisos } from '@/hooks/usePermisos';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from '@/store/toastStore';
 import type { CelebracionMensaje } from '@/types/celebracion';
@@ -62,6 +63,8 @@ export default function CelebracionScreen() {
   const authHeaders = token ? { Authorization: `Bearer ${token}` } : undefined;
   const primerNombre = data?.homenajeado.nombre.split(' ')[0] ?? 'tu compañero';
   const puedePublicar = Boolean(data?.puede_escribir) && !isOffline && (texto.trim().length > 0 || foto !== null) && !publicar.isPending;
+  // `app.celebraciones.felicitar` (`permisos_app`; ausente = como siempre).
+  const puedeFelicitar = usePermisos().app('app.celebraciones.felicitar');
   const items = mensajes.data?.pages.flatMap((page) => page.data ?? []) ?? [];
 
   const elegirFoto = async (origen: 'camara' | 'galeria') => {
@@ -148,7 +151,7 @@ export default function CelebracionScreen() {
         />
       </Card>
 
-      {data.recibe_mensajes && data.puede_escribir ? (
+      {data.recibe_mensajes && data.puede_escribir && puedeFelicitar ? (
         <Card style={styles.composer}>
           <Text style={styles.composerTitle}>{data.es_mia ? 'Agradece a tus compañeros' : `Felicita a ${primerNombre}`}</Text>
           <TextInput

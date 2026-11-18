@@ -20,10 +20,12 @@ import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { MascotMessages } from '@/constants/mascotMessages';
 import { requestFamily, type RequestFamily } from '@/constants/requestTypes';
 import { useSolicitudesInfinite } from '@/hooks/queries/useSolicitudes';
+import { usePermisos } from '@/hooks/usePermisos';
 import type { RequestStatus, Solicitud } from '@/types/request';
 import { getErrorMessage } from '@/utils/errors';
 import { debeCargarMasParaFiltro } from '@/utils/filtroPaginado';
 import { humanizeRequestStatus } from '@/utils/formatters';
+import { puedeCrearAlgunaSolicitud } from '@/utils/permisosApp';
 import { ExpedienteGate } from '@/components/guia/ExpedienteGate';
 
 /**
@@ -64,6 +66,9 @@ function SolicitudesScreen() {
   const [family, setFamily] = useState<RequestFamily | 'todas'>('todas');
   const [estado, setEstado] = useState<RequestStatus | 'todos'>('todos');
   const [search, setSearch] = useState('');
+  // Permisos por botón de la app (`permisos_app`; ausente = como siempre).
+  const permisos = usePermisos();
+  const puedeCrear = puedeCrearAlgunaSolicitud(permisos.app);
 
   const solicitudes = useMemo(() => data?.pages.flatMap((page) => page.data) ?? [], [data]);
   const filtered = useMemo(
@@ -88,12 +93,14 @@ function SolicitudesScreen() {
       <AppHeader
         title="Mis solicitudes"
         right={
-          <PressableScale
-            accessibilityLabel="Nueva solicitud"
-            onPress={() => router.push('/solicitud/nueva')}
-            style={styles.newButton}>
-            <Ionicons name="add" size={22} color={Colors.white} />
-          </PressableScale>
+          puedeCrear ? (
+            <PressableScale
+              accessibilityLabel="Nueva solicitud"
+              onPress={() => router.push('/solicitud/nueva')}
+              style={styles.newButton}>
+              <Ionicons name="add" size={22} color={Colors.white} />
+            </PressableScale>
+          ) : undefined
         }
       />
 
@@ -150,8 +157,8 @@ function SolicitudesScreen() {
               message={MascotMessages.todoTranquilo}
               type="tip"
               dismissible={false}
-              actionLabel="Crear solicitud"
-              onAction={() => router.push('/solicitud/nueva')}
+              actionLabel={puedeCrear ? 'Crear solicitud' : undefined}
+              onAction={puedeCrear ? () => router.push('/solicitud/nueva') : undefined}
             />
           ) : (
             <EmptyState
@@ -169,7 +176,7 @@ function SolicitudesScreen() {
         }
       />
 
-      {!isLoading && solicitudes.length === 0 ? (
+      {!isLoading && solicitudes.length === 0 && puedeCrear ? (
         <BarraAccionInferior sobreTeclado={false}>
           <Button title="Nueva solicitud" leftIcon="add-circle-outline" onPress={() => router.push('/solicitud/nueva')} />
         </BarraAccionInferior>

@@ -8,7 +8,9 @@ import { DocumentoProtegido } from './DocumentoProtegido';
 import { SecureDocumentViewer } from './SecureDocumentViewer';
 
 import { cartaCompromisoApi } from '@/api/cartaCompromiso';
+import { Notice } from '@/components/ciclo/Screen';
 import { Spacing, type ColorPalette } from '@/constants/colors';
+import { usePermisos } from '@/hooks/usePermisos';
 import { useEstilos } from '@/theme/ThemeProvider';
 
 export type VisorCartaCompromiso =
@@ -33,12 +35,18 @@ export function CartaCompromisoVisor({ visor, onClose }: { visor: VisorCartaComp
 
 function CartaGenerada({ folio, puedeDescargar, onClose }: { folio?: string | null; puedeDescargar: boolean; onClose: () => void }) {
   const styles = useEstilos(crearEstilos);
+  // `app.carta_compromiso.ver` (`permisos_app`; ausente = como siempre).
+  const puedeVer = usePermisos().app('app.carta_compromiso.ver');
   return (
     <SafeAreaView style={styles.pantalla}>
       <View style={styles.cerrar}>
         <Button title="Cerrar" variant="ghost" leftIcon="close" fullWidth={false} onPress={onClose} />
       </View>
-      <DocumentoProtegido titulo={folio ? `Carta compromiso ${folio}` : 'Carta compromiso'} modo="descarga" path={cartaCompromisoApi.pdfPath()} puedeDescargar={puedeDescargar} />
+      {puedeVer ? (
+        <DocumentoProtegido titulo={folio ? `Carta compromiso ${folio}` : 'Carta compromiso'} modo="descarga" path={cartaCompromisoApi.pdfPath()} puedeDescargar={puedeDescargar} />
+      ) : (
+        <Notice tone="info">No tienes permiso para ver tu carta compromiso en la app. Si la necesitas, pídesela a Recursos Humanos.</Notice>
+      )}
     </SafeAreaView>
   );
 }

@@ -143,6 +143,8 @@ export interface SolicitudTipoConfig {
   requiere_colaborador_objetivo: boolean;
   requiere_motivo: boolean;
   permite_adjuntos: boolean;
+  /** Permiso de la app para crear este tipo (`permitido_app`, backend 2026-11-18). Ausente = sí. */
+  permitido_app?: boolean;
   campos: SolicitudCampo[];
 }
 

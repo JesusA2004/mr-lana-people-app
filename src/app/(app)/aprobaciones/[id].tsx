@@ -13,6 +13,7 @@ import { FilaLista, GrupoLista, Pill, SeccionTitulo, TarjetaAviso } from '@/comp
 import { FontSize, Spacing, type ColorPalette } from '@/constants/colors';
 import { useAprobacionItem, useDecidirAprobacion } from '@/hooks/queries/useAprobaciones';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { usePermisos } from '@/hooks/usePermisos';
 import { toast } from '@/store/toastStore';
 import { useEstilos } from '@/theme/ThemeProvider';
 import type { AprobacionItem } from '@/types/aprobaciones';
@@ -37,6 +38,7 @@ export default function AprobacionDetalleScreen() {
   const decidir = useDecidirAprobacion();
   const { isOffline } = useNetworkStatus();
   const [rechazando, setRechazando] = useState(false);
+  const permisos = usePermisos();
 
   const ejecutar = (solicitud: AprobacionItem, aprobado: boolean, comentario?: string) => {
     decidir.mutate(
@@ -79,6 +81,8 @@ export default function AprobacionDetalleScreen() {
   const pill = item ? pillEstadoFlujo(item.flujo) : null;
   const modo = item ? modoAcciones(item.flujo, item.tipo) : 'sin_turno';
   const bloqueadoPorEstructura = item?.flujo.pasos.some((p) => p.estado === 'pendiente' && p.bloqueado) ?? false;
+  // Visto bueno del jefe: `app.equipo.visto_bueno` (`permisos_app`; ausente = como siempre).
+  const sinPermisoVistoBueno = item?.flujo.accion_usuario_actual === 'visto_bueno' && !permisos.app('app.equipo.visto_bueno');
 
   return (
     <Screen
@@ -90,9 +94,19 @@ export default function AprobacionDetalleScreen() {
       onRetry={refetch}
       refreshing={isRefetching}
       onRefresh={refetch}
-      footerNota={item ? (modo === 'sin_turno' ? motivoSinTurno(item.flujo) : isOffline ? 'Sin conexión: podrás decidir cuando vuelva la red.' : undefined) : undefined}
+      footerNota={
+        item
+          ? sinPermisoVistoBueno
+            ? 'No tienes permiso para dar visto bueno desde la app. Si lo necesitas, pídeselo a Recursos Humanos.'
+            : modo === 'sin_turno'
+              ? motivoSinTurno(item.flujo)
+              : isOffline
+                ? 'Sin conexión: podrás decidir cuando vuelva la red.'
+                : undefined
+          : undefined
+      }
       footer={
-        item ? (
+        item && !sinPermisoVistoBueno ? (
           <BotonesAprobacion
             flujo={item.flujo}
             tipo={item.tipo}

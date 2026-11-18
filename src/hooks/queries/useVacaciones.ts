@@ -27,8 +27,8 @@ export function useVacacionesSaldo() {
  * por debajo es exactamente la misma lista que "Mis solicitudes", filtrada
  * por `tipo === 'vacaciones'` (secciones 3/49 del encargo).
  */
-export function useVacacionesUnificadas() {
-  const query = useSolicitudesInfinite();
+export function useVacacionesUnificadas(enabled = true) {
+  const query = useSolicitudesInfinite(enabled);
 
   const solicitudes = useMemo(
     () => (query.data?.pages.flatMap((page) => page.data) ?? []).filter((item: Solicitud) => item.tipo === 'vacaciones'),

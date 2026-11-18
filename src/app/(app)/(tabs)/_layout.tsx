@@ -8,6 +8,7 @@ import { useBloqueoExpediente } from '@/hooks/queries/useGuia';
 import { useIncorporacion } from '@/hooks/queries/useIncorporacion';
 import { useMobileBootstrap } from '@/hooks/queries/useMobileBootstrap';
 import { useSolicitudes } from '@/hooks/queries/useSolicitudes';
+import { usePermisos } from '@/hooks/usePermisos';
 import { isFeatureEnabled } from '@/utils/featureFlags';
 
 const TAB_BAR_BASE_HEIGHT = 64;
@@ -25,13 +26,16 @@ export default function TabsLayout() {
   const incorporacion = useIncorporacion();
   // Modo completar expediente: Solicitudes está en pausa (423), no se consulta.
   const bloqueoExpediente = useBloqueoExpediente();
-  const solicitudes = useSolicitudes(!bloqueoExpediente.bloqueado);
   // Mismo queryKey/staleTime que `(app)/_layout.tsx` — lectura de caché, no
   // dispara un fetch nuevo. AGENTS.md sección 16: el tab de Vacaciones (y su
   // ruta profunda, ver `Tabs.Protected`) se apaga si el backend desactiva
   // `features.vacaciones` — no basta con ocultar la card del home.
   const bootstrap = useMobileBootstrap(true);
-  const vacacionesEnabled = isFeatureEnabled(bootstrap.data?.features, 'vacaciones');
+  // Permisos por botón de la app (`permisos_app`; ausente = como siempre).
+  const permisos = usePermisos();
+  const solicitudesEnabled = permisos.app('app.solicitudes.ver');
+  const solicitudes = useSolicitudes(!bloqueoExpediente.bloqueado && solicitudesEnabled);
+  const vacacionesEnabled = isFeatureEnabled(bootstrap.data?.features, 'vacaciones') && permisos.app('app.vacaciones.ver');
   // Correcciones que esperan respuesta de la persona (Perfil → Mis correcciones).
   const correccionesPendientes = bootstrap.data?.counts.correcciones_pendientes ?? 0;
 
@@ -84,21 +88,23 @@ export default function TabsLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="solicitudes"
-        options={{
-          title: 'Solicitudes',
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon
-              name={focused ? 'document-text' : 'document-text-outline'}
-              color={color}
-              focused={focused}
-              size={ICON_SIZE}
-              badgeCount={solicitudesConCorreccion}
-            />
-          ),
-        }}
-      />
+      <Tabs.Protected guard={solicitudesEnabled}>
+        <Tabs.Screen
+          name="solicitudes"
+          options={{
+            title: 'Solicitudes',
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon
+                name={focused ? 'document-text' : 'document-text-outline'}
+                color={color}
+                focused={focused}
+                size={ICON_SIZE}
+                badgeCount={solicitudesConCorreccion}
+              />
+            ),
+          }}
+        />
+      </Tabs.Protected>
       <Tabs.Protected guard={vacacionesEnabled}>
         <Tabs.Screen
           name="vacaciones"

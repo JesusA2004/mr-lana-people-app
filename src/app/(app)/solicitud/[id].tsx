@@ -22,6 +22,7 @@ import { FontSize, Layout, Radius, Spacing, type ColorPalette } from '@/constant
 import { useColores, useEstilos } from '@/theme/ThemeProvider';
 import { MascotMessages } from '@/constants/mascotMessages';
 import { useAddSolicitudAttachment, useCancelSolicitud, useSolicitud } from '@/hooks/queries/useSolicitudes';
+import { usePermisos } from '@/hooks/usePermisos';
 import { toast } from '@/store/toastStore';
 import { canCancelSolicitud } from '@/types/request';
 import { formatDateLong, formatDateTime } from '@/utils/dates';
@@ -73,7 +74,9 @@ export default function SolicitudDetalleScreen() {
   const addAttachmentMutation = useAddSolicitudAttachment(id);
 
   const hasDateRange = Boolean(solicitud?.fecha_inicio || solicitud?.fecha_fin);
-  const puedeCancelar = canCancelSolicitud(solicitud);
+  // Permisos por botón de la app (`permisos_app`; ausente = como siempre).
+  const permisos = usePermisos();
+  const puedeCancelar = canCancelSolicitud(solicitud) && permisos.app('app.solicitudes.cancelar');
   const story = getSolicitudStory(solicitud?.estado);
   const prestamoActionLabel = prestamoNextAction(solicitud?.prestamo?.etapas);
   // Motor de aprobaciones: pasos reales calculados por el backend (o null en un backend anterior).
@@ -228,7 +231,7 @@ export default function SolicitudDetalleScreen() {
             {correccion ? (
               <>
                 <CorreccionResumen correccion={correccion} mostrarHistorial={false} />
-                {correccion.puede_responder ? (
+                {correccion.puede_responder && permisos.app('app.solicitudes.responder_correccion') ? (
                   <Button
                     title="Responder a Recursos Humanos"
                     leftIcon="chatbox-ellipses-outline"
@@ -266,6 +269,7 @@ export default function SolicitudDetalleScreen() {
                   </View>
                   <Text style={styles.rejectionLabel}>Motivo</Text>
                   <Text style={styles.rejectionText}>{solicitud.motivo_rechazo}</Text>
+                  {permisos.app('app.solicitudes.adjuntar') ? (
                   <Button
                     title="Agregar documento"
                     variant="outline"
@@ -275,6 +279,7 @@ export default function SolicitudDetalleScreen() {
                     onPress={() => void handleAddDocument()}
                     style={styles.rejectionButton}
                   />
+                  ) : null}
                 </Card>
               </>
             ) : solicitud.motivo_rechazo ? (
@@ -331,7 +336,7 @@ export default function SolicitudDetalleScreen() {
                       titulo={`Permiso ${solicitud.folio ?? ''}`.trim()}
                       modo="descarga"
                       path={solicitudesApi.permisoPdfPath(solicitud.id)}
-                      puedeDescargar={permiso.puede_descargar === true}
+                      puedeDescargar={permiso.puede_descargar === true && permisos.app('app.solicitudes.descargar_formato')}
                     />
                   </>
                 ) : (
